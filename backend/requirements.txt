@@ -1,10 +1,12 @@
-fastapi==0.115.5
-uvicorn[standard]==0.32.1
-httpx==0.27.2
-pydantic==2.9.2
-pydantic-settings==2.6.1
+# Runtime
+fastapi==0.142.2
+uvicorn[standard]==0.54.0
+httpx==0.28.1
+pydantic==2.13.5
+pydantic-settings==2.15.0
+yfinance==1.7.0
+feedparser==6.0.14
 vaderSentiment==3.3.2
-feedparser==6.0.11
-cachetools==5.5.0
-yfinance==0.2.50
-python-dotenv==1.0.1
+defusedxml==0.7.1
+python-dotenv==1.2.4
+rich==15.0.0

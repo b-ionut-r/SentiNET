@@ -17,3 +17,12 @@ npm-debug.log*
 .idea/
 .vscode/
 *.log
+
+# SentiNET runtime data / local caches
+backend/data/
+*.db
+*.db-wal
+*.db-shm
+.ruff_cache/
+frontend/e2e/screenshots/
+frontend/test-results/
