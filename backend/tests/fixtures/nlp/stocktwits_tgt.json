@@ -1,0 +1,299 @@
+{
+ "description": "Real StockTwits symbol stream for TGT, captured 2026-10-04 (api/2/streams/symbol).",
+ "company": {
+  "ticker": "TGT",
+  "name": "Target Corporation",
+  "short_name": "Target",
+  "aliases": [],
+  "industry": "Discount Stores",
+  "sector": "Consumer Defensive"
+ },
+ "items": [
+  {
+   "source": "stocktwits",
+   "title": "$TGT picking up 165 call for 10/30",
+   "timestamp": "2026-10-03T16:42:59Z",
+   "user_label": "bullish",
+   "symbols": [
+    "TGT"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$TGT is this stock retarded ?",
+   "timestamp": "2026-10-02T14:02:05Z",
+   "user_label": null,
+   "symbols": [
+    "TGT"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "Zacks prefers $TGT over $MELI in recent article.",
+   "timestamp": "2026-10-02T12:49:15Z",
+   "user_label": "bullish",
+   "symbols": [
+    "TGT",
+    "MELI"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$NKE funny how MAGA cucks keep spamming go woke and go broke 🤣 If that was the case how do you explain the woke trifecta doing just fine $TGT $DIS and $SBUX",
+   "timestamp": "2026-10-02T09:05:38Z",
+   "user_label": null,
+   "symbols": [
+    "NKE",
+    "TGT",
+    "DIS",
+    "SBUX"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$NKE $TGT $65 by March 2026!!",
+   "timestamp": "2026-10-02T01:37:07Z",
+   "user_label": null,
+   "symbols": [
+    "NKE",
+    "TGT"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$NKE who remembers $TGT $80 s less than an year ago !! ??",
+   "timestamp": "2026-10-02T01:36:22Z",
+   "user_label": "bullish",
+   "symbols": [
+    "NKE",
+    "TGT"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$TGT its not hard...",
+   "timestamp": "2026-10-02T00:20:34Z",
+   "user_label": null,
+   "symbols": [
+    "TGT"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$NKE were they the face of this woke agenda. Not $DIS not $TGT I got this one all wrong.",
+   "timestamp": "2026-10-01T22:53:20Z",
+   "user_label": null,
+   "symbols": [
+    "NKE",
+    "DIS",
+    "TGT"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$NKE when woke dude getting canned? $DIS Chapick got canned. $TGT Cornell got canned",
+   "timestamp": "2026-10-01T22:48:06Z",
+   "user_label": null,
+   "symbols": [
+    "NKE",
+    "DIS",
+    "TGT"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$TGT is coiling really tight against its apex! \n \n50DMA being held as support. just waiting to see $161.25 break!",
+   "timestamp": "2026-10-01T18:38:03Z",
+   "user_label": null,
+   "symbols": [
+    "TGT"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$TGT Target, Safeway win in grocery delivery, pickup \nStudy findings show that grocery ecommerce is increasingly connected to the broader retailer relationship \n \nSupermarket News  \nOctober 1, 2026",
+   "timestamp": "2026-10-01T18:34:05Z",
+   "user_label": "bullish",
+   "symbols": [
+    "TGT"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$TGT options flow lesson: volume and open interest answer different questions. Volume counts contracts traded during the session. Open interest is the standing balance from the prior settle. The two should not be treated as interchangeable. The alert snapshot shows $3.6M in the Dec 18 $155 puts. Volume was 21.1x standing open interest at capture. Intraday volume does not establish whether a position was opened or held; the next settled open interest is the check.",
+   "timestamp": "2026-10-01T17:16:58Z",
+   "user_label": null,
+   "symbols": [
+    "TGT"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "don’t worry $NKE longs. as you recover like $TGT  and $CBRL and $BUD , there’s a new kid on the block for the woke shorts ➡️ $NFLX",
+   "timestamp": "2026-10-01T16:02:15Z",
+   "user_label": null,
+   "symbols": [
+    "NKE",
+    "TGT",
+    "CBRL",
+    "BUD",
+    "NFLX"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$TGT pay attention",
+   "timestamp": "2026-10-01T15:59:32Z",
+   "user_label": null,
+   "symbols": [
+    "TGT"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "#Target Corporation Chart Analysis $TGT https://talkmarkets.com/article/target-corporation-chart-analysis",
+   "timestamp": "2026-09-30T20:30:30Z",
+   "user_label": null,
+   "symbols": [
+    "TGT"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$TGT \n \nHSBC upgraded Target to Buy from Hold today and raised its target to 190 from 125. That is a 52 percent raise, sitting well above the Street average near 166. \n \nAnalyst Joe Thomas also lifted his fiscal 2027 earnings estimate to 10.61 from 8.26, up 28 percent. His case: better sales create operating leverage, pushing margins toward 6 percent. \n \nThe read behind it: second-quarter growth was traffic-driven. Shoppers visited more often instead of spending more per trip. Thomas says that shows Target is rebuilding traffic without cannibalizing its store base. \n \nThe wrinkle: Target cut prices on nearly 2,000 items Tuesday, on top of 10,000-plus over the past year. Traffic built on price cuts is real until the margin math shows up. \n \nShares around 157 today, up 63 percent on the year.",
+   "timestamp": "2026-09-30T19:34:08Z",
+   "user_label": null,
+   "symbols": [
+    "TGT"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$TGT opens +2% and closes in the RED, LOL",
+   "timestamp": "2026-09-30T17:36:16Z",
+   "user_label": null,
+   "symbols": [
+    "TGT"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "Take a look at Target, our chart of the week for 9/30 $TGT. https://explosiveoptions.net/options-trading-charts/target-corp-chart-analysis-2/",
+   "timestamp": "2026-09-30T15:50:54Z",
+   "user_label": null,
+   "symbols": [
+    "TGT"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "🎯 10/02 $TGT 167.5c @0.08\n\nTHIS CAN GO 1,000%+\n\n🕺🔥🕺 oh yeah ✈️🔥✈️",
+   "timestamp": "2026-09-30T14:11:05Z",
+   "user_label": null,
+   "symbols": [
+    "TGT"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$TGT $320 soon.",
+   "timestamp": "2026-09-30T14:02:11Z",
+   "user_label": "bullish",
+   "symbols": [
+    "TGT"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$TGT: Target upgraded to Buy from Hold at HSBC, tgt $190 https://www.briefing.com/calendars/updown?Filter=All&amp;utm_campaign=updown&amp;utm_medium=social&amp;utm_source=st&amp;utm_content=link",
+   "timestamp": "2026-09-30T12:46:20Z",
+   "user_label": null,
+   "symbols": [
+    "TGT"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "I looked at the business behind $TGT (TARGET CORP) for you. Based on financial data and reported results. #TGT #TARGET",
+   "timestamp": "2026-09-30T00:58:29Z",
+   "user_label": null,
+   "symbols": [
+    "TGT"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "UBS has highlighted key U.S. durable-goods retailers as AI-powered shopping agents emerge, potentially reshaping how consumers discover and purchase products. \nWalmart  The retailer is positioned through a combination of partnerships with external AI platforms and investments in its own capabilities. Its scale, logistics network, pricing power and broad product selection remain important regardless of where the shopping journey begins. UBS said the key challenge may be protecting Walmart’s high-margin advertising business and broader ecosystem economics rather than simply maintaining sales growth. \nTarget   The retailer retains competitive advantages from its scale and logistics capabilities. AI agents could increasingly direct traffic toward retailers offering the strongest and most consistent value proposition, while Target will need to balance sales growth with protecting its high-margin advertising business as commerce becomes more agent-driven. \n$WMT  $TGT",
+   "timestamp": "2026-09-29T22:29:55Z",
+   "user_label": null,
+   "symbols": [
+    "WMT",
+    "TGT"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$TGT",
+   "timestamp": "2026-09-29T22:26:39Z",
+   "user_label": null,
+   "symbols": [
+    "TGT"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "Target Cuts Prices On Nearly 2,000 Products Ahead Of Holidays: A Look At The Key Highlights\n\n$TGT $WMT\n\nhttps://stocktwits.com/news/equity/markets/target-cuts-prices-on-nearly-2-000-products-ahead-of-holidays-a-look-at-the-key-highlights/cZMZelCRBWE",
+   "timestamp": "2026-09-29T17:30:36Z",
+   "user_label": null,
+   "symbols": [
+    "TGT",
+    "WMT"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$TGT OMG!  Up 60%!   PE must be like 45 or something.  Wait, it’s only 15?    BUY, BUY, BUY!!!!",
+   "timestamp": "2026-09-29T16:45:02Z",
+   "user_label": "bullish",
+   "symbols": [
+    "TGT"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$TGT picked up 500 shares, with a short term hedge",
+   "timestamp": "2026-09-29T15:22:30Z",
+   "user_label": "bullish",
+   "symbols": [
+    "TGT"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$TGT prices are a tradeoff, if they raise prices = less sales and less shoppers coming to TGT. If they lower prices = less revenue but more shoppers.",
+   "timestamp": "2026-09-29T14:20:26Z",
+   "user_label": null,
+   "symbols": [
+    "TGT"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$TGT (-0.3% pre) Target cuts prices on thousands of products as value war heats up \n \nhttps://ooc.bz/l/115757",
+   "timestamp": "2026-09-29T12:16:14Z",
+   "user_label": null,
+   "symbols": [
+    "TGT"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$TGT Target lowers prices on nearly 2,000 home, apparel products \n \nTarget Corporation is lowering prices on nearly 2,000 home and apparel &amp; accessories items, helping busy families find even more affordable options as holiday shopping gets underway. The latest reductions build on the more than 10,000 prices Target has lowered over the past year, continuing to make it easier for families to afford the things that matter to them. Guests will see price reductions across nearly 2,000 on-trend items and refreshed staples, including: Apparel and shoes: Lower prices across women&#39;s, men&#39;s, infant and toddler apparel and shoes for the entire family, with select items priced 20% or more lower than last year.  \n \nExamples include: Women&#39;s long-sleeve tees are now $12, down from $15; The average price of women&#39;s shoes is $35, down from $40 last year - with nearly 70% of new items priced below last year&#39;s styles; The average price of kids&#39; rain and winter boots is down approximately 15% from last year. Home: A fully refreshed bedding assortment, with prices 15% lower, on average, including: Threshold queen comforters are now $69, down from $89; Room Essentials queen comforters are now $40, down from $50; Threshold performance queen sheets are now $50, down from $55.",
+   "timestamp": "2026-09-29T11:22:22Z",
+   "user_label": null,
+   "symbols": [
+    "TGT"
+   ]
+  }
+ ]
+}

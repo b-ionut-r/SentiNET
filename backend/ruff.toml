@@ -1,0 +1,9 @@
+# Ruff configuration for the SentiNET backend.
+target-version = "py311"
+line-length = 120
+extend-exclude = [".venv", "data"]
+
+[lint]
+select = ["E4", "E7", "E9", "F", "W", "B", "UP", "PLE"]
+# Optional[X] and X | None are both accepted; the pydantic contract uses Optional.
+ignore = ["UP045", "E501"]

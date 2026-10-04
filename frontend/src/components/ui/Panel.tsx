@@ -21,8 +21,8 @@ export function Panel({ title, subtitle, icon, actions, footer, id, className, b
   return (
     <section id={id} className={cx("panel flex flex-col min-w-0 scroll-mt-28", className)}>
       {(title || actions) && (
-        <header className="flex items-start gap-3 px-4 pt-3.5 pb-2.5">
-          <div className="min-w-0 flex-1">
+        <header className="flex flex-wrap items-start gap-x-3 gap-y-2 px-4 pt-3.5 pb-2.5">
+          <div className="min-w-[min(100%,200px)] flex-1">
             <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
               {icon && <span className="text-muted [&>svg]:size-4">{icon}</span>}
               {title}

@@ -133,18 +133,20 @@ _PATTERNS: dict[str, tuple[str, ...]] = {
     ),
     "competition": (
         r"\bcompetit(?:ion|ors?|ive)\b", r"\bcompet(?:e|es|ing)\b", r"\brivals?\b", r"\bmarket share\b",
-        r"\btakes? on\b", r"\bthreat(?:s|en|ens)?\b", r"\bchallenger?s?\b", r"\bdethrone\b", r"\bprice war\b",
+        r"\btakes? on\b", r"\b(?:takes?|taking|gains?|gaining|steals?|stealing|grabs?|cedes?|ceding) (?:market )?share\b", r"\bthreat(?:s|en|ens)?\b", r"\bchallenger?s?\b", r"\bdethrone\b", r"\bprice war\b",
         r"\bvalue war\b", r"\blos(?:es|ing) (?:share|ground|customers)\b", r"\bdisrupt", r"\bvs\.? ",
         r"\bversus\b", r"\bovertake\b", r"\bcatch(?:es|ing)? up\b",
     ),
     "labor": (
-        r"\blayoffs?\b", r"\blay(?:s|ing)? off\b", r"\blaid off\b", r"\bjob cuts?\b", (r"\bcut(?:s|ting)? (?:\w+ ){0,2}"
-        r"jobs\b"), r"\bworkforce\b", r"\bheadcount\b", r"\bunions?\b", r"\bstrikes?\b(?! (?:a |the )?deal)",
+        r"\blayoffs?\b", r"\blay(?:s|ing)? off\b", r"\blaid off\b", r"\bjob cuts?\b", (r"\b(?:cut(?:s|ting)?|eliminat\w+|slash\w*|shed\w*) "
+        r"(?:[\w,.]+ ){0,3}(?:jobs|roles|positions)\b"), r"\bworkforce\b", r"\bheadcount\b", r"\bunions?\b", r"\bstrikes?\b(?! (?:a |the )?deal)",
         r"\bwalkout\b", r"\bworkers\b", r"\bemployees\b", r"\bhiring\b", r"\buaw\b", r"\bteamsters\b",
         r"\blabor (?:costs?|shortage|dispute|market)\b", r"\bredundanc",
     ),
     "trading": (
-        r"\boptions?\b(?! (?:to|for) )", r"\bcalls?\b(?= (?:and|&|or) puts\b)", r"\bput options?\b",
+        (r"\boptions? (?:volume|activity|traders?|market|flows?|bets?|trades?|trading|expir\w*|chain|data|"
+        r"positioning|premiums?|open interest|are pricing|imply|implies|signal|show)\b"),
+        r"\b(?:bullish|bearish|weekly|0dte|unusual|options) (?:options?|bets?|trades?)\b", r"\bcalls?\b(?= (?:and|&|or) puts\b)", r"\bput options?\b",
         r"\bcall options?\b", r"\bshort interest\b", r"\bshort squeeze\b", r"\bsqueeze\b", r"\bshort[- ]sell",
         r"\bshort report\b", r"\bunusual (?:options )?activity\b", r"\bflows?\b", r"\bdark pool\b",
         r"\bblock trades?\b", r"\b(?:trading )?volume\b", r"\bgamma\b", r"\bmeme stocks?\b",

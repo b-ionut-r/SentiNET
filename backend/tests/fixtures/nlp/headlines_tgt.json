@@ -1,0 +1,655 @@
+{
+ "description": "Real Google News RSS headlines (search: \"Target\" (stock OR shares OR TGT) when:7d), captured 2026-10-04. 'story' = hand-labeled narrative ('a|b' = either acceptable, '?' = unknown, null = its own story); 'relevant' = hand-labeled company relevance.",
+ "company": {
+  "ticker": "TGT",
+  "name": "Target Corporation",
+  "short_name": "Target",
+  "aliases": [],
+  "industry": "Discount Stores",
+  "sector": "Consumer Defensive"
+ },
+ "items": [
+  {
+   "title": "Target Stock Just Scored a New 'Buy' Rating. Here's Why. - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-30T18:05:30+00:00",
+   "relevant": true,
+   "story": "hsbc_upgrade"
+  },
+  {
+   "title": "Buy Target Stock, Analyst Says. The Turnaround Is Taking Hold. - Barron's",
+   "publisher": "Barron's",
+   "timestamp": "2026-09-30T16:00:00+00:00",
+   "relevant": true,
+   "story": "hsbc_upgrade"
+  },
+  {
+   "title": "Analyst Praises Target's Turnaround As Retailer Keeps Cutting Prices. The Stock Is In A Buy Area. - Investor's Business Daily",
+   "publisher": "Investor's Business Daily",
+   "timestamp": "2026-09-30T16:55:00+00:00",
+   "relevant": true,
+   "story": "hsbc_upgrade"
+  },
+  {
+   "title": "Better Dividend Stock: Walmart vs. Target - TIKR.com",
+   "publisher": "TIKR.com",
+   "timestamp": "2026-10-03T17:13:27+00:00",
+   "relevant": true,
+   "story": "?"
+  },
+  {
+   "title": "Target (TGT) Stock Could Be Trading Below Fair Value On Its 82% Run - Simply Wall Street",
+   "publisher": "Simply Wall Street",
+   "timestamp": "2026-10-04T00:38:23+00:00",
+   "relevant": true,
+   "story": "?"
+  },
+  {
+   "title": "Can Target’s (TGT) Turnaround Justify the 60% YTD Rally? - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T02:03:00+00:00",
+   "relevant": true,
+   "story": "?"
+  },
+  {
+   "title": "Target (TGT) Cuts Prices After a Strong Rally. Is the Stock Still Cheap? - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-03T04:10:00+00:00",
+   "relevant": true,
+   "story": "price_cuts"
+  },
+  {
+   "title": "Target Stock Just Got a Stunning Upgrade From HSBC - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-30T17:52:37+00:00",
+   "relevant": true,
+   "story": "hsbc_upgrade"
+  },
+  {
+   "title": "Why Target (TGT) Dipped More Than Broader Market Today - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-29T20:45:03+00:00",
+   "relevant": true,
+   "story": "?"
+  },
+  {
+   "title": "What Target (TGT)'s Holiday Price Cuts and Premium Brand Push Mean For Shareholders - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-30T18:12:09+00:00",
+   "relevant": true,
+   "story": "price_cuts"
+  },
+  {
+   "title": "Jefferies Just Raised Its Bloom Energy Price Target -- Stock Jumps 10% - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-30T12:30:26+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Morgan Stanley Resets Okta Stock Price Target For Rest of Year - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-29T19:23:43+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Here is What to Know Beyond Why Target Corporation (TGT) is a Trending Stock - Yahoo Finance Australia",
+   "publisher": "Yahoo Finance Australia",
+   "timestamp": "2026-09-29T12:00:03+00:00",
+   "relevant": true,
+   "story": "?"
+  },
+  {
+   "title": "HSBC Upgrades Target to Buy and Raises Price Target to $190 - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-30T12:38:02+00:00",
+   "relevant": true,
+   "story": "hsbc_upgrade"
+  },
+  {
+   "title": "1 Russell 2000 Stock to Target This Week and 2 We Ignore - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-30T09:25:13+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Target Is Cutting Prices on Thousands of Products Amid a ‘Value War.’ What This Means for TGT Stock. - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T12:17:14+00:00",
+   "relevant": true,
+   "story": "price_cuts"
+  },
+  {
+   "title": "1 Unprofitable Stock to Target This Week and 2 We Question - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-30T10:45:13+00:00",
+   "relevant": false
+  },
+  {
+   "title": "1 Value Stock to Target This Week and 2 That Underwhelm - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-29T09:52:02+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Okta Stock Rises After Morgan Stanley Raises Price Target to $245 - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-30T12:29:19+00:00",
+   "relevant": false
+  },
+  {
+   "title": "1 Safe-and-Steady Stock to Target This Week and 2 We Turn Down - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-30T11:17:13+00:00",
+   "relevant": false
+  },
+  {
+   "title": "1 Large-Cap Stock to Target This Week and 2 We Find Risky - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-28T14:06:36+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Synopsys Is the Nasdaq 100’s Top Stock Today. The Target Says It’s Not Done - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T18:00:52+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Target stock analysis: price cuts, margin pressure, and the holiday test - Investing.com",
+   "publisher": "Investing.com",
+   "timestamp": "2026-09-29T19:30:14+00:00",
+   "relevant": true,
+   "story": "price_cuts|?"
+  },
+  {
+   "title": "Target (TGT) Cuts Prices On Thousands Of Products Before The Holiday Season - Simply Wall Street",
+   "publisher": "Simply Wall Street",
+   "timestamp": "2026-09-30T21:26:02+00:00",
+   "relevant": true,
+   "story": "price_cuts"
+  },
+  {
+   "title": "JCDecaux (ENXTPA:DEC) Stock Fair Value Edges Higher After JPMorgan Target Increases - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-30T23:11:16+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Noah Holdings (NOAH) Stock Fair Value Moves Lower After JPMorgan Target Cut - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-01T17:09:57+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Morgan Stanley resets AMAT stock price target by $79 - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-29T15:07:00+00:00",
+   "relevant": false
+  },
+  {
+   "title": "1 Stock Under $10 to Target This Week and 2 We Question - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-29T12:40:02+00:00",
+   "relevant": false
+  },
+  {
+   "title": "NexPoint Residential Trust (NXRT) Stock Fair Value Falls After Analyst Target Cuts - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-01T07:10:37+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Target's Holiday Blitz: Slashing Prices to Capture Market Share - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T14:55:00+00:00",
+   "relevant": true,
+   "story": "price_cuts"
+  },
+  {
+   "title": "1 Safe-and-Steady Stock to Target This Week and 2 We Brush Off - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-01T10:53:07+00:00",
+   "relevant": false
+  },
+  {
+   "title": "JPMorgan revamps Micron stock price target before earnings - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-30T13:03:00+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Tecan Group Stock Sees Modest Fair Value Lift After Analyst Target Increases - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-03T17:10:13+00:00",
+   "relevant": false
+  },
+  {
+   "title": "1 Cash-Heavy Stock to Target This Week and 2 Facing Headwinds - StockStory",
+   "publisher": "StockStory",
+   "timestamp": "2026-10-01T08:02:54+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Strategy Shares Rise 2.7% After Citi Raises Price Target to $240 - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T10:44:47+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Goldman Sachs Raises Micron Stock Price Target After Earnings - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-01T15:32:37+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Metlen shares rise after Wood lifts price target by 45% - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-29T12:48:20+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Should You Be Adding Target (NYSE:TGT) To Your Watchlist Today? - Moomoo",
+   "publisher": "Moomoo",
+   "timestamp": "2026-10-02T17:37:27+00:00",
+   "relevant": true,
+   "story": "?"
+  },
+  {
+   "title": "Gossamer Bio (GOSS) Stock Draws Fresh Price Target Split Before Seralutinib NDA - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-01T23:12:09+00:00",
+   "relevant": false
+  },
+  {
+   "title": "HSBC upgrades Target stock rating on earnings recovery potential - Investing.com",
+   "publisher": "Investing.com",
+   "timestamp": "2026-09-30T17:37:53+00:00",
+   "relevant": true,
+   "story": "hsbc_upgrade"
+  },
+  {
+   "title": "Target's Room Essentials queen comforters now cost $40, down from $50. - Stock Titan",
+   "publisher": "Stock Titan",
+   "timestamp": "2026-09-29T10:01:00+00:00",
+   "relevant": true,
+   "story": "price_cuts"
+  },
+  {
+   "title": "Target's Dividend Has Survived 8 Recessions. Here's What $10,000 Earns in Dividend Income Yearly. - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-30T15:15:00+00:00",
+   "relevant": true,
+   "story": "dividend_10k"
+  },
+  {
+   "title": "Spotify stock price target raised to $700 over upcoming AI mix tier - Fox Business",
+   "publisher": "Fox Business",
+   "timestamp": "2026-10-02T16:30:10+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Target Cuts Prices on Nearly 2,000 Home and Apparel Products - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-29T12:34:16+00:00",
+   "relevant": true,
+   "story": "price_cuts"
+  },
+  {
+   "title": "My Nvidia Price Target Looks Beyond the Next Few Quarters - 24/7 Wall St.",
+   "publisher": "24/7 Wall St.",
+   "timestamp": "2026-10-01T15:00:00+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Victrex (LSE:VCT) Stock Sees Fair Value Lift After Analyst Target Increases - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T05:10:00+00:00",
+   "relevant": false
+  },
+  {
+   "title": "FLSmidth (CPSE:FLS) Stock Fair Value Edges Higher After Analyst Target Increases - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-03T02:09:00+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Bank of America Cut Its Fair Isaac Price Target in Half and the Stock Still Fell Below It - 24/7 Wall St.",
+   "publisher": "24/7 Wall St.",
+   "timestamp": "2026-10-01T16:15:00+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Synopsys Is the Nasdaq 100’s Top Stock Today. The Target Says It’s Not Done - 24/7 Wall St.",
+   "publisher": "24/7 Wall St.",
+   "timestamp": "2026-10-02T18:00:00+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Micron Stock Is Up 550% in a Year. Analysts Now Target 42% More. - TIKR.com",
+   "publisher": "TIKR.com",
+   "timestamp": "2026-09-30T05:57:32+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Fair Isaac stock pops 11% 2 days after rout, even as BofA cuts price target - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-01T17:53:47+00:00",
+   "relevant": false
+  },
+  {
+   "title": "SpaceX Shares Rise Following TD Cowen “Buy” Rating Initiation - TIKR.com",
+   "publisher": "TIKR.com",
+   "timestamp": "2026-09-30T12:52:18+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Keller Group (LSE:KLR) Stock Fair Value Edges Higher After Analyst Target Increases - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-29T21:07:24+00:00",
+   "relevant": false
+  },
+  {
+   "title": "CLSA raises Micron stock price target on strong memory pricing outlook - Investing.com",
+   "publisher": "Investing.com",
+   "timestamp": "2026-10-02T09:43:38+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Strategy Is Up 30% in a Month and Citigroup Just Doubled Its Price Target to $240. Is It Time to Buy MSTR Stock Now? - 24/7 Wall St.",
+   "publisher": "24/7 Wall St.",
+   "timestamp": "2026-10-02T15:59:00+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Target upgraded at HSBC as \"traffic-driven recovery is underway\" - Yahoo! Finance Canada",
+   "publisher": "Yahoo! Finance Canada",
+   "timestamp": "2026-09-30T13:58:09+00:00",
+   "relevant": true,
+   "story": "hsbc_upgrade"
+  },
+  {
+   "title": "Target Stock Just Got a Stunning Upgrade From HSBC - GuruFocus",
+   "publisher": "GuruFocus",
+   "timestamp": "2026-09-30T17:01:21+00:00",
+   "relevant": true,
+   "story": "hsbc_upgrade"
+  },
+  {
+   "title": "RBC Capital Reaffirms Their Buy Rating on Target (TGT) - The Globe and Mail",
+   "publisher": "The Globe and Mail",
+   "timestamp": "2026-10-04T02:07:26+00:00",
+   "relevant": true,
+   "story": "?"
+  },
+  {
+   "title": "Target stock analysis: price cuts, margin pressure, and the holiday test - Investing.com Nigeria",
+   "publisher": "Investing.com Nigeria",
+   "timestamp": "2026-09-29T20:05:24+00:00",
+   "relevant": true,
+   "story": "price_cuts|?"
+  },
+  {
+   "title": "Target's Holiday Blitz: Slashing Prices to Capture Market Share - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-02T15:04:28+00:00",
+   "relevant": true,
+   "story": "price_cuts"
+  },
+  {
+   "title": "HSBC upgrades Target to Buy, raises PT to $190 (TGT:NYSE) - Seeking Alpha",
+   "publisher": "Seeking Alpha",
+   "timestamp": "2026-09-30T14:06:47+00:00",
+   "relevant": true,
+   "story": "hsbc_upgrade"
+  },
+  {
+   "title": "Walmart Stock Falls After Mizuho Cuts Price Target — Chart Shows a Death Cross - Benzinga",
+   "publisher": "Benzinga",
+   "timestamp": "2026-09-29T14:21:38+00:00",
+   "relevant": false
+  },
+  {
+   "title": "What Changed At Target That The Market Kept Getting Wrong? - Simply Wall Street",
+   "publisher": "Simply Wall Street",
+   "timestamp": "2026-10-02T10:37:09+00:00",
+   "relevant": true,
+   "story": "?"
+  },
+  {
+   "title": "AST SpaceMobile Stock Trades Flat Following B.Riley Price Target Cut to $65 - Benzinga",
+   "publisher": "Benzinga",
+   "timestamp": "2026-10-02T13:16:30+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Target is slashing prices on nearly 2,000 home and apparel items for the holidays - qz.com",
+   "publisher": "qz.com",
+   "timestamp": "2026-09-30T14:11:33+00:00",
+   "relevant": true,
+   "story": "price_cuts"
+  },
+  {
+   "title": "Stifel cuts Stryker stock price target on revenue pressures - Investing.com",
+   "publisher": "Investing.com",
+   "timestamp": "2026-09-29T22:36:56+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Target cuts prices on thousands of products as value war heats up (TGT:NYSE) - Seeking Alpha",
+   "publisher": "Seeking Alpha",
+   "timestamp": "2026-09-29T10:43:56+00:00",
+   "relevant": true,
+   "story": "price_cuts"
+  },
+  {
+   "title": "How Walmart, Target and Dollar General Gain From Tariff Refunds - Yahoo Finance Australia",
+   "publisher": "Yahoo Finance Australia",
+   "timestamp": "2026-10-02T13:00:00+00:00",
+   "relevant": true,
+   "story": "?"
+  },
+  {
+   "title": "Target (TGT) Q2 2025 Earnings: Results, Market Reaction & History - 24/7 Wall St.",
+   "publisher": "24/7 Wall St.",
+   "timestamp": "2026-10-04T09:02:27+00:00",
+   "relevant": true,
+   "story": "?"
+  },
+  {
+   "title": "Target (TGT) Upgraded to Buy with Price Target Raised to $190 - GuruFocus",
+   "publisher": "GuruFocus",
+   "timestamp": "2026-10-01T03:42:16+00:00",
+   "relevant": true,
+   "story": "hsbc_upgrade"
+  },
+  {
+   "title": "Carnival Corporation Ltd. Stock 12‑Month Price Target Cut to $32.97, Implies 34% Upside - TradingView",
+   "publisher": "TradingView",
+   "timestamp": "2026-10-01T07:20:08+00:00",
+   "relevant": false
+  },
+  {
+   "title": "HSBC Upgrades Target (TGT) to Buy, Lifts Price Target to $190 Am - GuruFocus",
+   "publisher": "GuruFocus",
+   "timestamp": "2026-10-03T15:12:58+00:00",
+   "relevant": true,
+   "story": "hsbc_upgrade"
+  },
+  {
+   "title": "Target and Victoria's Secret: Two of retail's biggest turnaround stories (VSXY:NYSE) - Seeking Alpha",
+   "publisher": "Seeking Alpha",
+   "timestamp": "2026-10-04T14:40:04+00:00",
+   "relevant": true,
+   "story": "?"
+  },
+  {
+   "title": "Target's Dividend Has Survived 8 Recessions. Here's What $10,000 Earns in Dividend Income Yearly. - The Motley Fool",
+   "publisher": "The Motley Fool",
+   "timestamp": "2026-09-30T15:55:00+00:00",
+   "relevant": true,
+   "story": "dividend_10k"
+  },
+  {
+   "title": "Weekly Recap: Comp sales and traffic rise with AI and $9–$11 EPS guide - TradingView",
+   "publisher": "TradingView",
+   "timestamp": "2026-09-28T11:00:00+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Wells Fargo reiterates Overweight on Micron stock, $1,400 target - Investing.com",
+   "publisher": "Investing.com",
+   "timestamp": "2026-10-01T11:06:10+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Arm Holdings Stock Closed Above Wall Street’s $289 Target. Here’s the Margin Math That Decides What Comes Next - TIKR.com",
+   "publisher": "TIKR.com",
+   "timestamp": "2026-10-04T15:55:22+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Target Corporation (NYSE:TGT) Stock Has Consensus Price Target of $159.52 - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-09-30T06:22:36+00:00",
+   "relevant": true,
+   "story": "?"
+  },
+  {
+   "title": "HSBC Upgrades Target (TGT) Rating to Buy with Price Target of $1 - GuruFocus",
+   "publisher": "GuruFocus",
+   "timestamp": "2026-10-01T07:11:40+00:00",
+   "relevant": true,
+   "story": "hsbc_upgrade"
+  },
+  {
+   "title": "Truist cuts Vail Resorts stock price target on softer guidance - Investing.com",
+   "publisher": "Investing.com",
+   "timestamp": "2026-09-29T14:42:10+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Deutsche Bank Just Upped Its Price Target on Synopsys Stock. Here's Why. - Barchart.com",
+   "publisher": "Barchart.com",
+   "timestamp": "2026-10-01T18:13:58+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Target's price cuts are seen as the latest winning move by management (TGT:NYSE) - Seeking Alpha",
+   "publisher": "Seeking Alpha",
+   "timestamp": "2026-09-29T17:55:58+00:00",
+   "relevant": true,
+   "story": "price_cuts"
+  },
+  {
+   "title": "Nike, Inc. Stock 12‑Month Price Target Cut to $38.09, Implies 12% Upside - TradingView",
+   "publisher": "TradingView",
+   "timestamp": "2026-10-03T10:20:05+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Target (TGT) Surges 21.1% in Q3 Amid Consumer Shift; Dividend Su - GuruFocus",
+   "publisher": "GuruFocus",
+   "timestamp": "2026-10-04T16:06:54+00:00",
+   "relevant": true,
+   "story": "?"
+  },
+  {
+   "title": "DA Davidson cuts MongoDB stock price target on valuation adjustment - Investing.com",
+   "publisher": "Investing.com",
+   "timestamp": "2026-09-30T15:22:42+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Target (TGT) Announces Holiday Price Cuts Ahead of Circle Deal D - GuruFocus",
+   "publisher": "GuruFocus",
+   "timestamp": "2026-09-29T11:07:08+00:00",
+   "relevant": true,
+   "story": "price_cuts"
+  },
+  {
+   "title": "Coinbase Stock Got a $200 Target From Wells Fargo. Here’s How Its CFO’s Cost Pledge Changes the Math - TIKR.com",
+   "publisher": "TIKR.com",
+   "timestamp": "2026-10-04T15:55:22+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Target's Management Team Deserves Credit for Accelerating Revenue Growth Amid a Challenging Backdrop - The Motley Fool",
+   "publisher": "The Motley Fool",
+   "timestamp": "2026-09-30T04:28:00+00:00",
+   "relevant": true,
+   "story": "?"
+  },
+  {
+   "title": "Micron stock target raised at Baird on higher DRAM pricing assumptions - Investing.com",
+   "publisher": "Investing.com",
+   "timestamp": "2026-09-29T01:45:58+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Hermes stock target lowered at Citi on continued China weakness - Investing.com",
+   "publisher": "Investing.com",
+   "timestamp": "2026-09-30T17:03:08+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Nike, Inc. Stock 12‑Month Price Target Cut to $38.75, Implies 10% Upside - TradingView",
+   "publisher": "TradingView",
+   "timestamp": "2026-10-02T19:20:08+00:00",
+   "relevant": false
+  },
+  {
+   "title": "An Apple (AAPL) CEO stock award may vest at 0% to 200% of its target, depending on shareholder returns. - Stock Titan",
+   "publisher": "Stock Titan",
+   "timestamp": "2026-09-29T22:34:13+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Lennar Corporation Stock 12‑Month Price Target Cut to $75.08, Implies 6% Downside - TradingView",
+   "publisher": "TradingView",
+   "timestamp": "2026-10-01T22:20:09+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Lennar Corporation Stock 12‑Month Price Target Cut to $75.85, Implies 7% Downside - TradingView",
+   "publisher": "TradingView",
+   "timestamp": "2026-10-01T22:20:09+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Morgan Stanley Resets Okta Stock Price Target For Rest of Year - TradingView",
+   "publisher": "TradingView",
+   "timestamp": "2026-09-29T19:23:43+00:00",
+   "relevant": false
+  },
+  {
+   "title": "CVR Energy Inc. Stock 12‑Month Price Target Raised to $34, Implies 33% Downside - TradingView",
+   "publisher": "TradingView",
+   "timestamp": "2026-10-01T16:20:09+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Valvoline Inc. Stock 12‑Month Price Target Cut to $43.25, Implies 43% Upside - TradingView",
+   "publisher": "TradingView",
+   "timestamp": "2026-10-01T22:20:10+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Toll Brothers, Inc. Stock 12‑Month Price Target Cut to $171.87, Implies 28% Upside - TradingView",
+   "publisher": "TradingView",
+   "timestamp": "2026-10-01T22:20:10+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Consolidated Edison, Inc. Stock 12‑Month Price Target Cut to $110.03, Implies 6% Upside - TradingView",
+   "publisher": "TradingView",
+   "timestamp": "2026-10-02T13:20:07+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Micron Technology, Inc. Stock 12‑Month Price Target Raised to $1596.52, Implies 50% Upside - TradingView",
+   "publisher": "TradingView",
+   "timestamp": "2026-10-01T19:20:03+00:00",
+   "relevant": false
+  }
+ ]
+}

@@ -329,19 +329,25 @@ async def _execute_inner(run: _Run) -> Analysis:
         await run.emit(ProgressEvent(stage="source", key=skipped.source.key, label=skipped.source.label,
                                      status="skipped", detail=hint))
 
-    async with asyncio.TaskGroup() as tg:
-        engine_task = tg.create_task(run_cpu(_engine_name))
-        previous_task = tg.create_task(_previous_snapshot(symbol, now))
-        source_tasks = [tg.create_task(_run_source(run, s, company)) for s in planned]
-        deadline = time.monotonic() + INTEL_BUDGET
-        intel_tasks = {
-            s.key: tg.create_task(_run_intel(run, s, deadline)) for s in specs if s.key != "analysts"
-        }
-        analysts_spec = next((s for s in specs if s.key == "analysts"), None)
-        if analysts_spec is not None:
-            intel_tasks["analysts"] = tg.create_task(
-                _run_analysts(run, analysts_spec, symbol, intel_tasks.get("quote"), deadline)
-            )
+    try:
+        async with asyncio.TaskGroup() as tg:
+            engine_task = tg.create_task(run_cpu(_engine_name))
+            previous_task = tg.create_task(_previous_snapshot(symbol, now))
+            source_tasks = [tg.create_task(_run_source(run, s, company)) for s in planned]
+            deadline = time.monotonic() + INTEL_BUDGET
+            intel_tasks = {
+                s.key: tg.create_task(_run_intel(run, s, deadline)) for s in specs if s.key != "analysts"
+            }
+            analysts_spec = next((s for s in specs if s.key == "analysts"), None)
+            if analysts_spec is not None:
+                intel_tasks["analysts"] = tg.create_task(
+                    _run_analysts(run, analysts_spec, symbol, intel_tasks.get("quote"), deadline)
+                )
+            # Fail fast on typos: decide "unknown symbol" as soon as market data and
+            # sources have answered (raising here cancels the slower tasks).
+            tg.create_task(_early_unknown_check(symbol, company, source_tasks, skipped_runs, intel_tasks))
+    except* UnknownSymbol as group:
+        raise group.exceptions[0] from None
     source_runs = [t.result() for t in source_tasks] + skipped_runs
     intel = {k: t.result() for k, t in intel_tasks.items()}
     skipped_keys = {s.key for s in specs if s.skip}
@@ -353,8 +359,6 @@ async def _execute_inner(run: _Run) -> Analysis:
     def val(key: str) -> Any:
         out = intel.get(key)
         return out.value if out is not None and out.ok else None
-
-    _check_known(symbol, company, source_runs, intel, skipped_keys)
 
     inputs = AnalysisInputs(
         company=company,
@@ -628,26 +632,42 @@ def _intel_detail(key: str, value: Any) -> str | None:
 
 
 # ---- synthesis, persistence ------------------------------------------------------ #
-def _check_known(symbol: str, company: CompanyRef, runs: list[Any], intel: dict[str, Outcome[Any]],
-                 skipped: set[str]) -> None:
-    """404 when every provider positively answered "nothing" for a symbol nobody recognizes.
+async def _early_unknown_check(symbol: str, company: CompanyRef, source_tasks: list[asyncio.Task[Any]],
+                               skipped_runs: list[Any], intel_tasks: dict[str, asyncio.Task[Outcome[Any]]]) -> None:
+    decisive = {k: intel_tasks[k] for k in ("quote", "technicals", "profile") if k in intel_tasks}
+    pending = [*decisive.values(), *source_tasks]
+    if pending:
+        await asyncio.wait(pending)
+    _check_known(symbol, company, [t.result() for t in source_tasks] + skipped_runs,
+                 {k: t.result() for k, t in decisive.items()})
 
-    If any provider *failed*, we cannot tell "unknown" from "outage", so the
-    (degraded) analysis proceeds and reports the failures honestly.
+
+def _check_known(symbol: str, company: CompanyRef, runs: list[Any], intel: dict[str, Outcome[Any]]) -> None:
+    """404 when market data positively says "no such instrument" and no source has any coverage.
+
+    Yahoo's quote is the authority on whether a symbol trades: only an *answer*
+    of "nothing" counts (a failed quote could be an outage, so the degraded
+    analysis proceeds and reports it). Name-search providers (GDELT, Wikipedia)
+    say nothing about existence and are ignored here.
     """
     if company.cik or company.name != symbol:
         return
-    if any(o.ok and has_data(o.value) for k, o in intel.items() if k in ("profile", "quote", "technicals")):
+    quote = intel.get("quote")
+    if quote is None or not quote.ok or has_data(quote.value):
+        return
+    technicals = intel.get("technicals")
+    if technicals is not None and technicals.ok and has_data(technicals.value):
+        return
+    profile = intel.get("profile")
+    p = profile.value if profile is not None and profile.ok else None
+    if isinstance(p, Profile) and (p.name != symbol or p.sector or p.exchange):
         return
     if any(getattr(r, "status", None) == "ok" for r in runs):
         return
-    failed = any(not o.ok for k, o in intel.items() if k not in skipped)
-    failed = failed or any(getattr(r, "status", None) == "error" for r in runs)
-    if not failed:
-        raise UnknownSymbol(
-            f"No market data or coverage found for '{symbol}'. Check the symbol "
-            "(exchange suffix like SHOP.TO, crypto like BTC-USD)."
-        )
+    raise UnknownSymbol(
+        f"No market data or coverage found for '{symbol}'. Check the symbol "
+        "(exchange suffix like SHOP.TO, crypto like BTC-USD)."
+    )
 
 
 async def _synthesize(run: _Run, inputs: Any) -> Analysis:

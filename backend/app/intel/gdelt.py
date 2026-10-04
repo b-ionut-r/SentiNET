@@ -21,6 +21,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import math
+import re
+import time
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
@@ -40,7 +42,8 @@ LANG = "sourcelang:english"
 RATE_LIMIT_WAIT = 6.0
 
 # Curated queries where the brand alone is ambiguous or not what the news says.
-# Each must be valid GDELT syntax: quoted phrases, one level of (… OR …) groups.
+# Each must be valid GDELT syntax: quoted phrases, one level of (… OR …) groups —
+# parentheses around a single term are rejected ("may only be used around OR'd statements").
 CURATED: dict[str, str] = {
     "AAPL": '"Apple" (iPhone OR iPad OR Mac OR iOS OR "Apple Inc" OR AAPL OR "Tim Cook" OR Cupertino)',
     "META": '"Meta" (Zuckerberg OR Instagram OR WhatsApp OR Facebook OR "Meta Platforms" OR "Meta AI")',
@@ -65,12 +68,13 @@ CURATED: dict[str, str] = {
     "GPS": '("Gap Inc" OR "Old Navy" OR "Banana Republic" OR "Gap shares")',
     "CCL": '("Carnival Corp" OR "Carnival Cruise" OR "Carnival shares")',
     "DAL": '("Delta Air Lines" OR "Delta Airlines")',
-    "UAL": '("United Airlines")',
-    "AAL": '("American Airlines")',
-    "LUV": '("Southwest Airlines")',
+    "UAL": '"United Airlines"',
+    "AAL": '"American Airlines"',
+    "LUV": '"Southwest Airlines"',
     "BP": '("BP plc" OR "BP shares" OR "BP oil" OR "BP CEO")',
     "GE": '("GE Aerospace" OR "General Electric")',
-    "T": '("AT&T")',
+    # GDELT tokenizes "AT&T" to "at t" (matches "S & T", "at the"…): require telecom context.
+    "T": '"AT&T" (wireless OR telecom OR carrier OR broadband OR fiber OR Verizon OR "T-Mobile")',
     "C": '("Citigroup" OR "Citi bank" OR "Citibank")',
     "HOOD": '("Robinhood Markets" OR "Robinhood app" OR "Robinhood shares" OR "Robinhood stock" OR "Robinhood CEO")',
     "SPY": '"S&P 500"',
@@ -86,9 +90,9 @@ CURATED: dict[str, str] = {
     "SLV": '("silver prices" OR "silver price" OR "price of silver")',
     "USO": '("oil prices" OR "crude oil" OR "Brent crude")',
     "TLT": '("Treasury yields" OR "bond market" OR "Treasury bonds")',
-    "ETH-USD": '("Ethereum")',
+    "ETH-USD": '"Ethereum"',
     "XRP-USD": '("XRP" OR "Ripple Labs")',
-    "SOL-USD": '("Solana")',
+    "SOL-USD": '"Solana"',
 }
 
 
@@ -113,7 +117,8 @@ def build_query(company: CompanyRef) -> str:
     names = [short] + [a for a in company.aliases if len(a) >= 4 and short.lower() not in a.lower()]
     names = [n for n in dict.fromkeys(names) if n]
     if company.quote_type == "EQUITY":
-        if len(short.replace("&", "")) <= 3:
+        # Short acronyms and "X&Y" initials ("H&R", "M&T") tokenize to near-stopwords.
+        if len(short.replace("&", "")) <= 3 or re.search(r"\b\w{1,2}&\w{1,2}\b", short):
             return f"{_phrase(short)} {_ACRONYM_CONTEXT} {LANG}"
         if is_common_word_name(short):
             anchors = [f"{short} Inc", f"{short} Corp", f"{short} shares", f"{short} stock", f"{short} CEO"]
@@ -266,10 +271,11 @@ def _is_rate_limit_text(text: str) -> bool:
     return "limit requests" in text.lower()
 
 
-async def _gdelt(query: str, mode: str, days: int) -> Any:
-    """One GDELT timeline call; retries once after a rate-limit answer."""
+async def _gdelt(query: str, mode: str, days: int, *, retry: bool = True) -> Any:
+    """One GDELT timeline call; retries once after a rate-limit answer if `retry`."""
     params = {"query": query, "mode": mode, "timespan": f"{days}d", "format": "json"}
-    for attempt in range(2):
+    attempts = 2 if retry else 1
+    for attempt in range(attempts):
         try:
             resp = await fetch(API_URL, params=params, api_ua=True, retries=0, timeout=20.0)
         except httpx.HTTPStatusError as exc:
@@ -285,7 +291,7 @@ async def _gdelt(query: str, mode: str, days: int) -> Any:
         if not body and resp.status_code == 200:
             return {}
         if resp.status_code == 429 or _is_rate_limit_text(body):
-            if attempt == 0:
+            if attempt + 1 < attempts:
                 await asyncio.sleep(RATE_LIMIT_WAIT)
                 continue
             raise GdeltRateLimited("GDELT rate limit (1 request / 5 s per IP)")
@@ -302,14 +308,40 @@ async def _tone_trend(query: str, fallback: str, days: int) -> ToneTrend | None:
         query = fallback
         tone = await _gdelt(query, "timelinetone", days)
     try:
-        volume = await _gdelt(query, "timelinevolraw", days)
+        # Single attempt: a second rate-limit wait would push the task past the
+        # orchestrator's intel timeout and lose the tone we already have.
+        volume = await _gdelt(query, "timelinevolraw", days, retry=False)
     except UpstreamError as exc:  # tone without volume is still the core signal
         logger.info("GDELT volume unavailable for %r: %s", query, exc)
         volume = {}
     return build_trend(query, tone, volume, today=datetime.now(timezone.utc).date())
 
 
+# Last good result per query: GDELT refuses often from shared IPs, and a trend
+# fetched a few hours ago is far more useful than none (its dates say how old it is).
+_LAST_GOOD: dict[tuple[str, int], tuple[float, ToneTrend]] = {}
+STALE_MAX_SECONDS = 24 * 3600
+
+
 async def get_tone_trend(company: CompanyRef, days: int = 90) -> ToneTrend | None:
-    """Daily GDELT tone + article volume for the company over the last `days` (<= 90)."""
+    """Daily GDELT tone + article volume for the company over the last `days` (<= 90).
+
+    On a GDELT refusal, serves the last good trend for the same query if it is
+    less than a day old; otherwise raises `UpstreamError`.
+    """
     span = max(7, min(int(days), 90))
-    return await _tone_trend(build_query(company), fallback_query(company), span)
+    query = build_query(company)
+    key = (query, span)
+    try:
+        trend = await _tone_trend(query, fallback_query(company), span)
+    except UpstreamError:
+        stale = _LAST_GOOD.get(key)
+        if stale and time.monotonic() - stale[0] < STALE_MAX_SECONDS:
+            logger.info("GDELT unavailable; serving last good trend for %r", query)
+            return stale[1]
+        raise
+    if trend is not None:
+        if len(_LAST_GOOD) > 512:
+            _LAST_GOOD.pop(next(iter(_LAST_GOOD)))
+        _LAST_GOOD[key] = (time.monotonic(), trend)
+    return trend

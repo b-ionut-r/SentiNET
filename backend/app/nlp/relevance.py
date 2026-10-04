@@ -48,6 +48,12 @@ META CAT DOCS SNOW NET PATH COIN HOOD SNAP BALL ROCK BOX DASH ZETA PINS SHOP GAP
 TOST CART CHWY ROOT LMND MATCH MTCH OPEN PEP KO GE GM HD MA MS BA C F T V K D O ED SO DE
 """)
 
+# Word-like tickers that are also common UPPER-CASE acronyms ("SNAP benefits",
+# "ICE raids", "CAT scan"): a bare match needs market vocabulary nearby.
+ACRONYM_TICKERS: frozenset[str] = wordset("""
+SNAP ICE CAT NET PATH ROOT OPEN BOX RIDE RENT CART MATCH GAP BALL ROCK SHOP PLUG BIRD NOVA DASH NOW AI
+""")
+
 # Brand names that are also common words, surnames or places.
 AMBIGUOUS_NAMES: frozenset[str] = wordset("""
 apple target meta block snap visa shell amazon oracle ford gap delta united alphabet unity square zoom match toast affirm
@@ -72,6 +78,22 @@ _FUND_ISSUERS_RE = re.compile(r"^(?:SPDR|iShares|Vanguard|Invesco|ProShares|Dire
                               r"WisdomTree|First Trust|Select Sector SPDR)\s+", re.IGNORECASE)
 _FUND_WORDS_RE = re.compile(r"\s+(?:ETF|Trust|Fund|Index Fund|Shares|ETF Trust)\b.*$", re.IGNORECASE)
 
+# Common given names: "Katrina Ford", "Priscilla Block" are people, not companies.
+FIRST_NAMES = wordset("""
+aaron adam alan albert alex alexander alice amanda amy andrew angela anna anne anthony ashley barbara ben benjamin
+betty beth bill billy bob bobby brad brandon brenda brian bruce carl carol caroline catherine charles charlie chris
+christina christine christopher cindy claire craig cynthia dan daniel danny david deborah debra dennis diana diane
+donald donna doug douglas dylan edward elizabeth ellen emily emma eric erin ethan eugene frank fred gary george
+gerald grace greg gregory hannah harold harrison harry heather helen henry jack jacob james jamie jane janet jason
+jeff jeffrey jennifer jeremy jerry jessica jill jim jimmy joan joe john johnny jon jonathan jordan jose joseph joshua
+joyce judith judy julia julie justin karen kate katherine kathleen kathy katie katrina keith kelly ken kenneth kevin
+kim kimberly kyle larry laura lauren lawrence linda lisa lori louis luke lynn margaret maria marie marilyn mark martha
+martin mary matt matthew megan melissa michael michelle mike nancy natalie nathan nicholas nicole noah olivia pamela
+patricia patrick paul peter philip priscilla rachel ralph randy raymond rebecca richard rick rob robert roger ronald
+rose roy russell ruth ryan sam samantha samuel sandra sara sarah scott sean sharon shirley sophia stephanie stephen
+steve steven susan teresa terry thomas tim timothy tina todd tom tony tyler victoria vincent virginia walter wayne
+william zachary
+""")
 DETERMINERS = wordset("""the a an its their his her our your this that these those my own new every each any no some
 same price stock key main primary easy prime next latest fresh lost moving soft hard upper lower""")
 
@@ -84,7 +106,8 @@ _COMPANY_FOLLOWERS = (
     r"options|calls|puts|q[1-4]|fiscal|quarter|quarterly|deliveries|layoffs|lawsuit|headquarters|hq|retail|website|"
     r"patents?|verdict|trial|case|suit|antitrust|probe|settlement|fine|ruling|appeal|partners?|suppliers?|rivals?|"
     r"competitors?|event|keynote|ai|chips?|software|hardware|ecosystem|services|ads|advertising|cloud|campus|"
-    r"smartphones?|phones?|earnings call|growth|margins?|buyback|dividend|turnaround|strategy|leadership"
+    r"smartphones?|phones?|earnings call|growth|margins?|buyback|dividend|turnaround|strategy|leadership|"
+    r"price targets?|price objectives?|target prices?|pts?|ratings?|short interest"
 )
 _FOLLOWER_RE = re.compile(rf"^\s+(?:{_COMPANY_FOLLOWERS})\b(?!-)", re.IGNORECASE)
 _POSSESSIVE_RE = re.compile(r"^'s\b")
@@ -97,7 +120,8 @@ _STRONG_BEFORE_RE = re.compile(
     r"(?:rating|stance|view) on|reiterates? \w+ on|maintains? \w+ on|buy|buying|sell|selling|short|shorting|long|"
     r"own|owning|bought|sold|vs\.?|versus|sues?|sued|suing|acquires?|acquiring|backs|likes|prefers|favors|"
     r"names|picks|loves|hates|dumps|trims|adds|boosts stake in|cuts stake in|praises|beats|joins|"
-    r"(?:invest(?:ed|ing|s)?|stake|position|bet|bets|betting|exposure) in|shares of|stock of|bullish on|bearish on)\s*$",
+    r"(?:invest(?:ed|ing|s)?|stake|position|bet|bets|betting|exposure) in|shares of|stock of|bullish on|bearish on|"
+    r"(?:loading|loads|load|loaded) up on|pil(?:es|ing|ed) into|bets? on|betting on|long on|short on)\s*$",
     re.IGNORECASE,
 )
 # A verb right after a sentence-initial name: "Target Slashes Prices", "Meta taps".
@@ -128,7 +152,15 @@ _FINANCE_CONTEXT_RE = re.compile(
     r"analysts?|upgrades?|downgrades?|rating|ceo|cfo|executives?|dividend|buyback|market (?:cap|value)|valuation|"
     r"ipo|acquisition|merger|nyse|nasdaq|wall street|traders?|bullish|bearish|rall(?:y|ies)|plunges?|surges?|"
     r"premarket|after-hours|sec filing|10-[kq]|8-k|eps|margin|forecast|fiscal|retailer|company|firm|brand|market|"
-    r"customers?|consumers?|shoppers?|sales|stores?|deal|layoffs|lawsuit|regulators?|antitrust|chips?|ai)\b",
+    r"customers?|consumers?|shoppers?|sales|stores?|deal|layoffs|lawsuit|regulators?|antitrust|chips?|ai|"
+    r"financing|debt|bonds?|capex|spending|funding|backlog|contracts?|cloud|data cent(?:er|re)s?)\b",
+    re.IGNORECASE,
+)
+# Market vocabulary that confirms a word-like bare ticker ("SNAP shares", "META earnings").
+_TICKER_CONTEXT_RE = re.compile(
+    r"\b(?:stocks?|shares?|share price|earnings|eps|revenue|guidance|analysts?|price target|upgrades?|"
+    r"downgrades?|calls|puts|options|nyse|nasdaq|market cap|investors?|traders?|rall(?:y|ies)|premarket|"
+    r"after-hours|short interest|valuation|dividend|buyback|bullish|bearish|ipo|q[1-4]|quarter)\b",
     re.IGNORECASE,
 )
 _LISTICLE_RE = re.compile(
@@ -163,7 +195,7 @@ class NameRule:
 
     negative: str = ""  # regex (case-insensitive); spans that are NOT the company
     cues: str = ""  # regex (case-insensitive); words that confirm the company anywhere in the text
-    products: tuple[str, ...] = ()  # capitalized words that may follow the name ("Apple Watch")
+    products: tuple[str, ...] = ()  # lower-case words that may follow the name ("Apple Watch")
 
 
 # Brokers that precede "target" in price-target headlines ("JPMorgan Target Cut").
@@ -206,8 +238,8 @@ NAME_RULES: dict[str, NameRule] = {
                  r"hospitality|bank|valley|blossom|vinegar|fritters?|turnover|cake|slices?|nachos|day)\b",
         cues=r"\b(?:AAPL|iphone|ipad|macbook|mac|ios|siri|tim cook|cook|ternus|app store|vision pro|airpods|"
              r"apple (?:watch|tv|music|pay|intelligence|card|arcade|store|silicon)|cupertino|foxconn)\b",
-        products=("Watch", "TV", "Music", "Pay", "Intelligence", "Card", "Arcade", "Store", "Silicon", "Vision",
-                  "Maps", "News", "Books", "ID", "Park", "Newsroom", "Support"),
+        products=("watch", "tv", "music", "pay", "intelligence", "card", "arcade", "store", "silicon", "vision",
+                  "maps", "news", "books", "id", "park", "newsroom", "support"),
     ),
     "meta": NameRule(
         negative=r"\bmeta[- ](?:analysis|analyses|analytic|data|description|tags?|review|regression|learning|"
@@ -215,7 +247,7 @@ NAME_RULES: dict[str, NameRule] = {
                  r"\bmeta financial\b|\b(?:very|so|too|pretty|kinda) meta\b",
         cues=r"\b(?:facebook|instagram|whatsapp|threads|zuckerberg|reality labs|llama|oculus|quest|ray-ban|"
              r"menlo park|meta ai)\b",
-        products=("AI", "Platforms", "Quest", "Connect", "Superintelligence"),
+        products=("ai", "platforms", "quest", "connect", "superintelligence", "glasses", "smart", "ray-ban", "muse"),
     ),
     "block": NameRule(
         negative=r"\b(?:h&r|h & r|ken|priscilla|city|cell|road|chopping|starting|building|mental|writer'?s|"
@@ -231,12 +263,14 @@ NAME_RULES: dict[str, NameRule] = {
                  r"heater|island|association|captain|watch|by block|height|reward|explorer|size|time|production)\b"
                  r"|\bblock(?:ed|ing|s)\b|\bthe block\b|\bstock the block\b",
         cues=r"\b(?:XYZ|square|cash app|afterpay|dorsey|tidal|bitkey|proto|spiral|tbd)\b",
-        products=("Inc",),
+        products=("inc",),
     ),
     "snap": NameRule(
         negative=r"\bsnap (?:election|elections|poll|polls|judgment|judgement|decision|back|shot|chat|benefits?|"
-                 r"recipients?|program|cuts?|work requirements|peas|pea)\b|\b(?:oh|cold|ginger) snap\b|"
-                 r"\bsnap(?:s|ped|ping)\b|\bSNAP\b(?!\s?\))",
+                 r"recipients?|program|programs|cuts?|changes?|rules?|funding|eligibility|enrollment|cards?|costs?|"
+                 r"customers|households|participants|work requirements|error rate|fraud|peas|pea|counts?|"
+                 r"skid|streak|drought)\b|\b(?:oh|cold|ginger|on|of|food) snap\b|\bsnap(?:s|ped|ping)\b|"
+                 r"\bfood stamps\b|\b(?:medicaid|ebt|usda|wic)\b",
         cues=r"\b(?:snapchat|spiegel|snap inc|spectacles|bitmoji)\b",
     ),
     "visa": NameRule(
@@ -256,13 +290,13 @@ NAME_RULES: dict[str, NameRule] = {
         negative=r"\b(?:the|brazilian|peruvian) amazon\b|\bamazon (?:rainforest|river|basin|region|jungle|"
                  r"deforestation|fires?|forest|tribes?|indigenous)\b",
         cues=r"\b(?:AMZN|aws|jassy|bezos|prime|alexa|kuiper|whole foods|e-commerce|amazon web services)\b",
-        products=("Web", "Prime", "Pharmacy", "Music", "Fresh", "Go", "Air", "Kuiper", "Q"),
+        products=("web", "prime", "pharmacy", "music", "fresh", "go", "air", "kuiper", "q"),
     ),
     "oracle": NameRule(
-        negative=r"\boracle of (?:omaha|delphi)\b|\bthe oracle\b|\boracles?\b(?= (?:network|protocol|price feed|"
-                 r"problem|data))|\bchainlink\b",
+        negative=r"\boracle of (?:omaha|delphi)\b|\bthe oracle\b(?! (?:stock|shares|corp))|"
+                 r"\boracles?\b(?= (?:network|protocol|price feeds?))|\bchainlink\b",
         cues=r"\b(?:ORCL|ellison|catz|oci|cloud infrastructure|stargate|cerner|database|netsuite|magouyrk|sicilia)\b",
-        products=("Cloud", "Health", "Database"),
+        products=("cloud", "health", "database"),
     ),
     "ford": NameRule(
         negative=r"\b(?:harrison|gerald|betty|tom|doug|henry ford (?:museum|hospital|health)|tennessee ernie|"
@@ -281,7 +315,7 @@ NAME_RULES: dict[str, NameRule] = {
         negative=r"\bdelta (?:variant|wave|neutral|hedg\w+|exposure|force|state|blues|region|smelt|faucet|"
                  r"one|t|v)\b|\b(?:mississippi|river|nile|mekong|sacramento|niger|pearl river|options?|greek) delta\b",
         cues=r"\b(?:DAL|airlines?|air lines|flights?|bastian|skymiles|carriers?|airfare|passengers?)\b",
-        products=("Air",),
+        products=("air",),
     ),
     "united": NameRule(
         negative=r"\bunited (?:states|nations|kingdom|arab|auto workers|steelworkers|way|front|church|"
@@ -289,7 +323,7 @@ NAME_RULES: dict[str, NameRule] = {
                  r"\b(?:manchester|leeds|newcastle|west ham|sheffield|dundee|atlanta|dc|minnesota|new england|"
                  r"red bull|hearts? and) united\b",
         cues=r"\b(?:UAL|airlines?|flights?|kirby|mileageplus|carriers?|passengers?|airfare)\b",
-        products=("Airlines",),
+        products=("airlines",),
     ),
     "alphabet": NameRule(
         negative=r"\balphabet (?:soup|letters?|book|song)\b|\b(?:the|english|latin|greek|phonetic|cyrillic) alphabet\b",
@@ -336,14 +370,14 @@ NAME_RULES: dict[str, NameRule] = {
                  r"\barms? (?:race|deal|deals|sales|sale|control|length|embargo|dealers?|exports?|shipments?|"
                  r"trade|makers?|industry|manufacturers?|stockpile|cache|supply|supplies)\b|\barms\b|\barmed\b",
         cues=r"\b(?:softbank|rene haas|haas|chip designs?|royalt(?:y|ies)|architecture|licens\w+|cpus?)\b",
-        products=("Holdings",),
+        products=("holdings",),
     ),
     "unity": NameRule(
         negative=r"\b(?:national|party|christian|european|global|in|of|with|show of|call for|calls for|sense of|"
                  r"government of|family|community|racial|social)\s+unity\b|\bunity (?:government|day|rally|"
                  r"party|candle|march|in|among|between|of)\b",
         cues=r"\b(?:game engine|unity software|bromberg|ironsource|vector|grow|developers)\b",
-        products=("Software",),
+        products=("software",),
     ),
     "zoom": NameRule(
         negative=r"\bzoom (?:in|out|into|lens|meeting|meetings|call|calls)\b|\b(?:on|via|over|a) zoom\b|"
@@ -375,7 +409,8 @@ _INDUSTRY_CUES: tuple[tuple[re.Pattern[str], str], ...] = tuple((re.compile(k, r
      r"ai|apps?|users|cloud|software|platform|subscribers?|advertis\w+|ads"),
     (r"consumer electronics", r"devices?|smartphones?|hardware|iphone|ai"),
     (r"bank|credit services|capital markets|financial|insurance|asset management",
-     r"bank|banking|lending|loans?|deposits?|payments?|fintech|credit|bitcoin|crypto|merchants?"),
+     (r"bank|banking|lending|loans?|deposits?|payments?|fintech|credit|bitcoin|crypto|merchants?|stablecoins?|"
+      r"cards?|tokeniz\w+|wallets?|checkout")),
     (r"auto", r"vehicles?|cars?|evs?|electric vehicles?|deliveries|autonomous|robotaxi"),
     (r"oil|gas|energy", r"oil|gas|crude|barrels?|refin\w+|lng|drilling|output"),
     (r"drug|biotech|pharma|medical|health", r"drugs?|fda|trials?|patients|therap\w+|vaccines?|approval"),
@@ -422,6 +457,7 @@ class _Matcher:
     bare_upper: re.Pattern[str] | None
     bare_any: re.Pattern[str] | None
     soft_ticker: bool
+    acronym_ticker: bool
     names: tuple[_NameVariant, ...]
     cues: re.Pattern[str] | None
     brand_cues: re.Pattern[str] | None
@@ -535,7 +571,7 @@ def _matcher_for(ticker: str, name: str, short_name: str, aliases: tuple[str, ..
     own_words = frozenset(w for v in variants for w in re.findall(r"[a-z0-9]+", v.text.lower()))
     return _Matcher(
         ticker=ticker, symbols=symbols, cashtag=cashtag, qualified=qualified, bare_upper=bare_upper,
-        bare_any=bare_any, soft_ticker=soft, names=tuple(variants), cues=cues, brand_cues=brand_cues,
+        bare_any=bare_any, soft_ticker=soft, acronym_ticker=base_symbol in ACRONYM_TICKERS, names=tuple(variants), cues=cues, brand_cues=brand_cues,
         industry_cues=industry_cues,
         own_words=own_words,
     )
@@ -581,9 +617,11 @@ def _classify(text: str, start: int, end: int, variant: _NameVariant, matcher: _
         return -1
     next_word = re.match(r"\s+([A-Za-z]+)", after)
     products = variant.rule.products if variant.rule else ()
-    if _FOLLOWER_RE.match(after) or (next_word and next_word.group(1) in products):
-        return 1
     prev = re.search(r"([A-Za-z$][\w'$.]*)\s+$", before)
+    if prev and prev.group(1)[:1].isupper() and prev.group(1).lower() in FIRST_NAMES:
+        return -1  # a person: "Katrina Ford", "Ken Block"
+    if _FOLLOWER_RE.match(after) or (next_word and next_word.group(1).lower() in products):
+        return 1
     if prev and prev.group(1).lower().removesuffix("'s") in DETERMINERS:
         return -1
     if _POSSESSIVE_RE.match(after) or _STRONG_BEFORE_RE.search(before):
@@ -648,11 +686,27 @@ def explain_relevance(text: str, company: CompanyRef) -> RelevanceResult:
         if matcher.bare_any and not shouting:
             bare = matcher.bare_any
         if bare:
+            neg_spans = [span for v in matcher.names if v.text.upper() in matcher.symbols
+                         for span in _negative_spans(t, v.rule)]
             for m in bare.finditer(t):
+                if any(a <= m.start() < b for a, b in neg_spans):
+                    evidence.append(f"not-ticker {m.group(0)}")
+                    continue
+                if matcher.acronym_ticker and (neg_spans or not _TICKER_CONTEXT_RE.search(t)):
+                    evidence.append(f"unconfirmed ticker {m.group(0)}")
+                    continue  # "SNAP benefits": an acronym, not the stock
                 score = max(score, 0.9)
                 positions.append(m.start())
                 mentions += 1
                 evidence.append(f"ticker {m.group(0)}")
+    if score < 0.8:
+        listed = re.search(rf"(?:\b[A-Z]{{1,5}},\s*)+(?:{'|'.join(map(re.escape, matcher.symbols))})\b(?:,\s*[A-Z]{{1,5}}\b)*"
+                           rf"|\b(?:{'|'.join(map(re.escape, matcher.symbols))}),\s*[A-Z]{{1,5}}\b", t)
+        if listed and not shouting:
+            score = max(score, 0.8)
+            positions.append(listed.start())
+            mentions += 1
+            evidence.append("ticker in symbol list")
 
     name_level = 0.0
     any_neutral = False

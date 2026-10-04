@@ -19,12 +19,12 @@ const KIND: Record<InsightKind, { label: string; Icon: typeof Flame }> = {
   quality: { label: "Data quality", Icon: Database },
 };
 
-const RANK = { alert: 0, watch: 1, info: 2 } as const;
+const RANK: Record<string, number> = { alert: 0, watch: 1, info: 2 };
 
 export function InsightsRail({ insights, className }: { insights: Insight[]; className?: string }) {
-  const sorted = [...insights].sort((a, b) => RANK[a.severity] - RANK[b.severity]);
-  const counts = { alert: 0, watch: 0, info: 0 };
-  insights.forEach((i) => counts[i.severity]++);
+  const sorted = [...insights].sort((a, b) => (RANK[a.severity] ?? 3) - (RANK[b.severity] ?? 3));
+  const counts: Record<string, number> = { alert: 0, watch: 0, info: 0 };
+  insights.forEach((i) => (counts[i.severity] = (counts[i.severity] ?? 0) + 1));
   return (
     <Panel
       id="insights"
@@ -41,7 +41,7 @@ export function InsightsRail({ insights, className }: { insights: Insight[]; cla
             const k = KIND[ins.kind] ?? KIND.quality;
             return (
               <li key={i} className="relative flex gap-3 px-4 py-3">
-                <span className={cx("absolute inset-y-3 left-0 w-0.5 rounded-r", severityMeta[ins.severity].ring, ins.severity === "info" && "opacity-40")} aria-hidden />
+                <span className={cx("absolute inset-y-3 left-0 w-0.5 rounded-r", (severityMeta[ins.severity] ?? severityMeta.info).ring, ins.severity === "info" && "opacity-40")} aria-hidden />
                 <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-raised text-ink-2">
                   <k.Icon className="size-3.5" aria-hidden />
                 </span>

@@ -15,6 +15,8 @@ from functools import lru_cache
 # Cleaning
 # --------------------------------------------------------------------------- #
 _TAG_RE = re.compile(r"<[^>]{0,400}>")
+# Inline formatting tags vanish without a gap ("<b>Nvidia</b>'s" -> "Nvidia's").
+_INLINE_TAG_RE = re.compile(r"</?(?:a|b|i|u|em|strong|span|font|small|sup|sub|mark)\b[^>]{0,400}>", re.IGNORECASE)
 _URL_RE = re.compile(r"(?:https?://|www\.)\S+", re.IGNORECASE)
 # Zero-width/invisible chars, BOM, object-replacement char (StockTwits embeds U+FFFC).
 _INVISIBLE_RE = re.compile(r"[\u200b-\u200f\u202a-\u202e\u2060-\u2064\ufeff\ufffc\u00ad]")
@@ -39,6 +41,7 @@ def clean_text(text: str | None) -> str:
         if unescaped == out:
             break
         out = unescaped
+    out = _INLINE_TAG_RE.sub("", out)
     out = _TAG_RE.sub(" ", out)
     out = _URL_RE.sub(" ", out)
     out = _INVISIBLE_RE.sub("", out)
@@ -54,9 +57,11 @@ def fold(text: str) -> str:
 # --------------------------------------------------------------------------- #
 # Publisher suffixes (" - Reuters", " | Fortune")
 # --------------------------------------------------------------------------- #
-_SUFFIX_SEP_RE = re.compile(r"\s+(?:-|\||–|—|―|::)\s+(?=[^-|–—]+$)")
+# The last spaced separator: " - ", " | ", " — " (hyphens inside words like
+# "Review-Journal" don't count).
+_SUFFIX_SEP_RE = re.compile(r"\s+(?:-|\||–|—|―|::)\s+(?!.*\s(?:-|\||–|—|―|::)\s)")
 _DOMAIN_RE = re.compile(r"^(?:[a-z0-9-]+\.)+[a-z]{2,}$", re.IGNORECASE)
-_NOT_PUBLISHER_CHARS = re.compile(r"[?!%$\"]|\d{2,}")
+_NOT_PUBLISHER_CHARS = re.compile(r"[?!%$\"]|\d{4,}")
 
 
 def _looks_like_publisher(segment: str, publisher: str | None) -> bool:
@@ -74,8 +79,10 @@ def _looks_like_publisher(segment: str, publisher: str | None) -> bool:
     if _NOT_PUBLISHER_CHARS.search(seg):
         return False
     words = seg.split()
-    # Short Title-Case phrase ("Key Context by Tae Kim", "WGAU Radio").
-    return 1 <= len(words) <= 5 and all(w[:1].isupper() or w.lower() in {"by", "of", "the", "and", "on", "&"} for w in words)
+    # Short Title-Case phrase ("Key Context by Tae Kim", "WGAU Radio", "FOX 5 Atlanta").
+    return 1 <= len(words) <= 5 and all(
+        w[:1].isupper() or w[:1].isdigit() or w.lower() in {"by", "of", "the", "and", "on", "&"} for w in words
+    )
 
 
 def strip_publisher_suffix(title: str, publisher: str | None = None) -> str:
@@ -87,8 +94,9 @@ def strip_publisher_suffix(title: str, publisher: str | None = None) -> str:
         m = _SUFFIX_SEP_RE.search(out)
         if not m:
             break
-        head, tail = out[: m.start()].rstrip(), out[m.end():]
-        if len(head.split()) < 3:
+        head, tail = out[: m.start()].rstrip(" -|"), out[m.end():]
+        exact = bool(publisher) and tail.strip().lower() == (publisher or "").strip().lower()
+        if not head or (len(head.split()) < 3 and not exact):
             break
         if attempt == 0:
             ok = _looks_like_publisher(tail, publisher)
@@ -111,7 +119,8 @@ _BOILERPLATE_RE = re.compile(
     r"stock forecast (?:&|and) price target|price prediction 20\d\d|"
     r"stock forecast and price target 20\d\d|insider trading activity 20\d\d|"
     r"^\W*\$?[A-Za-z.]{1,8}\s*\([A-Z.: ]{1,16}\)\W*$|stock quote (?:&|and) (?:chart|summary)|"
-    r"live (?:stock )?price (?:chart|today)|real-time (?:stock )?quote",
+    r"live (?:stock )?price (?:chart|today)|real-time (?:stock )?quote|"
+    r"\bfor sale in\b|\b[A-HJ-NPR-Z0-9]{17}\b|\bup for auction\b",
     re.IGNORECASE,
 )
 _CONTENT_WORD_RE = re.compile(r"(?<![$#@\w])[A-Za-z][A-Za-z'&-]*[A-Za-z]")
@@ -182,6 +191,42 @@ toward towards under until up upon us use used very via want was wasn't way we w
 where where's whether which while who who's whom whose why why's will with within without won't would wouldn't yet you
 you're your yours yourself yourselves amid amidst despite across inside outside onto unto vs versus etc
 """)
+
+# Vocabulary shared by narratives/keywords ----------------------------------- #
+# Words that carry no story/keyword identity in financial headlines.
+GENERIC_WORDS: frozenset[str] = wordset("""
+stock stocks share shares shareholder shareholders investor investors market markets today why here heres what whats
+says said say report reports reported update news analyst analysts company companies inc corp corporation co ltd plc
+nasdaq nyse wall street year years week weeks month months day days time new big could would should may might will just
+now still next first last best better buy buying sell selling hold amid ahead after before over know need thing things
+way ways look looks looking watch watching see sees seen get gets got make makes made take takes go goes going come
+comes trading trade traders price prices value worth move moves moving lot lots key keys right left long short
+huge massive major latest recent ever every much many more most less least one two three four five six seven eight
+nine ten nearly almost about around above below likely set sets want wants deal deals plan plans plus via also into
+against investing invest invested own owns owning point points case question questions answer answers reason reasons
+simple strong message investment investments help helps keep keeps eyes enough number numbers fresh really here's
+what's there's it's i'm don't can't won't isn't doesn't didn't let's you're they're we're
+""")
+# Common headline verbs: weak evidence of what a story is about.
+HEADLINE_VERBS: frozenset[str] = wordset("""
+unveil unveils unveiled launch launches launched expand expands expanded seek seeks sought face faces faced tap taps
+tapped push pushes pushed bring brings brought offer offers offered show shows showed reveal reveals revealed signal
+signals warn warns warned add adds added boost boosts boosted lift lifts lifted hit hits pass passes become becomes
+remain remains stay stays turn turns turned call calls called name names named announce announces announced plan
+plans planned prepare prepares weigh weighs consider considers explore explores join joins reach reaches reached
+top tops topped lead leads drive drives driven put puts open opens deliver delivers return returns hold holds
+""")
+# Price-move words: a move is not a story ("stock rises").
+MOVE_WORDS: frozenset[str] = wordset("""
+rise rises rising rose risen fall falls falling fell drop drops dropped dropping slide slides sliding slid slip slips
+slipped jump jumps jumped jumping climb climbs climbed climbing gain gains gained gaining surge surges surged surging
+soar soars soared soaring plunge plunges plunged plunging tumble tumbles tumbled sink sinks sank rally rallies rallied
+rallying pop pops popped edge edges edged higher lower up down percent pct rebound rebounds rebounded retreat retreats
+retreated sell-off selloff
+""")
+# Months and weekdays.
+CALENDAR_WORDS: frozenset[str] = wordset("january february march april may june july august september october november december jan feb mar "
+                  "apr jun jul aug sep sept oct nov dec monday tuesday wednesday thursday friday saturday sunday")
 
 _TOKEN_RE = re.compile(
     r"\$\d[\d,]*(?:\.\d+)?(?:\s?(?:trillion|billion|million|thousand|tn|bn|mn|[tbmk])\b)?"  # money

@@ -3,7 +3,7 @@
  * navigation and the current page's actions — fully keyboard driven.
  */
 import { ArrowRight, ChartColumn, Beaker, Clock, Columns3, CornerDownLeft, Keyboard, Moon, Search, Star } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { useSearch } from "../../api/hooks";
@@ -58,49 +58,52 @@ function PaletteDialog({ onClose, pageCommands, openHelp }: { onClose: () => voi
     navigate(path);
   };
 
-  const items = useMemo<Item[]>(() => {
+  // Rebuilt every render: cheap, and always sees the latest results and handlers.
+  const items: Item[] = (() => {
     const term = q.trim();
     const lower = term.toLowerCase();
     const out: Item[] = [];
     const sym = term.replace(/^\$/, "").toUpperCase();
 
-    if (term && TICKER_RE.test(term)) {
-      out.push({
-        id: `go-${sym}`,
-        group: "Analyze",
-        title: (
-          <>
-            Analyze <span className="font-semibold text-ink">{sym}</span>
-          </>
-        ),
-        subtitle: "Fuse news, crowd, analysts, insiders and filings",
-        icon: <ArrowRight className="size-4" />,
-        run: () => go(`/t/${encodeURIComponent(sym)}`),
-      });
-    }
-
-    if (term && search.data) {
-      for (const m of search.data.slice(0, 8)) {
-        if (m.symbol.toUpperCase() === sym && out.length) {
-          // Enrich the direct "Analyze" row instead of duplicating it.
-          out[0].subtitle = `${m.name}${m.exchange ? ` · ${m.exchange}` : ""}`;
-          continue;
-        }
-        out.push({
-          id: `sym-${m.symbol}`,
-          group: "Symbols",
-          title: (
-            <>
-              <span className="font-semibold text-ink">{m.symbol}</span>
-              <span className="ml-2 text-ink-2">{m.name}</span>
-            </>
-          ),
-          subtitle: [m.exchange, m.type].filter(Boolean).join(" · ") || undefined,
-          icon: <TickerLogo symbol={m.symbol} url={m.logo_url} size={20} />,
-          run: () => go(`/t/${encodeURIComponent(m.symbol)}`),
-        });
-      }
-    }
+    // "Analyze X" leads when X is an exact symbol match or reads like a ticker;
+    // for a company-name query ("apple") the symbol matches lead instead.
+    const exact = search.data?.find((m) => m.symbol.toUpperCase() === sym);
+    const analyze: Item | null =
+      term && TICKER_RE.test(term)
+        ? {
+            id: `go-${sym}`,
+            group: "Analyze",
+            title: (
+              <>
+                Analyze <span className="font-semibold text-ink">{sym}</span>
+              </>
+            ),
+            subtitle: exact ? `${exact.name}${exact.exchange ? ` · ${exact.exchange}` : ""}` : "Fuse news, crowd, analysts, insiders and filings",
+            icon: exact ? <TickerLogo symbol={exact.symbol} url={exact.logo_url} size={20} /> : <ArrowRight className="size-4" />,
+            run: () => go(`/t/${encodeURIComponent(sym)}`),
+          }
+        : null;
+    const tickerLike = !!exact || /^\$/.test(term) || /[0-9.\-=^]/.test(term) || sym.length <= 4;
+    const symbols: Item[] = term
+      ? (search.data ?? [])
+          .filter((m) => m !== exact)
+          .slice(0, 8)
+          .map((m) => ({
+            id: `sym-${m.symbol}`,
+            group: "Symbols",
+            title: (
+              <>
+                <span className="font-semibold text-ink">{m.symbol}</span>
+                <span className="ml-2 text-ink-2">{m.name}</span>
+              </>
+            ),
+            subtitle: [m.exchange, m.type].filter(Boolean).join(" · ") || undefined,
+            icon: <TickerLogo symbol={m.symbol} url={m.logo_url} size={20} />,
+            run: () => go(`/t/${encodeURIComponent(m.symbol)}`),
+          }))
+      : [];
+    if (analyze && tickerLike) out.push(analyze, ...symbols);
+    else out.push(...symbols, ...(analyze ? [analyze] : []));
 
     if (!term) {
       for (const t of getRecent()) {
@@ -120,8 +123,7 @@ function PaletteDialog({ onClose, pageCommands, openHelp }: { onClose: () => voi
     const textOf = (i: Item) => (typeof i.title === "string" ? i.title : "") + " " + i.group;
     out.push(...(lower ? actions.filter((a) => textOf(a).toLowerCase().includes(lower)) : actions));
     return out;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, search.data, pageCommands]);
+  })();
 
   useEffect(() => setActive(0), [q]);
   useEffect(() => {

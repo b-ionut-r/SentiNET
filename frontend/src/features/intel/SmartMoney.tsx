@@ -161,7 +161,7 @@ function ActionRow({ x, ccy }: { x: AnalystAction; ccy?: string | null }) {
           <span className="truncate font-medium text-ink">{x.firm}</span>
         </span>
         <span className="block truncate text-2xs text-muted">
-          {ACTION_LABEL[x.action]}
+          {ACTION_LABEL[x.action] ?? "Update"}
           {grade && ` · ${grade}`}
         </span>
       </span>
@@ -322,7 +322,7 @@ export function EarningsPanel({ a }: { a: Analysis }) {
           <Columns
             items={hist.map((h, i) => ({
               key: h.date,
-              label: quarterLabel(h.date),
+              label: quarterLabel(h.date, i === 0 || hist[i - 1].date.slice(0, 4) !== h.date.slice(0, 4)),
               value: h.surprise_pct,
               emphasis: i === hist.length - 1,
               tip: (
@@ -368,8 +368,9 @@ export function EarningsPanel({ a }: { a: Analysis }) {
   );
 }
 
-/** Report month, e.g. "Jul ’26" (fiscal quarters differ by company, so label by date). */
-function quarterLabel(d: string): string {
+/** Report month, e.g. "Jul" or "Jan ’26" when the year changes (fiscal quarters differ by company, so label by date). */
+function quarterLabel(d: string, withYear: boolean): string {
   const [y, m] = d.split("-").map(Number);
-  return `${new Date(y, m - 1, 1).toLocaleDateString("en-US", { month: "short" })} ’${String(y).slice(2)}`;
+  const mon = new Date(y, m - 1, 1).toLocaleDateString("en-US", { month: "short" });
+  return withYear ? `${mon} ’${String(y).slice(2)}` : mon;
 }

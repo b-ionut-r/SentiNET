@@ -10,7 +10,12 @@ import respx
 from app.core.http import UpstreamError
 from app.core.ratelimit import HostLimiter
 from app.intel import attention
-from app.intel.attention import pick_article, search_query, views_from_page, views_from_rest
+from app.intel.attention import (
+    pick_article,
+    search_query,
+    views_from_page,
+    views_from_rest,
+)
 from app.sources.base import CompanyRef
 from tests.intel.helpers import load_json
 
@@ -20,7 +25,11 @@ TARGET = CompanyRef(ticker="TGT", name="Target Corporation", short_name="Target"
 
 @pytest.fixture(autouse=True)
 def _no_wait(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.core import http
+
     monkeypatch.setattr(attention, "_limiter", HostLimiter({}))
+    attention._LAST_GOOD.clear()
+    monkeypatch.setattr(http, "_retry_delay", lambda resp, attempt: 0.0)
 
 
 def test_search_query_by_asset_type() -> None:
@@ -85,3 +94,16 @@ async def test_get_wiki_pageviews_errors_and_no_article() -> None:
     with respx.mock as mock:
         mock.get(attention.WIKI_API).mock(return_value=httpx.Response(200, json={"batchcomplete": True}))
         assert await attention.get_wiki_pageviews(other, days=60) is None
+
+
+async def test_serves_recent_views_when_wikipedia_refuses() -> None:
+    from app.core import cache
+
+    payload = load_json("wiki/target_search.json")
+    with respx.mock as mock:
+        mock.get(attention.WIKI_API).mock(return_value=httpx.Response(200, json=payload))
+        fresh = await attention.get_wiki_pageviews(TARGET, days=60)
+    cache.clear_all()
+    with respx.mock as mock:
+        mock.get(attention.WIKI_API).mock(return_value=httpx.Response(429, text="Too many requests"))
+        assert await attention.get_wiki_pageviews(TARGET, days=60) == fresh

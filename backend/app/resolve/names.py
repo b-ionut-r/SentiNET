@@ -202,6 +202,14 @@ CRYPTO_NAMES: dict[str, str] = {
     "ATOM": "Cosmos", "NEAR": "Near Protocol", "APT": "Aptos", "ARB": "Arbitrum",
 }
 
+# Bare symbols that are safe to read as the coin. Excluded on purpose because a
+# listed security owns the symbol (verified on Yahoo 2026-10-04): LTC (LTC
+# Properties), LINK (Interlink), SUI (Sun Communities), BCH (Banco de Chile), TRX,
+# ATOM, NEAR, APT, ARB. BTC/ETH/XRP are spot ETFs on the very same coin.
+BARE_CRYPTO: frozenset[str] = frozenset({
+    "BTC", "ETH", "XRP", "SOL", "DOGE", "ADA", "BNB", "AVAX", "SHIB", "PEPE", "XLM", "DOT", "TON", "HBAR", "UNI",
+})
+
 CRYPTO_ALIASES: dict[str, tuple[str, ...]] = {
     "ETH": ("Ether",),
     "XRP": ("Ripple",),
@@ -218,7 +226,7 @@ _LEGAL = {
     "ltd", "limited", "plc", "llc", "lp", "l p", "nv", "n v", "sa", "s a", "spa",
     "s p a", "ag", "se", "ab", "asa", "oyj", "as", "a s", "bv", "kk", "k k",
     "gmbh", "sarl", "pte", "pty", "bhd", "tbk", "holdings", "holding", "group",
-    "new", "the", "p l c", "l l c", "com",
+    "new", "the", "p l c", "l l c", "com", "aktiengesellschaft", "publ", "a/s",
 }
 # Industry words dropped only when what remains is one distinctive token
 # ("Palantir Technologies" -> "Palantir", but "Palo Alto Networks" stays).
@@ -274,6 +282,15 @@ _KEEP_UPPER = {
     "IAC", "LKQ", "BJ", "ODP", "JD", "QXO", "AST", "CRH", "BNY", "SM",
 }
 _SMALL_WORDS = {"of", "and", "the", "for", "de", "du", "la", "le", "von", "van", "&", "y"}
+# Three-letter English words that are not acronyms in an all-caps registry title.
+_WORDS3 = {"one", "new", "oil", "gas", "air", "sun", "bio", "car", "top", "big", "red", "sky", "sea", "art", "net",
+           "web", "box", "pet", "pay", "ice", "inn", "bay", "oak", "key", "map", "fox", "toy", "tea", "joy", "max"}
+_ROMAN = re.compile(r"^(?:I{1,3}|IV|V|VI{0,3}|IX|X|XI{0,3})$", re.IGNORECASE)
+# Single generic heads that are not a brand without their suffix ("News Corp", not "News").
+_GENERIC_HEADS = {"news", "public", "general", "first", "national", "american", "united", "western", "eastern",
+                  "southern", "northern", "international", "global", "capital", "standard", "republic", "royal",
+                  "pacific", "atlantic", "central", "security", "union", "liberty", "federal"}
+_STATE_SUFFIX = re.compile(r"(?:\s*/\s*(?:ADR|ADS|[A-Z]{2,3})\b/?)+\s*$|\s*/\s*$", re.IGNORECASE)  # "/DE/", "/ ADR"
 _VOWELS = set("AEIOUY")
 
 _SHARE_CLASS = re.compile(
@@ -334,6 +351,10 @@ def _fix_case_token(tok: str, *, all_caps_name: bool) -> str:
         return tok.lower()
     if all_caps_name and _norm_token(bare) in _LEGAL:
         return tok[:1].upper() + tok[1:].lower()  # "BERKSHIRE HATHAWAY INC" -> "... Inc"
+    if _ROMAN.match(bare):
+        return tok.upper()  # "Acquisition Corp VIII"
+    if all_caps_name and bare.lower() in _WORDS3:
+        return tok[:1].upper() + tok[1:].lower()  # "CAPITAL ONE" -> "Capital One"
     if len(letters) <= 3:
         return tok  # acronym-sized: "AMC", "CVS"
     if len(letters) == 4 and not _wordlike(bare.upper()):
@@ -359,7 +380,13 @@ def ascii_fold(text: str) -> str:
 
 def _base_clean(raw: str) -> list[str]:
     """Shared first pass: entities, parentheses, share classes, legal suffixes."""
-    name = html.unescape(raw or "").replace(" ", " ").strip()
+    return _base_clean_with_tail(raw)[0]
+
+
+def _base_clean_with_tail(raw: str) -> tuple[list[str], list[str]]:
+    """`_base_clean` plus the legal tokens it removed from the end."""
+    name = html.unescape(raw or "").replace("\u00a0", " ").strip()
+    name = _STATE_SUFFIX.sub("", name)
     name = _DASH_TAIL.sub("", name)
     name = _PARENS.sub("", name)
     name = _SHARE_CLASS.sub(" ", name)
@@ -369,8 +396,8 @@ def _base_clean(raw: str) -> list[str]:
     tokens = [t for t in _TOKEN_SPLIT.split(name) if t]
     if tokens and tokens[0].lower() == "the" and len(tokens) > 1:
         tokens = tokens[1:]
-    tokens = _strip_trailing(tokens, _LEGAL)
-    return [t.rstrip(",") for t in tokens]
+    kept = _strip_trailing(tokens, _LEGAL)
+    return [t.rstrip(",") for t in kept], tokens[len(kept):]
 
 
 def _distinctive(token: str) -> bool:
@@ -407,10 +434,12 @@ def clean_company_name(raw: str) -> str:
     >>> clean_company_name("Palo Alto Networks, Inc.")
     'Palo Alto Networks'
     """
-    tokens = _base_clean(raw)
+    tokens, legal_tail = _base_clean_with_tail(raw)
     if not tokens:
         return (raw or "").strip()
     tokens = _strip_descriptors(tokens)
+    if len(tokens) == 1 and tokens[0].lower().strip(".,") in _GENERIC_HEADS and legal_tail:
+        tokens = [tokens[0], legal_tail[0].rstrip(".,")]  # "NEWS CORP" -> "News Corp"
     name = " ".join(tokens).strip(" ,.&")
     name = name.removesuffix(" and")
     return fix_case(name)

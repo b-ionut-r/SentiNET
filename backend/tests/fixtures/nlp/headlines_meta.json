@@ -1,0 +1,615 @@
+{
+ "description": "Real Google News RSS headlines (search: \"Meta\" (stock OR shares OR META) when:7d), captured 2026-10-04. 'story' = hand-labeled narrative ('a|b' = either acceptable, '?' = unknown, null = its own story); 'relevant' = hand-labeled company relevance.",
+ "company": {
+  "ticker": "META",
+  "name": "Meta Platforms, Inc.",
+  "short_name": "Meta",
+  "aliases": [
+   "Facebook"
+  ],
+  "industry": "Internet Content & Information",
+  "sector": "Communication Services"
+ },
+ "items": [
+  {
+   "title": "Mark Zuckerberg Loses $11 Billion As Meta Shares Drop On AI Spending Concerns - Forbes",
+   "publisher": "Forbes",
+   "timestamp": "2026-09-28T16:39:57+00:00",
+   "story": "selloff_0928"
+  },
+  {
+   "title": "Meta Stock Drops Again. What Happened to Its Muse Boost? - Barron's",
+   "publisher": "Barron's",
+   "timestamp": "2026-09-28T20:23:00+00:00",
+   "story": "selloff_0928"
+  },
+  {
+   "title": "Meta Stock Pulls Back After Muse-Fueled Rally. What Investors Are Watching Next. - Investor's Business Daily",
+   "publisher": "Investor's Business Daily",
+   "timestamp": "2026-09-28T14:46:00+00:00",
+   "story": "selloff_0928"
+  },
+  {
+   "title": "Meta stock enjoys best month since 2022 on AI momentum - CNBC",
+   "publisher": "CNBC",
+   "timestamp": "2026-09-30T20:08:47+00:00",
+   "story": "sept_rally"
+  },
+  {
+   "title": "Here's What a $1,500 Investment in Meta Platforms Stock Could Be Worth in 5 Years - The Motley Fool",
+   "publisher": "The Motley Fool",
+   "timestamp": "2026-09-30T17:20:00+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Why Meta (META) Stock Is Trading Lower Today - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-28T23:02:36+00:00",
+   "story": "selloff_0928"
+  },
+  {
+   "title": "What Needs To Be True To Buy Meta Stock Now? - trefis.com",
+   "publisher": "trefis.com",
+   "timestamp": "2026-10-01T17:07:54+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Meta is bringing Muse AI to small businesses — and it already has a huge head start - CNBC",
+   "publisher": "CNBC",
+   "timestamp": "2026-09-29T17:22:21+00:00",
+   "story": "muse_smb"
+  },
+  {
+   "title": "Meta Stock Slides as Muse Faces OpenAI Threat - Barron's",
+   "publisher": "Barron's",
+   "timestamp": "2026-10-04T13:58:46+00:00",
+   "story": "openai_agents|?"
+  },
+  {
+   "title": "How Far Can Meta Stock Jump In The Year Ahead? - trefis.com",
+   "publisher": "trefis.com",
+   "timestamp": "2026-10-02T08:02:21+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Meta Platforms, IBD Stock Of The Day, Forges New Buy Point After Muse Rally - Investor's Business Daily",
+   "publisher": "Investor's Business Daily",
+   "timestamp": "2026-10-01T20:26:00+00:00",
+   "story": "sept_rally|?"
+  },
+  {
+   "title": "Meta's Stock Has Rocketed Over 30% in the Past Month. Here's How the Embattled \"Magnificent Seven\" Company Completely Flipped the Script - The Motley Fool",
+   "publisher": "The Motley Fool",
+   "timestamp": "2026-09-30T14:27:00+00:00",
+   "story": "sept_rally"
+  },
+  {
+   "title": "BNP Has Strong Message For Meta Stock Investors - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T20:01:13+00:00",
+   "story": "bnp_note"
+  },
+  {
+   "title": "Meta launches Muse for Small Business as Zuckerberg pushes beyond consumer AI market - CNBC",
+   "publisher": "CNBC",
+   "timestamp": "2026-09-29T09:30:01+00:00",
+   "story": "muse_smb"
+  },
+  {
+   "title": "Meta’s Muse Agent Was a September Hit. Now OpenAI Is Ready to Challenge It. - Barron's",
+   "publisher": "Barron's",
+   "timestamp": "2026-09-29T12:02:00+00:00",
+   "story": "openai_agents"
+  },
+  {
+   "title": "Meta stock falls as OpenAI ’o’ agent threatens historic rally - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-28T16:08:53+00:00",
+   "story": "selloff_0928|openai_agents"
+  },
+  {
+   "title": "Microsoft, Oracle Stocks Tumble After Meta Unveils New AI Enterprise Push - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-28T18:51:42+00:00",
+   "story": "enterprise_ai|mongodb_ceo"
+  },
+  {
+   "title": "Meta stock rises 27% in September, best month since 2022 - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-01T11:54:55+00:00",
+   "story": "sept_rally"
+  },
+  {
+   "title": "Meta Seeks Payoff From AI Spending With New Push for Business Customers - WSJ",
+   "publisher": "WSJ",
+   "timestamp": "2026-09-28T12:32:00+00:00",
+   "story": "enterprise_ai|mongodb_ceo"
+  },
+  {
+   "title": "One Number Could Tell Us Where Meta Stock Goes Next - 24/7 Wall St.",
+   "publisher": "24/7 Wall St.",
+   "timestamp": "2026-10-02T14:45:00+00:00",
+   "story": "one_number"
+  },
+  {
+   "title": "Meta Stock Could Be Worth Much More If Its AI Strategy Pays Off - 24/7 Wall St.",
+   "publisher": "24/7 Wall St.",
+   "timestamp": "2026-09-30T15:00:00+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Meta: Meta Launches Enterprise Offering to Open Up Another Way to Monetize AI Investments - Morningstar",
+   "publisher": "Morningstar",
+   "timestamp": "2026-09-30T08:02:19+00:00",
+   "story": "enterprise_ai|mongodb_ceo"
+  },
+  {
+   "title": "Prediction: Meta Stock's Rebound Will Continue as Its AI Infrastructure Spending Starts Paying Off in New Revenue Streams - The Motley Fool",
+   "publisher": "The Motley Fool",
+   "timestamp": "2026-10-01T12:24:00+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Can Reality Labs Ever Earn Enough to Justify Meta’s Spending? - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-01T21:39:13+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Should I load up on Meta stock in my ISA like there’s no tomorrow? - Yahoo Finance UK",
+   "publisher": "Yahoo Finance UK",
+   "timestamp": "2026-10-04T06:17:09+00:00",
+   "story": "?"
+  },
+  {
+   "title": "The Case for Meta Stock Only Gets Sweeter as Muse AI Expands - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T14:03:24+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Micron, Nike, Meta and More: 5 Stocks Investors Couldn't Stop Buzzing About This Week - Benzinga",
+   "publisher": "Benzinga",
+   "timestamp": "2026-10-03T12:30:20+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Apple says it will flag AI requests for Mac data after Meta's Muse draws complaints - Reuters",
+   "publisher": "Reuters",
+   "timestamp": "2026-10-02T22:43:45+00:00",
+   "story": "muse_privacy"
+  },
+  {
+   "title": "Meta Platforms Stock Rose 25% in September. Is It Still a Buy in October? - The Motley Fool",
+   "publisher": "The Motley Fool",
+   "timestamp": "2026-10-03T06:27:00+00:00",
+   "story": "sept_rally"
+  },
+  {
+   "title": "Meta Platforms (META): Are You Going to Buy the Promise? - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-28T22:52:44+00:00",
+   "story": "?"
+  },
+  {
+   "title": "OpenAI takes on Meta with dots agent in autonomous AI push - Reuters",
+   "publisher": "Reuters",
+   "timestamp": "2026-09-29T17:17:00+00:00",
+   "story": "openai_agents"
+  },
+  {
+   "title": "Meta Shares Slide 4%, Shaving Billions from Zuckerberg’s Paper Wealth - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-28T18:15:37+00:00",
+   "story": "selloff_0928"
+  },
+  {
+   "title": "OpenAI Launches Muse Competitor. Meta Seen As 'Clear Leader' In Personal AI Agent Battle. - Investor's Business Daily",
+   "publisher": "Investor's Business Daily",
+   "timestamp": "2026-09-30T20:28:00+00:00",
+   "story": "openai_agents"
+  },
+  {
+   "title": "Meta taps MongoDB CEO Desai to drive enterprise AI push - Reuters",
+   "publisher": "Reuters",
+   "timestamp": "2026-09-28T14:47:44+00:00",
+   "story": "enterprise_ai|mongodb_ceo"
+  },
+  {
+   "title": "Meta reportedly calls its AI data centers ‘pilot models’ — its research tax credits jumped from $700M to $3.9B - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-01T03:55:00+00:00",
+   "story": "tax_credits"
+  },
+  {
+   "title": "Meta Platforms: Things May Get Ugly (NASDAQ:META) - Seeking Alpha",
+   "publisher": "Seeking Alpha",
+   "timestamp": "2026-10-02T13:30:13+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Why Cathie Wood Keeps Loading Up on Meta - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-29T19:30:04+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Meta's Muse tops 5 million downloads, faster than ChatGPT, Claude - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-30T16:12:02+00:00",
+   "story": "muse_downloads"
+  },
+  {
+   "title": "Meta Faces Challenge in Enterprise Market As OpenAI Launches Autonomous Dots Agents - TIKR.com",
+   "publisher": "TIKR.com",
+   "timestamp": "2026-09-30T13:04:08+00:00",
+   "story": "openai_agents"
+  },
+  {
+   "title": "Why the Meta share price surged 27% in September - Yahoo Finance UK",
+   "publisher": "Yahoo Finance UK",
+   "timestamp": "2026-10-03T07:46:00+00:00",
+   "story": "sept_rally"
+  },
+  {
+   "title": "META Eyes Best Month Since 2013 On Muse AI Strength - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-30T09:04:47+00:00",
+   "story": "sept_rally"
+  },
+  {
+   "title": "Meta's Muse AI Assistant Hits 5 Million Downloads—Outpacing Growth Of ChatGPT, Grok And Claude - Forbes",
+   "publisher": "Forbes",
+   "timestamp": "2026-09-30T16:19:10+00:00",
+   "story": "muse_downloads"
+  },
+  {
+   "title": "AI agents promise to do everything for you. There may be a big wrinkle in that plan - CNN",
+   "publisher": "CNN",
+   "timestamp": "2026-09-28T11:00:30+00:00",
+   "story": "?"
+  },
+  {
+   "title": "META Stock Rides Muse AI To Best Quarter In Over 2 Years — But Analyst Warns Monetization Could Be 'Notoriously Slow' - TradingView",
+   "publisher": "TradingView",
+   "timestamp": "2026-10-02T08:05:28+00:00",
+   "story": "sept_rally"
+  },
+  {
+   "title": "Dutch eyewear chain Hans Anders halts sale of Meta glasses, citing privacy concerns - Reuters",
+   "publisher": "Reuters",
+   "timestamp": "2026-10-02T18:49:42+00:00",
+   "story": null
+  },
+  {
+   "title": "Meta expands Instagram school program as teen safety scrutiny grows - Reuters",
+   "publisher": "Reuters",
+   "timestamp": "2026-09-29T14:01:03+00:00",
+   "story": null
+  },
+  {
+   "title": "Meta Stock: Wall Street Keeps Raising Price Targets as the Muse Bet Gets Bigger - Barchart.com",
+   "publisher": "Barchart.com",
+   "timestamp": "2026-10-02T11:30:02+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Meta: Building Entirely New Revenue Streams (NASDAQ:META) - Seeking Alpha",
+   "publisher": "Seeking Alpha",
+   "timestamp": "2026-09-28T22:47:27+00:00",
+   "story": "?"
+  },
+  {
+   "title": "The simple reason Meta CEO Mark Zuckerberg is winning for investors again - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-03T12:10:30+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Billionaire Investor: Meta’s Muse Puts Apple’s “30% Rev Share on Notice” - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-29T19:32:36+00:00",
+   "story": null
+  },
+  {
+   "title": "Meta Now Owes $22 Billion More Than It Holds. Here’s Why That Matters - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-01T11:23:55+00:00",
+   "story": null
+  },
+  {
+   "title": "How Meta Uses A.I. Data Centers to Avoid Billions in Federal Taxes - The New York Times",
+   "publisher": "The New York Times",
+   "timestamp": "2026-09-30T09:00:48+00:00",
+   "story": "tax_credits"
+  },
+  {
+   "title": "Better Artificial Intelligence Stock: Alphabet vs. Meta Platforms - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-04T01:06:00+00:00",
+   "story": "?"
+  },
+  {
+   "title": "4 Reasons to Buy Meta Platforms Stock - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-01T15:45:01+00:00",
+   "story": "four_reasons"
+  },
+  {
+   "title": "John Georges believes Meta AI deals will ‘save journalism’ — and Louisiana’s largest newspaper - WWNO",
+   "publisher": "WWNO",
+   "timestamp": "2026-09-28T11:00:00+00:00",
+   "story": "georges"
+  },
+  {
+   "title": "A New A.I. Agent Enters the Marketplace: OpenAI’s Dots - The New York Times",
+   "publisher": "The New York Times",
+   "timestamp": "2026-09-29T17:15:07+00:00",
+   "story": "openai_agents|?"
+  },
+  {
+   "title": "Meta: Meta Launches Enterprise Offering to Open Up Another Way to Monetize AI Investments - Morningstar",
+   "publisher": "Morningstar",
+   "timestamp": "2026-09-28T23:58:07+00:00",
+   "story": "enterprise_ai|mongodb_ceo"
+  },
+  {
+   "title": "Deutsche Bank picks Meta, ServiceNow for next AI trade leg - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-01T12:59:16+00:00",
+   "story": null
+  },
+  {
+   "title": "Mark Zuckerberg's Muse Could Charge You for Saving You Money — META President Reveals AI Agent's Potential Monetization Model - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-01T22:00:10+00:00",
+   "story": "?"
+  },
+  {
+   "title": "How Investors Are Reacting To Meta Stock After Muse AI Launch - Simply Wall Street",
+   "publisher": "Simply Wall Street",
+   "timestamp": "2026-10-01T11:45:13+00:00",
+   "story": "?"
+  },
+  {
+   "title": "META Expands Muse for Small Businesses: Will Ad Growth Accelerate? - Yahoo Finance UK",
+   "publisher": "Yahoo Finance UK",
+   "timestamp": "2026-10-01T13:23:00+00:00",
+   "story": "muse_smb"
+  },
+  {
+   "title": "Meta Faces Challenge in Enterprise Market As OpenAI Launches Autonomous Dots Agents - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-30T12:08:09+00:00",
+   "story": "openai_agents"
+  },
+  {
+   "title": "META, GOOGL, NVDA, BB, SPCX: Why Retail Traders Couldn’t Take Their Eyes Off These Stocks Last Week - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-28T01:38:00+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Meta taps Australia's Firmus for AI computing capacity in Southeast Asia - Reuters",
+   "publisher": "Reuters",
+   "timestamp": "2026-09-28T23:11:44+00:00",
+   "story": null
+  },
+  {
+   "title": "Meta’s Muse app surpasses 5M downloads and 3M weekly users - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-01T22:25:47+00:00",
+   "story": "muse_downloads"
+  },
+  {
+   "title": "META Stock Holds Up Overnight: New Mexico Seeks Up To $40B Privacy Penalty In Cambridge Analytica Case - Stocktwits",
+   "publisher": "Stocktwits",
+   "timestamp": "2026-10-01T11:49:33+00:00",
+   "story": "nm_privacy"
+  },
+  {
+   "title": "MongoDB Stock Crashes Nearly 20% After CEO Desai Leaves to Meta - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-28T20:45:47+00:00",
+   "story": "mongodb_ceo|enterprise_ai"
+  },
+  {
+   "title": "Man says Meta's AI agent Muse shared his address, took a lowball offer and told a buyer he was home — nobody came down - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-28T13:45:00+00:00",
+   "story": "muse_privacy"
+  },
+  {
+   "title": "4 Reasons to Buy Meta Platforms Stock - The Motley Fool",
+   "publisher": "The Motley Fool",
+   "timestamp": "2026-10-01T16:25:00+00:00",
+   "story": "four_reasons"
+  },
+  {
+   "title": "The Mulleted, Meme-Loving Billionaire Behind Meta’s Hit AI App - WSJ",
+   "publisher": "WSJ",
+   "timestamp": "2026-10-02T23:00:00+00:00",
+   "story": null
+  },
+  {
+   "title": "Meta hires MongoDB CEO to lead company's enterprise ambitions - CNBC",
+   "publisher": "CNBC",
+   "timestamp": "2026-09-28T19:12:00+00:00",
+   "story": "enterprise_ai|mongodb_ceo"
+  },
+  {
+   "title": "Meta hires MongoDB CEO CJ Desai, sending shares of data services company down - CNBC",
+   "publisher": "CNBC",
+   "timestamp": "2026-09-28T13:45:00+00:00",
+   "story": "mongodb_ceo|enterprise_ai"
+  },
+  {
+   "title": "John Georges believes Meta AI deals will ‘save journalism’ — and Louisiana’s largest newspaper - thelensnola.org",
+   "publisher": "thelensnola.org",
+   "timestamp": "2026-09-28T12:00:00+00:00",
+   "story": "georges"
+  },
+  {
+   "title": "Meta counted Mark Zuckerberg’s $4.1B stock payout as research pay to claim a $355M tax break — and the IRS wants it back - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-01T04:05:00+00:00",
+   "story": "tax_credits"
+  },
+  {
+   "title": "Zacks Investment Ideas feature highlights: Advanced Micro Devices, Micron, Nebius, Alphabet, Meta Platform and Apple - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-30T06:17:00+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Meta parts ways with Virtue AI - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T17:26:38+00:00",
+   "story": null
+  },
+  {
+   "title": "MongoDB CEO Chirantan Desai Steps Down to Join Meta as Chief Enterprise Platform Officer - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-28T15:19:45+00:00",
+   "story": "mongodb_ceo|enterprise_ai"
+  },
+  {
+   "title": "Needham retains Hold on Meta stock amid Muse AI agent launch - Investing.com",
+   "publisher": "Investing.com",
+   "timestamp": "2026-10-01T10:56:12+00:00",
+   "story": null
+  },
+  {
+   "title": "Meta Stock Rose 27% in Sept 2026, Then Lost $134 Billion - Memeburn",
+   "publisher": "Memeburn",
+   "timestamp": "2026-10-03T10:56:14+00:00",
+   "story": "sept_rally"
+  },
+  {
+   "title": "EXCLUSIVE: If AI Capex Cracks, Nvidia Could Feel It Before Meta Does - Benzinga",
+   "publisher": "Benzinga",
+   "timestamp": "2026-09-30T15:48:48+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Meta launches enterprise AI business seeking to cash in on vast spending - Financial Times",
+   "publisher": "Financial Times",
+   "timestamp": "2026-09-28T15:54:34+00:00",
+   "story": "enterprise_ai|mongodb_ceo"
+  },
+  {
+   "title": "Meta’s Muse Earned a “20% Bump on the Multiple.” Now Earnings Have to Catch Up - TIKR.com",
+   "publisher": "TIKR.com",
+   "timestamp": "2026-09-29T21:58:22+00:00",
+   "story": "?"
+  },
+  {
+   "title": "BNP Has Strong Message For Meta Stock Investors - TradingView",
+   "publisher": "TradingView",
+   "timestamp": "2026-10-02T20:01:13+00:00",
+   "story": "bnp_note"
+  },
+  {
+   "title": "Meta Taps MongoDB CEO to Lead New Enterprise AI Platform - Bloomberg.com",
+   "publisher": "Bloomberg.com",
+   "timestamp": "2026-09-28T15:00:19+00:00",
+   "story": "enterprise_ai|mongodb_ceo"
+  },
+  {
+   "title": "Meta Muse keeps growing in popularity, but monetization is still a question, BNP says (META:NASDAQ) - Seeking Alpha",
+   "publisher": "Seeking Alpha",
+   "timestamp": "2026-10-02T14:46:02+00:00",
+   "story": "bnp_note"
+  },
+  {
+   "title": "Meta Is Undervalued With Muse As A Catalyst (NASDAQ:META) - Seeking Alpha",
+   "publisher": "Seeking Alpha",
+   "timestamp": "2026-10-01T12:08:46+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Meta’s AI Breakthrough Came At The Wrong Price (NASDAQ:META) - Seeking Alpha",
+   "publisher": "Seeking Alpha",
+   "timestamp": "2026-09-28T18:45:35+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Nscale Hires Meta’s Justin Osofsky to Be COO Ahead of IPO - Yahoo! Finance Canada",
+   "publisher": "Yahoo! Finance Canada",
+   "timestamp": "2026-10-02T19:20:42+00:00",
+   "story": null
+  },
+  {
+   "title": "Top Midday Stories: MongoDB CEO Leaves to Lead Meta Enterprise Platform; Nvidia Ups Buyback Program by $150 Billion - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-28T15:37:32+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Meta Faces Up To $40 Billion Penalty In New Mexico Privacy Case After Jury Finds Company Misled Facebook Users 43 Million Times - Yahoo Finance Singapore",
+   "publisher": "Yahoo Finance Singapore",
+   "timestamp": "2026-10-02T03:00:00+00:00",
+   "story": "nm_privacy"
+  },
+  {
+   "title": "Meta: Muse Is Nice, But Not Enough (NASDAQ:META) - Seeking Alpha",
+   "publisher": "Seeking Alpha",
+   "timestamp": "2026-10-02T20:55:17+00:00",
+   "story": "?"
+  },
+  {
+   "title": "One Number Could Tell Us Where Meta Stock Goes Next - aol.com",
+   "publisher": "aol.com",
+   "timestamp": "2026-10-02T14:45:34+00:00",
+   "story": "one_number"
+  },
+  {
+   "title": "Prediction: This Tech Giant Could Be Worth Twice as Much by 2030 - 24/7 Wall St.",
+   "publisher": "24/7 Wall St.",
+   "timestamp": "2026-10-01T13:30:00+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Detroit Free Press. . Meta unveiled camera-free smart glasses on Sept. 23. The glasses are designed to ease the privacy concerns about devices that can take pictures and video without consent. - Facebook",
+   "publisher": "Facebook",
+   "timestamp": "2026-09-29T15:30:01+00:00",
+   "story": null
+  },
+  {
+   "title": "AMD, Meta Power GAMR's Gaming Index as Capcom Joins - ETF Database",
+   "publisher": "ETF Database",
+   "timestamp": "2026-10-01T19:18:21+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Meta: From Hated To Loved, The Story Did Not Change (NASDAQ:META) - Seeking Alpha",
+   "publisher": "Seeking Alpha",
+   "timestamp": "2026-09-30T16:44:22+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Meta Platforms: Muse Could Become The Next Metaverse (NASDAQ:META) - Seeking Alpha",
+   "publisher": "Seeking Alpha",
+   "timestamp": "2026-09-28T19:14:36+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Should You Tap Meta ETFs on Muse's Success or Wait on the Sidelines? - TradingView",
+   "publisher": "TradingView",
+   "timestamp": "2026-10-01T11:00:00+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Meta stock forecast for October: $10B charge meets AI spending - techi.com",
+   "publisher": "techi.com",
+   "timestamp": "2026-10-02T22:26:12+00:00",
+   "story": "?"
+  },
+  {
+   "title": "What exactly did Meta launch with Jolly - tech-insider.org",
+   "publisher": "tech-insider.org",
+   "timestamp": "2026-10-03T14:35:35+00:00",
+   "story": "?"
+  }
+ ]
+}

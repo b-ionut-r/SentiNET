@@ -24,17 +24,39 @@ import math
 import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass
+from itertools import pairwise
 
 from app.nlp.events import detect_events
 from app.nlp.publishers import publisher_trust
 from app.nlp.relevance import company_terms
-from app.nlp.text import STOPWORDS, fold, normalize_for_dedup, stem, tokenize, wordset
+from app.nlp.text import (
+    CALENDAR_WORDS,
+    GENERIC_WORDS,
+    HEADLINE_VERBS,
+    MOVE_WORDS,
+    STOPWORDS,
+    fold,
+    is_mostly_upper,
+    is_title_case,
+    normalize_for_dedup,
+    stem,
+    tokenize,
+    wordset,
+)
 from app.nlp.types import Cluster, ClusterItem
 from app.sources.base import CompanyRef
 
 # Average-link threshold on mean pairwise cosine (tuned on labeled real
 # headline sets in tests/fixtures/nlp, see test_narratives.py).
-CLUSTER_THRESHOLD = 0.2
+CLUSTER_THRESHOLD = 0.08
+LINKAGE = "average"
+SINGLETON_DAMPING = 0.3
+MIN_EVIDENCE = 2.0
+HUB_MIN_DF = 4
+HUB_REFERENCE = 0.1
+HUB_FLOOR = 0.2
+TIME_GRACE_H = 24.0
+TIME_FADE_H = 144.0
 
 # --------------------------------------------------------------------------- #
 # Duplicates
@@ -144,8 +166,8 @@ _ATTRIB_RE = re.compile(r"\s+by investing\.com.*$|\s+-\s+[\w.' ]{2,30}$", re.IGN
 
 # Multi-word paraphrases collapsed into one concept token before stemming.
 _PHRASES: tuple[tuple[re.Pattern[str], str], ...] = tuple((re.compile(p, re.IGNORECASE), c) for p, c in (
-    (r"\b(?:share|stock)[- ]repurchase(?:s| program| plan| authori[sz]ation)?\b|\brepurchas\w*\b|"
-     r"\bbuy[- ]?backs?\b|\bbuy(?:ing)? back\b|\bbought back\b", " buyback "),
+    ((r"\b(?:share|stock)[- ]repurchase(?:s| program| plan| authori[sz]ation)?\b|\brepurchas\w*\b|"
+      r"\bbuy[- ]?backs?\b|\bbuy(?:ing)? back\b|\bbought back\b"), " buyback "),
     (r"\b(?:all[- ]time|record)[- ]highs?\b|\bfirst record\b|\brecord territory\b", " record-high "),
     (r"\bprice[- ]targets?\b|\btarget[- ]prices?\b|\bPTs?\b", " price-target "),
     (r"\bmarket (?:cap(?:italization)?|value|valuation)\b", " market-cap "),
@@ -159,41 +181,37 @@ _PHRASES: tuple[tuple[re.Pattern[str], str], ...] = tuple((re.compile(p, re.IGNO
     (r"\bshort[- ]sell(?:er|ers|ing)?\b", " short-seller "),
     (r"\b52[- ]week lows?\b", " 52w-low "),
     (r"\bstock split\b", " stock-split "),
+    ((r"\b(?:cut|cuts|cutting|slash(?:es|ed|ing)?|lower(?:s|ed|ing)?|reduc(?:e|es|ed|ing)|trim(?:s|med|ming)?)"
+      r"(?: \w+)? prices?\b|\bprice (?:cuts?|reductions?|war)\b|\bvalue war\b"), " price-cut "),
+    ((r"\b(?:raise[sd]?|raising|hike[sd]?|hiking|increase[sd]?|increasing)(?: \w+)? prices?\b|"
+      r"\bprice (?:hikes?|increases?)\b"), " price-hike "),
+    ((r"\b(?:stock|shares|stake|position|holdings?)\s+(?:in\s+\S+\s+)?(?:acquired|bought|sold|purchased|cut|raised|"
+      r"lifted|trimmed|boosted|reduced|increased|decreased|grown)\s+by\b"), " inst-holding "),
     (r"\b(?:earnings|eps|revenue|profit)s? (?:beat|tops?|topped)\b", " earnings-beat "),
     (r"\b(?:earnings|eps|revenue|profit)s? miss(?:es|ed)?\b", " earnings-miss "),
 ))
 
-# Words that carry no story identity in financial headlines.
-_GENERIC = wordset("""
-stock stocks share shares shareholder shareholders investor investors market markets today why here heres what whats
-says said say report reports reported update news analyst analysts company companies inc corp corporation co ltd plc
-nasdaq nyse wall street year years week weeks month months day days time new big could would should may might will just
-now still next first last best better buy buying sell selling hold amid ahead after before over know need thing things
-way ways look looks looking watch watching see sees seen get gets got make makes made take takes go goes going come
-comes trading trade traders price prices value worth move moves moving lot lots key keys right left long short big
-huge massive major latest recent ever every much many more most less least one two three four five six seven eight
-nine ten nearly almost about around above below likely set sets want wants deal deals plan plans plus via also into
-amid against investing invest invested own owns owning point points case question questions answer answers
-what's here's there's it's i'm don't can't won't isn't doesn't didn't let's you're they're we're
-""")
-# Price-move words: a move is not a story ("stock rises" links everything).
-_MOVES = wordset("""
-rise rises rising rose risen fall falls falling fell drop drops dropped dropping slide slides sliding slid slip slips
-slipped jump jumps jumped jumping climb climbs climbed climbing gain gains gained gaining surge surges surged surging
-soar soars soared soaring plunge plunges plunged plunging tumble tumbles tumbled sink sinks sank rally rallies rallied
-rallying pop pops popped edge edges edged higher lower up down percent pct rebound rebounds rebounded retreat retreats
-retreated sell-off selloff
-""")
+_ACRONYMS = wordset("ai ceo cfo coo cto us usa uk eu ev evs ipo etf etfs q1 q2 q3 q4 eps gdp cpi fed sec ftc doj "
+                    "fy pc gpu gpus api it hr ar vr")
+# Events that recur across unrelated stories (many firms, many launches).
+_GENERIC_EVENTS = frozenset({"pt_raise", "pt_cut", "analyst_upgrade", "analyst_downgrade", "analyst_initiate",
+                             "product_launch", "partnership", "contract_win", "all_time_high"})
+# Concept tokens that are too generic to anchor a story on their own.
+_WEAK_CONCEPTS = frozenset({"price-target", "earnings-beat", "earnings-miss"})
 _YEAR_RE = re.compile(r"^(?:19|20)\d\d$")
 _PCT_RE = re.compile(r"^\d[\d.,]*%$")
 _NUM_RE = re.compile(r"^\d[\d.,]*$")
 
 _W_WORD = 1.0
-_W_BIGRAM = 0.7
+_W_PROPER = 1.4
+_W_VERB = 0.45
+_W_BIGRAM = 0.5
+_W_CONCEPT = 1.6
 _W_MONEY = 1.6
 _W_NUMBER = 0.6
-_W_PCT = 0.35
+_W_PCT = 0.5
 _W_YEAR = 0.2
+_W_MONTH = 0.3
 _W_MOVE = 0.15
 _W_EVENT = 0.9
 _W_FIRM = 1.2
@@ -215,66 +233,116 @@ def _focus(title: str, own: frozenset[str]) -> str:
     return text
 
 
-def _surface_case(word: str) -> str:
-    return word
-
-
 @dataclass
 class _Doc:
-    vec: dict[str, float]
+    vec: dict[str, float]  # unit-length tf-idf vector
+    raw: dict[str, float]  # un-normalized tf-idf weights (absolute evidence)
+    anchors: frozenset[str]  # features specific enough to tie two headlines to one story
     surfaces: dict[str, str]  # feature -> a surface form seen in this title
 
 
-def _raw_features(title: str, own: frozenset[str]) -> tuple[dict[str, float], dict[str, str]]:
+_WORD_SURFACE_RE = re.compile(r"[A-Za-z][\w&'-]*")
+
+
+def _learn_case(titles: list[str]) -> tuple[frozenset[str], frozenset[str]]:
+    """(proper, common): words this batch writes capitalized / lower-case
+    mid-sentence in sentence-case headlines. Proper nouns ("MongoDB",
+    "Desai", "ByteDance", "Burry") are the strongest story identifiers;
+    title-case headlines carry no signal."""
+    proper: Counter[str] = Counter()
+    common: Counter[str] = Counter()
+    for title in titles:
+        text = fold(title)
+        if is_title_case(text) or is_mostly_upper(text):
+            continue
+        for sentence in re.split(r"[:;.!?]\s+|\s[-|]\s", text):
+            for k, word in enumerate(_WORD_SURFACE_RE.findall(sentence)):
+                if k == 0:
+                    continue
+                low = word.lower().removesuffix("'s")
+                (proper if word[0].isupper() else common)[low] += 1
+    names = frozenset(w for w, c in proper.items() if c > common[w] and w not in _ACRONYMS and w not in STOPWORDS)
+    return names, frozenset(common)
+
+
+def _is_entity_shape(surface: str) -> bool:
+    """CamelCase or short all-caps brand/acronym ("OpenAI", "ByteDance", "BNP")."""
+    if len(surface) < 2:
+        return False
+    if any(c.isupper() for c in surface[1:]) and any(c.islower() for c in surface):
+        return True
+    return surface.isupper() and 2 <= len(surface) <= 6 and surface.lower() not in _ACRONYMS
+
+
+def _raw_features(title: str, own: frozenset[str], proper: frozenset[str]
+                  ) -> tuple[dict[str, float], set[str], dict[str, str]]:
     text = _focus(title, own)
     for pattern, concept in _PHRASES:
         text = pattern.sub(concept, text)
-    raw_tokens = re.findall(r"[\w$%.,&'-]+", text)
+    shouting = is_mostly_upper(text)
+    cased = {w.lower().removesuffix("'s"): w.removesuffix("'s") for w in _WORD_SURFACE_RE.findall(text)}
     feats: dict[str, float] = {}
+    anchors: set[str] = set()
     surfaces: dict[str, str] = {}
-    content: list[tuple[str, str]] = []  # (feature, surface) for bigrams
+    content: list[tuple[str, str, bool]] = []  # (feature, surface, generic); "" breaks bigrams
 
-    def add(feature: str, weight: float, surface: str) -> None:
+    def add(feature: str, weight: float, surface: str, anchor: bool = False) -> None:
         if weight > feats.get(feature, 0.0):
             feats[feature] = weight
         surfaces.setdefault(feature, surface)
+        if anchor:
+            anchors.add(feature)
 
-    for raw in raw_tokens:
-        surface = raw.strip(".,'-")
-        for tok in tokenize(surface):
-            if tok in own or tok.lstrip("$") in own:
-                content.append(("", ""))  # break bigram adjacency at the company name
-                continue
-            if tok.startswith("$") and tok[1:2].isdigit():
-                add(tok, _W_MONEY, surface)
-                content.append((tok, surface))
-            elif _PCT_RE.match(tok):
-                add(tok, _W_PCT, surface)
-            elif _NUM_RE.match(tok):
-                if _YEAR_RE.match(tok):
-                    add(tok, _W_YEAR, surface)
-                elif len(tok.replace(".", "").replace(",", "")) >= 2 or "." in tok:
-                    add(tok, _W_NUMBER, surface)
-            elif tok in STOPWORDS or len(tok) < 2:
-                continue
-            elif tok in _MOVES:
-                add(stem(tok), _W_MOVE, surface)
-            elif tok in _GENERIC:
-                content.append(("", ""))
+    for tok in tokenize(text):
+        surface = cased.get(tok, tok)
+        if tok in own or tok.lstrip("$") in own:
+            content.append(("", "", False))  # the company's own name is not a story feature
+        elif tok.startswith("$") and tok[1:2].isdigit():
+            add(tok, _W_MONEY, tok.upper(), anchor=True)
+            content.append((tok, tok.upper(), False))
+        elif _PCT_RE.match(tok):
+            value = float(tok[:-1].replace(",", "") or 0)
+            add(tok, _W_PCT, tok, anchor=value >= 10)
+        elif _NUM_RE.match(tok):
+            if _YEAR_RE.match(tok):
+                add(tok, _W_YEAR, tok)
+            elif len(tok.replace(".", "").replace(",", "")) >= 2 or "." in tok:
+                add(tok, _W_NUMBER, tok, anchor=True)
+        elif tok in STOPWORDS or len(tok) < 2:
+            continue
+        elif tok in MOVE_WORDS:
+            add(stem(tok), _W_MOVE, surface)
+            content.append(("", "", False))
+        elif tok in GENERIC_WORDS or tok.startswith("$"):
+            content.append((tok, surface, True))
+        elif tok in CALENDAR_WORDS:
+            add(tok, _W_MONTH, surface)
+            content.append(("", "", False))
+        elif "-" in tok and tok in _CONCEPTS:
+            add(tok, _W_CONCEPT, surface, anchor=tok not in _WEAK_CONCEPTS)
+            content.append((tok, surface, False))
+        else:
+            feature = stem(tok)
+            if tok in proper or (not shouting and _is_entity_shape(surface)):
+                add(feature, _W_PROPER, surface, anchor=True)
+            elif tok in HEADLINE_VERBS:
+                add(feature, _W_VERB, surface)
             else:
-                feature = tok if "-" in tok else stem(tok)
                 add(feature, _W_WORD, surface)
-                content.append((feature, surface))
-    for (f1, s1), (f2, s2) in zip(content, content[1:]):
-        if f1 and f2 and f1 != f2:
-            add(f"{f1} {f2}", _W_BIGRAM, f"{s1} {s2}")
+            content.append((feature, surface, False))
+    for (f1, s1, g1), (f2, s2, g2) in pairwise(content):
+        if f1 and f2 and f1 != f2 and not (g1 and g2):
+            add(f"{f1} {f2}", _W_BIGRAM, f"{s1} {s2}", anchor=True)
     for event in detect_events(title):
         if event.key in {"price_up", "price_down"}:
             continue
-        add(f"ev:{event.key}", _W_EVENT, event.key)
+        add(f"ev:{event.key}", _W_EVENT, event.key, anchor=event.key not in _GENERIC_EVENTS)
         if event.firm:
-            add(f"firm:{event.firm.lower()}", _W_FIRM, event.firm)
-    return feats, surfaces
+            add(f"firm:{event.firm.lower()}", _W_FIRM, event.firm, anchor=True)
+    return feats, anchors, surfaces
+
+
+_CONCEPTS = frozenset(c.strip() for _p, c in _PHRASES if "-" in c)
 
 
 def _dot(a: dict[str, float], b: dict[str, float]) -> float:
@@ -283,65 +351,141 @@ def _dot(a: dict[str, float], b: dict[str, float]) -> float:
     return sum(w * b.get(f, 0.0) for f, w in a.items())
 
 
-def _vectorize(titles: list[str], company: CompanyRef | None) -> tuple[list[_Doc], dict[str, float]]:
+def _unit(vec: dict[str, float]) -> dict[str, float]:
+    norm = math.sqrt(sum(v * v for v in vec.values()))
+    return {f: v / norm for f, v in vec.items()} if norm else {}
+
+
+def _hub_damping(vectors: list[dict[str, float]], df: Counter[str]) -> dict[str, float]:
+    """Down-weight 'hub' features: frequent terms whose documents have little
+    else in common (a product name like "Muse" spanning five unrelated
+    stories) as opposed to story terms whose documents also share their other
+    terms ("buyback" + "$150B" + "record"). Coherence of f = mean pairwise
+    cosine of the documents containing f, computed without f."""
+    units = [_unit(v) for v in vectors]
+    by_feature: dict[str, list[int]] = defaultdict(list)
+    for i, u in enumerate(units):
+        for f in u:
+            if df[f] >= HUB_MIN_DF:
+                by_feature[f].append(i)
+    damping: dict[str, float] = {}
+    for f, docs in by_feature.items():
+        k = len(docs)
+        total: dict[str, float] = defaultdict(float)
+        self_sq = 0.0
+        for i in docs:
+            for g, w in units[i].items():
+                if g != f:
+                    total[g] += w
+            self_sq += 1.0 - units[i][f] ** 2
+        coherence = (sum(v * v for v in total.values()) - self_sq) / (k * (k - 1))
+        damping[f] = min(1.0, max(HUB_FLOOR, coherence / HUB_REFERENCE))
+    return damping
+
+
+def _vectorize(titles: list[str], company: CompanyRef | None
+               ) -> tuple[list[_Doc], dict[str, float], frozenset[str]]:
     own = company_terms(company)
-    raw = [_raw_features(t or "", own) for t in titles]
+    proper, common = _learn_case(titles)
+    raw = [_raw_features(t or "", own, proper) for t in titles]
     n = len(titles)
-    df = Counter(f for feats, _ in raw for f in feats)
+    df = Counter(f for feats, _a, _s in raw for f in feats)
     idf = {f: math.log((n + 1) / (c + 0.5)) for f, c in df.items()}
+    # Features seen once cannot link anything; keep them faint so they don't
+    # swamp the shared ones in the norm.
+    weighted = [{f: w * idf[f] * (SINGLETON_DAMPING if df[f] == 1 else 1.0) for f, w in feats.items() if idf[f] > 0}
+                for feats, _a, _s in raw]
+    hubs = _hub_damping(weighted, df)
     docs: list[_Doc] = []
-    for feats, surfaces in raw:
-        vec = {f: w * idf[f] for f, w in feats.items() if idf[f] > 0}
-        norm = math.sqrt(sum(v * v for v in vec.values()))
-        vec = {f: v / norm for f, v in vec.items()} if norm else {}
-        docs.append(_Doc(vec=vec, surfaces=surfaces))
-    return docs, idf
+    for vec, (_f, anchors, surfaces) in zip(weighted, raw):
+        vec = {f: w * hubs.get(f, 1.0) for f, w in vec.items()}
+        docs.append(_Doc(vec=_unit(vec), raw=vec, anchors=frozenset(a for a in anchors if a in vec),
+                         surfaces=surfaces))
+    return docs, idf, common
 
 
 # --------------------------------------------------------------------------- #
 # Clustering
 # --------------------------------------------------------------------------- #
-def _average_link(docs: list[_Doc], threshold: float) -> list[list[int]]:
+def _time_factor(a: tuple[float, int], b: tuple[float, int]) -> float:
+    """Stories are time-local: full credit within a day, fading to 0.5 for
+    clusters whose mean timestamps are ~4+ days apart."""
+    if not a[1] or not b[1]:
+        return 1.0
+    gap_h = abs(a[0] / a[1] - b[0] / b[1]) / 3600.0
+    return max(0.5, 1.0 - max(0.0, gap_h - TIME_GRACE_H) / TIME_FADE_H)
+
+
+def _average_link(docs: list[_Doc], threshold: float, times: list[float | None] | None = None) -> list[list[int]]:
     """Exact average-link agglomeration: sim(A, B) = (ΣA·ΣB) / (|A||B|) for
-    unit vectors, merged greedily from the most similar pair down to
-    `threshold`. Only clusters that share a feature are ever compared."""
+    unit vectors (× a time-proximity factor), merged greedily from the most
+    similar pair down to `threshold`. Two clusters are only compared when
+    they share an anchor feature (entity, amount, bigram, concept, firm) and
+    enough absolute evidence — common words alone never link stories."""
+    clock: dict[int, tuple[float, int]] = {
+        i: ((t, 1) if t is not None else (0.0, 0)) for i, t in enumerate(times or [None] * len(docs))
+    }
     sums: dict[int, dict[str, float]] = {i: dict(d.vec) for i, d in enumerate(docs)}
+    raws: dict[int, dict[str, float]] = {i: dict(d.raw) for i, d in enumerate(docs)}
+    anchors: dict[int, set[str]] = {i: set(d.anchors) for i, d in enumerate(docs)}
     members: dict[int, list[int]] = {i: [i] for i in range(len(docs))}
     version = dict.fromkeys(sums, 0)
-    inv: dict[str, set[int]] = defaultdict(set)
-    for i, vec in sums.items():
-        for f in vec:
-            inv[f].add(i)
+    by_anchor: dict[str, set[int]] = defaultdict(set)
+    for i, keys in anchors.items():
+        for f in keys:
+            by_anchor[f].add(i)
 
     heap: list[tuple[float, int, int, int, int]] = []
 
+    def norm(c: int) -> float:
+        return math.sqrt(sum(v * v for v in sums[c].values())) or 1.0
+
+    norms = {c: norm(c) for c in sums}
+
+    def evidence(a: int, b: int) -> float:
+        """Shared information in absolute tf-idf units (mean per member), so a
+        single ubiquitous word ("Muse" in a quarter of the batch) can't
+        glue two short headlines together while a rare shared entity can."""
+        ra, rb = raws[a], raws[b]
+        na, nb = len(members[a]), len(members[b])
+        if len(ra) > len(rb):
+            ra, rb, na, nb = rb, ra, nb, na
+        return sum(min(w / na, rb[f] / nb) for f, w in ra.items() if f in rb)
+
     def push(a: int, b: int) -> None:
-        if a == b:
-            return
         a, b = min(a, b), max(a, b)
-        sim = _dot(sums[a], sums[b]) / (len(members[a]) * len(members[b]))
-        if sim >= threshold:
+        dot = _dot(sums[a], sums[b])
+        if LINKAGE == "centroid":
+            sim = dot / (norms[a] * norms[b])
+        else:
+            sim = dot / (len(members[a]) * len(members[b]))
+        sim *= _time_factor(clock[a], clock[b])
+        if sim >= threshold and evidence(a, b) >= MIN_EVIDENCE:
             heapq.heappush(heap, (-sim, a, b, version[a], version[b]))
 
-    for i in sums:
-        neighbours = {j for f in sums[i] for j in inv[f] if j > i}
-        for j in neighbours:
+    for i, keys in anchors.items():
+        for j in {j for f in keys for j in by_anchor[f] if j > i}:
             push(i, j)
 
     while heap:
         _neg, a, b, va, vb = heapq.heappop(heap)
         if a not in sums or b not in sums or version[a] != va or version[b] != vb:
             continue
-        # merge b into a
-        for f, w in sums.pop(b).items():
+        for f, w in sums.pop(b).items():  # merge b into a
             sums[a][f] = sums[a].get(f, 0.0) + w
-            inv[f].discard(b)
-            inv[f].add(a)
+        for f, w in raws.pop(b).items():
+            raws[a][f] = raws[a].get(f, 0.0) + w
+        for f in anchors.pop(b):
+            by_anchor[f].discard(b)
+            by_anchor[f].add(a)
+            anchors[a].add(f)
         members[a].extend(members.pop(b))
+        ta, tb = clock[a], clock.pop(b)
+        clock[a] = (ta[0] + tb[0], ta[1] + tb[1])
         version[a] += 1
         version.pop(b)
-        neighbours = {j for f in sums[a] for j in inv[f] if j != a}
-        for j in neighbours:
+        norms[a] = norm(a)
+        for j in {j for f in anchors[a] for j in by_anchor[f] if j != a}:
             push(a, j)
     return [sorted(m) for m in members.values()]
 
@@ -363,8 +507,9 @@ def cluster_narratives(items: list[ClusterItem], company: CompanyRef | None = No
     if not items:
         return []
     titles = [it.title or "" for it in items]
-    docs, idf = _vectorize(titles, company)
-    groups = _average_link(docs, threshold)
+    docs, idf, common = _vectorize(titles, company)
+    times = [it.timestamp.timestamp() if it.timestamp else None for it in items]
+    groups = _average_link(docs, threshold, times)
 
     def group_key(g: list[int]) -> tuple[float, int, float]:
         weight = sum(max(items[i].weight, 0.0) for i in g)
@@ -379,12 +524,14 @@ def cluster_narratives(items: list[ClusterItem], company: CompanyRef | None = No
             item_ids=[items[rep].id] + [items[i].id for i in g if i != rep],
             representative_id=items[rep].id,
             title=items[rep].title,
-            terms=_top_terms(g, docs, idf),
+            terms=_top_terms(g, docs, idf, common),
         ))
     return out
 
 
 def _representative(group: list[int], items: list[ClusterItem], docs: list[_Doc]) -> int:
+    """Most central member, preferring trusted outlets, heavier items and
+    plain declarative headlines over questions, listicles and roundups."""
     if len(group) == 1:
         return group[0]
     centroid: dict[str, float] = defaultdict(float)
@@ -394,59 +541,96 @@ def _representative(group: list[int], items: list[ClusterItem], docs: list[_Doc]
     max_w = max((items[i].weight for i in group), default=0.0) or 1.0
 
     def score(i: int) -> float:
+        title = items[i].title or ""
         central = _dot(docs[i].vec, centroid) / len(group)
         trust = publisher_trust(items[i].publisher) if items[i].publisher else 0.9
         weight = max(items[i].weight, 0.0) / max_w
-        words = len(items[i].title.split())
-        shape = 0.8 if _is_weak_headline(items[i].title) else 1.0
-        shape *= 0.85 if words < 5 or words > 22 else 1.0
+        words = len(title.split())
+        shape = 0.8 if _is_weak_headline(title) else 1.0
+        shape *= 0.8 if _LEAD_RE.match(fold(title)) or re.search(r";|\s\|\s", title) else 1.0
+        shape *= 0.85 if words < 6 or words > 20 else 1.0
+        shape *= 0.9 if title.endswith(("...", "\u2026")) or re.search(r"\s\w{1,2}$", title) else 1.0
         return central * (0.6 + 0.25 * trust + 0.15 * weight) * shape
 
     return max(group, key=lambda i: (score(i), -i))
 
 
-def _top_terms(group: list[int], docs: list[_Doc], idf: dict[str, float], limit: int = 5) -> list[str]:
+_WEAK_WORDS = HEADLINE_VERBS | MOVE_WORDS | CALENDAR_WORDS
+_WEAK_STEMS = frozenset({stem(w) for w in _WEAK_WORDS} | _WEAK_WORDS)
+_CONCEPT_LABELS = {
+    "record-high": "record high", "price-target": "price target", "market-cap": "market cap", "top-pick": "top pick",
+    "smart-home": "smart home", "data-center": "data centers", "short-seller": "short seller", "52w-low": "52-week low",
+    "stock-split": "stock split", "earnings-beat": "earnings beat", "earnings-miss": "earnings miss",
+    "price-cut": "price cuts", "price-hike": "price hikes", "inst-holding": "institutional holdings",
+}
+
+
+def _top_terms(group: list[int], docs: list[_Doc], idf: dict[str, float], common: frozenset[str],
+               limit: int = 5) -> list[str]:
+    """Readable distinguishing terms: entities, amounts, concepts and
+    bigrams shared by the cluster, most specific first."""
     counts: Counter[str] = Counter()
+    anchored: set[str] = set()
     surface_votes: dict[str, Counter[str]] = defaultdict(Counter)
     for i in group:
+        anchored |= docs[i].anchors
         for f in docs[i].vec:
             counts[f] += 1
             surface = docs[i].surfaces.get(f)
             if surface:
                 surface_votes[f][surface] += 1
     min_count = 2 if len(group) >= 3 else 1
-    scored = []
+    scored: list[tuple[float, str]] = []
     for f, c in counts.items():
         if c < min_count or f.startswith(("ev:", "firm:")) or _YEAR_RE.match(f) or _PCT_RE.match(f):
             continue
-        weight = c / len(group) * idf.get(f, 0.0) * (1.15 if " " in f or "-" in f else 1.0)
+        words = f.split()
+        if any(w in _WEAK_STEMS or _NUM_RE.match(w) for w in words):
+            continue
+        weight = c / len(group) * idf.get(f, 0.0) * (1.3 if f in anchored else 0.7)
+        weight *= 1.15 if len(words) > 1 or f in _CONCEPT_LABELS else 1.0
         scored.append((weight, f))
     scored.sort(key=lambda x: (-x[0], x[1]))
+    best = {f: w for w, f in scored}
     chosen: list[str] = []
     covered: set[str] = set()
-    for _w, f in scored:
-        parts = set(f.split())
-        if parts & covered and " " not in f:
-            continue
-        if " " in f and parts <= covered:
+    for w, f in scored:
+        parts = f.split()
+        if len(parts) == 1 and any(f in b.split() and counts[b] >= 0.6 * counts[f] and best[b] >= 0.5 * w
+                                   for b in best if " " in b):
+            continue  # its bigram says it better ("morgan stanley" over "morgan")
+        if len(parts) > 1 and set(parts) & covered:
             continue
         chosen.append(f)
-        covered |= parts
+        covered |= set(parts)
         if len(chosen) >= limit:
             break
-    return [_display(f, surface_votes.get(f)) for f in chosen]
+    out: list[str] = []
+    for f in chosen:
+        text = _display(f, surface_votes.get(f), common)
+        if text.lower() not in {o.lower() for o in out}:
+            out.append(text)
+    return out
 
 
-def _display(feature: str, votes: Counter[str] | None) -> str:
+def _display(feature: str, votes: Counter[str] | None, common: frozenset[str]) -> str:
+    """Surface form for a feature: words this batch also writes lower-case
+    are shown lower-case; names keep their capitalization."""
+    if feature in _CONCEPT_LABELS:
+        return _CONCEPT_LABELS[feature]
     if feature.startswith("$"):
-        return feature[0] + feature[1:].upper() if feature[-1].isalpha() else feature
+        return "$" + feature[1:].upper()
     if not votes:
-        return feature.replace("-", " ")
+        return feature
     surface = votes.most_common(1)[0][0]
-    if surface.isupper() and len(surface) <= 5:
-        return surface  # AI, CEO, GPU
-    lower_seen = any(s and s[0].islower() for s in votes)
-    shown = surface.lower() if lower_seen or not surface[:1].isupper() else surface
-    return shown.replace("-", " ") if feature in {"record-high", "price-target", "market-cap", "top-pick",
-                                                   "smart-home", "data-center", "short-seller", "stock-split",
-                                                   "earnings-beat", "earnings-miss"} else shown
+    words = surface.split()
+    shown = []
+    for word in words:
+        low = word.lower()
+        if low in _CONCEPT_LABELS:
+            shown.append(_CONCEPT_LABELS[low])
+        elif low in common and not _is_entity_shape(word):
+            shown.append(low)
+        else:
+            shown.append(word)
+    return " ".join(shown)

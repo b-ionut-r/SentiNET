@@ -7,7 +7,9 @@ import { ArrowUpRight, ClockArrowLeft } from "lucide-react";
 import type { ReactNode } from "react";
 
 import type { Analysis, Component, Reason } from "../../api/types";
+import { useSnapshots } from "../../api/hooks";
 import { Dial, VERDICT_DIAL } from "../../components/charts/Dial";
+import { Sparkline } from "../../components/charts/Sparkline";
 import { DivergingBar } from "../../components/charts/Bars";
 import { Delta, Mark } from "../../components/ui/Badges";
 import { CountUp } from "../../components/ui/Misc";
@@ -62,6 +64,7 @@ function ScoreBlock({ a }: { a: Analysis }) {
             <span className="capitalize">{v.confidence}</span> confidence
           </span>
         </Tip>
+        <ScoreHistory ticker={a.ticker} current={v.score} />
         {a.delta.sentinel_change != null && a.delta.previous_at && (
           <Tip content={`SentiNET ${a.verdict.score - a.delta.sentinel_change} → ${a.verdict.score} since ${dayTime(a.delta.previous_at)}`}>
             <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-md bg-raised px-1.5 py-0.5 text-xs">
@@ -72,6 +75,24 @@ function ScoreBlock({ a }: { a: Analysis }) {
         )}
       </div>
     </div>
+  );
+}
+
+/** Stored SentiNET scores for this ticker (one per analysis), oldest → newest. */
+function ScoreHistory({ ticker, current }: { ticker: string; current: number }) {
+  const snaps = useSnapshots(ticker);
+  const list = [...(snaps.data ?? [])].sort((x, y) => x.at.localeCompare(y.at));
+  if (list.length < 2) return null;
+  const values = list.map((s) => s.sentinel_score);
+  const lo = Math.min(...values);
+  const hi = Math.max(...values);
+  return (
+    <Tip content={`${list.length} stored looks since ${dayTime(list[0].at)} · range ${lo}–${hi} · now ${current}`}>
+      <div className="flex w-[150px] items-center gap-2" tabIndex={0}>
+        <Sparkline values={values} height={20} reference={50} color="rgb(var(--ink-2))" className="flex-1" />
+        <span className="text-2xs text-muted">{list.length} looks</span>
+      </div>
+    </Tip>
   );
 }
 
@@ -153,6 +174,7 @@ function ComponentsBlock({ components, className }: { components: Component[]; c
         <p className="eyebrow">Score components</p>
         <p className="text-2xs text-muted">bear ← 50 → bull · weight</p>
       </div>
+      {components.length === 0 && <p className="text-xs text-muted">No component scores were produced for this run.</p>}
       <ul className="space-y-2.5">
         {components.map((c) => {
           const p = polarityOf100(c.score);
@@ -179,7 +201,7 @@ function ComponentsBlock({ components, className }: { components: Component[]; c
                   <span className={cx("text-right text-xs font-semibold num", c.available ? textTone[p] : "text-faint")}>{c.available && c.score != null ? Math.round(c.score) : "n/a"}</span>
                   <span className="text-right text-2xs text-faint num">{Math.round(c.weight * 100)}%</span>
                 </div>
-                <p className={cx("mt-0.5 truncate pl-[94px] text-2xs", c.available ? "text-muted" : "text-faint")}>{c.detail}</p>
+                <p className={cx("mt-0.5 line-clamp-2 pl-[94px] text-2xs", c.available ? "text-muted" : "text-faint")}>{c.detail}</p>
               </Tip>
             </li>
           );

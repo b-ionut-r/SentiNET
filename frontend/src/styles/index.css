@@ -197,11 +197,16 @@
   display: none;
 }
 
-/* Keep the previous render visible while refetching. */
+/* Keep the previous render visible while refetching (small widgets: inert). */
 .is-refetching {
   opacity: 0.55;
   transition: opacity 150ms ease;
   pointer-events: none;
+}
+/* Whole-page re-scan: dimmed but still readable and interactive. */
+.is-refreshing {
+  opacity: 0.72;
+  transition: opacity 150ms ease;
 }
 
 @media (prefers-reduced-motion: reduce) {

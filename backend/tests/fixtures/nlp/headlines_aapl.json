@@ -1,0 +1,613 @@
+{
+ "description": "Real Google News RSS headlines (search: \"Apple\" (stock OR shares OR AAPL) when:7d), captured 2026-10-04. 'story' = hand-labeled narrative ('a|b' = either acceptable, '?' = unknown, null = its own story); 'relevant' = hand-labeled company relevance.",
+ "company": {
+  "ticker": "AAPL",
+  "name": "Apple Inc.",
+  "short_name": "Apple",
+  "aliases": [],
+  "industry": "Consumer Electronics",
+  "sector": "Technology"
+ },
+ "items": [
+  {
+   "title": "Apple Stock Falls After Bank of America Flags a New AI Threat - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-29T16:09:04+00:00",
+   "story": "bofa_ai_threat"
+  },
+  {
+   "title": "Dear Apple Stock Fans, Mark Your Calendars for October 13 - Barchart.com",
+   "publisher": "Barchart.com",
+   "timestamp": "2026-10-03T18:30:02+00:00",
+   "story": "smart_home_event"
+  },
+  {
+   "title": "Apple Predicted To Sell 6 Million iPhone Duo Handsets This Year - Investor's Business Daily",
+   "publisher": "Investor's Business Daily",
+   "timestamp": "2026-09-30T21:06:00+00:00",
+   "story": "iphone_duo_sales"
+  },
+  {
+   "title": "Morgan Stanley lowers Apple stock price target on limited upside - Investing.com",
+   "publisher": "Investing.com",
+   "timestamp": "2026-10-01T12:38:35+00:00",
+   "story": "ms_note"
+  },
+  {
+   "title": "Apple Stock’s Upside May Be Limited as AI Agents Could Disrupt Business - Barron's",
+   "publisher": "Barron's",
+   "timestamp": "2026-10-01T17:19:00+00:00",
+   "story": "bofa_ai_threat|?"
+  },
+  {
+   "title": "Jim Cramer sees a huge catalyst on the horizon for Apple. How to play the stock - CNBC",
+   "publisher": "CNBC",
+   "timestamp": "2026-10-01T19:23:49+00:00",
+   "story": "cramer"
+  },
+  {
+   "title": "How Much Upside Is Left In Apple Stock? - trefis.com",
+   "publisher": "trefis.com",
+   "timestamp": "2026-10-02T15:15:50+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Jim Cramer urges buying Apple stock before foldable iPhone launch - qz.com",
+   "publisher": "qz.com",
+   "timestamp": "2026-10-02T12:16:51+00:00",
+   "story": "cramer"
+  },
+  {
+   "title": "US jury says Apple owes record $5.7 billion in haptic technology patent case - Reuters",
+   "publisher": "Reuters",
+   "timestamp": "2026-09-28T14:17:03+00:00",
+   "story": "patent_verdict"
+  },
+  {
+   "title": "Apple stock pops on report it will unveil all-new smart home hub at Oct. 13 event - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-30T15:00:02+00:00",
+   "story": "smart_home_event"
+  },
+  {
+   "title": "What Will Decide Apple Stock Over The Next Six Months? - trefis.com",
+   "publisher": "trefis.com",
+   "timestamp": "2026-09-29T13:29:44+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Apple Falls 2% as Bank of America Flags Meta’s Shopping Agent; Alphabet Slips, Microsoft Holds Steady - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-29T17:43:07+00:00",
+   "story": "bofa_ai_threat"
+  },
+  {
+   "title": "A US Jury Orders Apple (AAPL) to Pay a Record $5.7 Billion in a Patent Case - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-28T19:33:43+00:00",
+   "story": "patent_verdict"
+  },
+  {
+   "title": "Apple (AAPL) Exceeds Market Returns: Some Facts to Consider - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T20:45:04+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Apple Stock Edges Higher Although Two Legal Bills Stack Up - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-28T19:26:53+00:00",
+   "story": "patent_verdict|uk_lawsuit"
+  },
+  {
+   "title": "Apple Stock Drops 1.5% as Local AI Moves Onto Desktops - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-29T16:35:56+00:00",
+   "story": null
+  },
+  {
+   "title": "Apple (AAPL)’s Premium iPhone Strategy Faces a Test Beyond Early Adopters - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-28T00:32:00+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Why Apple Stock Is Climbing Today - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-30T17:54:13+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Morgan Stanley Has Strong Verdict for Apple Stock Investors - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T20:03:07+00:00",
+   "story": "ms_note"
+  },
+  {
+   "title": "Apple (AAPL) Prepares A Siri Powered Smart Home Hub - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T13:11:25+00:00",
+   "story": "smart_home_event"
+  },
+  {
+   "title": "Apple Stock Faces AI Threat From Meta’s Muse, BofA Says - Barron's",
+   "publisher": "Barron's",
+   "timestamp": "2026-09-29T17:02:00+00:00",
+   "story": "bofa_ai_threat"
+  },
+  {
+   "title": "AAPL Stock Retreats From All-Time High: Research Firm Says Apple Could Sell 6M iPhone Duos This Year - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-30T05:07:50+00:00",
+   "story": "iphone_duo_sales"
+  },
+  {
+   "title": "Apple (AAPL) Opens the Ternus Era with a Foldable iPhone. Can Premium Devices Lift Revenue? - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-27T23:44:33+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Apple Chief Executive John Ternus Weighs Major Corporate Overhaul and Product Release Shift - TIKR.com",
+   "publisher": "TIKR.com",
+   "timestamp": "2026-10-01T13:04:24+00:00",
+   "story": "ternus_restructure"
+  },
+  {
+   "title": "Apple Shares Photos Shot on iPhone Duo - MacRumors",
+   "publisher": "MacRumors",
+   "timestamp": "2026-10-01T20:37:20+00:00",
+   "story": "iphone_duo_sales|?"
+  },
+  {
+   "title": "Apple Inc. (AAPL) Is a Trending Stock: Facts to Know Before Betting on It - Yahoo Finance Australia",
+   "publisher": "Yahoo Finance Australia",
+   "timestamp": "2026-10-02T12:00:03+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Apple’s Fall Product Cycle Could Support Revenue Growth, Says Morgan Stanley — Sees Memory Costs As An Offsetting Factor - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-01T13:04:27+00:00",
+   "story": "ms_note"
+  },
+  {
+   "title": "Litigation funder Burford says it would be entitled to $1.4 billion of Apple patent verdict - Reuters",
+   "publisher": "Reuters",
+   "timestamp": "2026-09-28T14:39:13+00:00",
+   "story": "patent_verdict"
+  },
+  {
+   "title": "Qualcomm Is Losing Apple and Adding Amazon. Is the Stock Ready? - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T12:58:51+00:00",
+   "story": "?"
+  },
+  {
+   "title": "What Does Apple (AAPL) Restructuring And Layoffs Mean For Its Product Roadmap? - Simply Wall Street",
+   "publisher": "Simply Wall Street",
+   "timestamp": "2026-10-03T04:35:32+00:00",
+   "story": "ternus_restructure"
+  },
+  {
+   "title": "Apple (AAPL): 1 Number That Proves Its AI Strategy Is Different From the Hyperscalers' - The Motley Fool",
+   "publisher": "The Motley Fool",
+   "timestamp": "2026-09-29T15:00:00+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Nvidia, Apple Partner TSMC Reveals These Clues On How To Read Charts - Investor's Business Daily",
+   "publisher": "Investor's Business Daily",
+   "timestamp": "2026-09-28T20:04:00+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Apple’s new hardware October 13 won’t include one rumored product: report - 9to5Mac",
+   "publisher": "9to5Mac",
+   "timestamp": "2026-09-30T14:15:00+00:00",
+   "story": "smart_home_event"
+  },
+  {
+   "title": "Apple iPhone Availability Similar to Last Year as Wait Times Stay Flat, UBS Says - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-30T15:54:33+00:00",
+   "story": null
+  },
+  {
+   "title": "Apple stock is rising today: here's why - TradingView",
+   "publisher": "TradingView",
+   "timestamp": "2026-09-30T18:18:27+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Former Texoma coach shares experience as extra on Apple TV’s ‘Brothers’ - KXII",
+   "publisher": "KXII",
+   "timestamp": "2026-09-29T03:40:00+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Apple (AAPL) Could Be 30% Above Fair Value On iPhone Duo Buzz - Simply Wall Street",
+   "publisher": "Simply Wall Street",
+   "timestamp": "2026-10-02T02:29:38+00:00",
+   "story": "iphone_duo_sales|?"
+  },
+  {
+   "title": "Qualcomm Stock Fell 7% in a Day as Its AI and Apple Rally Cooled. Here’s What Higher 2027 Sales Estimates Mean - TIKR.com",
+   "publisher": "TIKR.com",
+   "timestamp": "2026-09-29T15:39:24+00:00",
+   "story": "?"
+  },
+  {
+   "title": "$Apple (AAPL.US)$ - Moomoo",
+   "publisher": "Moomoo",
+   "timestamp": "2026-10-02T14:20:57+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Apple (AAPL) Readies Siri Home Hub Push With New Devices and Bigger AI Bet - Simply Wall Street",
+   "publisher": "Simply Wall Street",
+   "timestamp": "2026-09-30T20:31:34+00:00",
+   "story": "smart_home_event"
+  },
+  {
+   "title": "Apple to replace iPhone 18 Pro Max facing AT&T glitch (AAPL) - Seeking Alpha",
+   "publisher": "Seeking Alpha",
+   "timestamp": "2026-10-03T13:29:18+00:00",
+   "story": null
+  },
+  {
+   "title": "New Apple CEO John Ternus is reportedly planning layoffs as he looks to reshape the iPhone maker - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-30T14:54:53+00:00",
+   "story": "ternus_restructure"
+  },
+  {
+   "title": "Jim Cramer Says 'Buy' Apple Stock Because of iPhone Duo, Not On Smart Home Device Buzz: Calls the $1,999 - Benzinga",
+   "publisher": "Benzinga",
+   "timestamp": "2026-10-01T07:16:54+00:00",
+   "story": "cramer"
+  },
+  {
+   "title": "Update: Apple, Amazon Face Renewed UK Consumer Lawsuit - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-28T12:19:44+00:00",
+   "story": "uk_lawsuit"
+  },
+  {
+   "title": "Apple SVP Jennifer Newstead sells $806,495 in AAPL stock - Investing.com",
+   "publisher": "Investing.com",
+   "timestamp": "2026-10-01T23:03:58+00:00",
+   "story": "insider_sales"
+  },
+  {
+   "title": "I Correctly Predicted Nvidia Would Overtake Apple in Stock Buybacks and Dividends. Here's the Better Buy Now. - The Motley Fool",
+   "publisher": "The Motley Fool",
+   "timestamp": "2026-10-02T12:00:00+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Apple Takes Aim at the Smart Home: ETFs to Tap? - TradingView",
+   "publisher": "TradingView",
+   "timestamp": "2026-10-01T12:00:00+00:00",
+   "story": "smart_home_event"
+  },
+  {
+   "title": "How Long Would It Take $1,000 Invested in Apple to Become $10,000? - 24/7 Wall St.",
+   "publisher": "24/7 Wall St.",
+   "timestamp": "2026-10-01T12:30:00+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Apple Is the Best-Performing \"Magnificent Seven\" Stock This Year. But It Has Still Lagged This Unassuming Dividend Stock (That Remains a Top Buy Now). - The Motley Fool",
+   "publisher": "The Motley Fool",
+   "timestamp": "2026-09-28T13:07:00+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Apple CEO Ternus plots restructure to supercharge products, report says - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-29T15:58:48+00:00",
+   "story": "ternus_restructure"
+  },
+  {
+   "title": "Why Apple Stock Is Climbing Today - TradingView",
+   "publisher": "TradingView",
+   "timestamp": "2026-09-30T17:54:13+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Apple streamlines management as analysts urge faster AI innovation - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-29T16:39:00+00:00",
+   "story": "ternus_restructure"
+  },
+  {
+   "title": "Needham reiterates Hold on Apple stock citing Meta competition risks - Investing.com",
+   "publisher": "Investing.com",
+   "timestamp": "2026-10-01T11:40:17+00:00",
+   "story": "bofa_ai_threat|?"
+  },
+  {
+   "title": "Cramer Says Buy Apple Before New Phone Comes Out. Because Apple's Duo Model Is, \"Kind Of Astounding\" - 24/7 Wall St.",
+   "publisher": "24/7 Wall St.",
+   "timestamp": "2026-09-30T16:46:00+00:00",
+   "story": "cramer"
+  },
+  {
+   "title": "Apple hit with $5.7 billion jury verdict over haptic patents - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-28T12:55:00+00:00",
+   "story": "patent_verdict"
+  },
+  {
+   "title": "Why Is Apple (AAPL) Facing A $5.7 Billion Patent Verdict? - Simply Wall Street",
+   "publisher": "Simply Wall Street",
+   "timestamp": "2026-09-29T13:39:38+00:00",
+   "story": "patent_verdict"
+  },
+  {
+   "title": "Apple Shares New Guide for Using iOS 27 Parental Controls - MacRumors",
+   "publisher": "MacRumors",
+   "timestamp": "2026-09-29T18:28:39+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Apple, Meta, Iovance, Carnival, Fair Isaac, Bloom Energy, SpaceX, and More Stocks That Explain Today’s Market - Barron's",
+   "publisher": "Barron's",
+   "timestamp": "2026-09-29T20:52:00+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Apple’s $5.7 Billion Patent Verdict Raises a Bigger Royalty Question - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-01T16:40:00+00:00",
+   "story": "patent_verdict"
+  },
+  {
+   "title": "Apple to enter smart-home market with Siri AI hub - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-30T16:24:00+00:00",
+   "story": "smart_home_event"
+  },
+  {
+   "title": "Apple Reportedly Prepares Major Smart-Home Push With Siri AI At Center — New Hub, Apple TV And HomePod Mini Nearly Ready - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-30T12:18:17+00:00",
+   "story": "smart_home_event"
+  },
+  {
+   "title": "Trump’s AI lunch included every major tech company. Except Apple - CNBC",
+   "publisher": "CNBC",
+   "timestamp": "2026-10-01T02:07:00+00:00",
+   "story": "trump_lunch"
+  },
+  {
+   "title": "Apple likely to sell 6M iPhone Duos this year, Counterpoint says (AAPL:NASDAQ) - Seeking Alpha",
+   "publisher": "Seeking Alpha",
+   "timestamp": "2026-09-30T12:23:48+00:00",
+   "story": "iphone_duo_sales"
+  },
+  {
+   "title": "Jim Cramer urges buying Apple shares ahead of t... - Pluang",
+   "publisher": "Pluang",
+   "timestamp": "2026-09-30T17:06:37+00:00",
+   "story": "cramer"
+  },
+  {
+   "title": "Apple's smart hub shows its new view of the tech consumer — and its ambition - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-01T10:00:00+00:00",
+   "story": "smart_home_event"
+  },
+  {
+   "title": "Citi Initiates Apple(AAPL.US) With Buy Rating, Announces Target Price $365 - Moomoo",
+   "publisher": "Moomoo",
+   "timestamp": "2026-10-03T16:37:56+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Morgan Stanley lowers Apple (AAPL.US) price target to $355: Roadmap is exciting, but valuation is full and per-iPhone storage costs have risen nearly 200%. - Moomoo",
+   "publisher": "Moomoo",
+   "timestamp": "2026-10-02T12:12:19+00:00",
+   "story": "ms_note"
+  },
+  {
+   "title": "Billionaire Investor: Meta’s Muse Puts Apple’s “30% Rev Share on Notice” - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-29T19:32:36+00:00",
+   "story": "bofa_ai_threat|?"
+  },
+  {
+   "title": "Opinion: Why Apple Is “Terrified of Whatever OpenAI Is Building” - TIKR.com",
+   "publisher": "TIKR.com",
+   "timestamp": "2026-09-30T13:46:33+00:00",
+   "story": "?"
+  },
+  {
+   "title": "AAPL To Flag AI Requests For Data Access On Macs Amid Complaints Over META's Muse Agent - TradingView",
+   "publisher": "TradingView",
+   "timestamp": "2026-10-03T03:48:00+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Apple (AAPL) general counsel sells 2,399 shares under a preset trading plan. - Stock Titan",
+   "publisher": "Stock Titan",
+   "timestamp": "2026-10-01T22:30:31+00:00",
+   "story": "insider_sales"
+  },
+  {
+   "title": "Apple was the only major tech company missing from Trump's White House AI lunch - qz.com",
+   "publisher": "qz.com",
+   "timestamp": "2026-10-01T11:16:56+00:00",
+   "story": "trump_lunch"
+  },
+  {
+   "title": "Apple (NASDAQ:AAPL) Stock Jumps 1% - What's Next? - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-02T21:23:16+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Apple Inc. $AAPL Stock Acquired by JNBA Financial Advisors - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-02T07:34:42+00:00",
+   "story": "inst_13f"
+  },
+  {
+   "title": "Apple (NASDAQ: AAPL) director Timothy D. Cook proposes selling 218,078 shares. - Stock Titan",
+   "publisher": "Stock Titan",
+   "timestamp": "2026-10-02T20:20:33+00:00",
+   "story": "insider_sales"
+  },
+  {
+   "title": "Shares vested October 1. An Apple (AAPL) officer proposes selling them. - Stock Titan",
+   "publisher": "Stock Titan",
+   "timestamp": "2026-10-02T20:10:19+00:00",
+   "story": "insider_sales"
+  },
+  {
+   "title": "After an October 1 stock grant, Apple (AAPL) officer John Ternus proposes a share sale. - Stock Titan",
+   "publisher": "Stock Titan",
+   "timestamp": "2026-10-02T21:17:34+00:00",
+   "story": "insider_sales"
+  },
+  {
+   "title": "Apple's new CEO is cutting middle managers to speed up product launches - qz.com",
+   "publisher": "qz.com",
+   "timestamp": "2026-09-30T18:05:58+00:00",
+   "story": "ternus_restructure"
+  },
+  {
+   "title": "Apple Inc. $AAPL Stock Sold by Cullinan Associates Inc. - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-02T07:21:14+00:00",
+   "story": "inst_13f"
+  },
+  {
+   "title": "Apple Inc. $AAPL Stock Bought by GTS Securities LLC - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-02T07:21:10+00:00",
+   "story": "inst_13f"
+  },
+  {
+   "title": "Apple ordered to pay $5.7bn after losing vibration tech patent suit - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-28T12:34:41+00:00",
+   "story": "patent_verdict"
+  },
+  {
+   "title": "Morgan Stanley Has Strong Verdict for Apple Stock Investors - TradingView",
+   "publisher": "TradingView",
+   "timestamp": "2026-10-02T20:03:07+00:00",
+   "story": "ms_note"
+  },
+  {
+   "title": "Bank of America says Meta’s Muse highlights a new risk for Apple’s services revenue - 9to5Mac",
+   "publisher": "9to5Mac",
+   "timestamp": "2026-09-30T00:41:00+00:00",
+   "story": "bofa_ai_threat"
+  },
+  {
+   "title": "Apple enters India payments market, taking on Google and Paytm (AAPL:NASDAQ) - Seeking Alpha",
+   "publisher": "Seeking Alpha",
+   "timestamp": "2026-09-30T05:49:16+00:00",
+   "story": null
+  },
+  {
+   "title": "Burford Capital could gain up to $1.4bn from Apple patent defeat - Financial Times",
+   "publisher": "Financial Times",
+   "timestamp": "2026-09-28T10:08:53+00:00",
+   "story": "patent_verdict"
+  },
+  {
+   "title": "Alphabet Rides on Google Services Growth: Can It Beat META & AAPL? - TradingView",
+   "publisher": "TradingView",
+   "timestamp": "2026-09-30T17:10:00+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Meta Platforms Is Making a Push Into AI Hardware. History Says Apple Investors Shouldn't Worry. - The Motley Fool",
+   "publisher": "The Motley Fool",
+   "timestamp": "2026-09-30T19:50:00+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Apple plans smart-home hub launch in October: report (AAPL:NASDAQ) - Seeking Alpha",
+   "publisher": "Seeking Alpha",
+   "timestamp": "2026-09-30T13:58:59+00:00",
+   "story": "smart_home_event"
+  },
+  {
+   "title": "Apple Inc. $AAPL Stock Acquired by Natural Investments LLC - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-04T07:16:42+00:00",
+   "story": "inst_13f"
+  },
+  {
+   "title": "Apple Inc. $AAPL Shares Sold by ICONIQ Capital LLC - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-02T07:34:42+00:00",
+   "story": "inst_13f"
+  },
+  {
+   "title": "Apple Inc. $AAPL Stock Sold by Denver PWM LLC - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-03T07:12:22+00:00",
+   "story": "inst_13f"
+  },
+  {
+   "title": "Morgan Stanley lowers Apple stock price target on limited upside By Investing.com - Investing.com Nigeria",
+   "publisher": "Investing.com Nigeria",
+   "timestamp": "2026-10-01T15:10:35+00:00",
+   "story": "ms_note"
+  },
+  {
+   "title": "Apple stock: China’s iPhone 18 Pro surge has a catch investors should see - techi.com",
+   "publisher": "techi.com",
+   "timestamp": "2026-09-30T21:22:13+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Apple Inc. $AAPL Stake Cut by Denali Advisors LLC - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-02T07:14:36+00:00",
+   "story": "inst_13f"
+  },
+  {
+   "title": "Burford stock jumps after jury orders Apple to pay $5.7B in damages to plaintiff (BUR:NYSE) - Seeking Alpha",
+   "publisher": "Seeking Alpha",
+   "timestamp": "2026-09-28T18:32:06+00:00",
+   "story": "patent_verdict"
+  },
+  {
+   "title": "Apple Inc. $AAPL Stock Purchased by Bedel Financial Consulting Inc. - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-03T07:08:22+00:00",
+   "story": "inst_13f"
+  },
+  {
+   "title": "Apple (NASDAQ:AAPL) SVP Jennifer Newstead Sells 2,399 Shares of Stock - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-01T23:15:20+00:00",
+   "story": "insider_sales"
+  },
+  {
+   "title": "Apple Inc. $AAPL Stock Bought by Nan Shan Life Insurance Co. Ltd. - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-04T07:16:42+00:00",
+   "story": "inst_13f"
+  },
+  {
+   "title": "Apple Inc. $AAPL Stock Sold by Okabena Investment Services Inc. - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-02T07:28:41+00:00",
+   "story": "inst_13f"
+  },
+  {
+   "title": "7,314 Apple Inc. $AAPL Shares Sold by Addenda Capital Inc. - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-02T07:21:13+00:00",
+   "story": "inst_13f"
+  }
+ ]
+}

@@ -252,6 +252,11 @@ _GENERIC_ACTORS = frozenset({"analyst", "analysts", "wall street", "street", "fi
                              "why", "how", "what", "it", "investors", "weekly recap"})
 
 
+def is_known_firm(name: str) -> bool:
+    """True when `name` is a brokerage alias ("morgan stanley", "BofA")."""
+    return re.sub(r"\s+", " ", re.sub(r"'s$", "", name.strip())).lower() in _FIRM_CANON
+
+
 def canonical_firm(name: str) -> str:
     """'BofA Securities' -> 'Bank of America'; unknown names are returned trimmed."""
     key = re.sub(r"'s$", "", name.strip()).lower()
@@ -808,47 +813,85 @@ def _price_value(match_text: str, key: str) -> float | None:
     return value if key == "price_up" else -value
 
 
+_ANALYST_TRIGGER = re.compile(r"target|\bpts?\b|grad|initiat|coverage|pick|bullish|bearish|rating|perform|weight|"
+                              r"to (?:strong )?(?:buy|sell)|objective")
+# Cheap substring pre-filters: a rule's regex only runs when one of its
+# trigger fragments occurs in the lower-cased text (keeps 500 texts ~0.1 s).
+_TRIGGERS: dict[str, tuple[str, ...]] = {
+    "earnings_beat": ("beat", "top", "exceed", "surpass", "crush", "smash", "trounce", "outpac", "outstrip", "past",
+                      "above", "better", "stronger"),
+    "earnings_miss": ("miss", "short", "lag", "trail", "undershoot", "undershot", "below", "disappoint", "loss",
+                      "weaker", "worse", "softer"),
+    "guidance_raise": ("guid", "outlook", "forecast", "projection", "view"),
+    "guidance_cut": ("guid", "outlook", "forecast", "projection", "view", "warn"),
+    "record_results": ("record",),
+    "buyback": ("buyback", "buy-back", "repurchas", "buy back", "bought back"),
+    "dividend_raise": ("dividend", "payout", "distribution"),
+    "dividend_cut": ("dividend", "payout", "distribution"),
+    "layoffs": ("layoff", "lay off", "lays off", "laying off", "laid off", "job", "position", "role", "worker",
+                "employee", "staff", "headcount", "workforce", "redundanc"),
+    "lawsuit": ("suit", "sue", "suing", "class", "litigation", "jury", "verdict", "plaintiff", "complaint",
+                "injunction", "court", "ruled", "patent", "antitrust", "securities", "copyright", "trademark",
+                "privacy", "wrongful"),
+    "investigation": ("investig", "probe", "probing", "subpoena", "inquir", "raid", "wells notice", "under review",
+                      "under federal review"),
+    "settlement": ("settl", "agree"),
+    "m_and_a": ("acqui", "merg", "takeover", "buyout", "tender", "deal", "private", "spin", "divest", "carve",
+                "buy", "purchase", "take over", "stake", "bid", "bought", "snaps up", "scoops up"),
+    "partnership": ("partner", "team", "collaborat", "alliance", "joint venture", "tie", "strategic", "deal", "pact",
+                    "agreement", "struck"),
+    "contract_win": ("contract", "order", "award", "tender"),
+    "product_launch": ("launch", "unveil", "introduc", "roll", "debut", "releas", "reveal", "on sale", "announce",
+                       "showcas"),
+    "recall": ("recall",),
+    "exec_departure": ("step", "resign", "quit", "exit", "depart", "leav", "retir", "oust", "fired", "replaced",
+                       " out"),
+    "exec_hire": ("appoint", "name", "hire", "tap", "pick", "poach", "recruit", "promot", "elevat", "select", "join",
+                  "to lead"),
+    "offering": ("offering", "placement", "convertible", "dilut", "share sale", "raises $", "raising $", "sells $",
+                 "sell $"),
+    "bankruptcy": ("bankrupt", "chapter", "going concern", "going-concern", "insolven", "receivership",
+                   "creditor protection", "restructuring support", "default"),
+    "delisting": ("delist", "notice", "compliance", "minimum bid"),
+    "short_report": ("short", "hindenburg", "muddy waters", "citron", "blue orca", "spruce point", "grizzly",
+                     "wolfpack", "kerrisdale", "fuzzy panda", "culper", "viceroy", "gotham", "hunterbrook",
+                     "glasshouse", "iceberg", "bleecker", "j capital", "scorpion", "morpheus", "night market",
+                     "jehoshaphat", "snowcap", "bear cave"),
+    "insider_buy": ("buy", "bought", "purchas", "acquir", "add", "scoop", "snap", "pick", "load"),
+    "insider_sell": ("sell", "sold", "unload", "dump", "offload", "dispos", "trim", "cash", "form 144", "10b5"),
+    "all_time_high": ("high", "record"),
+    "low_52w": ("low",),
+    "stock_split": ("split",),
+    "regulatory_approval": ("fda", "approv", "ema", "chmp", "nod", "clearance"),
+    "regulatory_setback": ("complete response", "fda", "clinical hold", "trial", "endpoint", "study"),
+    "index_inclusion": ("s&p", "nasdaq-100", "nasdaq 100", "dow", "russell", "ftse"),
+    "data_breach": ("breach", "cyber", "hack", "ransomware", "outage"),
+}
+
+
 def detect_events(text: str) -> list[DetectedEvent]:
     """Events in `text`, in order of appearance; at most one per (key, firm)."""
     if not text:
         return []
     t = fold(clean_text(text))
-    hits = _analyst_events(t)
+    low = t.lower()
+    hits = _analyst_events(t) if _ANALYST_TRIGGER.search(low) else []
     for key, regex, guarded in _RULES:
+        triggers = _TRIGGERS.get(key)
+        if triggers and not any(trigger in low for trigger in triggers):
+            continue
         exclude = _EXCLUDE.get(key)
         for m in regex.finditer(t):
             if guarded and _is_hypothetical(t, m.start()):
                 continue
-            if exclude:
-                window = t[max(0, m.start() - 50):m.end() + 50]
-                local = exclude.search(window)
-                if local and (key not in {"m_and_a", "product_launch", "all_time_high", "low_52w", "offering"}
-                              or (max(0, m.start() - 50) + local.start() <= m.end()
-                                  and max(0, m.start() - 50) + local.end() >= m.start())):
-                    continue
-            if key in {"price_up", "price_down"} and _PRICE_SUBJECT_NOISE.search(t[max(0, m.start() - 30):m.start()]):
+            if exclude and _excluded(key, exclude, t, m):
                 continue
-            if key == "stock_split" and "?" in t and not re.search(
-                    r"\b(?:announc|approv|implement|effect|carr(?:y|ies) out|sets?|executes?|enacts?)", t, re.IGNORECASE):
-                continue  # "Is a Microsoft Stock Split Coming?" is speculation
-            if key == "all_time_high" and re.search(r"short interest\s+(?:\w+\s+){0,2}$", t[max(0, m.start() - 30):m.start()],
-                                                    re.IGNORECASE):
+            if not _context_ok(key, t, m):
                 continue
-            if key in {"earnings_beat", "earnings_miss"} and re.search(
-                    r"\b(?:guidance|outlook|forecasts?|guide)\s+$", t[max(0, m.start() - 20):m.start()], re.IGNORECASE):
-                continue
-            polarity = EVENT_POLARITY[key]
-            value = None
-            if key in {"price_up", "price_down"}:
-                value = _price_value(m.group(0), key)
-            elif key == "buyback" and re.search(r"\b(?:suspend|halt|paus|scrap|cancel|end|slash|cut)\w*\s+"
-                                                r"(?:\w+\s+){0,2}$", t[max(0, m.start() - 30):m.start()],
-                                                re.IGNORECASE) or key == "stock_split" and "reverse" in m.group(0).lower():
-                polarity = "bear"
+            polarity = _polarity(key, t, m)
+            value = _price_value(m.group(0), key) if key in {"price_up", "price_down"} else None
             hits.append(_Hit(m.start(), key, polarity, value=value, span=m.group(0).strip()))
 
-    # A stock can't both jump and drop in one headline: keep the first move,
-    # unless the second is the one with a stated magnitude.
     out: list[DetectedEvent] = []
     seen: set[tuple[str, str | None]] = set()
     for h in sorted(hits, key=lambda h: (h.start, h.key)):
@@ -859,6 +902,49 @@ def detect_events(text: str) -> list[DetectedEvent]:
         out.append(DetectedEvent(key=h.key, polarity=h.polarity, firm=h.firm, value=h.value,  # type: ignore[arg-type]
                                  span=(h.span or "")[:120] or None))
     return _resolve_conflicts(out)
+
+
+# Exclusions that only void the hit when they overlap it (others void any hit nearby).
+_OVERLAP_EXCLUSIONS = frozenset({"m_and_a", "product_launch", "all_time_high", "low_52w", "offering"})
+
+
+def _excluded(key: str, exclude: re.Pattern[str], text: str, m: re.Match[str]) -> bool:
+    base = max(0, m.start() - 50)
+    local = exclude.search(text[base:m.end() + 50])
+    if not local:
+        return False
+    if key not in _OVERLAP_EXCLUSIONS:
+        return True
+    return base + local.start() <= m.end() and base + local.end() >= m.start()
+
+
+def _context_ok(key: str, text: str, m: re.Match[str]) -> bool:
+    """Per-event sanity checks on the surrounding text."""
+    before = text[max(0, m.start() - 30):m.start()]
+    if key in {"price_up", "price_down"}:
+        return not _PRICE_SUBJECT_NOISE.search(before)
+    if key == "stock_split" and "?" in text:  # "Is a Microsoft Stock Split Coming?" is speculation
+        return bool(re.search(r"\b(?:announc|approv|implement|effect|carr(?:y|ies) out|sets?|executes?|enacts?)",
+                              text, re.IGNORECASE))
+    if key == "all_time_high":
+        return not re.search(r"short interest\s+(?:\w+\s+){0,2}$", before, re.IGNORECASE)
+    if key in {"earnings_beat", "earnings_miss"}:
+        return not re.search(r"\b(?:guidance|outlook|forecasts?|guide)\s+$", text[max(0, m.start() - 20):m.start()],
+                             re.IGNORECASE)
+    return True
+
+
+def _polarity(key: str, text: str, m: re.Match[str]) -> str:
+    """Default polarity, adjusted where the phrasing flips it."""
+    if key == "buyback" and re.search(r"\b(?:suspend|halt|paus|scrap|cancel|end|slash|cut)\w*\s+(?:\w+\s+){0,2}$",
+                                      text[max(0, m.start() - 30):m.start()], re.IGNORECASE):
+        return "bear"
+    if key == "stock_split" and "reverse" in m.group(0).lower():
+        return "bear"
+    if key == "bankruptcy" and re.search(r"\b(?:emerg\w+|exit\w*) (?:from )?(?:chapter|bankruptcy)|chapter 11 exit|"
+                                         r"\bavoids?\b", text, re.IGNORECASE):
+        return "neutral"
+    return EVENT_POLARITY[key]
 
 
 def _resolve_conflicts(events: list[DetectedEvent]) -> list[DetectedEvent]:

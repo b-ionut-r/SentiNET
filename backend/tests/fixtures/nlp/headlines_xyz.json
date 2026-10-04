@@ -1,0 +1,662 @@
+{
+ "description": "Real Google News RSS headlines (search: \"Block\" (stock OR shares OR XYZ) when:7d), captured 2026-10-04. 'story' = hand-labeled narrative ('a|b' = either acceptable, '?' = unknown, null = its own story); 'relevant' = hand-labeled company relevance.",
+ "company": {
+  "ticker": "XYZ",
+  "name": "Block, Inc.",
+  "short_name": "Block",
+  "aliases": [
+   "Square"
+  ],
+  "industry": "Software - Infrastructure",
+  "sector": "Technology"
+ },
+ "items": [
+  {
+   "title": "Democrats Block Stock-Trading Bill, Denying the G.O.P. a Pre-Midterm Win - The New York Times",
+   "publisher": "The New York Times",
+   "timestamp": "2026-09-30T17:38:33+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Senate Democrats block bill to limit lawmakers' stock trades, citing voter ID provision - cbsnews.com",
+   "publisher": "cbsnews.com",
+   "timestamp": "2026-09-30T16:55:00+00:00",
+   "relevant": false
+  },
+  {
+   "title": "H&R Block, Inc. (HRB) Stock Price, News, Quote & History - Yahoo! Finance Canada",
+   "publisher": "Yahoo! Finance Canada",
+   "timestamp": "2026-10-02T17:39:06+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Democrats block bill restricting lawmakers from trading stocks - thehill.com",
+   "publisher": "thehill.com",
+   "timestamp": "2026-09-30T16:56:00+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Senate Democrats block bill to restrict lawmaker stock trading and impose new voter ID requirements - CNN",
+   "publisher": "CNN",
+   "timestamp": "2026-09-30T16:53:22+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Block Launches Its First Ever Bitcoin Consumer Advertising Campaign, Making the Case for Bitcoin as Everyday, Usable Money - Block",
+   "publisher": "Block",
+   "timestamp": "2026-10-01T16:07:42+00:00",
+   "relevant": true,
+   "story": "bitcoin_ad"
+  },
+  {
+   "title": "H&R Block Stock Gains 30% in 6 Months: Here's What You Should Know - TradingView",
+   "publisher": "TradingView",
+   "timestamp": "2026-09-29T13:25:00+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Block (XYZ) Following Apple Business Integration Has Valuation Back In Focus - Simply Wall Street",
+   "publisher": "Simply Wall Street",
+   "timestamp": "2026-09-30T05:59:50+00:00",
+   "relevant": true,
+   "story": "?"
+  },
+  {
+   "title": "Schumer tanks popular insider trading ban in Dem effort to derail Republican's agenda ahead of midterms - Fox News",
+   "publisher": "Fox News",
+   "timestamp": "2026-09-30T16:52:20+00:00",
+   "relevant": false
+  },
+  {
+   "title": "A Block Director Sells 18,000 Shares for $1.4 Million - The Motley Fool",
+   "publisher": "The Motley Fool",
+   "timestamp": "2026-09-30T20:04:00+00:00",
+   "relevant": true,
+   "story": "eisen_sales"
+  },
+  {
+   "title": "Stock the Block mobile food giveaway to feed Garden City families Saturday - WTOC",
+   "publisher": "WTOC",
+   "timestamp": "2026-10-02T14:37:00+00:00",
+   "relevant": false
+  },
+  {
+   "title": "How Ken Block would lower energy bills as RI's governor - The Providence Journal",
+   "publisher": "The Providence Journal",
+   "timestamp": "2026-10-01T20:10:00+00:00",
+   "relevant": false
+  },
+  {
+   "title": "H&R Block Stock Gains 30% in 6 Months: Here's What You Should Know - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-29T13:25:00+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Block (XYZ) Brings Unified Commerce To Two Restaurant Concepts Under One Kitchen - Simply Wall Street",
+   "publisher": "Simply Wall Street",
+   "timestamp": "2026-10-01T13:37:57+00:00",
+   "relevant": true,
+   "story": "?"
+  },
+  {
+   "title": "Block (XYZ) On New Square Wins While The Undervalued Narrative Faces A P E Reality - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T14:10:14+00:00",
+   "relevant": true,
+   "story": "?"
+  },
+  {
+   "title": "H&R Block (HRB) Stock May Be Undervalued As Earnings Stay In Focus - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T07:07:38+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Block Insider Sold Shares Worth $1,327,740, According to a Recent SEC Filing - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-01T22:01:53+00:00",
+   "relevant": true,
+   "story": "eisen_sales"
+  },
+  {
+   "title": "Block Insider Sold Shares Worth $1,360,080, According to a Recent SEC Filing - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-29T07:35:54+00:00",
+   "relevant": true,
+   "story": "eisen_sales"
+  },
+  {
+   "title": "Should Bitcoin Ad Push Require Action From Block (XYZ) Investors? - Simply Wall Street",
+   "publisher": "Simply Wall Street",
+   "timestamp": "2026-10-03T13:46:38+00:00",
+   "relevant": true,
+   "story": "bitcoin_ad"
+  },
+  {
+   "title": "Senate Democrats block lawmaker stock trading bill - qz.com",
+   "publisher": "qz.com",
+   "timestamp": "2026-09-30T07:00:00+00:00",
+   "relevant": false
+  },
+  {
+   "title": "All or nothing: Senate Democrats block stock-trading restrictions backed by Begich and Sullivan - Alaska Story",
+   "publisher": "Alaska Story",
+   "timestamp": "2026-10-01T14:22:47+00:00",
+   "relevant": false
+  },
+  {
+   "title": "AI Tax Assist Could Be A Game Changer For H&R Block Stock (HRB) - Simply Wall Street",
+   "publisher": "Simply Wall Street",
+   "timestamp": "2026-10-01T05:22:58+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Stock the Block mobile food drive brings the groceries to your car - WTOC",
+   "publisher": "WTOC",
+   "timestamp": "2026-10-01T21:01:00+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Baird raises Block stock price target on Q3 beat expectations - Investing.com",
+   "publisher": "Investing.com",
+   "timestamp": "2026-10-02T12:41:16+00:00",
+   "relevant": true,
+   "story": "baird_pt"
+  },
+  {
+   "title": "Block to Announce Third Quarter 2026 Results - Yahoo Finance Australia",
+   "publisher": "Yahoo Finance Australia",
+   "timestamp": "2026-10-02T20:05:00+00:00",
+   "relevant": true,
+   "story": "q3_date"
+  },
+  {
+   "title": "Three sales under a trading plan: Block (XYZ) director Anthony Eisen sold shares on three dates. - Stock Titan",
+   "publisher": "Stock Titan",
+   "timestamp": "2026-09-28T22:17:38+00:00",
+   "relevant": true,
+   "story": "eisen_sales"
+  },
+  {
+   "title": "Piper Sandler reiterates Block stock rating on lending shift - Investing.com",
+   "publisher": "Investing.com",
+   "timestamp": "2026-10-01T14:50:12+00:00",
+   "relevant": true,
+   "story": "piper"
+  },
+  {
+   "title": "Priscilla Block Shares Girls-Night-Out Anthem 'Maybe Next Time, Honey!' - RTTNews",
+   "publisher": "RTTNews",
+   "timestamp": "2026-10-02T23:01:00+00:00",
+   "relevant": false
+  },
+  {
+   "title": "H&R Block Stock: The Tax Business Isn't Going Away That Easily (NYSE:HRB) - Seeking Alpha",
+   "publisher": "Seeking Alpha",
+   "timestamp": "2026-10-04T14:08:48+00:00",
+   "relevant": false
+  },
+  {
+   "title": "BTIG Maintains Block(XYZ.US) With Buy Rating, Maintains Target Price $100 - Moomoo",
+   "publisher": "Moomoo",
+   "timestamp": "2026-09-28T10:31:00+00:00",
+   "relevant": true,
+   "story": "btig"
+  },
+  {
+   "title": "Block director Anthony Eisen sells $1.36m in company stock - Investing.com",
+   "publisher": "Investing.com",
+   "timestamp": "2026-09-28T23:05:22+00:00",
+   "relevant": true,
+   "story": "eisen_sales"
+  },
+  {
+   "title": "SEC's innovation exemption poses constraint on bringing stock tokens to US, Robinhood crypto chief says - The Block",
+   "publisher": "The Block",
+   "timestamp": "2026-10-02T05:05:00+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Robinhood to launch perps, weekend stock trading for US users - The Block",
+   "publisher": "The Block",
+   "timestamp": "2026-09-30T02:58:24+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Block (NYSE:XYZ) Stock: Insider Anthony Mathew Eisen Sells 6,000 Shares - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-09-28T23:20:55+00:00",
+   "relevant": true,
+   "story": "eisen_sales"
+  },
+  {
+   "title": "Block (XYZ) Q1 2026 Earnings Call Transcript - Fortune",
+   "publisher": "Fortune",
+   "timestamp": "2026-10-01T06:55:51+00:00",
+   "relevant": true,
+   "story": "?"
+  },
+  {
+   "title": "Senate Democrats block congressional stock trading ban over voter ID ‘poison pill’ - Washington Examiner",
+   "publisher": "Washington Examiner",
+   "timestamp": "2026-09-30T16:52:00+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Block (NYSE:XYZ) Director Sells $445,980.00 in Stock - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-01T23:15:20+00:00",
+   "relevant": true,
+   "story": "eisen_sales"
+  },
+  {
+   "title": "Block (NYSE:XYZ) Director Sells 6,000 Shares of Company Stock - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-09-28T23:20:54+00:00",
+   "relevant": true,
+   "story": "eisen_sales"
+  },
+  {
+   "title": "A director sells 6,000 shares on each of three days under a trading plan at Block (XYZ). - Stock Titan",
+   "publisher": "Stock Titan",
+   "timestamp": "2026-10-01T21:59:13+00:00",
+   "relevant": true,
+   "story": "eisen_sales"
+  },
+  {
+   "title": "Block Insider Sold Shares Worth $1,327,740, According to a Recent SEC Filing - Moomoo",
+   "publisher": "Moomoo",
+   "timestamp": "2026-10-01T22:53:33+00:00",
+   "relevant": true,
+   "story": "eisen_sales"
+  },
+  {
+   "title": "H&R Block (NYSE:HRB) Stock Crosses Above 200-Day Moving Average - What's Next? - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-09-30T05:44:22+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Anthony Eisen sells $67m of Block shares as new ventures gain traction - AFR",
+   "publisher": "AFR",
+   "timestamp": "2026-09-29T00:36:00+00:00",
+   "relevant": true,
+   "story": "eisen_sales"
+  },
+  {
+   "title": "US Senate Dems block bill curbing congressional stock trading, calling it too weak - Cobb Courier",
+   "publisher": "Cobb Courier",
+   "timestamp": "2026-10-01T15:36:15+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Robert W. Baird Issues Positive Forecast for Block (NYSE:XYZ) Stock Price - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-02T12:14:50+00:00",
+   "relevant": true,
+   "story": "baird_pt"
+  },
+  {
+   "title": "Senate Democrats block stock-trading ban for lawmakers, saying GOP added a ‘poison pill’ - deseret.com",
+   "publisher": "deseret.com",
+   "timestamp": "2026-09-30T17:20:28+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Block (XYZ) Insider Trading Activity 2026 $XYZ - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-09-30T07:00:00+00:00",
+   "relevant": true,
+   "story": "eisen_sales|?"
+  },
+  {
+   "title": "XYZ - Block is Set to Rebound from Regulatory Challenges with 6% Revenue Growth - Simply Wall Street",
+   "publisher": "Simply Wall Street",
+   "timestamp": "2026-10-02T04:00:10+00:00",
+   "relevant": true,
+   "story": "?"
+  },
+  {
+   "title": "H&R Block (NYSE:HRB) Stock: Insider Mark Darling Sells 2,700 Shares - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-02T21:47:23+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Block director Anthony Eisen sells $1.33 million in stock - Investing.com",
+   "publisher": "Investing.com",
+   "timestamp": "2026-10-01T22:43:07+00:00",
+   "relevant": true,
+   "story": "eisen_sales"
+  },
+  {
+   "title": "H&R Block Inc. stock underperforms Monday when compared to competitors - MarketWatch",
+   "publisher": "MarketWatch",
+   "timestamp": "2026-09-28T21:26:00+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Democrats block congressional stock-buying ban, objecting to attached voter ID provision - Washington Times",
+   "publisher": "Washington Times",
+   "timestamp": "2026-09-30T17:23:29+00:00",
+   "relevant": false
+  },
+  {
+   "title": "H&R Block Inc. stock underperforms Friday when compared to competitors - MarketWatch",
+   "publisher": "MarketWatch",
+   "timestamp": "2026-10-02T21:25:00+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Block (NYSE:XYZ) Stock Keeps Overweight Rating at Cantor Fitzgerald - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-01T07:00:00+00:00",
+   "relevant": true,
+   "story": null
+  },
+  {
+   "title": "3 Stocks Retail Investors Are Watching As Cash Yields Stay Higher For Longer - Simply Wall Street",
+   "publisher": "Simply Wall Street",
+   "timestamp": "2026-10-02T02:29:39+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Senate Democrats block bills around stock trading, data centers - KREM",
+   "publisher": "KREM",
+   "timestamp": "2026-10-01T00:46:00+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Jack Dorsey's Block Is Looking to Create a National Trust Bank. Here's Why That Could Help to Send Bitcoin Higher. - The Motley Fool",
+   "publisher": "The Motley Fool",
+   "timestamp": "2026-09-29T18:45:00+00:00",
+   "relevant": true,
+   "story": null
+  },
+  {
+   "title": "Baird raises Block stock price target on Q3 beat expectations By Investing.com - Investing.com Nigeria",
+   "publisher": "Investing.com Nigeria",
+   "timestamp": "2026-10-02T13:17:25+00:00",
+   "relevant": true,
+   "story": "baird_pt"
+  },
+  {
+   "title": "Senate Democrats block bill restricting stock trading and data centers - WHAS11",
+   "publisher": "WHAS11",
+   "timestamp": "2026-10-01T12:29:00+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Piper Sandler reiterates Block stock rating on lending shift By Investing.com - Investing.com Nigeria",
+   "publisher": "Investing.com Nigeria",
+   "timestamp": "2026-10-01T17:57:48+00:00",
+   "relevant": true,
+   "story": "piper"
+  },
+  {
+   "title": "XYZ, COIN, MSTR Stocks Get Wall Street Target Hikes — Baird Calls Jack Dorsey-Led Block A ‘Bullish Fresh Pick’ - Stocktwits",
+   "publisher": "Stocktwits",
+   "timestamp": "2026-10-02T12:33:36+00:00",
+   "relevant": true,
+   "story": "baird_pt"
+  },
+  {
+   "title": "After selling 2,700 shares, H&R Block (HRB) retail chief holds 21,588 shares directly. - Stock Titan",
+   "publisher": "Stock Titan",
+   "timestamp": "2026-10-02T20:49:11+00:00",
+   "relevant": false
+  },
+  {
+   "title": "The Zacks Analyst Blog Highlights SoFi Technologies, PayPal and Block - The Globe and Mail",
+   "publisher": "The Globe and Mail",
+   "timestamp": "2026-09-29T08:06:00+00:00",
+   "relevant": true,
+   "story": "?"
+  },
+  {
+   "title": "Block director Anthony Eisen sells $1.36m in company stock By Investing.com - Investing.com Nigeria",
+   "publisher": "Investing.com Nigeria",
+   "timestamp": "2026-09-28T23:06:49+00:00",
+   "relevant": true,
+   "story": "eisen_sales"
+  },
+  {
+   "title": "Baird raises Block stock price target on Q3 beat expectations By Investing.com - Investing.com South Africa",
+   "publisher": "Investing.com South Africa",
+   "timestamp": "2026-10-02T13:23:23+00:00",
+   "relevant": true,
+   "story": "baird_pt"
+  },
+  {
+   "title": "SoFi's Stablecoin Push Gains Ground: Is SOFI Stock Worth Watching Now? - TradingView",
+   "publisher": "TradingView",
+   "timestamp": "2026-09-28T15:27:00+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Block (NYSE:XYZ) Earns Buy Rating from BTIG Research - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-09-28T12:12:40+00:00",
+   "relevant": true,
+   "story": "btig"
+  },
+  {
+   "title": "H&R Block Inc (HRB) Shares Surge 3.6% -- What GF Score of 83 Tel - GuruFocus",
+   "publisher": "GuruFocus",
+   "timestamp": "2026-10-01T23:34:27+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Block Inc (XYZ) Director Anthony Eisen Sells 18,000 Shares - GuruFocus",
+   "publisher": "GuruFocus",
+   "timestamp": "2026-10-02T06:35:36+00:00",
+   "relevant": true,
+   "story": "eisen_sales"
+  },
+  {
+   "title": "TH Stock Slides as Target Hospitality Block Trades Signal Heavy Selling - timothysykes.com",
+   "publisher": "timothysykes.com",
+   "timestamp": "2026-10-03T15:06:00+00:00",
+   "relevant": false
+  },
+  {
+   "title": "H&R Block Inc (HRB) Stock Down 4.4% -- Now Undervalued? GF Score: 83/100 - GuruFocus",
+   "publisher": "GuruFocus",
+   "timestamp": "2026-09-28T23:33:48+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Jack Dorsey Says 'Turn It on' as Block's Cash App Introduces 'Bitcoin Bonus' Feature — What You Should Know - Benzinga",
+   "publisher": "Benzinga",
+   "timestamp": "2026-10-01T09:44:56+00:00",
+   "relevant": true,
+   "story": "bitcoin_ad|bitcoin_bonus"
+  },
+  {
+   "title": "Block director Anthony Eisen sells $1.33 million in stock By Investing.com - Investing.com Nigeria",
+   "publisher": "Investing.com Nigeria",
+   "timestamp": "2026-10-02T00:36:44+00:00",
+   "relevant": true,
+   "story": "eisen_sales"
+  },
+  {
+   "title": "US Senate Democrats block insider stock trading ban bill over voter ID rules - WION",
+   "publisher": "WION",
+   "timestamp": "2026-10-01T12:51:00+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Meridian Mining applies for block admission of 1.6M shares - Investing.com",
+   "publisher": "Investing.com",
+   "timestamp": "2026-09-30T17:47:41+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Meridian Mining Seeks LSE Block Admission for Omnibus Plan Shares - The Globe and Mail",
+   "publisher": "The Globe and Mail",
+   "timestamp": "2026-10-01T17:28:00+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Senate Democrats block bill restricting stock trading and data centers - Yahoo",
+   "publisher": "Yahoo",
+   "timestamp": "2026-10-01T12:29:47+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Senate Democrats block data center legislation, stock trading bill fails - Yahoo",
+   "publisher": "Yahoo",
+   "timestamp": "2026-09-30T22:39:22+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Senate Democrats block bills around stock trading, data centers - Yahoo",
+   "publisher": "Yahoo",
+   "timestamp": "2026-10-01T00:46:00+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Institutional investors pick up Honasa shares in ₹643-crore block deal, shares in red - TradingView",
+   "publisher": "TradingView",
+   "timestamp": "2026-10-01T11:39:50+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Meridian Mining Applies For Block Admission Of 1.6 Million Ordinary Shares To LSE - TradingView",
+   "publisher": "TradingView",
+   "timestamp": "2026-09-30T17:24:32+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Piper Sandler reiterates Block stock rating on lending shift By Investing.com - Investing.com Australia",
+   "publisher": "Investing.com Australia",
+   "timestamp": "2026-10-01T17:15:09+00:00",
+   "relevant": true,
+   "story": "piper"
+  },
+  {
+   "title": "Cube Highways Trust 4.5 Million Shares Change Hands In Block Deal At 153.30 Rupees/Share- Exchange Data - TradingView",
+   "publisher": "TradingView",
+   "timestamp": "2026-09-29T05:29:00+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Meridian Mining applies for block admission of 1.6M shares By Investing.com - Investing.com Nigeria",
+   "publisher": "Investing.com Nigeria",
+   "timestamp": "2026-09-30T17:54:20+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Watch Senate Democrats block bill to restrict lawmaker stock trading - Varney & Company - FOX One",
+   "publisher": "FOX One",
+   "timestamp": "2026-10-01T15:35:48+00:00",
+   "relevant": false
+  },
+  {
+   "title": "H&R Block Officer Mark J. Darling Files Form 144 for Proposed Sale of 2,700 Shares - Kalkine Media",
+   "publisher": "Kalkine Media",
+   "timestamp": "2026-09-30T19:21:49+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Meridian Mining applies for block admission of 1.6M shares By Investing.com - Investing.com Canada",
+   "publisher": "Investing.com Canada",
+   "timestamp": "2026-09-30T19:01:13+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Block stock highlights new deals as Cash App reaches 9.4 million actives - AD HOC NEWS",
+   "publisher": "AD HOC NEWS",
+   "timestamp": "2026-09-28T07:59:08+00:00",
+   "relevant": true,
+   "story": "?"
+  },
+  {
+   "title": "Block stock last trades at USD 73.34 on September 28, 2026 - AD HOC NEWS",
+   "publisher": "AD HOC NEWS",
+   "timestamp": "2026-09-28T20:54:51+00:00",
+   "relevant": true,
+   "story": "?"
+  },
+  {
+   "title": "Block stock falls 4.03 percent as director sells shares - AD HOC NEWS",
+   "publisher": "AD HOC NEWS",
+   "timestamp": "2026-09-29T07:13:28+00:00",
+   "relevant": true,
+   "story": "eisen_sales"
+  },
+  {
+   "title": "Block (ASX:XYZ): Square, Cash App and Global Payment Services - Kalkine",
+   "publisher": "Kalkine",
+   "timestamp": "2026-09-28T00:29:00+00:00",
+   "relevant": true,
+   "story": "?"
+  },
+  {
+   "title": "BTIG keeps its USD 100 target for Block stock - AD HOC NEWS",
+   "publisher": "AD HOC NEWS",
+   "timestamp": "2026-10-01T14:17:59+00:00",
+   "relevant": true,
+   "story": "btig"
+  },
+  {
+   "title": "Block stock returns 23.4% annually over the last decade - scanx.trade",
+   "publisher": "scanx.trade",
+   "timestamp": "2026-10-04T17:44:06+00:00",
+   "relevant": true,
+   "story": "?"
+  },
+  {
+   "title": "Block stock gets a USD 106 Baird target after Q2 growth - AD HOC NEWS",
+   "publisher": "AD HOC NEWS",
+   "timestamp": "2026-10-03T19:58:41+00:00",
+   "relevant": true,
+   "story": "baird_pt"
+  },
+  {
+   "title": "Baird raises target for Block stock from USD 105.00 to USD 106.00 - AD HOC NEWS",
+   "publisher": "AD HOC NEWS",
+   "timestamp": "2026-10-02T15:13:44+00:00",
+   "relevant": true,
+   "story": "baird_pt"
+  },
+  {
+   "title": "Block Inc. Q3FY26 Results: Earnings call set for November 3 - scanx.trade",
+   "publisher": "scanx.trade",
+   "timestamp": "2026-10-03T03:22:41+00:00",
+   "relevant": true,
+   "story": "q3_date"
+  },
+  {
+   "title": "Honasa Consumer Share Price Falls Over 3% On Block Deal Buzz - ndtvprofit.com",
+   "publisher": "ndtvprofit.com",
+   "timestamp": "2026-09-29T04:02:37+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Avalon Technologies Shares Slip 5% After Rs 883 Cr Block Deal - equitypandit.com",
+   "publisher": "equitypandit.com",
+   "timestamp": "2026-09-30T07:25:57+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Meridian Mining applies for block admission of 1.6M shares - Investing.com India",
+   "publisher": "Investing.com India",
+   "timestamp": "2026-09-30T17:19:17+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Clean Max defies market fall, rises 5% after 8.6mn shares trade in block - Business Standard",
+   "publisher": "Business Standard",
+   "timestamp": "2026-09-28T04:47:23+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Avalon Tech shares fall 6% after Rs 883 crore block deal; 3 promoter entities likely sellers - inkl",
+   "publisher": "inkl",
+   "timestamp": "2026-09-30T06:30:18+00:00",
+   "relevant": false
+  }
+ ]
+}

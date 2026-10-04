@@ -61,6 +61,14 @@ from tests.intel.helpers import load_json
         ("Alibaba Group Holding Limited", "Alibaba"),
         ("Hilton Worldwide Holdings Inc.", "Hilton"),
         ("Costco Wholesale Corporation", "Costco"),
+        # SEC registry quirks
+        ("MTN GROUP LTD/ADR", "MTN"),
+        ("UNITED STATES STEEL CORP /DE/", "United States Steel"),
+        ("RENTOKIL INITIAL PLC /FI", "Rentokil Initial"),
+        ("CAPITAL ONE FINANCIAL CORP", "Capital One"),
+        ("NEWS CORP", "News Corp"),  # a generic head keeps its suffix
+        ("Inflection Point Acquisition Corp. VIII", "Inflection Point Acquisition Corp. VIII"),
+        ("DEUTSCHE BANK AKTIENGESELLSCHAFT", "Deutsche Bank"),
     ],
 )
 def test_clean_company_name(raw: str, expected: str) -> None:

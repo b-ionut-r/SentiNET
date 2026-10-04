@@ -48,18 +48,19 @@ _ABBREV = re.compile(
     r"\b(vs|inc|corp|co|ltd|plc|jr|sr|st|mr|mrs|ms|dr|est|approx|adj|avg|jan|feb|mar|apr|jun|jul|aug|"
     r"sep|sept|oct|nov|dec|nos|fig|bln|mln|mn|bn|yr|qtr|pts|no)\.(?=\s|$|\d)", re.I)
 _COUNTRY = re.compile(r"\b(u)\.(s|k)\.?(?=[\s,;:)]|$)|\b(e)\.(u)\.(?=\s)", re.I)
+_DIGIT = re.compile(r"\d")
 _GLUED_CCY = re.compile(r"\b(eur|usd|gbp|sek|nok|dkk|chf|cad|aud|jpy|rmb|cny|inr|rs|mln|bln)(?=\d)", re.I)
 _TRANSLATE = str.maketrans({"’": "'", "‘": "'", "“": '"', "”": '"', "′": "'",
                             "″": '"', " ": " ", "…": "...", "−": "-"})
 
 _TOKEN_RE = re.compile(
     r"""
-    (?P<tag>\$[a-z][a-z0-9]{0,5}(?:[.\-][a-z]{1,3})?(?![a-z0-9]))
+    (?P<amp>[a-z]{1,2}&[a-z]{1,3}\b)
+   |(?P<word>[a-z][a-z0-9]*(?:'[a-z]+)*|n't)
+   |(?P<tag>\$[a-z][a-z0-9]{0,5}(?:[.\-][a-z]{1,3})?(?![a-z0-9]))
    |(?P<pct>(?:(?<![\w.%$])[-+])?\d+(?:[.,]\d+)*\s?(?:%|percent\b|per\s?cent\b|pct\b))
    |(?P<cur>[$€£¥])
    |(?P<num>(?:(?<![\w.%$])[-+])?\d+(?:[.,]\d+)*(?:\s?(?:bn|bln|billion|mn|mln|million|tn|trillion|k)\b)?)
-   |(?P<amp>[a-z]{1,2}&[a-z]{1,3}\b)
-   |(?P<word>[a-z][a-z0-9]*(?:'[a-z]+)*|n't)
    |(?P<hash>[#@][a-z0-9_]+)
    |(?P<emo>[\U0001F000-\U0001FAFF☀-➿⬀-⯿←-⇿])
    |(?P<sep>[.!?;|]+|\s[-–—]+\s|[–—]|\s-$)
@@ -70,17 +71,24 @@ _TOKEN_RE = re.compile(
 _SCALE = {"bn": 1e9, "bln": 1e9, "billion": 1e9, "mn": 1e6, "mln": 1e6, "million": 1e6, "tn": 1e12,
           "trillion": 1e12, "k": 1e3}
 _CONTRACTIONS = {"n't": "not", "can't": "cant", "won't": "wont", "ain't": "aint"}
+# social g-dropping: "goin up", "rippin" -> "going up", "ripping"
+_G_DROP = frozenset({"goin", "lookin", "movin", "runnin", "rippin", "pumpin", "dumpin", "sellin", "buyin", "holdin",
+                     "gettin", "comin", "nothin", "somethin", "tankin", "flyin", "mooning", "bleedin", "crashin"})
 
 
 def normalize(text: str) -> str:
     """Unescape HTML, unify quotes/dashes, drop URLs & zero-width chars, collapse spaces."""
     if "&" in text:
         text = html.unescape(text)
-    text = _ZW.sub("", text.translate(_TRANSLATE))
-    text = _URL.sub(" ", text)
-    text = _COUNTRY.sub(lambda m: (m.group(1) or m.group(3)) + (m.group(2) or m.group(4)), text)
-    text = _ABBREV.sub(r"\1", text)
-    text = _GLUED_CCY.sub(r"\1 ", text)
+    if not text.isascii():
+        text = _ZW.sub("", text.translate(_TRANSLATE))
+    if "http" in text or "www." in text:
+        text = _URL.sub(" ", text)
+    if "." in text:
+        text = _COUNTRY.sub(lambda m: (m.group(1) or m.group(3)) + (m.group(2) or m.group(4)), text)
+        text = _ABBREV.sub(r"\1", text)
+    if _DIGIT.search(text):
+        text = _GLUED_CCY.sub(r"\1 ", text)
     return " ".join(text.split())
 
 
@@ -116,6 +124,8 @@ def tokenize(low: str) -> list[Token]:
                 raw = _CONTRACTIONS[raw]
             elif raw.endswith("n't"):
                 raw = raw.replace("'", "")
+            elif raw in _G_DROP:
+                raw += "g"
             out.append(Token(raw, s, e, "w"))
         elif kind == "amp":
             out.append(Token(raw, s, e, "w"))
@@ -145,6 +155,12 @@ class Hit:
     source: str  # "rule:<key>" | "lex" | "move" | "metric" | "social"
     weight: float = 1.0  # product of modifiers
     negated: bool = False
+    anchor: int = -1  # token that carries the meaning (the verb of "sales ... rose"); -1 = start
+    parts: tuple[tuple[int, int], ...] = ()  # token ranges naming the evidence (metric, verb, %)
+
+    def __post_init__(self) -> None:
+        if self.anchor < 0:
+            self.anchor = self.start
 
     @property
     def value(self) -> float:
@@ -394,6 +410,13 @@ def _price_target(m: re.Match[str]) -> Optional[RuleMatch]:
     return RuleMatch(m.start(), end, sign * mag, term, "price_target")
 
 
+def _superlative(m: re.Match[str]) -> RuleMatch:
+    """"Hedge funds have never been this bullish" (+) / "never been less bullish" (-)."""
+    positive = m.group("w") in ("bullish", "optimistic", "confident", "positive", "cheap")
+    sign = (1 if positive else -1) * (-1 if m.group("deg") == "less" else 1)
+    return RuleMatch(m.start(), m.end(), 1.2 * sign, f"never been {m.group('deg')} {m.group('w')}", "superlative")
+
+
 def _fixed(val: float, term: str, key: str) -> Callable[[re.Match[str]], RuleMatch]:
     return lambda m: RuleMatch(m.start(), m.end(), val, term, key)
 
@@ -446,7 +469,7 @@ _RULES: list[tuple[str, re.Pattern[str], Callable[[re.Match[str]], Optional[Rule
     ("analyst_reiterate", re.compile(
         r"\b(?:reiterat\w*|maintain\w*|keep(?:s|ing)?|kept|affirm\w*|reaffirm\w*|retain\w*|repeat\w*|"
         r"stick(?:s)?\s+with|stays?\s+at|remains?\s+at)\b[^.;!?$]{0,40}?\b(?P<new>" + RATING + r")\b"
-        r"(?!\s+(?:the|a|an|its|their|more|shares|stock|stocks|stake|back|of|in|on|for|to)\b)"), _analyst_keep),
+        r"(?!\s+(?:the|a|an|its|their|more|shares|stock|stocks|stake|back|of|in|to)\b)"), _analyst_keep),
     ("analyst_reiterate", re.compile(
         r"\b(?P<new>" + RATING + r")\s+(?:rating\s+)?(?:reiterated|maintained|affirmed|reaffirmed|kept)\b"),
      _analyst_keep),
@@ -479,6 +502,13 @@ _RULES: list[tuple[str, re.Pattern[str], Callable[[re.Match[str]], Optional[Rule
     ("miss", re.compile(r"\b(?:eps|earnings|revenues?|sales|profits?|results?|quarter|q[1-4])\s+(?:and\s+\S+\s+)?"
                         r"miss(?:es|ed)?\b"), _fixed(-1.0, "miss", "miss")),
     ("miss", re.compile(r"\bfalls?\s+short\b|\bfell\s+short\b"), _fixed(-0.8, "falls short", "miss")),
+    ("miss", re.compile(r"\b(?:fail(?:s|ed)?\s+to|did\s+not|didnt|does\s+not|doesnt|do\s+not|dont|not)\s+"
+                        r"(?:meet|match|reach|hit|beat|top)\s+(?:[^\s.;!?]+\s+){0,2}?" + _EXP + r"\b"),
+     _fixed(-1.0, "misses estimates", "miss")),
+    ("job_cuts", re.compile(r"\b(?:cut(?:s|ting)?|slash(?:es|ed|ing)?|eliminat(?:e|es|ed|ing)|ax(?:e|es|ed|ing)?|"
+                            r"shed(?:s|ding)?|trim(?:s|med|ming)?|lay(?:s|ing)?\s+off|laid\s+off|reduc(?:e|es|ed|ing))"
+                            r"\s+(?:[^\s.;!?]+\s+){0,3}?(?:jobs|positions|workers|employees|staff|roles|headcount|"
+                            r"workforce)\b"), _fixed(-1.0, "job cuts", "job_cuts")),
     ("above_exp", re.compile(
         r"\b(?:above|ahead\s+of|better\s+than|exceeding|topping|beating|stronger\s+than|surpassing)\s+(?:the\s+)?"
         r"(?:[^\s.;!?]+\s+){0,2}?" + _EXP + r"\b"), _fixed(0.9, "above expectations", "above_exp")),
@@ -533,7 +563,7 @@ _RULES: list[tuple[str, re.Pattern[str], Callable[[re.Match[str]], Optional[Rule
     # --- legal relief / resolution
     ("legal_relief", re.compile(
         r"\b(?:dismiss(?:es|ed)?|drop(?:s|ped)?|toss(?:es|ed)?|throw(?:s|n)?\s+out|threw\s+out|end(?:s|ed)?|"
-        r"close[sd]?|suspend(?:s|ed)?|clear(?:s|ed)?|wins?|won)\b(?:\s+[^\s.;!?]+){0,3}?\s+"
+        r"close[sd]?|suspend(?:s|ed)?|clear(?:s|ed)?|wins?|won|prevail(?:s|ed)?\s+in)\b(?:\s+[^\s.;!?]+){0,3}?\s+"
         r"(?:lawsuit|suit|case|probe|investigation|charges|complaint|inquiry|patent\s+(?:case|suit|trial))\b"),
      _fixed(0.7, "legal relief", "legal_relief")),
     ("legal_relief", re.compile(
@@ -541,9 +571,10 @@ _RULES: list[tuple[str, re.Pattern[str], Callable[[re.Match[str]], Optional[Rule
         r"has\s+been\s+|have\s+been\s+)?(?:dismissed|dropped|tossed|thrown\s+out|rejected|closed|ended|withdrawn)\b"),
      _fixed(0.7, "legal relief", "legal_relief")),
     ("settlement", re.compile(
-        r"\b(?:settle[sd]?|settling|resolve[sd]?|resolving)\b(?:\s+[^\s.;!?]+){0,4}?\s+(?:lawsuit|suit|litigation|"
-        r"probe|case|claims?|dispute|charges|investigation|allegations|action)\b"),
-     _fixed(0.3, "settles lawsuit", "settlement")),
+        r"\b(?:settle[sd]?|settling|resolve[sd]?|resolving)\b(?:\s+[^\s.;!?]+){0,4}?\s+(?:class\s+action\s+)?"
+        r"(?:lawsuits?|suits?|litigation|probes?|cases?|claims?|disputes?|charges|investigations?|allegations|"
+        r"arbitration)\b"),
+     _fixed(0.45, "settles lawsuit", "settlement")),
     # --- going concern / distress phrasing variants
     ("fine", re.compile(r"(?:[$€£¥]\s?)?\d[\d.,]*\s*(?:million|billion|mln|bln|mn|bn|m|b)?\s+(?:civil\s+)?"
                         r"(?:fine|penalty)\b"), _fixed(-0.7, "fine", "fine")),
@@ -563,11 +594,12 @@ _RULES: list[tuple[str, re.Pattern[str], Callable[[re.Match[str]], Optional[Rule
         r"\b(?:to|into)\s+(?:an?\s+)?(?:[^\s.;!?]+\s+){0,2}?(?:loss|losses|deficit|red)\s+"
         r"(?:of\s+[^,;.!?]{0,25}?\s+)?from\s+(?:an?\s+)?(?:[^\s.;!?]+\s+){0,2}?(?:profit|profits|black|surplus|"
         r"net\s+income)\b"), _fixed(-1.0, "swung to loss", "swing")),
-    ("superlative", re.compile(r"\bnever\s+been\s+(?:this|so|more)\s+(?P<w>bullish|bearish|optimistic|pessimistic|"
-                               r"confident|negative|positive|cheap|expensive)\b"),
-     lambda m: RuleMatch(m.start(), m.end(), 1.2 if m.group("w") in ("bullish", "optimistic", "confident",
-                                                                     "positive", "cheap") else -1.2,
-                         f"never been this {m.group('w')}", "superlative")),
+    ("superlative", re.compile(r"\bnever\s+been\s+(?P<deg>this|so|more|less)\s+(?P<w>bullish|bearish|optimistic|"
+                               r"pessimistic|confident|negative|positive|cheap|expensive)\b"), _superlative),
+    ("buy_dip", re.compile(r"\b(?:buy(?:s|ing)?|bought|add(?:s|ed|ing)?|load(?:s|ed|ing)?|scoop(?:s|ed|ing)?)\b"
+                           r"(?:\s+[^\s.;!?]+){0,3}?\s+(?:the\s+|this\s+|any\s+|every\s+|on\s+)?"
+                           r"(?:dip|dips|pullback|pullbacks|weakness|sell\s?off)\b"),
+     _fixed(0.7, "buying the dip", "buy_dip")),
 ]
 # Cheap pre-filter: a rule family runs only if one of its trigger substrings occurs.
 _TRIGGERS: dict[str, tuple[str, ...]] = {
@@ -578,7 +610,8 @@ _TRIGGERS: dict[str, tuple[str, ...]] = {
     "price_target": ("target", "pt", "tgt", "objective"),
     "beat": ("beat", "top", "exceed", "surpass", "crush", "smash", "trounce", "outstrip", "blow", "blew", "best",
              "clear", "outpac"),
-    "miss": ("miss", "short", "undersh", "came in", "come in", "comes in", "trail", "lag"),
+    "miss": ("miss", "short", "undersh", "came in", "come in", "comes in", "trail", "lag", "meet", "match",
+             "reach", "hit ", "beat", "top"),
     "above_exp": ("above", "ahead", "better", "exceeding", "topping", "beating", "stronger", "surpassing"),
     "below_exp": ("below", "under", "short", "worse", "weaker", "behind", "softer", "missing"),
     "vs_exp": ("than",), "inline": ("line", "match", "meet", "met "),
@@ -589,18 +622,36 @@ _TRIGGERS: dict[str, tuple[str, ...]] = {
                                                                         "charges", "claim", "complaint", "inquiry",
                                                                         "trial"),
     "settlement": ("settl", "resolv"), "going_concern": ("going concern",), "swing": (" from ",),
-    "eps_loss": ("eps", "per share"), "fine": ("fine", "penalty"),
+    "eps_loss": ("eps", "per share"), "job_cuts": ("job", "position", "worker", "employee", "staff", "role",
+                                                   "headcount", "workforce"), "fine": ("fine", "penalty"),
     "bankruptcy": ("bankruptcy", "insolvency", "creditor protection", "chapter 11"), "superlative": ("never been",),
+    "buy_dip": ("dip", "pullback", "weakness", "sell"),
 }
+
+
+def _trigger_index() -> tuple[re.Pattern[str], dict[str, frozenset[str]]]:
+    """One overlapping scan finds every trigger; a match also implies its trigger prefixes."""
+    fams: dict[str, set[str]] = {}
+    for fam, trigs in _TRIGGERS.items():
+        for t in trigs:
+            fams.setdefault(t, set()).add(fam)
+    closure = {t: frozenset().union(*(fams[p] for p in fams if t.startswith(p))) for t in fams}
+    alts = sorted(fams, key=len, reverse=True)
+    return re.compile("(?=(" + "|".join(map(re.escape, alts)) + "))"), closure
+
+
+_TRIGGER_SCAN, _TRIGGER_FAMILIES = _trigger_index()
 
 
 def find_rule_matches(rtext: str) -> list[RuleMatch]:
     """Run regex rules over hyphen-normalized lowercase text; non-overlapping, priority order."""
     out: list[RuleMatch] = []
     taken: list[tuple[int, int]] = []
+    active: set[str] = set()
+    for found in set(_TRIGGER_SCAN.findall(rtext)):
+        active |= _TRIGGER_FAMILIES[found]
     for key, pattern, make in _RULES:
-        trig = _TRIGGERS.get(key)
-        if trig and not any(t in rtext for t in trig):
+        if key in _TRIGGERS and key not in active:
             continue
         for m in pattern.finditer(rtext):
             if any(m.start() < e and s < m.end() for s, e in taken):
@@ -619,7 +670,7 @@ def find_rule_matches(rtext: str) -> list[RuleMatch]:
 _CMP = re.compile(
     rf"(?P<new>{_AMT})\s*(?:,\s*)?(?:(?P<dir>up|down|rising|falling|increasing|decreasing)\s+)?"
     rf"(?:vs\.?|versus|compared\s+(?:to|with)|against|from|as\s+against)\s+(?:the\s+|an?\s+|a\s+year\s+ago\s+)?"
-    rf"(?:(?P<oldmetric>(?:pre\s?tax\s+|net\s+|operating\s+)?(?:loss|losses|profit|profits|income|deficit))\s+of\s+)?"
+    rf"(?:(?P<oldmetric>(?:[a-z-]+\s+){{0,2}}?(?:loss|losses|profit|profits|income|deficit))\s+(?:of\s+)?)?"
     rf"(?P<old>{_AMT})")
 _CMP_FROM = re.compile(rf"\bfrom\s+(?P<old>{_AMT})\s+to\s+(?P<new>{_AMT})")
 _CONSENSUS = re.compile(rf"(?:consensus|estimates?|expectations?|expected|est\.?|forecast|view)\s+(?:of\s+|was\s+|"
@@ -630,7 +681,7 @@ _CONSENSUS = re.compile(rf"(?:consensus|estimates?|expectations?|expected|est\.?
 def _numeric_hits(rtext: str, tokens: list[Token], at: list[Optional[_Span]], claimed: bytearray,
                   tok_of: Callable[[int], int]) -> list[Hit]:
     hits: list[Hit] = []
-    if not any(c.isdigit() for c in rtext):
+    if not any(t.kind in ("num", "pct") for t in tokens):
         return hits
     matches = [(m, "cmp") for m in _CMP.finditer(rtext)] + [(m, "from") for m in _CMP_FROM.finditer(rtext)]
     used_until = -1
@@ -650,7 +701,10 @@ def _numeric_hits(rtext: str, tokens: list[Token], at: list[Optional[_Span]], cl
         # ("rose to EUR 5 mn from EUR 4 mn", "down from") - composition handles it.
         if m.groupdict().get("dir") or _direction_before(at, s_tok, 5):
             continue
-        pol_new = _metric_polarity_before(tokens, at, s_tok, 10)
+        if re.search(r"\b(?:range[sd]?|ranging|between|vary|varies|varying|spanning)\s*$", rtext[max(0, m.start() - 14):
+                                                                                                m.start()]):
+            continue  # "prices range from $799 to $1,099" is a span, not a change
+        pol_new, msp = _metric_before(tokens, at, s_tok, 10)
         pol_old = pol_new
         oldmetric = m.groupdict().get("oldmetric")
         if oldmetric:
@@ -663,6 +717,10 @@ def _numeric_hits(rtext: str, tokens: list[Token], at: list[Optional[_Span]], cl
         rel = abs(diff) / max(abs(old), 1e-9)
         val = math.copysign(0.55 + 0.45 * min(1.0, rel / 0.2), diff)
         term = f"{new_raw.strip()} vs {old_raw.strip()}"
+        if msp is not None:  # the metric's own valence ("pre-tax loss") is now accounted for
+            msp.used = True
+            for j in range(msp.start, msp.end):
+                claimed[j] = 1
         hits.append(Hit(s_tok, e_tok, val * 0.85, term, "rule:numbers"))
         used_until = m.end()
         # reported vs. consensus in the same sentence ("...; FactSet consensus $1.63")
@@ -689,14 +747,16 @@ def _direction_before(at: list[Optional[_Span]], i: int, window: int) -> bool:
     return False
 
 
-def _metric_polarity_before(tokens: list[Token], at: list[Optional[_Span]], i: int, window: int) -> float:
+def _metric_before(tokens: list[Token], at: list[Optional[_Span]], i: int,
+                   window: int) -> tuple[float, Optional[_Span]]:
+    """Polarity (+1/-1, 0 if none) and span of the nearest metric before token ``i``."""
     for j in range(i - 1, max(-1, i - window - 1), -1):
         if tokens[j].kind == "sep":
             break
         sp = at[j]
         if sp is not None and sp.metric is not None:
-            return 1.0 if sp.metric.polarity > 0 else -1.0
-    return 0.0
+            return (1.0 if sp.metric.polarity > 0 else -1.0), sp
+    return 0.0, None
 
 
 # --------------------------------------------------------------------------- #
@@ -735,7 +795,8 @@ def _pct_magnitude(p: float) -> float:
 
 
 def _find_metric(tokens: list[Token], at: list[Optional[_Span]], i0: int, step: int, limit: float, *,
-                 soft_ok: bool = False, stop_words: frozenset[str] = frozenset()) -> Optional[_Span]:
+                 soft_ok: bool = False, stop_words: frozenset[str] = frozenset(),
+                 through_moves: bool = False) -> Optional[_Span]:
     """Scan from token ``i0`` in direction ``step`` for a metric span within ``limit`` content words.
 
     Stops at hard boundaries, other movement words, contrast markers and (unless
@@ -754,12 +815,13 @@ def _find_metric(tokens: list[Token], at: list[Optional[_Span]], i0: int, step: 
         sp = at[j]
         if sp is not None:
             if sp.metric is not None and not sp.neutral:
-                if step > 0:  # prefer the head of a compound: "revenue growth", "sales volume"
+                if step > 0:  # the head of a compound moves: "(slower) revenue growth"
                     head = at[sp.end] if sp.end < n else None
-                    while head is not None and head.metric is not None and not head.neutral:
-                        sp, head = head, (at[head.end] if head.end < n else None)
+                    if head is not None and head.key in lx.METRIC_DIRECTIONS:
+                        sp = head
                 return sp
-            if sp.direction is not None and sp.metric is None and sp.key not in lx.FOOTPRINT_VERBS:
+            if sp.direction is not None and sp.metric is None and sp.key not in lx.FOOTPRINT_VERBS \
+                    and not sp.level_qual and sp.key not in ("record", "records") and not through_moves:
                 return None
             if sp.contrast is not None:
                 return None
@@ -829,7 +891,26 @@ def _level_ok(tokens: list[Token], at: list[Optional[_Span]], sp: _Span) -> tupl
     return True, qualified
 
 
-_NOUN_STOPS = frozenset({"of", "about", "over", "on", "for", "against"})
+_NOUN_STOPS = frozenset({"of", "about", "over", "on", "for", "against", "after", "since", "following", "amid",
+                         "before", "despite", "as", "from"})
+_PREPS = frozenset({"on", "in", "for", "at", "after", "as", "amid", "to", "from", "with", "by", "of", "over",
+                    "since", "into", "despite", "than"})
+# "show up", "clean up", "break down", "end up": particles of phrasal verbs, not price moves
+_PHRASAL_PREV = frozenset("""
+show shows showed showing clean cleans cleaned cleaning prop props propped propping team teams teamed sign
+signs signed set sets setting end ends ended ending wind winds wound back backs backed follow follows followed
+line lines lined shake shakes shook open opens opened opening make makes made making take takes took taking
+catch catches caught catching keep keeps kept keeping look looks looked looking sum sums summed wrap wraps
+wrapped bring brings brought come comes came coming turn turns turned turning put puts call calls called beef
+beefs beefed gear gears geared gearing dig digs dug mix mixes mixed pile piles piled rack racks racked rake
+rakes raked rev revs revved scoop scoops scooped snap snaps snapped stock stocks stocked hold holds held
+holding break breaks broke broken breaking water watered track tracked narrow calm boil hunker lay lays laid
+trickle tone settle settles settled bog bogged shut crack write writes wrote mark marks marked double doubles
+doubled doubling tie ties tied sit sits sat stand stands stood live lives lived sell sells sold buy buys
+bought use uses used wake wakes woke waking speak speaks spoke cozy gobble eat eats ate dress dressed pay
+pays paid chalk chalked cough coughed add adds added adding step steps stepped stepping shore shores shored
+buck bucks bucked hike hikes hiked ramp ramps ramped boot boots booted give gives gave giving
+""".split())
 _RECORD_PREV = frozenset({"new", "fresh", "hit", "hits", "hitting", "at", "to", "set", "sets", "reach", "reaches",
                           "reached", "notch", "notches", "notched", "close", "closes", "closed", "another", "all"})
 
@@ -847,12 +928,19 @@ def _attach(sp: _Span, tokens: list[Token], at: list[Optional[_Span]]) -> Option
         if not ok:
             if sp.key in ("high", "low") and right is not None and right.metric is not None:
                 return right, 1.0  # adjective: "high debt", "low costs"
+            if sp.key in ("high", "low") and (nxt is None or nxt.kind in ("sep", "soft")):
+                metric = _find_metric(tokens, at, sp.start - 1, -1, 3)  # predicate: "recession risk is low"
+                return (metric, 1.6) if metric is not None else None
             return None
-        return _find_metric(tokens, at, sp.start - 1, -1, 4), mult
+        # "claims fall to lowest since April": the extreme belongs to the verb's subject
+        return _find_metric(tokens, at, sp.start - 1, -1, 7, through_moves=True), mult
+    if d.pos == "q":  # needs a quantity right after: "production contracts 3.8%"
+        nums = [t for t in tokens[sp.end: sp.end + 2] if t.kind in ("pct", "num")]
+        return (_find_metric(tokens, at, sp.start - 1, -1, 4), 1.0) if nums else None
     if sp.key in ("record", "records"):
         if right is not None and right.direction is not None and right.direction.pos == "l":
             return None  # "record high": qualifier only
-        metric = _find_metric(tokens, at, sp.end, 1, 2)
+        metric = _find_metric(tokens, at, sp.end, 1, 2) if sp.key == "record" else None
         if metric is not None:
             return metric, 1.0
         before = {t.text for t in tokens[max(0, sp.start - 3): sp.start]}
@@ -862,6 +950,8 @@ def _attach(sp: _Span, tokens: list[Token], at: list[Optional[_Span]]) -> Option
             return None if sp.key == "records" else (None, 0.75)
         return None
     if d.pos == "p":  # up / down
+        if prev is not None and prev.text in _PHRASAL_PREV:
+            return None
         metric = _find_metric(tokens, at, sp.start - 1, -1, 3, soft_ok=True)
         if nxt is not None and nxt.text == "for":
             tail = " ".join(t.text for t in tokens[sp.end + 1: sp.end + 4])
@@ -874,19 +964,33 @@ def _attach(sp: _Span, tokens: list[Token], at: list[Optional[_Span]]) -> Option
     if d.pos == "n":
         metric = None
         if nxt is not None and nxt.text in _CONNECTORS:
-            metric = _find_metric(tokens, at, sp.end + 1, 1, 3)
+            after = tokens[sp.end + 1] if sp.end + 1 < n else None
+            if after is not None and after.kind not in ("pct", "num", "cur"):  # not "decrease of 25.7%"
+                metric = _find_metric(tokens, at, sp.end + 1, 1, 3)
         if metric is None:  # compound: "dividend cut", "sales growth"
             metric = _find_metric(tokens, at, sp.start - 1, -1, 1)
+        if metric is None and sp.key in lx.HOMOGRAPHS:  # verb reading: "cut existing tariffs", "sales fall"
+            return _attach_verb(sp, tokens, at, nxt, prev)
         if metric is None:  # subject: "sales posted a 5% increase" (not "fears of a selloff")
             metric = _find_metric(tokens, at, sp.start - 1, -1, 5, stop_words=_NOUN_STOPS)
         return metric, 1.0
     if d.pos == "a":
-        metric = _find_metric(tokens, at, sp.end, 1, 2)
+        metric = None
+        if nxt is not None and nxt.text not in _PREPS:  # "higher raw material costs", not "lower on concerns"
+            metric = _find_metric(tokens, at, sp.end, 1, 3, stop_words=_PREPS)
         if metric is None and d.default > 0:
             metric = _find_metric(tokens, at, sp.start - 1, -1, 4)
         return metric, 1.0
-    # verbs
+    return _attach_verb(sp, tokens, at, nxt, prev)
+
+
+def _attach_verb(sp: _Span, tokens: list[Token], at: list[Optional[_Span]], nxt: Optional[Token],
+                 prev: Optional[Token]) -> Optional[tuple[Optional[_Span], float]]:
+    """Verb attachment: object first for transitive verbs, else the subject (across appositives)."""
     key = sp.key
+    if key.endswith("ed") and prev is not None and prev.text in _PREPS | {"a", "an", "the", "its", "their"} \
+            and nxt is not None and nxt.kind == "w" and at[sp.end] is None and nxt.text not in _PREPS:
+        return None  # participle used as adjective: "from narrowed focus", "a reduced stake"
     if key in lx.FOOTPRINT_VERBS:
         metric = _find_metric(tokens, at, sp.end, 1, 3)
         return (metric, 1.0) if metric is not None and metric.key in lx.FOOTPRINT_METRICS else None
@@ -894,13 +998,37 @@ def _attach(sp: _Span, tokens: list[Token], at: list[Optional[_Span]]) -> Option
         metric = _find_metric(tokens, at, sp.end, 1, 3)
         return (metric, 1.0) if metric is not None and metric.key in lx.TREND_METRICS else None
     metric = None
-    if key in lx.TRANSITIVE or key.split(" ")[0] in lx.TRANSITIVE:
-        metric = _find_metric(tokens, at, sp.end, 1, 3)
-    if metric is None:  # subject, possibly across an appositive: "Operating profit, excluding X, rose"
+    if key in lx.TRANSITIVE or key.split(" ")[0] in lx.TRANSITIVE:  # object: "cut existing tariffs"
+        metric = _find_metric(tokens, at, sp.end, 1, 3, stop_words=_PREPS)
+    gerund_complement = key.endswith("ing") and prev is not None and prev.text in ("of", "to", "for", "about")
+    if metric is None and not gerund_complement:
+        # subject, possibly across an appositive: "Operating profit, excluding X, rose"
         metric = _find_metric(tokens, at, sp.start - 1, -1, 6, soft_ok=True)
-    if metric is None and nxt is not None and nxt.text in ("in", "of"):
+    if metric is None and nxt is not None and nxt.text in ("in", "of") and sp.end + 1 < len(tokens) \
+            and tokens[sp.end + 1].kind not in ("pct", "num", "cur"):  # "rise in sales", not "decrease of 25%"
         metric = _find_metric(tokens, at, sp.end + 1, 1, 3)
     return metric, 1.0
+
+
+def _numeric_change(tokens: list[Token], i: int) -> Optional[float]:
+    """Percent change from "to EUR 13.1 mn from EUR 8.7 mn" / "from 5 to 7" after a movement word."""
+    vals: dict[str, float] = {}
+    j, n = i, len(tokens)
+    while j < n and j < i + 12 and tokens[j].kind != "sep":
+        t = tokens[j]
+        if t.text in ("to", "from") and t.text not in vals:
+            for k in range(j + 1, min(n, j + 4)):
+                if tokens[k].kind == "num":
+                    if not (1900 <= tokens[k].value <= 2100 and float(tokens[k].value).is_integer()):
+                        vals[t.text] = tokens[k].value
+                    break
+                if tokens[k].kind not in ("cur", "w") or tokens[k].text in ("to", "from"):
+                    break
+        j += 1
+    new, old = vals.get("to"), vals.get("from")
+    if new is None or old is None or old == 0:
+        return None
+    return abs(new - old) / abs(old) * 100.0
 
 
 def _compose(tokens: list[Token], at: list[Optional[_Span]], spans: list[_Span]) -> list[Hit]:
@@ -936,18 +1064,24 @@ def _compose(tokens: list[Token], at: list[Optional[_Span]], spans: list[_Span])
             if sign > 0 and sp.key.startswith("lift") and metric.key in lx.LIFTABLE:
                 sign = -1  # "lifts tariffs" removes them
         pi = _nearby_pct(tokens, sp.start, sp.end)
+        change = None if pi is not None else _numeric_change(tokens, sp.end)
         if pi is not None:
             base *= _pct_magnitude(tokens[pi].value)
+        elif change is not None:
+            base *= _pct_magnitude(change)
         elif d.pos == "p":
             base *= 1.0 if (sp.end < len(tokens) and tokens[sp.end].kind in ("num", "cur")) else 0.85
         val = sign * pol * base * mult
         if abs(val) < 1e-6:
             continue
-        lo = min(sp.start, metric.start) if metric is not None else sp.start
-        hi = max(sp.end, metric.end) if metric is not None else sp.end
+        parts = [(sp.start, sp.end)]
+        if metric is not None:
+            parts.append((metric.start, metric.end))
         if pi is not None:
-            lo, hi = min(lo, pi), max(hi, pi + 1)
-        hits.append(Hit(lo, hi, max(-2.0, min(2.0, val)), "", "move"))
+            parts.append((pi, pi + 1))
+        parts.sort()
+        lo, hi = parts[0][0], max(e for _, e in parts)
+        hits.append(Hit(lo, hi, max(-2.0, min(2.0, val)), "", "move", anchor=sp.start, parts=tuple(parts)))
         sp.used = True
         if metric is not None:
             metric.used = True
@@ -958,7 +1092,9 @@ def _compose(tokens: list[Token], at: list[Optional[_Span]], spans: list[_Span])
 # Main entry
 # --------------------------------------------------------------------------- #
 # Modifier strengths (tuned on the Twitter-financial train split).
-NEGATION_FLIP = 0.65  # negated evidence flips sign and shrinks ("not bad" < "good")
+NEGATION_FLIP = 0.65  # negated positive flips and shrinks ("not strong")
+NEGATION_FLIP_NEG = 0.8  # negated negative = relief ("won't hinder growth"), capped at NEGATED_CAP
+NEGATED_CAP = 1.0  # "avoids bankruptcy" is relief, not euphoria
 SHIFT_BEFORE, SHIFT_AFTER = 0.55, 1.2  # "A but B": B is what matters
 CONCESSIVE_FACTOR = 0.3  # "despite A, B": A is background
 BACKGROUND_FACTOR = 0.4  # "B after A" / "B amid A"
@@ -985,7 +1121,7 @@ def extract(text: str, *, social: bool = False) -> Evidence:
     n = len(tokens)
     if not n:
         return ev
-    rtext = _HYPHEN_IN_WORD.sub(" ", low)
+    rtext = _HYPHEN_IN_WORD.sub(" ", low) if "-" in low else low
     starts = [t.start for t in tokens]
 
     def tok_of(char: int) -> int:
@@ -1028,10 +1164,11 @@ def extract(text: str, *, social: bool = False) -> Evidence:
     for sp in spans:
         if sp.used or sp.neutral:
             continue
-        if sp.lex is not None and sp.lex != 0.0:
+        if social and sp.social_only is not None:  # social register overrides ("bulls" = the other camp)
+            if sp.social_only:
+                hits.append(Hit(sp.start, sp.end, sp.social_only, "", "social"))
+        elif sp.lex is not None and sp.lex != 0.0:
             hits.append(Hit(sp.start, sp.end, sp.lex, "", "lex"))
-        elif social and sp.social_only:
-            hits.append(Hit(sp.start, sp.end, sp.social_only, "", "social"))
         elif sp.metric is not None and sp.metric.intrinsic and sp.direction is None:
             hits.append(Hit(sp.start, sp.end, sp.metric.intrinsic, "", "metric"))
         if sp.hedge is not None:
@@ -1050,9 +1187,19 @@ def extract(text: str, *, social: bool = False) -> Evidence:
     _apply_modifiers(ev, tokens, at, spans, hits, low)
     for h in hits:
         if not h.term:
-            h.term = norm[tokens[h.start].start: tokens[h.end - 1].end]
+            h.term = _term(norm, tokens, h)
     ev.hits = hits
     return ev
+
+
+def _term(norm: str, tokens: list[Token], h: Hit) -> str:
+    """Driver label: the exact text when short (so UIs can highlight it), else "metric verb [pct]"."""
+    if h.end - h.start <= 5 or not h.parts:
+        return norm[tokens[h.start].start: tokens[h.end - 1].end]
+    words = [norm[tokens[a].start: tokens[b - 1].end] for a, b in h.parts]
+    if h.negated and h.start < h.parts[0][0]:
+        words.insert(0, norm[tokens[h.start].start: tokens[h.start].end])
+    return " ".join(words).lower()
 
 
 def _apply_modifiers(ev: Evidence, tokens: list[Token], at: list[Optional[_Span]], spans: list[_Span],
@@ -1076,7 +1223,7 @@ def _apply_modifiers(ev: Evidence, tokens: list[Token], at: list[Optional[_Span]
     ev.question = bool(question_sents)
     ev.listicle = bool(_LISTICLE.search(low))
     ev.text_hedge = any(sp.key in lx.TEXT_HEDGES for sp in spans)
-    if re.search(r"(?:^|[-:(]\s*)(?:report|sources|rumou?r)\b|\b(?:report|sources)\s*(?:$|[-:)])", low):
+    if _ATTRIBUTION.search(low):
         ev.text_hedge = True
 
     negators = [sp for sp in spans if sp.negator and not sp.neutral]
@@ -1091,43 +1238,45 @@ def _apply_modifiers(ev: Evidence, tokens: list[Token], at: list[Optional[_Span]
         # --- negation: a negator up to 3 word tokens before the hit, same clause
         neg = _negator_for(tokens, at, negators, h, hits)
         if neg is not None:
-            h.valence = -NEGATION_FLIP * h.valence
+            flipped = -(NEGATION_FLIP if h.valence > 0 else NEGATION_FLIP_NEG) * h.valence
+            h.valence = max(-NEGATED_CAP, min(NEGATED_CAP, flipped))
             h.negated = True
             neg.used = True
-            h.start = neg.start
+            h.start = min(h.start, neg.start)
         # --- intensifiers / diminishers adjacent (2 before, 2 after)
+        a = h.anchor
         for sp in intens_spans:
-            if (h.start - 2 <= sp.start < h.start or h.end <= sp.start < h.end + 2) and sent[sp.start] == sent[h.start]:
+            if (h.start - 2 <= sp.start < h.start or h.end <= sp.start < h.end + 2) and sent[sp.start] == sent[a]:
                 if not any(tokens[j].kind in ("sep", "soft") for j in range(min(sp.start, h.end), max(sp.start, h.end))):
                     w *= sp.intens  # type: ignore[operator]
         # --- hedges up to 6 tokens before, same sentence
         for sp in hedge_spans:
-            if h.start - 6 <= sp.start < h.start and sent[sp.start] == sent[h.start]:
+            if a - 6 <= sp.start < a and sent[sp.start] == sent[a]:
                 w *= sp.hedge  # type: ignore[operator]
                 break
         # --- contrast
         for sp in contrast_spans:
-            if sent[sp.start] != sent[h.start]:
+            if sent[sp.start] != sent[a]:
                 continue
             if sp.contrast == "shift":
                 if sp.key == "yet" and sp.start > 0 and tokens[sp.start - 1].text in ("not", "no", "nor"):
                     continue
                 if sp.key == "though" and sp.start > 0 and tokens[sp.start - 1].text == "even":
                     continue
-                w *= SHIFT_BEFORE if h.end <= sp.start else SHIFT_AFTER
+                w *= SHIFT_BEFORE if a < sp.start else SHIFT_AFTER
             else:  # concessive: the clause it introduces is background
                 end = _clause_end(tokens, sp.end)
-                if sp.end <= h.start < end:
+                if sp.end <= a < end:
                     w *= CONCESSIVE_FACTOR
-        if background[h.start]:
+        if background[a]:
             w *= BACKGROUND_FACTOR
-        if sent[h.start] in question_sents:
+        if sent[a] in question_sents:
             w *= QUESTION_FACTOR
         if ev.listicle:
             w *= LISTICLE_FACTOR
         if ev.text_hedge:
             w *= TEXT_HEDGE_FACTOR
-        h.weight = max(0.2, min(1.8, w)) if w > 0.2 else w
+        h.weight = min(1.8, w)
 
     # negators that negated nothing but carry meaning themselves ("fails to meet")
     for sp in negators:
@@ -1141,6 +1290,10 @@ def _background_clauses(tokens: list[Token]) -> list[bool]:
     n = len(tokens)
     flags = [False] * n
     for i, t in enumerate(tokens):
+        if t.text == "from" and i > 0 and tokens[i - 1].text in _RECOVERY_WORDS:
+            for j in range(i + 1, _clause_end(tokens, i + 1)):  # "bounces back from a steep sell-off"
+                flags[j] = True
+            continue
         if t.text in ("after", "following", "amid", "amidst") and i > 0:
             nxt = tokens[i + 1].text if i + 1 < n else ""
             if nxt in ("hours", "market", "the", "close") and (i + 2 >= n or tokens[i + 2].text in ("bell", "close")
@@ -1151,6 +1304,13 @@ def _background_clauses(tokens: list[Token]) -> list[bool]:
     return flags
 
 
+_RECOVERY_WORDS = frozenset({"back", "rebounds", "rebound", "rebounded", "rebounding", "recovers", "recovered",
+                             "recover", "recovering", "emerges", "emerged", "bounces", "bounced", "bouncing",
+                             "rallies", "rallied", "rises", "rose", "climbs", "climbed", "up", "higher", "lower",
+                             "down", "falls", "fell", "slips", "slipped", "retreats", "retreated", "pulls",
+                             "away"})
+_ATTRIBUTION = re.compile(r"^(?:report|sources|rumou?r)s?\s*:|[-\u2013\u2014(]\s*(?:report|sources|rumou?r)s?\s*\)?\s*$|"
+                          r"\b(?:report|reports)\s+say|\bsources\s+(?:say|said|tell|told)\b")
 _INTENSIFYING_ADJ = frozenset({"strong", "stronger", "robust", "solid", "steady"})
 
 
@@ -1183,15 +1343,16 @@ def _negator_for(tokens: list[Token], at: list[Optional[_Span]], negators: list[
     """The negator scoping over ``h``: the nearest one up to 3-4 words before, same clause, that has
     not negated an earlier hit - unless ``h`` is that hit's "of" complement ("not guilty of fraud")."""
     best: Optional[_Span] = None
+    target = h.anchor if h.start <= h.anchor < h.end else h.start
     for sp in negators:
-        if sp.end > h.start:
+        if sp.end > target or (sp.start >= h.start and sp.end > h.end):
             continue
         if sp.used and not any(o.negated and o.start == sp.start and o.end + 1 == h.start
                                and tokens[o.end].text in ("of", "in") for o in hits):
             continue
         gap = 0
         ok = True
-        for j in range(sp.end, h.start):
+        for j in range(sp.end, target):
             t = tokens[j]
             if t.kind in ("sep", "soft") or (at[j] is not None and at[j].contrast is not None):  # type: ignore[union-attr]
                 ok = False

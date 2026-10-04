@@ -184,11 +184,22 @@ def quote_from_history(df: pd.DataFrame | None, currency: str | None = None) -> 
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
 
 
+# Yahoo's crypto descriptions embed a frozen price snapshot ("The last known price
+# of Bitcoin is 85,127 USD and is up 0.44 over the last 24 hours") — stale numbers
+# must never be shown as profile facts.
+_VOLATILE_SENTENCE = re.compile(
+    r"last known price|over the last 24 hours|active market\(?s\)?|current supply|traded over", re.IGNORECASE
+)
+
+
 def trim_summary(text: str | None, limit: int = 900) -> str | None:
-    """Trim a business summary at a sentence boundary (keeps it readable)."""
+    """Trim a business summary at a sentence boundary, dropping stale market stats."""
     if not text:
         return None
     text = re.sub(r"\s+", " ", text).strip()
+    text = " ".join(s for s in _SENTENCE_END.split(text) if not _VOLATILE_SENTENCE.search(s)).strip()
+    if not text:
+        return None
     if len(text) <= limit:
         return text
     out = ""
@@ -588,7 +599,8 @@ def earnings_from_frames(
         if d:
             upcoming.append(d)
 
-    future = sorted(d for d in upcoming if d >= today)
+    reported = {e.date for e in history}  # a same-day report already in history is not "next"
+    future = sorted(d for d in upcoming if d >= today and d not in reported)
     next_date = future[0] if future else None
     history.sort(key=lambda e: e.date, reverse=True)
     history = history[:max_history]
@@ -662,7 +674,9 @@ _KIND_RULES: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"exercise|conversion", re.IGNORECASE), "exercise"),
     (re.compile(r"\bgift\b", re.IGNORECASE), "gift"),
 )
-_ENTITY = re.compile(r"\b(?:inc|corp|llc|lp|l\.p|ltd|trust|fund|partners|holdings|capital|group|foundation|co)\b\.?", re.IGNORECASE)
+_ENTITY = re.compile(
+    r"\b(?:inc|corp|llc|lp|l\.p|ltd|trust|fund|partners|holdings|capital|group|foundation|co)\b\.?", re.IGNORECASE
+)
 _SUFFIXES = {"JR", "SR", "II", "III", "IV", "JR.", "SR."}
 
 

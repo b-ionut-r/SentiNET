@@ -5,12 +5,13 @@
 import { ExternalLink, ListFilter, Search } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 
-import type { Analysis, Driver, Signal } from "../../api/types";
+import type { Analysis, Signal } from "../../api/types";
 import { Chip, ScoreChip } from "../../components/ui/Badges";
+import { DriverText } from "../../components/ui/DriverText";
 import { Empty, Segmented } from "../../components/ui/Misc";
 import { Panel } from "../../components/ui/Panel";
 import { cx } from "../../lib/cx";
-import { plural, signed, timeAgo } from "../../lib/format";
+import { plural, timeAgo } from "../../lib/format";
 import { polarityOf } from "../../lib/sentiment";
 import { eventLabel, themeLabel } from "./themes";
 
@@ -140,31 +141,6 @@ export function SignalExplorer({ a }: { a: Analysis }) {
   );
 }
 
-function escapeRe(s: string) {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-/** Wrap driver terms in the text with a polarity underline. */
-function highlight(text: string, drivers: Driver[]): ReactNode {
-  const terms = drivers.filter((d) => d.term.trim().length > 1);
-  if (!terms.length) return text;
-  const map = new Map(terms.map((d) => [d.term.toLowerCase(), d.impact]));
-  const re = new RegExp(`(${terms.map((d) => escapeRe(d.term)).sort((x, y) => y.length - x.length).join("|")})`, "gi");
-  return text.split(re).map((part, i) => {
-    const impact = map.get(part.toLowerCase());
-    if (impact == null) return part;
-    return (
-      <mark
-        key={i}
-        title={`driver ${signed(impact)}`}
-        className={cx("bg-transparent text-ink underline decoration-2 underline-offset-[3px]", impact > 0 ? "decoration-bull/80" : impact < 0 ? "decoration-bear/80" : "decoration-neu/70")}
-      >
-        {part}
-      </mark>
-    );
-  });
-}
-
 function SignalRow({ s }: { s: Signal }) {
   const meta: ReactNode[] = [
     <span key="pub" className="font-medium text-ink-2">
@@ -195,10 +171,10 @@ function SignalRow({ s }: { s: Signal }) {
           <p className={cx("min-w-0 flex-1 text-[13px] leading-[19px]", s.kind === "news" ? "text-ink" : "text-ink-2")}>
             {s.url ? (
               <a href={s.url} target="_blank" rel="noreferrer" className="hover:text-ink">
-                {highlight(s.title, s.drivers)}
+                <DriverText text={s.title} drivers={s.drivers} />
               </a>
             ) : (
-              highlight(s.title, s.drivers)
+              <DriverText text={s.title} drivers={s.drivers} />
             )}
           </p>
           {s.url && (

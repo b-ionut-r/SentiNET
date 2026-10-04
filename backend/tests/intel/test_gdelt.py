@@ -1,6 +1,7 @@
 """GDELT tone trend: query design, parsing, statistics and rate-limit handling."""
 from __future__ import annotations
 
+import re
 from datetime import date, timedelta
 from urllib.parse import parse_qs, urlsplit
 
@@ -10,7 +11,13 @@ import respx
 
 from app.core.ratelimit import limiter
 from app.intel import gdelt
-from app.intel.gdelt import build_query, build_trend, merge_series, parse_timeline, tone_stats
+from app.intel.gdelt import (
+    build_query,
+    build_trend,
+    merge_series,
+    parse_timeline,
+    tone_stats,
+)
 from app.schemas import TonePoint
 from app.sources.base import CompanyRef
 from tests.intel.helpers import load_json
@@ -23,6 +30,7 @@ RATE_TEXT = ("Please limit requests to one every 5 seconds or contact kalev.leet
 def _fast_gdelt(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(gdelt, "RATE_LIMIT_WAIT", 0.0)
     monkeypatch.setitem(limiter._spacing, "api.gdeltproject.org", 0.0)
+    gdelt._LAST_GOOD.clear()
 
 
 def ref(ticker: str, short: str, aliases: list[str] | None = None, qtype: str = "EQUITY") -> CompanyRef:
@@ -61,10 +69,20 @@ def test_query_aliases_are_ored() -> None:
     assert build_query(ref("BTC-USD", "Bitcoin", qtype="CRYPTOCURRENCY")) == '"Bitcoin" sourcelang:english'
 
 
-def test_queries_have_balanced_syntax() -> None:
-    for ticker, query in gdelt.CURATED.items():
-        assert query.count("(") == query.count(")") <= 1, ticker  # GDELT allows one OR group
-        assert query.count('"') % 2 == 0, ticker
+def _assert_gdelt_syntax(query: str) -> None:
+    assert query.count('"') % 2 == 0, query
+    groups = re.findall(r"\(([^()]*)\)", query)
+    assert query.count("(") == query.count(")") == len(groups), query  # no nesting
+    for group in groups:
+        assert " OR " in group, query  # GDELT: parentheses only around OR'd statements
+
+
+def test_queries_have_valid_gdelt_syntax() -> None:
+    for query in gdelt.CURATED.values():
+        _assert_gdelt_syntax(query)
+    for company in (ref("NVDA", "Nvidia"), ref("CHWY", "Chewy"), ref("XYZQ", "QRS"),
+                    ref("ZZZ", "Acmecorp", ["Acme Rockets"]), ref("T", "AT&T"), ref("ETH-USD", "Ethereum", qtype="CRYPTOCURRENCY")):
+        _assert_gdelt_syntax(build_query(company))
 
 
 # --------------------------------------------------------------------------- #
@@ -204,3 +222,23 @@ def test_real_volume_drops_day_still_being_ingested() -> None:
     assert trend.series[-1].date == raw_days[-2]  # the partial last day is gone
     assert all(p.volume is not None and p.volume > 50 for p in trend.series)
     assert trend.tone_7d is not None and trend.tone_30d is not None and trend.percentile_7d is not None
+
+
+async def test_serves_last_good_trend_when_gdelt_refuses() -> None:
+    from app.core import cache
+
+    payload = load_json("gdelt/nvidia_timelinetone.json")
+    company = ref("NVDA", "Nvidia")
+    gdelt._LAST_GOOD.clear()
+    with respx.mock as mock:
+        mock.get(gdelt.API_URL).mock(return_value=httpx.Response(200, json=payload))
+        fresh = await gdelt.get_tone_trend(company)
+    cache.clear_all()  # the TTL cache expired; GDELT now refuses
+    with respx.mock as mock:
+        mock.get(gdelt.API_URL).mock(return_value=httpx.Response(429, text=RATE_TEXT))
+        stale = await gdelt.get_tone_trend(company)
+        assert stale == fresh
+        gdelt._LAST_GOOD.clear()
+        cache.clear_all()
+        with pytest.raises(gdelt.GdeltRateLimited):
+            await gdelt.get_tone_trend(company)

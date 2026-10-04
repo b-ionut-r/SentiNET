@@ -89,7 +89,13 @@ export default function PriceTone({ a }: { a: Analysis }) {
     <div id="price" className="grid scroll-mt-28 gap-4 lg:grid-cols-12">
       <Panel
         title="Price × news tone"
-        subtitle={showTone ? "Daily global news tone (GDELT) in its own pane below — same dates, separate scale" : "Tone is daily — switch to 1M–1Y to see it under the price"}
+        subtitle={
+          showTone
+            ? "Daily global news tone (GDELT) in its own pane below — same dates, separate scale"
+            : toneSeries.length === 0
+              ? "No GDELT tone series for this ticker yet — price only"
+              : "Tone is daily — switch to 1M–1Y to see it under the price"
+        }
         actions={<Segmented options={RANGES.map((r) => ({ value: r, label: r }))} value={range} onChange={setRange} size="xs" label="Price range" />}
         className="lg:col-span-8"
         footer={
@@ -336,7 +342,7 @@ function Charts({ a, rows, showTone, daily, currency }: { a: Analysis; rows: Row
       <div className={cx("mt-1", !showTone && "hidden")}>
         <div className="mb-0.5 flex items-center justify-between text-2xs text-muted">
           <span>News tone · GDELT avg (≈ {MINUS}3 … +3)</span>
-          <span>weekend news rolls into the next session</span>
+          <span className="hidden sm:inline">weekend news rolls into the next session</span>
         </div>
         <div ref={toneEl} className="h-[92px] w-full" role="img" aria-label="Daily news tone histogram" />
       </div>
@@ -351,7 +357,10 @@ function ToneLeadPanel({ a, history, loading, error, className }: { a: Analysis;
   return (
     <Panel title={`Does news tone lead ${a.ticker}?`} subtitle="Pearson r of daily tone vs. returns at −3…+3 day lags (90d)" className={className}>
       {loading ? (
-        <Skeleton className="h-40 w-full" />
+        <div>
+          <Skeleton className="h-40 w-full" />
+          <p className="mt-2 text-2xs text-muted">Loading 90 days of GDELT tone and prices — GDELT is rate-limited, this can take a few seconds.</p>
+        </div>
       ) : error || !history || history.lags.length === 0 ? (
         <Empty title="Lead/lag unavailable">{error?.message ?? "Not enough overlapping tone and price history yet."}</Empty>
       ) : (

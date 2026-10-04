@@ -12,11 +12,12 @@ from __future__ import annotations
 import asyncio
 import functools
 import time
-from typing import Any, Awaitable, Callable, Optional, TypeVar
+from collections.abc import Awaitable, Callable
+from typing import Any, Optional, TypeVar
 
 T = TypeVar("T")
 
-_registry: list["_AsyncTTLCache"] = []
+_registry: list[_AsyncTTLCache] = []
 
 
 class _AsyncTTLCache:

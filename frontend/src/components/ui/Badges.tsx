@@ -107,10 +107,10 @@ const statusMeta: Record<SourceStatus, { label: string; color: string; Icon: typ
 };
 
 export function StatusBadge({ status, className }: { status: SourceStatus; className?: string }) {
-  const m = statusMeta[status];
+  const m = statusMeta[status] ?? statusMeta.empty;
   return (
-    <span className={cx("inline-flex items-center gap-1 text-2xs font-medium", m.color, className)}>
-      <m.Icon className="size-3.5" aria-hidden />
+    <span className={cx("inline-flex items-center gap-1 text-2xs font-medium text-ink-2", className)}>
+      <m.Icon className={cx("size-3.5", m.color)} aria-hidden />
       {m.label}
     </span>
   );
@@ -125,10 +125,10 @@ export const severityMeta: Record<Severity, { label: string; color: string; ring
 };
 
 export function SeverityBadge({ severity, className }: { severity: Severity; className?: string }) {
-  const m = severityMeta[severity];
+  const m = severityMeta[severity] ?? severityMeta.info;
   return (
-    <span className={cx("inline-flex items-center gap-1 text-2xs font-semibold uppercase tracking-wider", m.color, className)}>
-      <m.Icon className="size-3" aria-hidden />
+    <span className={cx("inline-flex items-center gap-1 text-2xs font-semibold uppercase tracking-wider text-ink", className)}>
+      <m.Icon className={cx("size-3.5", m.color)} aria-hidden />
       {m.label}
     </span>
   );

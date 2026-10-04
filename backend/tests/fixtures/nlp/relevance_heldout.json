@@ -1,0 +1,1854 @@
+{
+ "description": "Held-out relevance set (NOT used for tuning): real Google News RSS headlines for common-word company names, captured 2026-10-04, hand-labeled 'relevant' (about the listed company). SNAP collides with the food-assistance program, Ford with people/ships, Visa with immigration visas.",
+ "sets": {
+  "F": {
+   "company": {
+    "ticker": "F",
+    "name": "Ford Motor Company",
+    "short_name": "Ford",
+    "aliases": [],
+    "industry": "Auto Manufacturers",
+    "sector": "Consumer Cyclical"
+   },
+   "query": "\"Ford\" (stock OR shares OR F) when:7d",
+   "items": [
+    {
+     "title": "Ford F-150 Sales to Drop This Quarter Over Supplier Issue - WSJ",
+     "publisher": "WSJ",
+     "relevant": true
+    },
+    {
+     "title": "Ford F-150 supplier disruption to impact third-quarter dealer shipments, CEO says - Reuters",
+     "publisher": "Reuters",
+     "relevant": true
+    },
+    {
+     "title": "Ford’s Sales Hit Alarming Drop - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Ford Reintroduces Two-Tone Paint Option for the 2027 F-150, Albeit with Some Stipulations - Car and Driver",
+     "publisher": "Car and Driver",
+     "relevant": true
+    },
+    {
+     "title": "Ford Builds Q3 Momentum with Retail Share Gains, Strong Truck and Large SUV Performance - Ford From the Road",
+     "publisher": "Ford From the Road",
+     "relevant": true
+    },
+    {
+     "title": "Ford Reintroduces Two-Tone Paint Style for 2027 F-150 - Kelley Blue Book",
+     "publisher": "Kelley Blue Book",
+     "relevant": true
+    },
+    {
+     "title": "Ford’s 45% Rally Wiped Out as Hopes for an AI Windfall Fizzle - Bloomberg.com",
+     "publisher": "Bloomberg.com",
+     "relevant": true
+    },
+    {
+     "title": "Additional 2027 Ford F-150 Two-Tone Package Details Revealed - Ford Authority",
+     "publisher": "Ford Authority",
+     "relevant": true
+    },
+    {
+     "title": "2027 Ford F-150 Just Got A Retro Two-Tone Makeover - Autoblog",
+     "publisher": "Autoblog",
+     "relevant": true
+    },
+    {
+     "title": "2027 Ford F-150 To Offer Two-Tone Paint, Should Silverado And Sierra As Well? - GM Authority",
+     "publisher": "GM Authority",
+     "relevant": true
+    },
+    {
+     "title": "F-150 supplier disruption to hit 3Q sales, Ford CEO Jim Farley says - The Detroit News",
+     "publisher": "The Detroit News",
+     "relevant": true
+    },
+    {
+     "title": "The Two-Tone Ford F-150 Is Back, But Only For Certain Trims - Motor1.com",
+     "publisher": "Motor1.com",
+     "relevant": true
+    },
+    {
+     "title": "Ford F-150 Gets New Two-Tone Paint To Fill Our '80s Loving Hearts - CarBuzz",
+     "publisher": "CarBuzz",
+     "relevant": true
+    },
+    {
+     "title": "Front Row Motorsports welcomes Jake Garcia, Quanta Services to Truck Series program for 2027 - NASCAR.com",
+     "publisher": "NASCAR.com",
+     "relevant": false
+    },
+    {
+     "title": "Supplier Issue Paused Ford F-150 Production, Hitting Wholesale Deliveries - WSJ",
+     "publisher": "WSJ",
+     "relevant": true
+    },
+    {
+     "title": "How Much Downside Is Left In Ford Stock? - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Ford's quarterly US sales dip after phasing out some models - Reuters",
+     "publisher": "Reuters",
+     "relevant": true
+    },
+    {
+     "title": "Ford (F) Lost $7.4 Billion and Still Pays a 4.9% Dividend. How Long Can That Hold? - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Ford's CEO urges caution on Chinese automakers, says Europe is 'too late' - Reuters",
+     "publisher": "Reuters",
+     "relevant": true
+    },
+    {
+     "title": "What Does Ford Motor (F) Michigan Battery Lead Mean For Its EV Supply Chain? - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Which Automaker Stock Dominated in September: Tesla, Ford, or General Motors? - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Ford ‘fully recovered’ from costly aluminum plant fires that cut F-150 production - Automotive News",
+     "publisher": "Automotive News",
+     "relevant": true
+    },
+    {
+     "title": "Mechanic Can’t Figure Out How To Remove F-150 Tires. Then He Realizes Why - Motor1.com",
+     "publisher": "Motor1.com",
+     "relevant": false
+    },
+    {
+     "title": "Ford (F) Stock Looks Fairly Valued On Cash Flow - Simply Wall Street",
+     "publisher": "Simply Wall Street",
+     "relevant": true
+    },
+    {
+     "title": "Ford recalls more than 40,000 trucks and SUVs over visibility risk - Fox Business",
+     "publisher": "Fox Business",
+     "relevant": true
+    },
+    {
+     "title": "Market Chatter: Ford CEO Says F-150 Supplier Issue Resolved But Will Impact Q3 Sales - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Ford posts 6.6% U.S. sales decline in Q3 but leans on pickups, SUVs to fend off surging Hyundai-Kia - Automotive News",
+     "publisher": "Automotive News",
+     "relevant": true
+    },
+    {
+     "title": "Why is Ford stock sliding today? - Investing.com",
+     "publisher": "Investing.com",
+     "relevant": true
+    },
+    {
+     "title": "Weekly roundup: Moreno says Mercedes-Benz won't face ban, Ford F-150 supplier issue cuts shipments, Stellantis holds 2026 guidance - CBT News",
+     "publisher": "CBT News",
+     "relevant": true
+    },
+    {
+     "title": "Here's How Ford Stock Performed During Week Of September 28th, 2026 - October 2nd, 2026 - Ford Authority",
+     "publisher": "Ford Authority",
+     "relevant": true
+    },
+    {
+     "title": "Ford Motor Company (F) is Attracting Investor Attention: Here is What You Should Know - Yahoo Finance Australia",
+     "publisher": "Yahoo Finance Australia",
+     "relevant": true
+    },
+    {
+     "title": "Ford reports Q3 U.S. sales lower than year ago, but signals strong Q4 - Detroit Free Press",
+     "publisher": "Detroit Free Press",
+     "relevant": true
+    },
+    {
+     "title": "Ford Stock Slips Following F-150 Supply Disruption - TradingView",
+     "publisher": "TradingView",
+     "relevant": true
+    },
+    {
+     "title": "Ford F-150 supplier disruption hits Q3 2026 wholesale sales - qz.com",
+     "publisher": "qz.com",
+     "relevant": true
+    },
+    {
+     "title": "Ford Motor sales dip 6.6% in Q3 (F:NYSE) - Seeking Alpha",
+     "publisher": "Seeking Alpha",
+     "relevant": true
+    },
+    {
+     "title": "Ford, GM and Stellantis stock prices slide for the week ending Oct. 2 - usatoday.com",
+     "publisher": "usatoday.com",
+     "relevant": true
+    },
+    {
+     "title": "Ford Motor Company (F) Registers a Bigger Fall Than the Market: Important Facts to Note - Yahoo Finance Australia",
+     "publisher": "Yahoo Finance Australia",
+     "relevant": true
+    },
+    {
+     "title": "Ford Just Bet $1 Billion On Kentucky To Help Keep The F-Series Out Of Trump's Tariff Trap - CarBuzz",
+     "publisher": "CarBuzz",
+     "relevant": true
+    },
+    {
+     "title": "My F-150 Lightning Costs a Third as Much Per Mile as My Ford Maverick, But It Needs About 176,000 Miles to Pay Back $22,200 - Torque News",
+     "publisher": "Torque News",
+     "relevant": false
+    },
+    {
+     "title": "Jim Farley says Ford is expanding as others press pause on new hires - Detroit Free Press",
+     "publisher": "Detroit Free Press",
+     "relevant": true
+    },
+    {
+     "title": "Ford Motor vs. Stellantis: Which Automotive Stock Is a Better Buy in 2026? - The Motley Fool",
+     "publisher": "The Motley Fool",
+     "relevant": true
+    },
+    {
+     "title": "Ford F-150 supplier disruption to impact 3Q sales, CEO says By Reuters - Investing.com",
+     "publisher": "Investing.com",
+     "relevant": true
+    },
+    {
+     "title": "Ford F-150 Supply Issues Will Impact Q3 2026 Sales - Ford Authority",
+     "publisher": "Ford Authority",
+     "relevant": true
+    },
+    {
+     "title": "2027 Ford F-150 Gets All-New Two Tone Package - Ford Authority",
+     "publisher": "Ford Authority",
+     "relevant": true
+    },
+    {
+     "title": "Ford F-150 Production Back Online After Undisclosed Supply Chain Issue - Ford Authority",
+     "publisher": "Ford Authority",
+     "relevant": true
+    },
+    {
+     "title": "Ford CEO Tempers Expectations On F-Series Sales, Which Have Struggled All Year - CarBuzz",
+     "publisher": "CarBuzz",
+     "relevant": true
+    },
+    {
+     "title": "Ford recalls more than 40,000 trucks and SUVs over visibility risk - FOX 9 Minneapolis-St. Paul",
+     "publisher": "FOX 9 Minneapolis-St. Paul",
+     "relevant": true
+    },
+    {
+     "title": "Ford F-150 Production No Longer Impacted By Aluminum Supply Crisis - Ford Authority",
+     "publisher": "Ford Authority",
+     "relevant": true
+    },
+    {
+     "title": "Ford’s Sales Hit Alarming Drop - 24/7 Wall St.",
+     "publisher": "24/7 Wall St.",
+     "relevant": true
+    },
+    {
+     "title": "Ford recalls 41K cars over headlight issue. See models - usatoday.com",
+     "publisher": "usatoday.com",
+     "relevant": true
+    },
+    {
+     "title": "New 2026 Ford F-150 LARIAT for sale in Henderson, NV - 1FTFW5L89TFB18220 - JD Power",
+     "publisher": "JD Power",
+     "relevant": false
+    },
+    {
+     "title": "Ford suddenly halts F-150 production at Michigan and Kansas City plants; thousands of workers told to stay - The Economic Times",
+     "publisher": "The Economic Times",
+     "relevant": true
+    },
+    {
+     "title": "2027 Ford F-150 XL: Every Available Wheel - Ford Authority",
+     "publisher": "Ford Authority",
+     "relevant": true
+    },
+    {
+     "title": "Ford F-150 supplier setback to impact Q3 sales (F:NYSE) - Seeking Alpha",
+     "publisher": "Seeking Alpha",
+     "relevant": true
+    },
+    {
+     "title": "Ford CEO Jim Farley Warns US Leaders Against Allowing Chinese EV Competitors Into American Market - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "1997 Ford F-150 XL Flareside With 21K Miles Up For Auction - Ford Authority",
+     "publisher": "Ford Authority",
+     "relevant": false
+    },
+    {
+     "title": "Ford’s Two-Tone 2027 F-150 Has Us Asking: Who Did It Best? - Hagerty",
+     "publisher": "Hagerty",
+     "relevant": true
+    },
+    {
+     "title": "Ford Q3 sales fall 6.6%, says F-150 disruption contained within guidance - Investing.com",
+     "publisher": "Investing.com",
+     "relevant": true
+    },
+    {
+     "title": "Installing a Leitner Rack on My Ford F-150 — Here’s How It Turned Out - Pickup Truck Talk",
+     "publisher": "Pickup Truck Talk",
+     "relevant": false
+    },
+    {
+     "title": "The 2025 Ford F-150 Raptor R - The Lufkin Daily News",
+     "publisher": "The Lufkin Daily News",
+     "relevant": false
+    },
+    {
+     "title": "The Two-Tone Ford F-150 Is Back, But Only For Certain Trims - Yahoo Autos",
+     "publisher": "Yahoo Autos",
+     "relevant": true
+    },
+    {
+     "title": "2027 Ford F-150 Now Offers A Retro Two-Tone Paint Option - Autoguide.com",
+     "publisher": "Autoguide.com",
+     "relevant": true
+    },
+    {
+     "title": "Ford F-150 PowerBoost Poll Finds Just 15.2% Favor Pro Power All Night at a Very Quiet Campsite - Torque News",
+     "publisher": "Torque News",
+     "relevant": false
+    },
+    {
+     "title": "Ford F-150 supplier disruption to impact third-quarter sales, CEO says - TradingView",
+     "publisher": "TradingView",
+     "relevant": true
+    },
+    {
+     "title": "Ford recalls more than 40,000 trucks and SUVs over visibility risk - FOX 35 Orlando",
+     "publisher": "FOX 35 Orlando",
+     "relevant": true
+    },
+    {
+     "title": "After 234,000 Battle-Scarred Miles, This F-150 Lightning Is Ready for Round 2 With A New Battery - CarBuzz",
+     "publisher": "CarBuzz",
+     "relevant": false
+    },
+    {
+     "title": "USS John F. Kennedy nearing acceptance as Navy’s second Ford-class aircraft carrier - stripes.com",
+     "publisher": "stripes.com",
+     "relevant": false
+    },
+    {
+     "title": "Ford F-150 Lightning Owner Tows an 8,000-Pound Camper 450 Miles and Lets the Campsite Refill His Truck - Torque News",
+     "publisher": "Torque News",
+     "relevant": false
+    },
+    {
+     "title": "Katrina Ford Shares TO THE LIGHTHOUSE Single and Video - BroadwayWorld",
+     "publisher": "BroadwayWorld",
+     "relevant": false
+    },
+    {
+     "title": "Ford Restarts F-150 Production After Legendary Dearborn Plant Was Shut Down - SlashGear",
+     "publisher": "SlashGear",
+     "relevant": true
+    },
+    {
+     "title": "Ford F-150 supplier disruption to impact third-quarter dealer shipments, CEO says - TradingView",
+     "publisher": "TradingView",
+     "relevant": true
+    },
+    {
+     "title": "Ford F-150 supplier disruption to impact 3Q sales, CEO says - TradingView",
+     "publisher": "TradingView",
+     "relevant": true
+    },
+    {
+     "title": "Ford F-150 supplier disruption to impact 3Q sales, CEO says - TradingView",
+     "publisher": "TradingView",
+     "relevant": true
+    },
+    {
+     "title": "STLA, F, GM Climb Overnight As Trump Clears Fuel Economy Rollback — Says Auto Plants Are ‘Coming Back’ - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Two-Tone Paint Is Making a Comeback on Trucks Thanks to Ford: TDS - The Drive",
+     "publisher": "The Drive",
+     "relevant": true
+    },
+    {
+     "title": "Ford Gets F-150 Production Moving Again After Supplier Disruption - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Ford Motor (NYSE:F) Stock Falls 2.1% - Here's Why - MarketBeat",
+     "publisher": "MarketBeat",
+     "relevant": true
+    },
+    {
+     "title": "Ford fixes F-150 supplier issues, Chevy Bolt target cut, Exclusive Bernie Moreno interview - CBT News",
+     "publisher": "CBT News",
+     "relevant": true
+    },
+    {
+     "title": "Why Ford Motor (F) Is Getting Attention Today - Simply Wall Street",
+     "publisher": "Simply Wall Street",
+     "relevant": true
+    },
+    {
+     "title": "Dodge Ram, Ford F-250 Involved in Collision at CVS - Citizen app",
+     "publisher": "Citizen app",
+     "relevant": false
+    },
+    {
+     "title": "Ford restarts F-150 pickup production at two plants, one in Dearborn - AOL.com",
+     "publisher": "AOL.com",
+     "relevant": true
+    },
+    {
+     "title": "Ford Motor stock erases 45% year-to-date gain; AI and energy storage business potential remains to be realized - Moomoo",
+     "publisher": "Moomoo",
+     "relevant": true
+    },
+    {
+     "title": "Ford Motor Company $F Holdings Boosted by CX Institutional - MarketBeat",
+     "publisher": "MarketBeat",
+     "relevant": true
+    },
+    {
+     "title": "Even Ford's Mighty F-Series Should Be Scared Of Ram Right Now - CarBuzz",
+     "publisher": "CarBuzz",
+     "relevant": true
+    },
+    {
+     "title": "Ford Exec Shares Where BlueCruise Stands In 2026 - Ford Authority",
+     "publisher": "Ford Authority",
+     "relevant": true
+    },
+    {
+     "title": "Ford (F) Faces Production Halt at Dearborn Truck Plant Amid Supp - GuruFocus",
+     "publisher": "GuruFocus",
+     "relevant": true
+    },
+    {
+     "title": "Ford vs Hyundai Motor Group Q3 2026 U.S. auto sales - qz.com",
+     "publisher": "qz.com",
+     "relevant": true
+    },
+    {
+     "title": "Ford Sales Slide 6.6% After Model Phase-Outs - TradingView",
+     "publisher": "TradingView",
+     "relevant": true
+    },
+    {
+     "title": "Ford (F) Gains Retail Market Share in Q3 Despite Sales Decline - GuruFocus",
+     "publisher": "GuruFocus",
+     "relevant": true
+    },
+    {
+     "title": "Which Automaker Stock Dominated in September: Tesla, Ford, or General Motors? - AOL.com",
+     "publisher": "AOL.com",
+     "relevant": true
+    },
+    {
+     "title": "Ford Motor (NYSE:F) Stock Jumps 1.7% - Here's What Happened - MarketBeat",
+     "publisher": "MarketBeat",
+     "relevant": true
+    },
+    {
+     "title": "Stellantis Sinks 7% as Jeep Weakness Offsets Ram Strength; Ford Drops 2%, General Motors Slips - 24/7 Wall St.",
+     "publisher": "24/7 Wall St.",
+     "relevant": true
+    },
+    {
+     "title": "Ford F-150 Lightning Owner Powers His Camper for About 48 Hours as the Battery Drops From 80% to 60% - Torque News",
+     "publisher": "Torque News",
+     "relevant": false
+    },
+    {
+     "title": "Ford sales drop 6.6% in Q3, roughly even when accounting for phaseouts - The Detroit News",
+     "publisher": "The Detroit News",
+     "relevant": true
+    },
+    {
+     "title": "Ford’s Fathom pickup couldn’t come soon enough as EV sales drop 80% in Q3 - Electrek",
+     "publisher": "Electrek",
+     "relevant": true
+    },
+    {
+     "title": "Ford (F) Maintains Third Place in US Market Despite Sales Decline - GuruFocus",
+     "publisher": "GuruFocus",
+     "relevant": true
+    },
+    {
+     "title": "Katrina Ford Shares “To The Lighthouse” Single + Video - V13 Media",
+     "publisher": "V13 Media",
+     "relevant": false
+    },
+    {
+     "title": "Garden City crash kills motorcyclist after Harley hits GMC Sierra, then Ford F-250 and trailer - WJCL",
+     "publisher": "WJCL",
+     "relevant": false
+    },
+    {
+     "title": "Ford's New F-150 Paint Option Will Give '70s & '80s Truck Lovers Serious Nostalgia - SlashGear",
+     "publisher": "SlashGear",
+     "relevant": true
+    },
+    {
+     "title": "Used 2014 Ford F-150 King Ranch for sale in Birmingham, AL - 1FTFW1ET1EKE16460 - JD Power",
+     "publisher": "JD Power",
+     "relevant": false
+    }
+   ]
+  },
+  "SNAP": {
+   "company": {
+    "ticker": "SNAP",
+    "name": "Snap Inc.",
+    "short_name": "Snap",
+    "aliases": [
+     "Snapchat"
+    ],
+    "industry": "Internet Content & Information",
+    "sector": "Communication Services"
+   },
+   "query": "\"Snap\" (stock OR shares OR SNAP) when:7d",
+   "items": [
+    {
+     "title": "35K Marylanders lose SNAP benefits as federal changes go into effect - wbaltv.com",
+     "publisher": "wbaltv.com",
+     "relevant": false
+    },
+    {
+     "title": "SNAP funding changes kick in Thursday. Here's what they mean for Massachusetts - WBUR",
+     "publisher": "WBUR",
+     "relevant": false
+    },
+    {
+     "title": "Elderly Simplified Application Project - USDA Food and Nutrition (.gov)",
+     "publisher": "USDA Food and Nutrition (.gov)",
+     "relevant": false
+    },
+    {
+     "title": "No fines against Indiana retailers so far for SNAP violations - Indiana Capital Chronicle",
+     "publisher": "Indiana Capital Chronicle",
+     "relevant": false
+    },
+    {
+     "title": "Falcons snap counts from a Week 3 beatdown of the Packers - The Falcoholic",
+     "publisher": "The Falcoholic",
+     "relevant": false
+    },
+    {
+     "title": "Changes to SNAP benefits begin Oct. 1 for millions of Americans - KING5.com",
+     "publisher": "KING5.com",
+     "relevant": false
+    },
+    {
+     "title": "SNAP's funding model is starting to change. Here's what that means for the program - NPR",
+     "publisher": "NPR",
+     "relevant": false
+    },
+    {
+     "title": "SNAP customers in Virginia will no longer be able to purchase carbonated sweetened beverages starting in November - WSLS",
+     "publisher": "WSLS",
+     "relevant": false
+    },
+    {
+     "title": "Changes to SNAP benefits begin Oct. 1 for millions of Americans: What to know - ABC News - Breaking News, Latest News and Videos",
+     "publisher": "ABC News - Breaking News, Latest News and Videos",
+     "relevant": false
+    },
+    {
+     "title": "NYC rent freeze, SNAP, Click to Cancel: New rules for Oct. 1 - ABC7 Eyewitness News",
+     "publisher": "ABC7 Eyewitness News",
+     "relevant": false
+    },
+    {
+     "title": "Lamont’s plan to send gift cards to former SNAP recipients stalls - ctmirror.org",
+     "publisher": "ctmirror.org",
+     "relevant": false
+    },
+    {
+     "title": "USDA Website Gives Veterans Outdated SNAP Information as Partnership With VA Stalls - House.gov",
+     "publisher": "House.gov",
+     "relevant": false
+    },
+    {
+     "title": "Millions of Americans are losing SNAP benefits: \"It feels as though people are being punished\" - CBS News",
+     "publisher": "CBS News",
+     "relevant": false
+    },
+    {
+     "title": "Tennessee faces estimated $220M in extra SNAP costs under new federal rules - Tennessee Lookout",
+     "publisher": "Tennessee Lookout",
+     "relevant": false
+    },
+    {
+     "title": "Major changes to SNAP benefits took effect on Oct. 1. Here's what you need to know. - KATU",
+     "publisher": "KATU",
+     "relevant": false
+    },
+    {
+     "title": "New SNAP costs take effect in North Carolina on Oct. 1 - WRAL",
+     "publisher": "WRAL",
+     "relevant": false
+    },
+    {
+     "title": "SNAP benefits change Oct. 1, with higher payments and stricter rules ahead - KSAT",
+     "publisher": "KSAT",
+     "relevant": false
+    },
+    {
+     "title": "Spend Smarter on Snapchat - Snap Newsroom",
+     "publisher": "Snap Newsroom",
+     "relevant": true
+    },
+    {
+     "title": "New SNAP rules may strain Durham County budget, officials say - ABC11 News",
+     "publisher": "ABC11 News",
+     "relevant": false
+    },
+    {
+     "title": "Snap (SNAP) Rises As Market Takes a Dip: Key Facts - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "SNAP changes take effect in Virginia as benefits rise and work requirements expand - 13newsnow.com",
+     "publisher": "13newsnow.com",
+     "relevant": false
+    },
+    {
+     "title": "Changes starting in October regarding SNAP eligibility and work requirements - KXLY.com",
+     "publisher": "KXLY.com",
+     "relevant": false
+    },
+    {
+     "title": "SNAP benefits increase for millions of Americans - news4jax.com",
+     "publisher": "news4jax.com",
+     "relevant": false
+    },
+    {
+     "title": "Massive SNAP cuts could mean more children are separated from their families - STAT",
+     "publisher": "STAT",
+     "relevant": false
+    },
+    {
+     "title": "SNAP benefit increase for Massachusetts households in effect - WWLP",
+     "publisher": "WWLP",
+     "relevant": false
+    },
+    {
+     "title": "New SNAP rules start in Missouri Thursday - fox2now.com",
+     "publisher": "fox2now.com",
+     "relevant": false
+    },
+    {
+     "title": "Thousands of legal immigrants in Colorado lose Medicaid coverage as SNAP changes roll out too - Colorado Public Radio",
+     "publisher": "Colorado Public Radio",
+     "relevant": false
+    },
+    {
+     "title": "Changes to SNAP benefits are in effect. Here's how Pennsylvanians could be impacted. - CBS News",
+     "publisher": "CBS News",
+     "relevant": false
+    },
+    {
+     "title": "As Kansans lose SNAP benefits, state lawmakers examine system hurdles - Kansas Reflector",
+     "publisher": "Kansas Reflector",
+     "relevant": false
+    },
+    {
+     "title": "Saints-Falcons Monday Night Football Week 4 Preview | The Snap with Stan Verrett - New Orleans Saints | NewOrleansSaints.com",
+     "publisher": "New Orleans Saints | NewOrleansSaints.com",
+     "relevant": false
+    },
+    {
+     "title": "Missourians have to show household expense receipts to qualify for SNAP benefits starting Oct. 1 - STLPR",
+     "publisher": "STLPR",
+     "relevant": false
+    },
+    {
+     "title": "State auditor finds millions in SNAP, MassHealth fraud - WWLP",
+     "publisher": "WWLP",
+     "relevant": false
+    },
+    {
+     "title": "Public can comment on SNAP changes for candy, soda purchases in North Dakota - northdakotamonitor.com",
+     "publisher": "northdakotamonitor.com",
+     "relevant": false
+    },
+    {
+     "title": "Snap Is Down 32% in 2026: Overlooked Bargain or Toxic Stock? - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Changes to Medicaid and SNAP eligibility, Florida’s minimum wage and weekly news - WUSF",
+     "publisher": "WUSF",
+     "relevant": false
+    },
+    {
+     "title": "SNAP replacement benefits announced for households impacted by Hurricane Nolo, wildfire - hawaiinewsnow.com",
+     "publisher": "hawaiinewsnow.com",
+     "relevant": false
+    },
+    {
+     "title": "Why Detroit felt confident for rookie DL to take offensive snap at goal line - Detroit Lions",
+     "publisher": "Detroit Lions",
+     "relevant": false
+    },
+    {
+     "title": "Why Is Everyone Ignoring Snap Stock’s High Cash Yield? - Trefis",
+     "publisher": "Trefis",
+     "relevant": true
+    },
+    {
+     "title": "Major changes go into effect for Medicaid and SNAP benefits - 6abc Philadelphia",
+     "publisher": "6abc Philadelphia",
+     "relevant": false
+    },
+    {
+     "title": "'It's scary': Maine SNAP recipients, food banks feel pressure as costs continue to rise - WGME",
+     "publisher": "WGME",
+     "relevant": false
+    },
+    {
+     "title": "Senior seeking answers after SNAP benefits cut - Spectrum News",
+     "publisher": "Spectrum News",
+     "relevant": false
+    },
+    {
+     "title": "State Announces Changes to SNAP Income Limits and Maximum Benefits - Early Learning Resource Center Region 5",
+     "publisher": "Early Learning Resource Center Region 5",
+     "relevant": false
+    },
+    {
+     "title": "The Good, The Bad And The Ugly: 3 Changes Coming to SNAP This October - citylimits.org",
+     "publisher": "citylimits.org",
+     "relevant": false
+    },
+    {
+     "title": "Food or rent: Brazos Valley Food Bank warns SNAP cuts could make hunger worse - KBTX News 3",
+     "publisher": "KBTX News 3",
+     "relevant": false
+    },
+    {
+     "title": "SNAP benefit changes are in effect for millions of recipients. Here’s what you need to know - KTIV",
+     "publisher": "KTIV",
+     "relevant": false
+    },
+    {
+     "title": "Hawaii DHS offers replacement SNAP benefits for Molokai households ahead of outages - hawaiinewsnow.com",
+     "publisher": "hawaiinewsnow.com",
+     "relevant": false
+    },
+    {
+     "title": "Federal changes to SNAP funding shift costs to states and counties - 88.5 WFDD",
+     "publisher": "88.5 WFDD",
+     "relevant": false
+    },
+    {
+     "title": "As states shoulder more costs, more SNAP recipients continue to lose benefits. Here’s the latest. - Inquirer.com",
+     "publisher": "Inquirer.com",
+     "relevant": false
+    },
+    {
+     "title": "Veterans face SNAP barriers as USDA guidance delays policy changes, GAO finds - Military Times",
+     "publisher": "Military Times",
+     "relevant": false
+    },
+    {
+     "title": "SNAP program error rate could cost North Dakota millions of dollars - KFYR-TV",
+     "publisher": "KFYR-TV",
+     "relevant": false
+    },
+    {
+     "title": "New SNAP benefit amounts take effect Oct. 1: Here’s how much - fox5sandiego.com",
+     "publisher": "fox5sandiego.com",
+     "relevant": false
+    },
+    {
+     "title": "SNAP changes take effect: Western Colorado food banks prepare for greater need - KJCT",
+     "publisher": "KJCT",
+     "relevant": false
+    },
+    {
+     "title": "Food stamps changed Thursday. What to know about SNAP in Georgia - savannahnow.com",
+     "publisher": "savannahnow.com",
+     "relevant": false
+    },
+    {
+     "title": "Raiders Week 3 snap counts vs Saints: Brock Bowers' big return - raiderswire.usatoday.com",
+     "publisher": "raiderswire.usatoday.com",
+     "relevant": false
+    },
+    {
+     "title": "Braves Host McPherson Looking To Snap Skid - Ottawa Braves",
+     "publisher": "Ottawa Braves",
+     "relevant": false
+    },
+    {
+     "title": "Representative Paul D. Tonko - Congressman Paul Tonko (.gov)",
+     "publisher": "Congressman Paul Tonko (.gov)",
+     "relevant": false
+    },
+    {
+     "title": "Week 3 Snap Count Analysis: Bucs vs. Vikings - pewterreport.com",
+     "publisher": "pewterreport.com",
+     "relevant": false
+    },
+    {
+     "title": "Virginia issues chip-enabled SNAP cards as benefit thefts rise - WDBJ7",
+     "publisher": "WDBJ7",
+     "relevant": false
+    },
+    {
+     "title": "Big, Ugly Changes to SNAP Are Hitting County Budgets - Washington Monthly",
+     "publisher": "Washington Monthly",
+     "relevant": false
+    },
+    {
+     "title": "Queens SNAP enrollment falls by 25,000 as officials warn of more cuts - Queens Daily Eagle",
+     "publisher": "Queens Daily Eagle",
+     "relevant": false
+    },
+    {
+     "title": "Changes to SNAP benefits begin Thursday: Here’s what it means for your wallet - WMUR",
+     "publisher": "WMUR",
+     "relevant": false
+    },
+    {
+     "title": "October brings new paperwork rules, benefit increase for Missourians on SNAP - WGEM",
+     "publisher": "WGEM",
+     "relevant": false
+    },
+    {
+     "title": "Lions Week 3 snap counts: Breaking down defensive changes vs. Jets - Pride Of Detroit",
+     "publisher": "Pride Of Detroit",
+     "relevant": false
+    },
+    {
+     "title": "October brings new paperwork rules, benefit increase for Missourians on SNAP - KSWO 7News",
+     "publisher": "KSWO 7News",
+     "relevant": false
+    },
+    {
+     "title": "Changes to SNAP benefits, as report shows Houston-area enrollment drops - ABC13 Houston",
+     "publisher": "ABC13 Houston",
+     "relevant": false
+    },
+    {
+     "title": "What Detroit Lions Snap Counts Against New York Jets Reveal - Sports Illustrated",
+     "publisher": "Sports Illustrated",
+     "relevant": false
+    },
+    {
+     "title": "New changes are coming to SNAP, including in Maine - WMTW",
+     "publisher": "WMTW",
+     "relevant": false
+    },
+    {
+     "title": "Report: Puka Nacua could be on a 'stricter snap count than usual' - Yahoo Sports",
+     "publisher": "Yahoo Sports",
+     "relevant": false
+    },
+    {
+     "title": "October brings new paperwork rules, benefit increase for Missourians on SNAP - foxcarolina.com",
+     "publisher": "foxcarolina.com",
+     "relevant": false
+    },
+    {
+     "title": "Ravens Grades & Snap Counts: Nnamdi Madubuike Has a Strong Return After a Year on the Sideline - Baltimore Ravens",
+     "publisher": "Baltimore Ravens",
+     "relevant": false
+    },
+    {
+     "title": "Lady Bulldogs Snap Seven-Year Drought with Sweep of Hornets - Alabama A&M Athletics",
+     "publisher": "Alabama A&M Athletics",
+     "relevant": false
+    },
+    {
+     "title": "Spain protests flare after housing bill rejected: Will it cause snap poll? - aljazeera.com",
+     "publisher": "aljazeera.com",
+     "relevant": false
+    },
+    {
+     "title": "SNAP change coincides with Columbia utility rate hike, raising affordability concerns - KOMU 8",
+     "publisher": "KOMU 8",
+     "relevant": false
+    },
+    {
+     "title": "October brings new paperwork rules, benefit increase for Missourians on SNAP - KPTV",
+     "publisher": "KPTV",
+     "relevant": false
+    },
+    {
+     "title": "SNAP change coincides with Columbia utility rate hike, raising affordability concerns - KOMU 8",
+     "publisher": "KOMU 8",
+     "relevant": false
+    },
+    {
+     "title": "Aldi class action alleges unequal pricing for SNAP/EBT shoppers - Top Class Actions",
+     "publisher": "Top Class Actions",
+     "relevant": false
+    },
+    {
+     "title": "Russians Snap Up Chinese E.V.s as Ukrainian Attacks Make Fuel Scarce - The New York Times",
+     "publisher": "The New York Times",
+     "relevant": false
+    },
+    {
+     "title": "Changes to SNAP benefits are in effect - CBS News",
+     "publisher": "CBS News",
+     "relevant": false
+    },
+    {
+     "title": "The Food Basket opens DA BOX online payments for SNAP recipients - KHON2",
+     "publisher": "KHON2",
+     "relevant": false
+    },
+    {
+     "title": "SNAP changes: Benefit limits rise as states shoulder more costs - Deseret News",
+     "publisher": "Deseret News",
+     "relevant": false
+    },
+    {
+     "title": "New Hampshire faces $12 million SNAP hit as federal cost shift begins - unionleader.com",
+     "publisher": "unionleader.com",
+     "relevant": false
+    },
+    {
+     "title": "\"One Big Beautiful Bill\" SNAP changes take effect - KTTC | Rochester, MN",
+     "publisher": "KTTC | Rochester, MN",
+     "relevant": false
+    },
+    {
+     "title": "October brings new paperwork rules, benefit increase for Missourians on SNAP - kltv.com",
+     "publisher": "kltv.com",
+     "relevant": false
+    },
+    {
+     "title": "Aldi sued over SNAP delivery fees - supermarketnews.com",
+     "publisher": "supermarketnews.com",
+     "relevant": false
+    },
+    {
+     "title": "Changes to Medicaid, SNAP take effect Oct. 1 in North Carolina - Queen City News",
+     "publisher": "Queen City News",
+     "relevant": false
+    },
+    {
+     "title": "NFL Snap Counts Report For Week 4 Fantasy Football: Concern For Omarion Hampton - FantasyLife",
+     "publisher": "FantasyLife",
+     "relevant": false
+    },
+    {
+     "title": "October brings new paperwork rules, benefit increase for Missourians on SNAP - KTTC | Rochester, MN",
+     "publisher": "KTTC | Rochester, MN",
+     "relevant": false
+    },
+    {
+     "title": "Southeast Missouri food pantries expect rising need as new state SNAP rules take effect - KFVS12",
+     "publisher": "KFVS12",
+     "relevant": false
+    },
+    {
+     "title": "Farm Bill expires as Colorado families navigate SNAP changes - CBS News",
+     "publisher": "CBS News",
+     "relevant": false
+    },
+    {
+     "title": "Raiders Week 3 wide receiver snap and production review - Silver And Black Pride",
+     "publisher": "Silver And Black Pride",
+     "relevant": false
+    },
+    {
+     "title": "SNAP recipients see payment increase, eligibility changes coming - KGNS",
+     "publisher": "KGNS",
+     "relevant": false
+    },
+    {
+     "title": "Changes to SNAP benefits across the country - 13newsnow.com",
+     "publisher": "13newsnow.com",
+     "relevant": false
+    },
+    {
+     "title": "New SNAP work requirements take effect in Georgia - atlantanewsfirst.com",
+     "publisher": "atlantanewsfirst.com",
+     "relevant": false
+    },
+    {
+     "title": "October brings new paperwork rules, benefit increase for Missourians on SNAP - NewsChannel 10",
+     "publisher": "NewsChannel 10",
+     "relevant": false
+    },
+    {
+     "title": "October brings new paperwork rules, benefit increase for Missourians on SNAP - WSAW",
+     "publisher": "WSAW",
+     "relevant": false
+    },
+    {
+     "title": "Eagles snap counts: The rotation at safety has begun - NBC Sports Philadelphia",
+     "publisher": "NBC Sports Philadelphia",
+     "relevant": false
+    },
+    {
+     "title": "Some people now eligible for more SNAP funds - WSMV",
+     "publisher": "WSMV",
+     "relevant": false
+    },
+    {
+     "title": "October brings new paperwork rules, benefit increase for Missourians on SNAP - ABC7 WWSB",
+     "publisher": "ABC7 WWSB",
+     "relevant": false
+    },
+    {
+     "title": "October brings new paperwork rules, benefit increase for Missourians on SNAP - WSFA",
+     "publisher": "WSFA",
+     "relevant": false
+    },
+    {
+     "title": "October brings new paperwork rules, benefit increase for Missourians on SNAP - KBTX News 3",
+     "publisher": "KBTX News 3",
+     "relevant": false
+    }
+   ]
+  },
+  "ORCL": {
+   "company": {
+    "ticker": "ORCL",
+    "name": "Oracle Corporation",
+    "short_name": "Oracle",
+    "aliases": [],
+    "industry": "Software - Infrastructure",
+    "sector": "Technology"
+   },
+   "query": "\"Oracle\" (stock OR shares OR ORCL) when:7d",
+   "items": [
+    {
+     "title": "Oracle shares slip on unconfirmed report of delays at Wisconsin AI mega-campus - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Is Oracle Stock a Buy Now? - The Motley Fool",
+     "publisher": "The Motley Fool",
+     "relevant": true
+    },
+    {
+     "title": "Oracle Stock Is Falling: What's Going On? - Benzinga",
+     "publisher": "Benzinga",
+     "relevant": true
+    },
+    {
+     "title": "Oracle Lands Major Cloud Deal With Tencent: Report - Investor's Business Daily",
+     "publisher": "Investor's Business Daily",
+     "relevant": true
+    },
+    {
+     "title": "Oracle: Down 55% And I'm Buying (NYSE:ORCL) - Seeking Alpha",
+     "publisher": "Seeking Alpha",
+     "relevant": true
+    },
+    {
+     "title": "2 Reasons Oracle Stock Is on Pace to Snap a 4-Day Losing Streak - Barron's",
+     "publisher": "Barron's",
+     "relevant": true
+    },
+    {
+     "title": "Oracle Filing Reveals Co-CEO Made 6,623 Times The Company’s Median Worker - forbes.com",
+     "publisher": "forbes.com",
+     "relevant": true
+    },
+    {
+     "title": "Oracle has reportedly signed a $7 billion deal with Tencent. It could provide relief for the troubled stock. - marketwatch.com",
+     "publisher": "marketwatch.com",
+     "relevant": true
+    },
+    {
+     "title": "Oracle Stock Is Down 60% From Its High. Here's Why I'm Still Not Buying. - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Unfortunate News for Oracle Stock Investors - The Motley Fool",
+     "publisher": "The Motley Fool",
+     "relevant": true
+    },
+    {
+     "title": "OpenAI Revenue Growth Report Boosts Oracle Stock; DevDay On Deck - Investor's Business Daily",
+     "publisher": "Investor's Business Daily",
+     "relevant": true
+    },
+    {
+     "title": "Microsoft, Oracle Stocks Tumble After Meta Unveils New AI Enterprise Push - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Oracle (ORCL) Reports a $664 Billion Backlog. Can AI Growth Outpace its Cash Burn? - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Why Oracle (ORCL) Stock Is Trading Up Today - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Oracle's AI Cloud Contracts Surge: Is Revenue Visibility Rising? - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Larry Ellison Just Put $9.2 Billion of Oracle Stock Behind His Loans - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Oracle (ORCL) Invokes Force Majeure On Project Jupiter While Reaffirming Commitment - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Should You Buy Oracle (ORCL) Amid Project Jupiter and Negative Cash Flow Concerns? - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Oracle's 8% Bond Yields Are an Oracle Problem, Not an AI Problem - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Oracle Stock Is Down 60% From Its High. Here's Why I'm Still Not Buying. - The Motley Fool",
+     "publisher": "The Motley Fool",
+     "relevant": true
+    },
+    {
+     "title": "Oracle Stock Rises Although AI Revenue Faces an ROI Test - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Stock Market Today, Sept. 29: Oracle's Fusion Claw Helps it Claw Back Losses - The Motley Fool",
+     "publisher": "The Motley Fool",
+     "relevant": true
+    },
+    {
+     "title": "Why Is ORCL Stock Jumping Over 2.5% In Overnight Trading? - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Top 3 Founder Led Stocks To Watch In October 2026 - Simply Wall Street",
+     "publisher": "Simply Wall Street",
+     "relevant": false
+    },
+    {
+     "title": "Oracle Shares Fall 1.8% After Report Flags Potential Wisconsin AI Data Centre Delays - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Oracle Is Down 59% From Its High. Here's Why a $5,000 Investment Made Now Could Be Worth Much More by Mid-2028. - The Motley Fool",
+     "publisher": "The Motley Fool",
+     "relevant": true
+    },
+    {
+     "title": "What's Going On With Oracle Stock Tuesday? - Benzinga",
+     "publisher": "Benzinga",
+     "relevant": true
+    },
+    {
+     "title": "Oracle vs. Salesforce: Which Enterprise AI Stock Has More Room to Run? - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Is Oracle (ORCL) Turning AI Governance Into Its Next Competitive Moat With Fusion Claw? - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "China’s Tencent leases 100,000 chips from Oracle to accelerate AI push, FT reports - Reuters",
+     "publisher": "Reuters",
+     "relevant": true
+    },
+    {
+     "title": "Oracle Stock Fell 8% This Week on Data Center Delays. Here’s Why OpenAI’s Growth Matters - TIKR.com",
+     "publisher": "TIKR.com",
+     "relevant": true
+    },
+    {
+     "title": "How to Play Bloom Energy Stock Amid Oracle Data Center Force Majeure Rumors - Barchart.com",
+     "publisher": "Barchart.com",
+     "relevant": true
+    },
+    {
+     "title": "Oracle Has 50% Upside--So Why Won't Morgan Stanley Say Buy? - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Oracle Corporation (ORCL) is Attracting Investor Attention: Here is What You Should Know - Yahoo! Finance Canada",
+     "publisher": "Yahoo! Finance Canada",
+     "relevant": true
+    },
+    {
+     "title": "How Sustainable Is Oracle’s Cash Flow Without Customer Prepayments? - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Oracle Is Down 59% From Its High. Here's Why a $5,000 Investment Made Now Could Be Worth Much More by Mid-2028. - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "What's Going On With Oracle Stock Wednesday? - Benzinga",
+     "publisher": "Benzinga",
+     "relevant": true
+    },
+    {
+     "title": "Larry Ellison Risk Exposed by Paramount and Oracle Debt Binges - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Palantir Is Worth About as Much as Oracle on Less Than a Tenth of Oracle's Revenue - The Motley Fool",
+     "publisher": "The Motley Fool",
+     "relevant": true
+    },
+    {
+     "title": "Oracle Stock Slides Monday: What's Driving the Action? - Benzinga",
+     "publisher": "Benzinga",
+     "relevant": true
+    },
+    {
+     "title": "Oracle (ORCL) Data Center Delay Risk Emerges At 1.3 GW Wisconsin Project - Simply Wall Street",
+     "publisher": "Simply Wall Street",
+     "relevant": true
+    },
+    {
+     "title": "Prediction: 3 AI Stocks That Could Turn $10,000 Into $15,000 - 24/7 Wall St.",
+     "publisher": "24/7 Wall St.",
+     "relevant": false
+    },
+    {
+     "title": "Oracle says no critical infrastructure damaged at Project Jupiter site (ORCL:NYSE) - Seeking Alpha",
+     "publisher": "Seeking Alpha",
+     "relevant": true
+    },
+    {
+     "title": "Oracle, Meta Financing Methods Mirror Enron Era, Steve Eisman Says - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Oracle Director Stephen Rusckowski Buys $3.5 Million of ORCL Stock - Quiver Quantitative",
+     "publisher": "Quiver Quantitative",
+     "relevant": true
+    },
+    {
+     "title": "If You Invested $100 In Oracle Stock 20 Years Ago, You Would Have This Much Today - Benzinga",
+     "publisher": "Benzinga",
+     "relevant": true
+    },
+    {
+     "title": "Oracle's 8% Bond Yields Are an Oracle Problem, Not an AI Problem - The Motley Fool",
+     "publisher": "The Motley Fool",
+     "relevant": true
+    },
+    {
+     "title": "Oracle Announces Commitment to Absorb $300 Million in Rising Point Beach Energy Costs for Wisconsin Residents - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Can Oracle's Database Business Sustain Margins over the Long Term? - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Oracle's $18 Billion AI Data Center Just Dodged a Major Flooding Scare - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "HPE, IBD Stock Of The Day, Breaks Out On Hiked Guidance, AI Momentum - Investor's Business Daily",
+     "publisher": "Investor's Business Daily",
+     "relevant": false
+    },
+    {
+     "title": "Citizens reiterates Oracle stock rating at outperform, $285 target - Investing.com",
+     "publisher": "Investing.com",
+     "relevant": true
+    },
+    {
+     "title": "Aterio Flags Delay Risk for Oracle’s 1.3 GW Wisconsin Data Center - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Oracle (NYSE: ORCL) Stock Price Craters 60% From Peak As Debt Load And Negative Cash Flow Raise Red Flags - foreignpolicyjournal.com",
+     "publisher": "foreignpolicyjournal.com",
+     "relevant": true
+    },
+    {
+     "title": "Oracle Plans $300 Million Commitment to Offset Point Beach Energy Costs in Wisconsin - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Market Chatter: Oracle Leases 100,000 AI Chips to Tencent in $7 Billion Deal - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Tencent Signs Major Lease Deal With Oracle to Access 100,000 Advanced AI Chips - TIKR.com",
+     "publisher": "TIKR.com",
+     "relevant": true
+    },
+    {
+     "title": "Tencent leases 100,000 chips from Oracle for $7 bln- FT - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Oracle gains as investors appear to shake off Project Jupiter concerns - Quiver Quantitative",
+     "publisher": "Quiver Quantitative",
+     "relevant": true
+    },
+    {
+     "title": "OpenAI’s $70 Billion ARR Talk Lifted Oracle Shares - Finimize",
+     "publisher": "Finimize",
+     "relevant": true
+    },
+    {
+     "title": "Oracle Stock Is Down 60% From Its High. Here's Why I'm Still Not Buying. - The Globe and Mail",
+     "publisher": "The Globe and Mail",
+     "relevant": true
+    },
+    {
+     "title": "Oracle And 2 Founder Led Stocks To Improve Your Portfolio - Simply Wall Street",
+     "publisher": "Simply Wall Street",
+     "relevant": true
+    },
+    {
+     "title": "We’re Bullish on Oracle With 51% Upside Despite Recent Selloff - 24/7 Wall St.",
+     "publisher": "24/7 Wall St.",
+     "relevant": true
+    },
+    {
+     "title": "Positive Signal: Stephen Rusckowski Shows Faith, Buying $3.48M In Oracle Stock - Benzinga",
+     "publisher": "Benzinga",
+     "relevant": true
+    },
+    {
+     "title": "$Oracle (ORCL.US)$ - Moomoo",
+     "publisher": "Moomoo",
+     "relevant": true
+    },
+    {
+     "title": "Oracle (NYSE:ORCL) Stock Price Up 4% - Time to Buy? - MarketBeat",
+     "publisher": "MarketBeat",
+     "relevant": true
+    },
+    {
+     "title": "The $600 Billion AI Opportunity Behind Oracle, We See 51% Upside - 24/7 Wall St.",
+     "publisher": "24/7 Wall St.",
+     "relevant": true
+    },
+    {
+     "title": "Oracle: Buy Now As Others Are Fearful (NYSE:ORCL) - Seeking Alpha",
+     "publisher": "Seeking Alpha",
+     "relevant": true
+    },
+    {
+     "title": "Oracle Jumps 5% as Fusion Claw Launch Adds 25 Agentic Applications; Salesforce Holds Flat, ServiceNow Slips - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Stephen Rusckowski Bought 5,556% More Shares In Oracle - Moomoo",
+     "publisher": "Moomoo",
+     "relevant": true
+    },
+    {
+     "title": "Oracle Lands $7 Billion Tencent AI Deal — Chinese Tech Giant to Access 100,000 Advanced Chips Through Sou - Benzinga",
+     "publisher": "Benzinga",
+     "relevant": true
+    },
+    {
+     "title": "Insider trades: Oracle, Alibaba among notable names (CGC:NASDAQ) - Seeking Alpha",
+     "publisher": "Seeking Alpha",
+     "relevant": true
+    },
+    {
+     "title": "Oracle 20-Year Bond Yields 8.1%: Can The Stock Match It? - Oracle (NYSE:ORCL) - Benzinga",
+     "publisher": "Benzinga",
+     "relevant": true
+    },
+    {
+     "title": "Oracle Shares Advance as Major Tencent AI Deal Emerges - TradingPedia",
+     "publisher": "TradingPedia",
+     "relevant": true
+    },
+    {
+     "title": "Potentially key assist for $Oracle (ORCL.US)$ - Moomoo",
+     "publisher": "Moomoo",
+     "relevant": true
+    },
+    {
+     "title": "Oracle director Stephen Rusckowski buys $3.48m in common stock - Investing.com",
+     "publisher": "Investing.com",
+     "relevant": true
+    },
+    {
+     "title": "Nashville Symphony musicians avoid planned furloughs with Oracle's $10 million - Stock Titan",
+     "publisher": "Stock Titan",
+     "relevant": true
+    },
+    {
+     "title": "Oracle Stock Is Down 60% From Its High. Here's Why I'm Still Not Buying. - AOL.com",
+     "publisher": "AOL.com",
+     "relevant": true
+    },
+    {
+     "title": "Oracle (NYSE:ORCL) Stock Price Up 3.3% on Insider Buying Activity - MarketBeat",
+     "publisher": "MarketBeat",
+     "relevant": true
+    },
+    {
+     "title": "Is Oracle Stock a Buy Now? - The Globe and Mail",
+     "publisher": "The Globe and Mail",
+     "relevant": true
+    },
+    {
+     "title": "Unfortunate News for Oracle Stock Investors - The Globe and Mail",
+     "publisher": "The Globe and Mail",
+     "relevant": true
+    },
+    {
+     "title": "Oracle Has the Biggest Upside of Any Megacap Right Now: 54% - 24/7 Wall St.",
+     "publisher": "24/7 Wall St.",
+     "relevant": true
+    },
+    {
+     "title": "Oracle Just Sent A Notice That Has Everyone Staring At The Wrong Place (NYSE:ORCL) - Seeking Alpha",
+     "publisher": "Seeking Alpha",
+     "relevant": true
+    },
+    {
+     "title": "Oracle Corp Stock (ORCL) Moved Down by 3.61% on Sep 28: A Full Analysis - tradingkey.com",
+     "publisher": "tradingkey.com",
+     "relevant": true
+    },
+    {
+     "title": "Why Is ORCL Stock Jumping Over 2.5% In Overnight Trading? - TradingView",
+     "publisher": "TradingView",
+     "relevant": true
+    },
+    {
+     "title": "Top 3 Founder Run Stocks To Watch In October 2026 - Simply Wall Street",
+     "publisher": "Simply Wall Street",
+     "relevant": false
+    },
+    {
+     "title": "Oracle Corporation $ORCL Holdings Raised by CX Institutional - MarketBeat",
+     "publisher": "MarketBeat",
+     "relevant": true
+    },
+    {
+     "title": "Oracle (NYSE:ORCL) Given \"Market Outperform\" Rating at Citizens Jmp - MarketBeat",
+     "publisher": "MarketBeat",
+     "relevant": true
+    },
+    {
+     "title": "Oracle Insider Bought Shares Worth $3,483,800, According to a Recent SEC Filing - Moomoo",
+     "publisher": "Moomoo",
+     "relevant": true
+    },
+    {
+     "title": "Bloom Energy CEO Shrugs Off Oracle Force Majeure Worries, Says Bloom Boxes Are 'Fungible' - TradingView",
+     "publisher": "TradingView",
+     "relevant": true
+    },
+    {
+     "title": "Can Oracle's Database Business Sustain Margins over the Long Term? - TradingView",
+     "publisher": "TradingView",
+     "relevant": true
+    },
+    {
+     "title": "Oracle Options Price Cheap Insurance as OpenAI's Revenue Ease AI Fears: Options Chatter - Moomoo",
+     "publisher": "Moomoo",
+     "relevant": true
+    },
+    {
+     "title": "20-Year Oracle Bond Yields 8.1%: Could the Stock Match That Return? - TradingView",
+     "publisher": "TradingView",
+     "relevant": true
+    },
+    {
+     "title": "Oracle Corp Stock (ORCL) Moved Up by 6.11% on Sep 29: A Full Analysis - tradingkey.com",
+     "publisher": "tradingkey.com",
+     "relevant": true
+    },
+    {
+     "title": "Tencent signed a $7 billion deal to lease 100,000 AI chips from Oracle - qz.com",
+     "publisher": "qz.com",
+     "relevant": true
+    },
+    {
+     "title": "Why Is Oracle (NYSE:ORCL) Stock Up 4% Today? OpenAI Growth Eases Fears Over Its $300 Billion AI Exposure - Stocks Down Under",
+     "publisher": "Stocks Down Under",
+     "relevant": true
+    },
+    {
+     "title": "NTAP Stock Hits Record High: NetApp Expands Strategic Partnerships With SAP, Oracle, and Supermicro To Drive Cloud Infrastructure - TradingView",
+     "publisher": "TradingView",
+     "relevant": true
+    },
+    {
+     "title": "Oracle stock in 2026: AI cloud grows 121%, but the infrastructure boom is becoming more expensive - Межа. Новини України.",
+     "publisher": "Межа. Новини України.",
+     "relevant": true
+    },
+    {
+     "title": "Oracle (ORCL) director's trust buys shares at prices ranging from $138.96 to $139.74 - Stock Titan",
+     "publisher": "Stock Titan",
+     "relevant": true
+    },
+    {
+     "title": "Rep. Jamie Raskin investigates Big Tech data center NDA deals - qz.com",
+     "publisher": "qz.com",
+     "relevant": false
+    }
+   ]
+  },
+  "V": {
+   "company": {
+    "ticker": "V",
+    "name": "Visa Inc.",
+    "short_name": "Visa",
+    "aliases": [],
+    "industry": "Credit Services",
+    "sector": "Financial Services"
+   },
+   "query": "\"Visa\" (stock OR shares OR V) when:7d",
+   "items": [
+    {
+     "title": "V Stock Quote Price and Forecast - CNN",
+     "publisher": "CNN",
+     "relevant": true
+    },
+    {
+     "title": "Visa’s (V) Asset-Light Cash Flow Supports Upside Re-Rating - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Visa (NYSE:V) Stock Forecast & Analyst Predictions - Simply Wall Street",
+     "publisher": "Simply Wall Street",
+     "relevant": true
+    },
+    {
+     "title": "Visa Stock Heads Into October 27 Earnings With Stablecoins and AI Payments in Focus - TIKR.com",
+     "publisher": "TIKR.com",
+     "relevant": true
+    },
+    {
+     "title": "Visa Stock Price Forecast. Should You Buy V? - StockInvest.us",
+     "publisher": "StockInvest.us",
+     "relevant": true
+    },
+    {
+     "title": "Here's How Visa's AptPay Deal Expands Its iGaming Payments Opportunity - TradingView",
+     "publisher": "TradingView",
+     "relevant": true
+    },
+    {
+     "title": "Analysts Offer Insights on Financial Companies: Visa (V), Pinnacle Financial Partners (PNFP) and JPMorgan Chase (JPM) - The Globe and Mail",
+     "publisher": "The Globe and Mail",
+     "relevant": true
+    },
+    {
+     "title": "If You Invested $1000 In Visa Stock 15 Years Ago, You Would Have This Much Today - Benzinga",
+     "publisher": "Benzinga",
+     "relevant": true
+    },
+    {
+     "title": "Wells Fargo Maintains Visa(V.US) With Buy Rating, Maintains Target Price $432 - Moomoo",
+     "publisher": "Moomoo",
+     "relevant": true
+    },
+    {
+     "title": "Visa (V) CEO exercises options at $134.76 and sells 5,875 shares at $358.81 each - Stock Titan",
+     "publisher": "Stock Titan",
+     "relevant": true
+    },
+    {
+     "title": "Is Trending Stock Visa Inc. (V) a Buy Now? - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Visa (V) Stock Could Be 18% Undervalued Despite Stablecoin Settlement News - Simply Wall Street",
+     "publisher": "Simply Wall Street",
+     "relevant": true
+    },
+    {
+     "title": "Visa (V) is Turning a Legal Burden into an EPS Tailwind. Can it Last? - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Visa (V) Deepens Visa Direct Integration For Real Time Payouts - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Visa (V) Falls More Steeply Than Broader Market: What Investors Need to Know - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Top Stock Reports for Visa, Intuitive Surgical & Williams Companies - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Here's How Visa's AptPay Deal Expands Its iGaming Payments Opportunity - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Visa Inc. (V) stock price, news, quote and history - Yahoo Finance - Yahoo Finance Singapore",
+     "publisher": "Yahoo Finance Singapore",
+     "relevant": true
+    },
+    {
+     "title": "Visa-Led Consortium Launches OUSD Stablecoin - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Visa Stock And Two Payment Plays Tied To Fed Trust Questions - Simply Wall Street",
+     "publisher": "Simply Wall Street",
+     "relevant": true
+    },
+    {
+     "title": "Visa joins growing alarm over AI-powered risks - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Could Stablecoins Threaten Visa and Mastercard? - The Motley Fool",
+     "publisher": "The Motley Fool",
+     "relevant": true
+    },
+    {
+     "title": "10 Best Blue-Chip Stocks to Buy Now | Investing - US News Money",
+     "publisher": "US News Money",
+     "relevant": false
+    },
+    {
+     "title": "Visa (V) officer plans to sell 5,875 shares through an employee stock option exercise. - Stock Titan",
+     "publisher": "Stock Titan",
+     "relevant": true
+    },
+    {
+     "title": "Visa (V) Q2 2026 Earnings Call Transcript - Fortune",
+     "publisher": "Fortune",
+     "relevant": true
+    },
+    {
+     "title": "AptPay Expands Its iGaming Payment Infrastructure With Direct Visa Connectivity and a New Way for Players to Receive Funds in Real-Time1 - finance.yahoo.com",
+     "publisher": "finance.yahoo.com",
+     "relevant": true
+    },
+    {
+     "title": "Visa Tokenized Stock price today, VX to USD chart, marketcap and volume - CryptoSlate",
+     "publisher": "CryptoSlate",
+     "relevant": true
+    },
+    {
+     "title": "Visa Vs. Mastercard: Why I Prefer Visa (NYSE:V) (NYSE:MA) - Seeking Alpha",
+     "publisher": "Seeking Alpha",
+     "relevant": true
+    },
+    {
+     "title": "Visa Enters October About 6% Below Its High. Here’s What Britain’s New Payment Rails Mean for the Stock Through 2030 - TIKR.com",
+     "publisher": "TIKR.com",
+     "relevant": true
+    },
+    {
+     "title": "The amount paid through Visa card programs linked to steady-value digital currencies grew nearly 200% in a year. - Stock Titan",
+     "publisher": "Stock Titan",
+     "relevant": true
+    },
+    {
+     "title": "RBC Capital Remains a Buy on Visa (V) - The Globe and Mail",
+     "publisher": "The Globe and Mail",
+     "relevant": true
+    },
+    {
+     "title": "ETFs Are Net Sellers of Visa (V) on Tuesday - GuruFocus",
+     "publisher": "GuruFocus",
+     "relevant": true
+    },
+    {
+     "title": "Visa (NYSE:V) Shares Down 1.6% - Here's What Happened - MarketBeat",
+     "publisher": "MarketBeat",
+     "relevant": true
+    },
+    {
+     "title": "New stablecoin Open USD goes live as Coinbase, Mastercard, Stripe and Visa commit $1 billion to liquidity - coindesk.com",
+     "publisher": "coindesk.com",
+     "relevant": true
+    },
+    {
+     "title": "ETFs Are Buying Visa (V) on Sept. 25 - GuruFocus",
+     "publisher": "GuruFocus",
+     "relevant": true
+    },
+    {
+     "title": "Visa, Mastercard, Stripe, and Coinbase Commit $1 Billion to New Stablecoin: Is Open USD a Challenge to Tether, USDC, and RLUSD? - 24/7 Wall St.",
+     "publisher": "24/7 Wall St.",
+     "relevant": true
+    },
+    {
+     "title": "Visa (NYSE:V) CEO Sells 5,875 Shares of Company Stock - MarketBeat",
+     "publisher": "MarketBeat",
+     "relevant": true
+    },
+    {
+     "title": "Visa (NYSE:V) Shares Unloaded by Sen. Sheldon Whitehouse - MarketBeat",
+     "publisher": "MarketBeat",
+     "relevant": true
+    },
+    {
+     "title": "Is Visa (NYSE:V) the Financial Stocks Stock Everyone's Talking About Today? - Kalkine Media",
+     "publisher": "Kalkine Media",
+     "relevant": true
+    },
+    {
+     "title": "Wall Street Analysts Are Bullish on Top Financial Picks - The Globe and Mail",
+     "publisher": "The Globe and Mail",
+     "relevant": false
+    },
+    {
+     "title": "Wells Fargo keeps Buy rating for Visa stock at USD 432 - AD HOC NEWS",
+     "publisher": "AD HOC NEWS",
+     "relevant": true
+    },
+    {
+     "title": "Visa and Mastercard show strong growth and attr... - Pluang",
+     "publisher": "Pluang",
+     "relevant": true
+    },
+    {
+     "title": "RBC keeps Buy rating for Visa stock at USD 466 target - AD HOC NEWS",
+     "publisher": "AD HOC NEWS",
+     "relevant": true
+    },
+    {
+     "title": "Visa stock at USD 367.74 on September 28, 2026 - AD HOC NEWS",
+     "publisher": "AD HOC NEWS",
+     "relevant": true
+    },
+    {
+     "title": "Visa (NYSE:V) Stock: BioCatch Deal Pushes It Further Into Fraud Prevention - kalkine.ca",
+     "publisher": "kalkine.ca",
+     "relevant": true
+    },
+    {
+     "title": "Visa stock expands stablecoin footprint ahead of October results - AD HOC NEWS",
+     "publisher": "AD HOC NEWS",
+     "relevant": true
+    },
+    {
+     "title": "Visa stock after-hours at EUR 324.13: plus 0.30 percent versus prior close - AD HOC NEWS",
+     "publisher": "AD HOC NEWS",
+     "relevant": true
+    },
+    {
+     "title": "Visa Foundation commits USD 2 million as Visa stock trades at EUR 320.58 - AD HOC NEWS",
+     "publisher": "AD HOC NEWS",
+     "relevant": true
+    },
+    {
+     "title": "Visa stock trades at EUR 322.28 as revenue grows 14.40 percent - AD HOC NEWS",
+     "publisher": "AD HOC NEWS",
+     "relevant": true
+    },
+    {
+     "title": "Visa stock after-hours at EUR 320.30: plus 0.89 percent versus prior close - AD HOC NEWS",
+     "publisher": "AD HOC NEWS",
+     "relevant": true
+    },
+    {
+     "title": "Visa shares stablecoin data as Visa stock costs EUR 320.58 in weekend trading - AD HOC NEWS",
+     "publisher": "AD HOC NEWS",
+     "relevant": true
+    },
+    {
+     "title": "Visa stock after-hours at EUR 320.70: plus 0.38 percent versus prior close - AD HOC NEWS",
+     "publisher": "AD HOC NEWS",
+     "relevant": true
+    },
+    {
+     "title": "Visa stock pre-market at EUR 318.35: plus 0.27 percent - AD HOC NEWS",
+     "publisher": "AD HOC NEWS",
+     "relevant": true
+    },
+    {
+     "title": "Farm visa approvals flowing again in 24-hour turnaround ahead of harvest - Stock & Land",
+     "publisher": "Stock & Land",
+     "relevant": false
+    },
+    {
+     "title": "Visa stock remains capped by Ichimoku Kijun at $372.65 amid uncertain technical direction: weekly analysis - Traders Union",
+     "publisher": "Traders Union",
+     "relevant": true
+    },
+    {
+     "title": "UK outlines visa route that offers faster path to permanent residency - Legit News",
+     "publisher": "Legit News",
+     "relevant": false
+    },
+    {
+     "title": "EU announces suspension of visa agreements with 3 countries - Yen.com.gh",
+     "publisher": "Yen.com.gh",
+     "relevant": false
+    },
+    {
+     "title": "UK Shares Category of Foreigners Who Must Get Extra Approval Before Student Visa Is Granted - Legit News",
+     "publisher": "Legit News",
+     "relevant": false
+    },
+    {
+     "title": "UK Shares 4 Conditions To Qualify For Permanent Residency In Just 3 Years Under Innovator Route - Legit News",
+     "publisher": "Legit News",
+     "relevant": false
+    }
+   ]
+  }
+ }
+}

@@ -40,7 +40,7 @@ export function FilingsPanel({ a, className }: { a: Analysis; className?: string
       ) : (
         <ul className="divide-hair hairline-t">
           {a.filings.slice(0, 10).map((f, i) => {
-            const imp = IMPORTANCE[f.importance];
+            const imp = IMPORTANCE[f.importance] ?? IMPORTANCE.low;
             const row = (
               <>
                 <span className="w-12 shrink-0 pt-px text-2xs text-muted num">{shortDate(f.date)}</span>
@@ -50,7 +50,9 @@ export function FilingsPanel({ a, className }: { a: Analysis; className?: string
                   </span>
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-xs leading-[18px] text-ink">{f.title}</span>
+                  <span className="line-clamp-3 block text-xs leading-[18px] text-ink" title={f.title}>
+                    {f.title}
+                  </span>
                   {f.items.length > 0 && <span className="text-2xs text-muted">Items {f.items.join(", ")}</span>}
                 </span>
                 <span className="flex shrink-0 items-center gap-2 pt-1" title={imp.label}>

@@ -33,6 +33,10 @@ from tests.intel.helpers import info, load_json
         ("btcusd", "BTC-USD"),
         ("eth/usd", "ETH-USD"),
         ("SOL-USD", "SOL-USD"),
+        ("sol", "SOL-USD"),
+        ("LTC", "LTC"),  # LTC Properties owns the bare symbol
+        ("ltcusd", "LTC-USD"),
+        ("LINK", "LINK"),
         ("^vix", "^VIX"),
         ("gc=f", "GC=F"),
         ("shop.to", "SHOP.TO"),

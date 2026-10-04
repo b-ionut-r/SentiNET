@@ -1,0 +1,328 @@
+{
+ "description": "Real StockTwits symbol stream for TSLA, captured 2026-10-04 (api/2/streams/symbol).",
+ "company": {
+  "ticker": "TSLA",
+  "name": "Tesla, Inc.",
+  "short_name": "Tesla",
+  "aliases": [],
+  "industry": "Auto Manufacturers",
+  "sector": "Consumer Cyclical"
+ },
+ "items": [
+  {
+   "source": "stocktwits",
+   "title": "$TSLA  &amp;  $SPCX    \n \nMeanwhile, ( Yes, robots can work on  \n \nSundays. Heck, they work every day! ) \n \nIn a Tesla Semi Factory  \n \nNot too far from here ...  \n \n✅",
+   "timestamp": "2026-10-04T21:59:14Z",
+   "user_label": "bullish",
+   "symbols": [
+    "TSLA",
+    "SPCX"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$SPCX $TSLA \n\nOne reason I could see a Tesla/SpaceX combination making sense for Elon is governance. He doesn’t currently have majority voting control of Tesla. Depending on how a merger was structured—especially the share classes and voting rights—it could potentially give him much greater control of the combined company. But SpaceX simply buying Tesla wouldn’t automatically give Elon 100% voting control.\n\nBut to your point I don’t think it will happen…\nTo much dilution…",
+   "timestamp": "2026-10-04T21:56:12Z",
+   "user_label": null,
+   "symbols": [
+    "SPCX",
+    "TSLA"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$TSLA 👊🏻",
+   "timestamp": "2026-10-04T21:48:17Z",
+   "user_label": "bullish",
+   "symbols": [
+    "TSLA"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$TSLA $SPY $QQQ \n\nWatchlist for  10/05/2026\n\nSPY\nLong above  770.07\nShort below 768.42\n(2-1 on 4hr)\n\nQQQ\nLong above 750.04\nShort below 747.79\n(2-1 on 4hr)\n\nDIA\nLong above 511.30\nShort below 510.12\n(2-1 on 4hr)\n\nIWM\nLong above 281.84\nShort below 281.11\n(2-1 on 4hr)\n\nTSLA\nLong above  374.59\nShort below 369.88\n(2-2 on 4hr)\n\n* Swing Trading Ideas *\n\nABNB\nLong above 164.91\nShort below 153.70\n(2-1 on weekly)\n\nMETA\nLong above 750.58\nShort below 713.19\n(2-1 on weekly)\n\nNews: (ET)\nISM Services Data 10am\n\nNotes: \n\nBrief Watchlist Explanation \nhttps://youtu.be/YzPfJDT9I0I\n\nTSLA \nLong Targets -&gt;  360.25, 362.15, 363.83, 365.12, 367.69\nShort targets -&gt;   351.92, 350, 349.46, 348, 346.28, 345.23\n\nNot financial advice, simply my ideas.\nSize accordingly and have a proper trade plan\nIf you get emotional, take a 1 hour break\nThese setups are only to be taking during the NY trading session",
+   "timestamp": "2026-10-04T21:31:31Z",
+   "user_label": null,
+   "symbols": [
+    "TSLA",
+    "SPY",
+    "QQQ"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$SPCX will merge with $TSLA before Trump leaves office. That’s the max timeline.",
+   "timestamp": "2026-10-04T21:11:13Z",
+   "user_label": "bullish",
+   "symbols": [
+    "SPCX",
+    "TSLA"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$QQQ $SPCX $SPY $TSLA \n\nRoger Goodell’s salary has absolutely nothing to do with whether SpaceX is overvalued. The NFL pays him out of a mature, highly profitable business throwing off billions in annual revenue. Nobody is valuing the NFL based on Goodell’s paycheck.\n\nThe argument is about valuation, cash flow, capital intensity and future share supply. SpaceX can be an incredible company, dominate launch, grow Starlink and still be overpriced at a given stock price. Those ideas aren’t mutually exclusive.\n\nComparing an executive salary to a company’s valuation is basically changing the subject.”",
+   "timestamp": "2026-10-04T21:05:36Z",
+   "user_label": null,
+   "symbols": [
+    "QQQ",
+    "SPCX",
+    "SPY",
+    "TSLA"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$QQQ $SPCX $SPY $TSLA Roger Goodell, the NFL commissioner made $64 million a year last year before his new contract which is undisclosed. He does not launch rockets, he disiplines idiot players and tells the networks to kiss his ring. How is that going? Grow the fuck up.",
+   "timestamp": "2026-10-04T21:01:04Z",
+   "user_label": null,
+   "symbols": [
+    "QQQ",
+    "SPCX",
+    "SPY",
+    "TSLA"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "This week day trading looking at $SOXL,$TQQQ,$NVDA,$TSLA,$PLTR",
+   "timestamp": "2026-10-04T20:57:29Z",
+   "user_label": null,
+   "symbols": [
+    "SOXL",
+    "TQQQ",
+    "NVDA",
+    "TSLA",
+    "PLTR"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$DJT $SPY $QQQ $TSLA \n\nTrump is the Artificial President with Artificial Intelligence.\n Whereas, the definition is....\n &quot;Artificial: \n fake or not real or adequate&quot;",
+   "timestamp": "2026-10-04T20:50:07Z",
+   "user_label": "bearish",
+   "symbols": [
+    "DJT",
+    "SPY",
+    "QQQ",
+    "TSLA"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$TSLA \n\nI unfortunately think we will give some back on Monday as normal. The MM are mother fckrs",
+   "timestamp": "2026-10-04T20:41:05Z",
+   "user_label": "bullish",
+   "symbols": [
+    "TSLA"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$TSLA so what happens if Google finds out that don&#39;t run. 😂 Musk is always putting the carry with out any horses and you guys fall for it every time",
+   "timestamp": "2026-10-04T20:38:40Z",
+   "user_label": null,
+   "symbols": [
+    "TSLA"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$SPCX $SPY $TSLA $QQQ What dumb post. Ignorant af. Completely clueless and filled with eds. Frikin&#39; moron.",
+   "timestamp": "2026-10-04T20:22:07Z",
+   "user_label": "bullish",
+   "symbols": [
+    "SPCX",
+    "SPY",
+    "TSLA",
+    "QQQ"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$TSLA $SI yes!!!!!",
+   "timestamp": "2026-10-04T20:07:06Z",
+   "user_label": "bullish",
+   "symbols": [
+    "TSLA",
+    "SI"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$TSLA",
+   "timestamp": "2026-10-04T20:06:08Z",
+   "user_label": null,
+   "symbols": [
+    "TSLA"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$TSLA Im excited to see how this will behave.",
+   "timestamp": "2026-10-04T20:01:48Z",
+   "user_label": null,
+   "symbols": [
+    "TSLA"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$SPY $DJT $BTC.X  $TSLA  illegal immigrant now involved with US warfare?",
+   "timestamp": "2026-10-04T19:58:49Z",
+   "user_label": null,
+   "symbols": [
+    "SPY",
+    "DJT",
+    "BTC.X",
+    "TSLA"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$SPCX $TSLA he just fricken fat; whet else he do but eat good. 😂😂😂",
+   "timestamp": "2026-10-04T19:51:14Z",
+   "user_label": null,
+   "symbols": [
+    "SPCX",
+    "TSLA"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$TSLA will it open 380 tomorrow?",
+   "timestamp": "2026-10-04T19:50:33Z",
+   "user_label": null,
+   "symbols": [
+    "TSLA"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$SPY $QQQ $TSLA $SPCX $DJT &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;\n\nMUST WATCH 👀 VIDEO 📹 \n\nHAGSETH PUT ELON MUSK IN CHARGE OF WARFARE! \n\nELON IS RUNNING THE MILITARY 🪖 / PROJECT MERIDIAN \n\n29,000 GOVERNMENT WEBSITES ARE NOW ON ONE SITE RUN BY AI / AMERICA.GOV\n\nXAI IS NOW RUNNING TGE GOVERNMENT???\n\nhttps://youtube.com/shorts/CvhlZU-rj58?is=0-r_5Ziesqd6vFsT",
+   "timestamp": "2026-10-04T19:45:02Z",
+   "user_label": null,
+   "symbols": [
+    "SPY",
+    "QQQ",
+    "TSLA",
+    "SPCX",
+    "DJT"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$TSLA  $SPCX   \n \nYou&#39;ve heard about Rolling Blackouts in \n \nGeneral Regions \n \nBut what if they are doing them now  \n \nCountry Wide? \n \nRoll your dice.  😳  😨  😰  😱  🫢 \n \nOr get Tesla Solar and a PowerWall System. \n \n✅",
+   "timestamp": "2026-10-04T19:35:29Z",
+   "user_label": "bullish",
+   "symbols": [
+    "TSLA",
+    "SPCX"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "Starship deploying Starlink V3 satellites $OTAI $SPCX $TSLA",
+   "timestamp": "2026-10-04T19:32:01Z",
+   "user_label": null,
+   "symbols": [
+    "OTAI",
+    "SPCX",
+    "TSLA"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "Tesla FSD feels like magic $TSLA",
+   "timestamp": "2026-10-04T19:29:57Z",
+   "user_label": null,
+   "symbols": [
+    "TSLA"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$TSLA https://vistapglobal.com/the-long-road-to-mars-why-gravity-still-rules-and-why-spacex-is-trying-to-outwork-it-asts-ba-lunr-pl-rklb-rwd-spcx-tsla/",
+   "timestamp": "2026-10-04T19:29:51Z",
+   "user_label": "bullish",
+   "symbols": [
+    "TSLA"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$SPCX &amp; $TSLA will never merge.  Love Cathie Woods, but a merger like this makes absolutely no sense whatsoever from a business standpoint.  First, either company could be the buyer, and the buyers stock price would be absolutely crushed by the dilution.  And then having one super big ass company like this would be loaded with unmanageable redundancies that would kill earnings and take years to hammer out.  Then, there is the US Justice Department who would never allow such a massive company, one so big that its actual existence could dictate the overall US economy.  They won&#39;t allow this to happen.  The only true solution, is for both companies to remain independent, focusing on their specialties under their current stock symbols, and forming a partnership with one another that is aimed at identical goals.  In this scenario, both stock prices skyrocket, as it truly is a case where the pieces are worth way more than the combined total.",
+   "timestamp": "2026-10-04T19:28:08Z",
+   "user_label": "bullish",
+   "symbols": [
+    "SPCX",
+    "TSLA"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$SPCX Elon is nothing more than a leech. Never payed out shareholders, yet he wants to give HIMSELF a bonus of ONE FUCKING TRILLION! $SPY $TSLA $QQQ",
+   "timestamp": "2026-10-04T19:04:40Z",
+   "user_label": "bearish",
+   "symbols": [
+    "SPCX",
+    "SPY",
+    "TSLA",
+    "QQQ"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$TSLA $QQQ $SPY can&#39;t wait to see how futes will open",
+   "timestamp": "2026-10-04T18:51:57Z",
+   "user_label": null,
+   "symbols": [
+    "TSLA",
+    "QQQ",
+    "SPY"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "🚨 $TSLA TRADE PLAN | NEXT SESSION\n\n📍 Spot: ~371.43\n\nTSLA is holding above the major 370 pivot, while the heaviest upside positioning sits around 375–377.5.\n\nThat makes 370–377.5 the main battle area.\n\n🎯 KEY LEVELS\n\n🔥 377.5 — Major upside wall\n⚡ 375 — First major resistance\n📍 370 — Main pivot / support\n📉 367.5 — First downside level\n🛡️ 365 — Strong support\n🎯 360 — Bigger downside target\n🚀 380 / 385 / 390 — Upside extensions\n\n🟢 BULL PLAN\n\nHold 370 + reclaim 375\n→ 377.5 → 380\n\nBreak + hold 380\n→ 385 → 390 🚀\n\n🔴 BEAR PLAN\n\nLose 370 + fail to reclaim\n→ 367.5 → 365\n\nBelow 365\n→ 362.5 → 360\n\n⚠️ CHOP ZONE: 370–375\n\nThis is where patience matters.\n\nDon’t chase in the middle — wait for price to confirm direction.\n\n🧠 GAME PLAN\n\n🟢 Above 375 = Bullish continuation\n🚀 Above 377.5 = Stronger breakout potential\n🔴 Below 370 = Bearish pressure\n🐻 Below 365 = Downside opens up\n\n🎯 370 is the pivot.\n377.5 is the big upside battle.\n\nLet price confirm before executing.\n\nTrade safe. Manage your risk.",
+   "timestamp": "2026-10-04T18:51:30Z",
+   "user_label": null,
+   "symbols": [
+    "TSLA"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$TSLA  It is so much fun listening to how stupid the bears really are.  If you are here for car sales, you are clearly dummer than you think you are.  Tesla does make cars, but their true future revenue generators are batteries, for storing energy on the space platform, robots for building the space platforms, and mass automation.  Each of which will easily generate more than a billion dollars annually.  So, because of this unlimited potential, we see $500 by X-Mass and when the partnership is announced, $1000.",
+   "timestamp": "2026-10-04T18:38:23Z",
+   "user_label": "bullish",
+   "symbols": [
+    "TSLA"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$TSLA $GOOGL $GOOG $SPY $QQQ",
+   "timestamp": "2026-10-04T18:35:34Z",
+   "user_label": "bullish",
+   "symbols": [
+    "TSLA",
+    "GOOGL",
+    "GOOG",
+    "SPY",
+    "QQQ"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$QQQ $SPY $TSLA Tesla almost $373 on HL?!!\n\nDid some news hit around 8:30am??",
+   "timestamp": "2026-10-04T18:31:27Z",
+   "user_label": null,
+   "symbols": [
+    "QQQ",
+    "SPY",
+    "TSLA"
+   ]
+  }
+ ]
+}

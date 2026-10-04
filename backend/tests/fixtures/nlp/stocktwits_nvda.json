@@ -1,0 +1,312 @@
+{
+ "description": "Real StockTwits symbol stream for NVDA, captured 2026-10-04 (api/2/streams/symbol).",
+ "company": {
+  "ticker": "NVDA",
+  "name": "NVIDIA Corporation",
+  "short_name": "Nvidia",
+  "aliases": [],
+  "industry": "Semiconductors",
+  "sector": "Technology"
+ },
+ "items": [
+  {
+   "source": "stocktwits",
+   "title": "$BTC.X $ETH.X $SOL.X $META $NVDA \n\nNASA, we’re a Go!",
+   "timestamp": "2026-10-04T22:00:02Z",
+   "user_label": null,
+   "symbols": [
+    "BTC.X",
+    "ETH.X",
+    "SOL.X",
+    "META",
+    "NVDA"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$NVDA board  curious if anyone here is also tracking $RYET? \n \nWould you rather watch the big established AI names or a micro-cap showing Smart Campus expected at $5.0M-$5.2M? Genuinely curious. \n \nExecution next.",
+   "timestamp": "2026-10-04T21:57:39Z",
+   "user_label": null,
+   "symbols": [
+    "NVDA"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$NVDA gets the headlines... $RYET caught my eye for the numbers. \n \nWould you rather watch the big established AI names or a micro-cap showing a shift from AI narrative toward measurable revenue? Genuinely curious. \n \nAnyone else watching?",
+   "timestamp": "2026-10-04T21:50:13Z",
+   "user_label": null,
+   "symbols": [
+    "NVDA"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$AMD $INTC $NVDA \n\nIntel’s quick sync is an unrealized competitor to Nvidia",
+   "timestamp": "2026-10-04T21:35:35Z",
+   "user_label": "bullish",
+   "symbols": [
+    "AMD",
+    "INTC",
+    "NVDA"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$QNT This. And they also have a partnership with Nvidia. $NVDA 😎",
+   "timestamp": "2026-10-04T21:33:02Z",
+   "user_label": "bullish",
+   "symbols": [
+    "QNT",
+    "NVDA"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$NBIS so ur saying at this price point is 40 dollars less than their high and in that time they were called #1 by both $NVDA and $PLTR, had a blowout earnings, increased their compute pricing (lower future multiples), did a covert raise because of their project volume and nvidia started a project just for cyber security of open source…. hmmm i think we should sell 🤔🤔🤔🤔",
+   "timestamp": "2026-10-04T21:32:13Z",
+   "user_label": "bullish",
+   "symbols": [
+    "NBIS",
+    "NVDA",
+    "PLTR"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "Different scale obviously, but $NVDA and $RYET both have me thinking about AI infrastructure and demand. \n \nWould you rather watch the big established AI names or a micro-cap showing Smart Campus expected at $5.0M-$5.2M? Genuinely curious.",
+   "timestamp": "2026-10-04T21:27:10Z",
+   "user_label": null,
+   "symbols": [
+    "NVDA"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$QBTS and $NVDA \nAnd when I first bought Nividia. QBTS going to be in that number.",
+   "timestamp": "2026-10-04T21:21:47Z",
+   "user_label": null,
+   "symbols": [
+    "QBTS",
+    "NVDA"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$NVDA r those 24 hour nvda stocks available yet at robin&#39;s hood..?..today?",
+   "timestamp": "2026-10-04T21:16:20Z",
+   "user_label": "bullish",
+   "symbols": [
+    "NVDA"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$NVDA pullback to 230 tomorrow",
+   "timestamp": "2026-10-04T21:02:47Z",
+   "user_label": "bearish",
+   "symbols": [
+    "NVDA"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$NVDA suffocate me",
+   "timestamp": "2026-10-04T20:58:01Z",
+   "user_label": null,
+   "symbols": [
+    "NVDA"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$NVDA hyper liquids right at 235 with some volume kicking in… Wow would be amazing to open up tomorrow morning at 237, 238, 239 💥💥💥￼",
+   "timestamp": "2026-10-04T20:58:00Z",
+   "user_label": "bullish",
+   "symbols": [
+    "NVDA"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "This week day trading looking at $SOXL,$TQQQ,$NVDA,$TSLA,$PLTR",
+   "timestamp": "2026-10-04T20:57:29Z",
+   "user_label": null,
+   "symbols": [
+    "SOXL",
+    "TQQQ",
+    "NVDA",
+    "TSLA",
+    "PLTR"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$GNS $MU $NKE $NVDA $SPCX",
+   "timestamp": "2026-10-04T20:57:22Z",
+   "user_label": null,
+   "symbols": [
+    "GNS",
+    "MU",
+    "NKE",
+    "NVDA",
+    "SPCX"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$NVDA expect a breather its healthy.",
+   "timestamp": "2026-10-04T20:53:10Z",
+   "user_label": null,
+   "symbols": [
+    "NVDA"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$FET.X crypto $NVDA",
+   "timestamp": "2026-10-04T20:52:25Z",
+   "user_label": null,
+   "symbols": [
+    "FET.X",
+    "NVDA"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$IBRX $NVDA Absolutely",
+   "timestamp": "2026-10-04T20:35:19Z",
+   "user_label": null,
+   "symbols": [
+    "IBRX",
+    "NVDA"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$NVDA if everybody just buys a bunch of stock and call options and stops, whining, and playing into the hands of the crybaby lefties… We can bury Michael Burry and we can all make money together, so just bye-bye bye ￼💥💥💥\n\nLet’s all do it together let’s all get rich ￼ together  🤩🤩🤩￼",
+   "timestamp": "2026-10-04T20:26:06Z",
+   "user_label": "bullish",
+   "symbols": [
+    "NVDA"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$NVDA Very bullish for next week. \n\nKick off football season with a bonus up to $2,000 — just sign up for Kalshi with my link and start trading. https://kalshi.com/sign-up/?referral=8fc55f38-bd19-40e5-8302-2d61037e4741&amp;m=true&amp;utm_source=mobile_app&amp;utm_medium=share&amp;utm_campaign=referral&amp;utm_content=share_button&amp;utm_term=referrals_pill",
+   "timestamp": "2026-10-04T20:21:07Z",
+   "user_label": "bullish",
+   "symbols": [
+    "NVDA"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$NVDA 5090’s going for over $6500 on EBay right now. Insane.",
+   "timestamp": "2026-10-04T20:09:57Z",
+   "user_label": null,
+   "symbols": [
+    "NVDA"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$NVDA",
+   "timestamp": "2026-10-04T20:09:42Z",
+   "user_label": "bullish",
+   "symbols": [
+    "NVDA"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$NVDA $SI only up from here!",
+   "timestamp": "2026-10-04T20:08:54Z",
+   "user_label": "bullish",
+   "symbols": [
+    "NVDA",
+    "SI"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$IBRX $NVDA",
+   "timestamp": "2026-10-04T20:06:02Z",
+   "user_label": null,
+   "symbols": [
+    "IBRX",
+    "NVDA"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$NVDA What is your prediction for next week?",
+   "timestamp": "2026-10-04T20:01:36Z",
+   "user_label": null,
+   "symbols": [
+    "NVDA"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$NVDA can’t wait to wake up one day and this is up 20%+",
+   "timestamp": "2026-10-04T19:57:17Z",
+   "user_label": "bullish",
+   "symbols": [
+    "NVDA"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$SPY ~  Legendary 2008 &#39;The Big Short&#39; Investor Steve Eisman Explains How the mega trillion “AI Capex Debt Boom Bubble” Will Burst in 2027. Fantastic interview. We are currently living in a twisted version of the 1700&#39;s &quot;French Royal Court&quot; &amp; the 1985 &quot;Biff Tannen&quot; timeline tangent from &quot;Back To The Future&quot; Part 2. I think this AI Infrastructure debt boom bubble is more concentrated, moving faster, &amp; we&#39;ve already passed the &quot;over the top&quot; or &quot;jump the shark&quot; rhetoric phase from the AI Tech Bros in Oct 2026. The late 90s had many small niche internet tech IPOs, this time we get 2-3 massive generational Tech AI offerings. The AI Infrastructure capex boom is already slowing in terms of the real plant construction hitting physical constraints, public backlash, credit deteriorating, net present value an impairment, etc. also keep in mind that we&#39;re coming off a series of bubbles, Saas, NFT/FTX Crypto, now GenAI, we&#39;re about 10 years into this from that perspective. $QQQ $NVDA $SMH $GLD",
+   "timestamp": "2026-10-04T19:51:54Z",
+   "user_label": null,
+   "symbols": [
+    "SPY",
+    "QQQ",
+    "NVDA",
+    "SMH",
+    "GLD"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "Soft Jobs Just Rewired How Stocks Read The Labor Market \nMentions: $NVDA https://talkmarkets.com/article/soft-jobs-just-rewired-how-stocks-read-the-labor-market",
+   "timestamp": "2026-10-04T19:44:29Z",
+   "user_label": null,
+   "symbols": [
+    "NVDA"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$NVDA puts are the only play",
+   "timestamp": "2026-10-04T19:28:18Z",
+   "user_label": "bearish",
+   "symbols": [
+    "NVDA"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "5.65 trillion dollars. $NVDA hit an all-time high Friday after a $150B buyback boost, and still trades at a 19.4 forward P/E on 83% revenue growth. Wall Street sees another 40% upside. Markets closed today.",
+   "timestamp": "2026-10-04T19:20:52Z",
+   "user_label": null,
+   "symbols": [
+    "NVDA"
+   ]
+  },
+  {
+   "source": "stocktwits",
+   "title": "$SPCX $NVDA $AMZN $MSFT  \nhttps://www.youtube.com/watch?v=roe3SgezmmU",
+   "timestamp": "2026-10-04T19:19:43Z",
+   "user_label": null,
+   "symbols": [
+    "SPCX",
+    "NVDA",
+    "AMZN",
+    "MSFT"
+   ]
+  }
+ ]
+}

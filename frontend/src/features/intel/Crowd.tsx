@@ -41,7 +41,7 @@ function Retail({ c, socialScore, socialN }: { c: CrowdView; socialScore: number
             <div className="flex items-baseline gap-2">
               <span className="text-xl font-semibold leading-none text-ink">{Math.round(ratio * 100)}%</span>
               <span className="text-xs text-ink-2">bullish of {plural(tagged, "tagged post")}</span>
-              {tagged < 15 && <span className="text-2xs text-warn">small sample</span>}
+              {tagged < 15 && <span className="rounded bg-raised px-1 text-2xs text-ink-2">small sample</span>}
             </div>
             <div className="relative mt-2.5">
               <div className="flex h-2.5 gap-[2px]" role="img" aria-label={`${Math.round(ratio * 100)}% bullish, ${Math.round((1 - ratio) * 100)}% bearish`}>
@@ -133,7 +133,10 @@ function Attention({ att }: { att: AttentionView }) {
             <Tip content={r.note}>
               <span className="text-ink-2">{r.label}</span>
             </Tip>
-            <span className={cx("font-semibold num", r.z != null && r.z >= 2 ? "text-heat" : "text-ink")}>{r.value}</span>
+            <span className="inline-flex items-center gap-1.5 font-semibold text-ink num">
+              {r.z != null && r.z >= 2 && <span className="size-1.5 rounded-full bg-heat" title="unusually high (≥ 2σ)" />}
+              {r.value}
+            </span>
           </li>
         ))}
       </ul>

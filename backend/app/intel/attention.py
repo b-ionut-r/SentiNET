@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 import re
+import time
 import unicodedata
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
@@ -73,7 +74,8 @@ def pick_article(pages: list[dict[str, Any]], company: CompanyRef) -> dict[str, 
     for page in pages:
         title = str(page.get("title") or "")
         desc = str(page.get("description") or "")
-        if not title or "disambiguation" in (title + desc).lower() or re.match(r"(list|history|timeline) of ", title, re.IGNORECASE):
+        overview = re.match(r"(list|history|timeline) of ", title, re.IGNORECASE)
+        if not title or overview or "disambiguation" in (title + desc).lower():
             continue
         norm_title = _norm(title)
         score = 0.0
@@ -81,7 +83,10 @@ def pick_article(pages: list[dict[str, Any]], company: CompanyRef) -> dict[str, 
             score += 3.0
         elif any(norm_title.startswith(w) or w.startswith(norm_title) for w in wanted if w):
             score += 1.0
-        kind_re = _CRYPTO_WORDS if company.is_crypto else (_COMPANY_WORDS if company.quote_type == "EQUITY" else _FUND_WORDS)
+        if company.is_crypto:
+            kind_re = _CRYPTO_WORDS
+        else:
+            kind_re = _COMPANY_WORDS if company.quote_type == "EQUITY" else _FUND_WORDS
         if kind_re.search(desc):
             score += 1.0
         index = int(page.get("index") or 10)
@@ -153,7 +158,8 @@ async def _pageviews(
         start = end - timedelta(days=days - 1)
         title = quote(str(page["title"]).replace(" ", "_"), safe="")
         try:
-            rest = views_from_rest(await _wiki_json(REST_URL.format(title=title, start=f"{start:%Y%m%d}00", end=f"{end:%Y%m%d}00")))
+            url = REST_URL.format(title=title, start=f"{start:%Y%m%d}00", end=f"{end:%Y%m%d}00")
+            rest = views_from_rest(await _wiki_json(url))
             if len(rest) > len(views):
                 views = rest
         except UpstreamError as exc:
@@ -161,8 +167,28 @@ async def _pageviews(
     return views or None
 
 
+_LAST_GOOD: dict[str, tuple[float, list[tuple[date, float]]]] = {}
+STALE_MAX_SECONDS = 24 * 3600
+
+
 async def get_wiki_pageviews(company: CompanyRef, days: int = 90) -> list[tuple[date, float]] | None:
-    """Daily Wikipedia pageviews (oldest first) for the company's article, or None."""
+    """Daily Wikipedia pageviews (oldest first) for the company's article, or None.
+
+    Raises `UpstreamError` when Wikipedia refuses (cloud IPs see 403/429) unless a
+    result from the last 24 h can be served instead.
+    """
     aliases = tuple(dict.fromkeys(a for a in (*company.aliases, ascii_fold(company.short_name)) if a))
-    return await _pageviews(company.ticker, company.name, company.short_name, aliases,
-                            company.quote_type, max(7, min(int(days), 365)))
+    span = max(7, min(int(days), 365))
+    key = f"{company.ticker}:{span}"
+    try:
+        views = await _pageviews(company.ticker, company.name, company.short_name, aliases, company.quote_type, span)
+    except UpstreamError:
+        stale = _LAST_GOOD.get(key)
+        if stale and time.monotonic() - stale[0] < STALE_MAX_SECONDS:
+            return stale[1]
+        raise
+    if views:
+        if len(_LAST_GOOD) > 512:
+            _LAST_GOOD.pop(next(iter(_LAST_GOOD)))
+        _LAST_GOOD[key] = (time.monotonic(), views)
+    return views

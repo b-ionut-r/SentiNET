@@ -116,7 +116,9 @@ async def get_info(ticker: str) -> dict[str, Any] | None:
     return await _yahoo(_fetch_info, ticker, what="quote")
 
 
-def _fetch_history(symbol: str, period: str, interval: str, start: datetime | None) -> tuple[pd.DataFrame | None, str | None]:
+def _fetch_history(
+    symbol: str, period: str, interval: str, start: datetime | None
+) -> tuple[pd.DataFrame | None, str | None]:
     t = _ticker(symbol)
     kwargs: dict[str, Any] = {"interval": interval, "auto_adjust": False, "actions": False}
     if start is not None:
@@ -142,7 +144,9 @@ async def _daily_bars(ticker: str) -> tuple[pd.DataFrame, str | None] | None:
 
 
 @cached(ttl=settings.price_cache_ttl, none_ttl=30)
-async def _bars(ticker: str, period: str, interval: str, crypto: bool) -> tuple[pd.DataFrame, str | None] | None:
+async def _bars(
+    ticker: str, period: str, interval: str, crypto: bool
+) -> tuple[pd.DataFrame, str | None] | None:
     start = None
     if crypto and period in {"1d", "5d"}:  # 24/7 markets: a rolling window, not "since midnight"
         start = _now() - timedelta(days=1 if period == "1d" else 5)
@@ -315,9 +319,11 @@ async def get_earnings(ticker: str) -> EarningsView | None:
 
 async def get_calendar_catalysts(ticker: str) -> list[Catalyst]:
     """Upcoming ex-dividend and dividend payment dates (`upcoming=True`)."""
-    if await _quote_type(ticker) not in {"EQUITY", "ETF"}:
+    qtype = await _quote_type(ticker)
+    if qtype not in {"EQUITY", "ETF"}:
         return []
-    calendar = await _calendar(ticker)
+    # Yahoo has no calendar module for funds (404); their dividend dates live in `info`.
+    calendar = await _calendar(ticker) if qtype == "EQUITY" else None
     try:
         info = await get_info(ticker)
     except UpstreamError:
@@ -361,5 +367,7 @@ def _fetch_indices(symbols: list[str]) -> pd.DataFrame | None:
 async def get_indices() -> list[IndexQuote]:
     """Benchmarks strip: SPY QQQ DIA IWM ^VIX ^TNX GC=F BTC-USD with ~1M sparklines."""
     df = await _yahoo(_fetch_indices, list(INDEX_SYMBOLS), what="indices")
-    quotes = tx.indices_from_download(df, INDEX_SYMBOLS)
-    return [q for q in quotes if q.price is not None]
+    quotes = [q for q in tx.indices_from_download(df, INDEX_SYMBOLS) if q.price is not None]
+    if not quotes:  # yf.download swallows per-symbol errors and returns an empty frame
+        raise UpstreamError("Yahoo indices: no prices returned")
+    return quotes

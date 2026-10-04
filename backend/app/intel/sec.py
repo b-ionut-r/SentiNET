@@ -14,6 +14,7 @@ collapsed into one summary row each.
 from __future__ import annotations
 
 import asyncio
+import html
 import logging
 import re
 from dataclasses import dataclass
@@ -59,7 +60,7 @@ class ItemInfo:
 
 ITEMS_8K: dict[str, ItemInfo] = {
     "1.01": ItemInfo("Entered a material agreement", "medium", "neutral"),
-    "1.02": ItemInfo("Terminated a material agreement", "medium", "bear"),
+    "1.02": ItemInfo("Terminated a material agreement", "medium", "neutral"),  # often a refinancing
     "1.03": ItemInfo("Bankruptcy or receivership", "high", "bear"),
     "1.04": ItemInfo("Mine safety violation", "low", "bear"),
     "1.05": ItemInfo("Material cybersecurity incident", "high", "bear"),
@@ -289,6 +290,163 @@ def filings_from_submissions(
 
 
 # --------------------------------------------------------------------------- #
+# 8-K narrative excerpts
+# --------------------------------------------------------------------------- #
+# Items whose text says *what happened* (worth one document fetch). Earnings
+# releases (2.02), Reg FD (7.01), votes (5.07) and exhibits (9.01) only point at
+# attachments, so their decoded title already says everything.
+_NARRATIVE_ITEMS = {"1.01", "1.02", "1.03", "1.05", "2.01", "2.03", "2.04", "2.05", "2.06", "3.01",
+                    "3.02", "4.01", "4.02", "5.01", "5.02", "8.01"}
+_ITEM_HEADER = re.compile(r"\bItem\s+(\d\.\d\d)\b\.?", re.IGNORECASE)
+_DEFINED_TERM = re.compile(r"\s*\((?:[^()]{0,60}?,\s*)?(?:the\s+|collectively\s+)?[“\"][^”\"]{1,40}[”\"]\)")
+_BOILERPLATE = re.compile(r"press release|exhibit 99|incorporated (?:herein )?by reference|furnished|"
+                          r"forward-looking|shall not be deemed", re.IGNORECASE)
+_LEAD_DATE = re.compile(r"^(?:\([a-z]\)\s*)?(?:On|Effective)\s+[A-Z][a-z]+\s+\d{1,2},\s+\d{4},?\s+", re.UNICODE)
+_SENTENCE_END = re.compile(r"\.\s+(?=[A-Z(“\"])")
+_ABBREVIATIONS = {"inc", "corp", "co", "ltd", "no", "mr", "ms", "mrs", "dr", "st", "jr", "sr", "s", "u", "approx",
+                  "vs", "n.a", "l.p", "l.l.c", "e.g", "i.e"}
+
+
+def _split_sentences(text: str) -> list[str]:
+    """Sentence split that survives "Hugging Face, Inc. The …" and "Ajay K. Puri"."""
+    out: list[str] = []
+    start = 0
+    for match in _SENTENCE_END.finditer(text):
+        prev = text[start:match.start()].rsplit(" ", 1)[-1].lower()
+        if prev in _ABBREVIATIONS or (len(prev) == 1 and prev.isalpha()):
+            continue
+        out.append(text[start:match.start() + 1])
+        start = match.end()
+    out.append(text[start:])
+    return out
+_TAGS = re.compile(r"<[^>]+>")
+
+
+def html_to_text(doc: str) -> str:
+    """Filing HTML -> one line of plain text."""
+    doc = re.sub(r"(?is)<(script|style)[^>]*>.*?</\1>", " ", doc)
+    text = html.unescape(_TAGS.sub(" ", doc)).replace("\u00a0", " ")
+    text = re.sub(r"\s+", " ", text)
+    return re.sub(r"\s+([.,;:)])", r"\1", text).strip()  # "2026 ." -> "2026."
+
+
+def summarize_8k(doc: str, items: list[str], max_chars: int = 300) -> str | None:
+    """Pure: the first substantive sentence(s) of the most important narrative item.
+
+    Real filing text only (lightly trimmed: defined-term parentheticals and the
+    leading "On <date>," clause are removed) — never paraphrased.
+    """
+    text = html_to_text(doc)
+    wanted = sorted((c for c in items if c in _NARRATIVE_ITEMS and c in ITEMS_8K),
+                    key=lambda c: -_RANK[ITEMS_8K[c].importance])
+    headers = list(_ITEM_HEADER.finditer(text))
+    for code in wanted:
+        for i, match in enumerate(headers):
+            if match.group(1) != code:
+                continue
+            end = headers[i + 1].start() if i + 1 < len(headers) else len(text)
+            section = text[match.end():end]
+            # Skip the item's official caption: start at the first "On <date>" / "(a)" narrative,
+            # else right after the caption's closing period.
+            start = re.search(r"\((?:[a-z])\)\s|\bOn\s+[A-Z][a-z]+\s+\d{1,2},\s+\d{4}|\bEffective\s", section[:400])
+            if start:
+                body = section[start.start():]
+            else:
+                parts = _split_sentences(section)
+                body = " ".join(parts[1:]) if len(parts) > 1 else ""
+            excerpt = _excerpt(body, max_chars) if body else None
+            if excerpt:
+                return excerpt
+    return None
+
+
+_MONEY = re.compile(r"\$\s?\d|\b\d[\d,.]*\s?(?:billion|million|percent)\b|\d%")
+
+
+def _clean_sentence(sentence: str) -> str:
+    sentence = _LEAD_DATE.sub("", _DEFINED_TERM.sub("", sentence)).strip()
+    return (sentence[:1].upper() + sentence[1:]).rstrip(".") + "."
+
+
+def _fit(sentence: str, budget: int) -> str | None:
+    """Sentence within `budget` chars, cut at a clause boundary if needed."""
+    if len(sentence) <= budget:
+        return sentence
+    cut = sentence[: budget - 1]
+    cut = cut[: cut.rfind(", ")] if ", " in cut[budget // 2:] else cut.rsplit(" ", 1)[0]
+    return cut.rstrip(" ,;") + "…" if len(cut) > 40 else None
+
+
+def _excerpt(section: str, max_chars: int) -> str | None:
+    """Lead sentence + (preferably) the next sentence that carries a number."""
+    sentences = [s.strip() for s in _split_sentences(section) if s.strip()]
+    narrative = [s for s in sentences[:6] if not _BOILERPLATE.search(s)]
+    if not narrative:
+        return None
+    lead = _fit(_clean_sentence(narrative[0]), max_chars)
+    if not lead:
+        return None
+    rest = [_clean_sentence(s) for s in narrative[1:3]]
+    follow = next((s for s in rest if _MONEY.search(s)), rest[0] if rest else None)
+    extra = _fit(follow, max_chars - len(lead) - 1) if follow else None
+    return f"{lead} {extra}" if extra else lead
+
+
+_EXEC = r"\b(?:chief executive|chief financial|ceo|cfo)\b.{0,160}\b"
+_EXCERPT_RULES: tuple[tuple[re.Pattern[str], Importance, Pol | None], ...] = (
+    (re.compile(r"going concern|material weakness|subpoena|wells notice|investigation by|class action",
+                re.IGNORECASE), "high", "bear"),
+    (re.compile(_EXEC + r"(?:resign|terminat|separat)", re.IGNORECASE | re.DOTALL), "high", "bear"),
+    (re.compile(_EXEC + r"(?:retire|step(?:ping)? down|depart|transition|successor|appoint)",
+                re.IGNORECASE | re.DOTALL), "high", None),
+    (re.compile(r"definitive (?:merger )?agreement|merger agreement|agreement and plan of merger|to acquire|"
+                r"tender offer|business combination", re.IGNORECASE), "high", None),
+    (re.compile(r"(?:increase|authoriz|approv)\w*.{0,80}(?:share repurchase|stock repurchase|buyback)|"
+                r"(?:share repurchase|stock repurchase|buyback).{0,80}(?:increase|authoriz|approv)",
+                re.IGNORECASE | re.DOTALL), "medium", "bull"),
+)
+
+
+def reassess_8k(filing: Filing, excerpt: str) -> Filing:
+    """Raise importance / set polarity from what the filing text actually says."""
+    importance, polarity = filing.importance, filing.polarity
+    for pattern, imp, pol in _EXCERPT_RULES:
+        if pattern.search(excerpt):
+            if _RANK[imp] > _RANK[importance]:
+                importance = imp
+            if pol and polarity == "neutral":
+                polarity = pol
+    return filing.model_copy(update={"title": f"{filing.title}: {excerpt}", "importance": importance,
+                                     "polarity": polarity})
+
+
+def narrative_8k_docs(sub: dict[str, Any], *, today: date, window_days: int = 60, limit: int = 5) -> dict[str, str]:
+    """Pure: {filing index URL: primary document URL} for recent narrative 8-Ks."""
+    recent = ((sub or {}).get("filings") or {}).get("recent") or {}
+    cik_int = int(str(sub.get("cik") or "0") or 0)
+    out: dict[str, str] = {}
+    for i, form in enumerate(recent.get("form") or []):
+        if form not in {"8-K", "8-K/A"}:
+            continue
+        try:
+            filed = date.fromisoformat(recent["filingDate"][i])
+        except (KeyError, ValueError):
+            continue
+        if (today - filed).days > window_days:
+            continue
+        codes = {c.strip() for c in (recent.get("items") or [""] * len(recent["form"]))[i].split(",")}
+        if not codes & _NARRATIVE_ITEMS:
+            continue
+        acc = recent["accessionNumber"][i]
+        nodash = acc.replace("-", "")
+        index_url = INDEX_URL.format(cik=cik_int, acc_nodash=nodash, acc=acc)
+        out[index_url] = ARCHIVE_URL.format(cik=cik_int, acc_nodash=nodash, doc=recent["primaryDocument"][i])
+        if len(out) >= limit:
+            break
+    return out
+
+
+# --------------------------------------------------------------------------- #
 # Fetching
 # --------------------------------------------------------------------------- #
 @cached(ttl=86400, none_ttl=120)
@@ -334,7 +492,34 @@ async def get_filings(company: CompanyRef, limit: int = 20) -> list[Filing]:
     if not cik:
         return []
     sub = await get_submissions(cik)
-    return filings_from_submissions(sub, limit=limit) if sub else []
+    if not sub:
+        return []
+    today = datetime.now(timezone.utc).date()
+    filings = filings_from_submissions(sub, limit=limit, today=today)
+    docs = narrative_8k_docs(sub, today=today)
+    if not docs:
+        return filings
+
+    async def excerpt(filing: Filing) -> Filing:
+        doc_url = docs.get(filing.url or "")
+        if not doc_url:
+            return filing
+        try:
+            text = await _filing_document(doc_url)
+        except Exception as exc:  # noqa: BLE001 - excerpts are a bonus; keep the decoded title
+            logger.info("8-K document fetch failed %s: %s", doc_url, exc)
+            return filing
+        summary = summarize_8k(text, filing.items) if text else None
+        return reassess_8k(filing, summary) if summary else filing
+
+    return list(await asyncio.gather(*(excerpt(f) for f in filings)))
+
+
+@cached(ttl=86400, none_ttl=600, maxsize=256)
+async def _filing_document(url: str) -> str | None:
+    """A filing's primary document (immutable once filed, so cached for a day)."""
+    resp = await fetch(url, headers=sec_headers(), timeout=12.0)
+    return resp.text[:400_000]
 
 
 # --------------------------------------------------------------------------- #
@@ -342,7 +527,8 @@ async def get_filings(company: CompanyRef, limit: int = 20) -> list[Filing]:
 # --------------------------------------------------------------------------- #
 _CODE_KIND = {"P": "buy", "S": "sell", "A": "award", "M": "exercise", "X": "exercise", "C": "exercise",
               "G": "gift", "F": "other", "D": "other", "J": "other", "W": "other", "I": "other"}
-_CODE_TEXT = {"P": "Purchase", "S": "Sale", "A": "Stock Award(Grant)", "M": "Conversion of Exercise of derivative security",
+_CODE_TEXT = {"P": "Purchase", "S": "Sale", "A": "Stock Award(Grant)",
+              "M": "Conversion of Exercise of derivative security",
               "X": "Exercise of derivative security", "C": "Conversion of derivative security", "G": "Stock Gift",
               "F": "Shares withheld for taxes", "D": "Disposition to issuer"}
 

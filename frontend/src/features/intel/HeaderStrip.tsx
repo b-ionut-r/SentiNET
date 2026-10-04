@@ -17,9 +17,11 @@ interface Props {
   onWatch: () => void;
   onRefresh: () => void;
   refreshing: boolean;
+  /** Progress events received during a background re-scan. */
+  progressCount?: number;
 }
 
-export function HeaderStrip({ a, watched, onWatch, onRefresh, refreshing }: Props) {
+export function HeaderStrip({ a, watched, onWatch, onRefresh, refreshing, progressCount = 0 }: Props) {
   const p = a.profile;
   const qt = a.quote;
   const chg = polarityOf(qt?.change_pct ?? 0, 0.005);
@@ -57,6 +59,28 @@ export function HeaderStrip({ a, watched, onWatch, onRefresh, refreshing }: Prop
         </div>
         <DayRange low={qt?.day_low ?? null} high={qt?.day_high ?? null} last={qt?.price ?? null} currency={qt?.currency} />
         <Stat label="Mkt cap" value={money(qt?.market_cap, qt?.currency)} />
+        {a.technicals && (a.technicals.return_1m != null || a.technicals.return_ytd != null) && (
+          <Stat
+            label={a.technicals.pct_from_52w_high != null ? `${pct(a.technicals.pct_from_52w_high)} from 52w high` : "returns"}
+            value={
+              <span className="flex gap-2.5">
+                {(
+                  [
+                    ["1M", a.technicals.return_1m],
+                    ["YTD", a.technicals.return_ytd],
+                  ] as const
+                )
+                  .filter(([, v]) => v != null)
+                  .map(([k, v]) => (
+                    <span key={k}>
+                      <span className="mr-1 text-2xs font-normal text-muted">{k}</span>
+                      <span className={textTone[polarityOf(v ?? 0, 0.05)]}>{pct(v)}</span>
+                    </span>
+                  ))}
+              </span>
+            }
+          />
+        )}
         <Stat
           label="Volume"
           value={
@@ -84,8 +108,13 @@ export function HeaderStrip({ a, watched, onWatch, onRefresh, refreshing }: Prop
             <Columns3 className="size-3.5" />
           </Link>
         </div>
-        <p className="text-2xs text-muted">
-          Updated {timeAgo(a.generated_at)} · {a.cached ? "cached" : `fresh run ${ms(a.elapsed_ms)}`} · {ok}/{live} sources ok · engine {a.engine}
+        <p className="text-2xs text-muted" aria-live="polite">
+          {refreshing ? (
+            <span className="text-accent">Re-scanning{progressCount > 0 ? ` · ${progressCount} updates` : "…"}</span>
+          ) : (
+            <>Updated {timeAgo(a.generated_at)}</>
+          )}{" "}
+          · {a.cached ? "cached" : `fresh run ${ms(a.elapsed_ms)}`} · {ok}/{live} sources ok · engine {a.engine}
         </p>
       </div>
     </header>

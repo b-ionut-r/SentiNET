@@ -7,6 +7,7 @@ import { ChevronRight, ExternalLink } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import type { Analysis, Narrative, Signal } from "../../api/types";
+import { Pulse } from "../../components/charts/Pulse";
 import { Chip, ScoreChip } from "../../components/ui/Badges";
 import { Empty } from "../../components/ui/Misc";
 import { Panel } from "../../components/ui/Panel";
@@ -35,6 +36,12 @@ export function Narratives({ a, membersOf, className }: { a: Analysis; membersOf
       ) : (
         <>
           <CoverageMix narratives={a.narratives} />
+          {a.timeline.length > 1 && (
+            <div className="px-4 pb-3.5">
+              <div className="mb-1.5 text-2xs text-muted">Signal pulse · all kept items over time</div>
+              <Pulse buckets={a.timeline} />
+            </div>
+          )}
           <ol className="divide-hair hairline-t">
             {list.map((n, i) => (
               <NarrativeRow key={n.id} n={n} rank={i + 1} members={membersOf.get(n.id) ?? []} defaultOpen={false} />

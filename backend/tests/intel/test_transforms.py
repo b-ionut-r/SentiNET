@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import math
 from datetime import date, datetime, timezone
+from itertools import pairwise
 
 import pandas as pd
 import pytest
@@ -75,7 +76,7 @@ def test_candles_intraday_and_crypto() -> None:
 def test_closes_use_exchange_session_dates() -> None:
     closes = tx.closes_from_history(fx.bars("NVDA"))
     assert closes[-1][0] == date(2026, 10, 2)  # NY session date, not the UTC timestamp's date
-    assert all(a[0] < b[0] for a, b in zip(closes, closes[1:], strict=False))
+    assert all(a[0] < b[0] for a, b in pairwise(closes))
 
 
 # --------------------------------------------------------------------------- #
@@ -297,3 +298,17 @@ def test_indices_from_download() -> None:
     assert spy.spark[-1] == spy.price
     assert quotes["BTC-USD"].price and quotes["^VIX"].price
     assert quotes["NOPE"].price is None and quotes["NOPE"].spark == []
+
+
+def test_crypto_profile_drops_stale_price_sentences() -> None:
+    p = tx.profile_from_info(fx.info("BTC-USD"), symbol="BTC-USD", name="Bitcoin", short_name="Bitcoin",
+                             quote_type="CRYPTOCURRENCY", exchange="Crypto", cik=None, logo_url=None)
+    assert p.summary and "Bitcoin" in p.summary
+    assert "last known price" not in p.summary and "24 hours" not in p.summary
+
+
+def test_earnings_reported_today_is_not_next() -> None:
+    dates = fx.earnings_dates("NVDA")
+    reported_day = date(2026, 8, 26)
+    view = tx.earnings_from_frames({"Earnings Date": [reported_day]}, dates, {}, today=reported_day)
+    assert view is not None and view.next_date == date(2026, 11, 17)  # the Aug 26 report already happened

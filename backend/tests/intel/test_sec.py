@@ -159,5 +159,70 @@ async def test_form4_fallback_end_to_end(monkeypatch: pytest.MonkeyPatch) -> Non
 
 class _FrozenDatetime(sec.datetime):  # type: ignore[misc, valid-type]
     @classmethod
-    def now(cls, tz=None):  # noqa: ANN001, ANN206
+    def now(cls, tz=None):
         return sec.datetime(2026, 10, 4, 22, 0, tzinfo=tz)
+
+
+# --------------------------------------------------------------------------- #
+# 8-K narrative excerpts (real documents)
+# --------------------------------------------------------------------------- #
+def test_summarize_8k_acquisition_keeps_the_dollar_figure() -> None:
+    text = sec.summarize_8k(load_text("sec/8k_nvda_801.htm"), ["8.01"])
+    assert text is not None
+    assert text.startswith("NVIDIA Corporation entered into a definitive agreement to acquire Hugging Face, Inc.")
+    assert "$11.9 billion" in text and "“" not in text and len(text) <= 300
+
+
+def test_summarize_8k_officer_change_and_amendment() -> None:
+    officer = sec.summarize_8k(load_text("sec/8k_nvda_502.htm"), ["5.02"])
+    assert officer and officer.startswith("Ajay K. Puri") and "retire" in officer
+    amended = sec.summarize_8k(load_text("sec/8k_aapl_502a.htm"), ["5.02"])
+    assert amended and "Chief Executive Officer transition" in amended and " ." not in amended
+
+
+def test_summarize_8k_skips_pointer_only_items() -> None:
+    assert sec.summarize_8k(load_text("sec/8k_nvda_101.htm"), ["7.01", "9.01"]) is None
+    partnership = sec.summarize_8k(load_text("sec/8k_nvda_101.htm"), ["1.01", "2.03", "7.01"])
+    assert partnership and partnership.startswith("NVIDIA Corporation announced a multi-year partnership with SB Energy")
+
+
+def test_reassess_8k_from_excerpt() -> None:
+    base = sec.Filing(form="8-K", date=TODAY, title="Other material event", items=["8.01"])
+    deal = sec.reassess_8k(base, "Acme entered into a definitive agreement to acquire Widget Co.")
+    assert deal.importance == "high" and deal.title.startswith("Other material event: Acme entered")
+    ceo = sec.reassess_8k(base, "The Chief Executive Officer resigned from all positions with the Company.")
+    assert ceo.importance == "high" and ceo.polarity == "bear"
+    buyback = sec.reassess_8k(base, "The Board authorized an increase of $10 billion to the share repurchase program.")
+    assert buyback.polarity == "bull"
+    plain = sec.reassess_8k(base, "The Company relocated its headquarters.")
+    assert plain.importance == "low" and plain.polarity == "neutral"
+
+
+def test_narrative_docs_selection() -> None:
+    sub = _sub([("8-K", "2026-09-30", "8.01"), ("8-K", "2026-09-29", "2.02,9.01"), ("8-K", "2026-06-01", "5.02")])
+    docs = sec.narrative_8k_docs(sub, today=TODAY)
+    assert len(docs) == 1  # earnings release skipped; June filing outside 60 days
+    (index_url, doc_url), = docs.items()
+    assert index_url.endswith("-index.htm") and doc_url.endswith("/doc.htm")
+
+
+async def test_get_filings_enriches_recent_8k(monkeypatch: pytest.MonkeyPatch) -> None:
+    sub = _sub([("8-K", "2026-09-30", "8.01")])
+    company = CompanyRef(ticker="ACME", name="Acme", short_name="Acme", cik="0000000001")
+    monkeypatch.setattr(sec, "datetime", _FrozenDatetime)
+    with respx.mock as mock:
+        mock.get("https://data.sec.gov/submissions/CIK0000000001.json").mock(return_value=httpx.Response(200, json=sub))
+        mock.get(url__regex=r".*/doc\.htm$").mock(return_value=httpx.Response(200, text=load_text("sec/8k_nvda_801.htm")))
+        filings = await sec.get_filings(company)
+    assert filings[0].importance == "high" and "Hugging Face" in filings[0].title
+
+
+async def test_get_filings_keeps_title_when_document_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+    sub = _sub([("8-K", "2026-09-30", "8.01")])
+    company = CompanyRef(ticker="ACME", name="Acme", short_name="Acme", cik="0000000001")
+    monkeypatch.setattr(sec, "datetime", _FrozenDatetime)
+    with respx.mock as mock:
+        mock.get("https://data.sec.gov/submissions/CIK0000000001.json").mock(return_value=httpx.Response(200, json=sub))
+        mock.get(url__regex=r".*/doc\.htm$").mock(return_value=httpx.Response(404))
+        filings = await sec.get_filings(company)
+    assert filings[0].title == "Other material event"

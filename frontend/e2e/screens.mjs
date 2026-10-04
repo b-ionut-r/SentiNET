@@ -6,7 +6,14 @@
  *   npm run build && npm run screens            # everything
  *   node e2e/screens.mjs intel-aapl --w=1440 --t=dark   # one page / width / theme
  *
- * Output: e2e/screens/<page>.<width>.<theme>.png
+ * Output: e2e/screens/<page>.<width>.<theme>.png  (--parts also writes full-res slices)
+ *
+ * Fixtures (e2e/fixtures/*.json) are schema-valid samples validated against
+ * backend/app/schemas.py. They are seeded from real captured payloads (Google
+ * News headlines, StockTwits/Bluesky/HN posts, ApeWisdom, Tradestie, CNN and
+ * crypto Fear & Greed, SEC submissions, yfinance prices/analysts/earnings/
+ * insiders, Oct 2026); derived fields (scores, narratives, verdicts) and GDELT
+ * tone series are illustrative. *.LIVE.json is verbatim backend output.
  */
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
@@ -48,6 +55,13 @@ function sseBody(ticker, withResult) {
   return body;
 }
 
+/** A scan caught mid-flight: the first 38 events of a real captured stream (LIVE), or a synthetic cut. */
+function partialSse(ticker) {
+  const real = fixture(`progress.${ticker}.json`) ?? [];
+  const events = ticker === "LIVE" ? real.slice(0, 38) : real.filter((p) => p.stage === "resolve" || p.stage === "source");
+  return events.map((p) => `event: progress\ndata: ${JSON.stringify(p)}\n\n`).join("");
+}
+
 const json = (route, data, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(data) });
 const never = () => new Promise(() => {});
 
@@ -62,7 +76,7 @@ async function handleApi(route, hold) {
   if ((m = path.match(/^\/analyze\/([^/]+)\/stream$/))) {
     const t = decodeURIComponent(m[1]).toUpperCase();
     if (hold.has(t)) {
-      return route.fulfill({ status: 200, headers: { "content-type": "text/event-stream", "cache-control": "no-cache" }, body: sseBody("AAPL", false).split("\n\n").slice(0, 19).join("\n\n") + "\n\n" });
+      return route.fulfill({ status: 200, headers: { "content-type": "text/event-stream", "cache-control": "no-cache" }, body: partialSse(t) });
     }
     return route.fulfill({ status: 200, headers: { "content-type": "text/event-stream", "cache-control": "no-cache" }, body: sseBody(t, true) });
   }
@@ -108,8 +122,10 @@ const PAGES = [
   { name: "market", path: "/" },
   { name: "intel-aapl", path: "/t/AAPL", wait: "#verdict" },
   { name: "intel-btc", path: "/t/BTC-USD", wait: "#verdict" },
-  { name: "intel-scan", path: "/t/NVDA", hold: ["NVDA"], settle: 900 },
-  { name: "intel-error", path: "/t/ZZZZ", settle: 600 },
+  // Real backend output captured before the analytics module existed: sparse/stub data must not break the page.
+  { name: "intel-live", path: "/t/LIVE", wait: "#verdict" },
+  { name: "intel-scan", path: "/t/LIVE", hold: ["LIVE"], settle: 900 },
+  { name: "intel-error", path: "/t/APPL", settle: 600 },
   { name: "compare", path: "/compare?t=AAPL,NVDA,MSFT", settle: 1500 },
   { name: "watchlist", path: "/watchlist" },
   {
@@ -186,7 +202,9 @@ try {
         if (process.env.DEBUG) console.log("goto", pg.path, width, theme);
         await page.goto(BASE + pg.path, { waitUntil: "load", timeout: 20000 });
         if (process.env.DEBUG) console.log("loaded");
+        await page.waitForSelector("main", { timeout: 10000 });
         if (pg.wait) await page.waitForSelector(pg.wait, { timeout: 10000 });
+        await page.waitForTimeout(250); // let effects (hotkeys, observers) attach
         if (pg.act) await pg.act(page);
         await page.waitForTimeout(pg.settle ?? 700);
         const file = join(OUT, `${pg.name}.${width}.${theme}.png`);

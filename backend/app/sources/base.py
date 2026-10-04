@@ -11,13 +11,14 @@ A source fetches content for one company and returns a `SourceBatch`:
   text to smuggle metrics into the text pipeline.
 
 Metric keys (documented contract, consumed by the analytics layer):
-    stocktwits:  stocktwits_bullish, stocktwits_bearish, stocktwits_messages,
-                 stocktwits_watchers
-    apewisdom:   reddit_mentions, reddit_mentions_prev, reddit_rank,
-                 reddit_rank_prev, reddit_upvotes
-    tradestie:   wsb_sentiment (float -1..1), wsb_label ("bullish"/"bearish"),
-                 wsb_comments
-    bluesky:     bluesky_posts
+    stocktwits:   stocktwits_bullish, stocktwits_bearish, stocktwits_messages,
+                  stocktwits_watchers, stocktwits_span_hours (time covered by the sample)
+    apewisdom:    reddit_mentions, reddit_mentions_prev, reddit_rank,
+                  reddit_rank_prev, reddit_upvotes, reddit_tracked (board size)
+    tradestie:    wsb_rank (1..50), wsb_comments, and — only while the provider's
+                  scores are live, not frozen — wsb_sentiment (-1..1), wsb_label
+    bluesky:      bluesky_posts (sample count, capped by the query limit)
+    alphavantage: av_sentiment (-1..1), av_articles
 """
 from __future__ import annotations
 

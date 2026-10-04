@@ -40,6 +40,10 @@ STOCKTWITS_TRENDING_URL = "https://api.stocktwits.com/api/2/trending/symbols.jso
 
 UTC = timezone.utc
 
+
+def _now() -> datetime:
+    return datetime.now(UTC)
+
 # --------------------------------------------------------------------------- #
 # Fear & Greed
 # --------------------------------------------------------------------------- #
@@ -220,19 +224,22 @@ async def get_trending() -> list[TrendingTicker]:
 # --------------------------------------------------------------------------- #
 # Headlines
 # --------------------------------------------------------------------------- #
-GOOGLE_NEWS_URL = ("https://news.google.com/rss/search?q=%22stock+market%22+OR+%22Wall+Street%22+OR+%22S%26P+500%22"
+CNBC_URL = "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id={id}"
+# Not "Wall Street": it matches every Wall Street Journal story.
+GOOGLE_NEWS_URL = ("https://news.google.com/rss/search?q=%22stock+market%22+OR+%22S%26P+500%22+OR+%22Dow+Jones%22"
                    "+when:1d&hl=en-US&gl=US&ceid=US:en")
 FEEDS: list[tuple[str, str, str | None, bool]] = [
     # (key, url, publisher, needs_market_filter) — most trusted first (dedupe keeps the first copy)
-    ("cnbc_top", "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=100003114", "CNBC", True),
-    ("cnbc_finance", "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10000664", "CNBC", True),
-    ("cnbc_economy", "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=20910258", "CNBC", True),
+    ("cnbc_top", CNBC_URL.format(id=100003114), "CNBC", True),
+    ("cnbc_finance", CNBC_URL.format(id=10000664), "CNBC", True),
+    ("cnbc_economy", CNBC_URL.format(id=20910258), "CNBC", True),
     ("marketwatch", "https://feeds.content.dowjones.io/public/rss/mw_topstories", "MarketWatch", True),
-    ("google_news", GOOGLE_NEWS_URL, None, False),
-    ("bing_news", "https://www.bing.com/news/search?q=%22stock+market%22&format=rss", None, False),
-    ("bing_wallstreet", "https://www.bing.com/news/search?q=Wall+Street+stocks&format=rss", None, False),
+    ("google_news", GOOGLE_NEWS_URL, None, True),
+    ("bing_news", "https://www.bing.com/news/search?q=%22stock+market%22&format=rss", None, True),
+    ("bing_wallstreet", "https://www.bing.com/news/search?q=Wall+Street+stocks&format=rss", None, True),
 ]
 MAX_HEADLINES = 120
+PER_FEED_CAP = 40  # keep one aggregator from drowning out the others
 
 # General news feeds carry politics/lifestyle too; keep what can move markets.
 _MARKET_TERMS = re.compile(
@@ -243,6 +250,17 @@ _MARKET_TERMS = re.compile(
     r"bank|banks|tech|ai|chip|chips|semiconductors?|layoffs?|bankruptcy|sec|antitrust|ceo)\b",
     re.IGNORECASE,
 )
+# Single-country market stories (Lagos, Dhaka, Seoul…) crowd out what moves US
+# markets; kept only when they also mention Wall Street / US benchmarks.
+_FOREIGN = re.compile(
+    r"\b(bangladesh\w*|dhaka|nigeria\w*|lagos|ghana\w*|kenya\w*|nairobi|pakistan\w*|karachi|psx|sri lanka\w*|"
+    r"india\w*|sensex|nifty|bse|nse|korea\w*|seoul|kospi|philippine\w*|psei|vietnam\w*|thai\w*|indonesia\w*|"
+    r"malaysia\w*|bursa|egypt\w*|egx|saudi|tadawul|turk\w*|borsa|french|cac 40|german\w*|dax|ftse|uk stocks|"
+    r"nikkei|hang seng|shanghai|shenzhen|asx|tsx|jse|zimbabwe\w*|uganda\w*|zambia\w*)\b",
+    re.IGNORECASE,
+)
+_US_MARKET = re.compile(r"\b(wall street|s&p|nasdaq|dow|fed|federal reserve|treasur\w+|u\.?s\.?|american|nyse)\b",
+                        re.IGNORECASE)
 # First-person advice columns ("I'm 71 and still working…?") are not market news.
 _ADVICE = re.compile(r"^[‘'\"“]?(?:I|I’m|I'm|I’ve|I've|My|We|We’re|We're|Our|Should I|Can I|How do I)\b")
 _TAG = re.compile(r"<[^>]+>")
@@ -290,6 +308,8 @@ def parse_feed(xml_text: str, key: str, publisher: str | None, market_filter: bo
         body = None if key == "google_news" else (_clean(entry.get("summary")) or None)
         if market_filter and (_ADVICE.match(title) or not _MARKET_TERMS.search(f"{title} {body or ''}")):
             continue
+        if _FOREIGN.search(title) and not _US_MARKET.search(title):
+            continue
         parsed = entry.get("published_parsed") or entry.get("updated_parsed")
         ts = datetime.fromtimestamp(calendar.timegm(parsed), UTC) if parsed else None
         out.append(RawSignal(title=title, body=body if body and body != title else None, url=url,
@@ -311,7 +331,8 @@ def merge_headlines(batches: list[list[RawSignal]], *, now: datetime, limit: int
     seen_urls: set[str] = set()
     merged: list[RawSignal] = []
     for batch in batches:
-        for sig in batch:
+        newest_first = sorted(batch, key=lambda s: s.timestamp or datetime.min.replace(tzinfo=UTC), reverse=True)
+        for sig in newest_first[:PER_FEED_CAP]:
             key = _dedupe_key(sig.title)
             if key in seen_titles or (sig.url and sig.url in seen_urls):
                 continue
@@ -344,4 +365,4 @@ async def get_market_headlines() -> list[RawSignal]:
             batches.append(res)
     if not batches:
         raise UpstreamError("all market headline feeds failed")
-    return merge_headlines(batches, now=datetime.now(UTC))
+    return merge_headlines(batches, now=_now())

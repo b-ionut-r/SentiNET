@@ -23,6 +23,10 @@ from app.config import settings
 from app.core.ratelimit import limiter
 
 logger = logging.getLogger(__name__)
+# httpx logs every request URL at INFO; free-tier API keys travel as query
+# params, so keep those logs out of the server output.
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 _client: Optional[httpx.AsyncClient] = None
 
@@ -90,7 +94,7 @@ async def fetch(
                 continue
             resp.raise_for_status()
             return resp
-        except (httpx.TransportError,) as exc:
+        except httpx.TransportError as exc:
             if attempt < retries:
                 attempt += 1
                 await asyncio.sleep(0.8 * attempt)

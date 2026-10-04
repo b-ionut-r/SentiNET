@@ -15,12 +15,13 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+from dataclasses import replace
 from typing import Any
 from urllib.parse import urlsplit
 
 from app.core.cache import cached
 from app.core.sync import run_yahoo
-from app.resolve.names import CRYPTO_NAMES, derive_names, fix_case
+from app.resolve.names import BARE_CRYPTO, CRYPTO_NAMES, derive_names, fix_case
 from app.schemas import SymbolMatch
 from app.sources.base import CompanyRef
 
@@ -33,7 +34,9 @@ _VALID = re.compile(r"^\^?[A-Z0-9][A-Z0-9.\-=]{0,14}$")
 _CLASS_SHARE = re.compile(r"^([A-Z]{1,5})[./]([ABC])$")  # BRK.B, BF/B -> BRK-B, BF-B
 _CRYPTO_PAIR = re.compile(r"^([A-Z0-9]{2,10})[-/]?(USD|USDT|USDC)$")
 _CRYPTO_STOCKTWITS = re.compile(r"^([A-Z0-9]{2,10})\.X$")  # StockTwits style: BTC.X
-_EXCHANGE_PREFIX = re.compile(r"^(?:NASDAQ|NYSE|NYSEARCA|NYSEAMERICAN|AMEX|ARCA|BATS|OTC|TSX|LSE)\s*:\s*", re.IGNORECASE)
+_EXCHANGE_PREFIX = re.compile(
+    r"^(?:NASDAQ|NYSE|NYSEARCA|NYSEAMERICAN|AMEX|ARCA|BATS|OTC|TSX|LSE)\s*:\s*", re.IGNORECASE
+)
 
 # Yahoo exchange codes -> display names.
 EXCHANGES: dict[str, str] = {
@@ -57,8 +60,10 @@ def normalize_ticker(raw: str) -> str | None:
       * share classes ``BRK.B`` / ``BRK/B`` -> ``BRK-B`` (only A/B/C; ``.L``/``.TO`` etc.
         are exchange suffixes and are kept);
       * crypto: ``BTC.X`` (StockTwits), ``BTCUSD``, ``BTC/USD`` -> ``BTC-USD``; a bare
-        major-coin symbol (``BTC``, ``ETH``, ``SOL``… see `CRYPTO_NAMES`) -> ``-USD``,
-        because in a sentiment terminal "BTC" means bitcoin, not the Grayscale mini trust;
+        major-coin symbol (``BTC``, ``ETH``, ``SOL``… see `BARE_CRYPTO`) -> ``-USD``,
+        because in a sentiment terminal "BTC" means bitcoin, not the Grayscale mini trust.
+        Coins whose bare symbol belongs to a listed stock (``LTC``, ``LINK``, ``SUI``…)
+        stay stocks; ask for ``LTC-USD`` explicitly;
       * indices keep ``^`` (``^VIX``), futures keep ``=F`` (``GC=F``);
       * anything else must match ``[A-Z0-9][A-Z0-9.-=]{0,14}`` and contain a letter.
     """
@@ -72,7 +77,7 @@ def normalize_ticker(raw: str) -> str | None:
         sym = f"{m.group(1)}-USD"
     elif m := _CLASS_SHARE.match(sym):
         sym = f"{m.group(1)}-{m.group(2)}"
-    elif sym in CRYPTO_NAMES:
+    elif sym in BARE_CRYPTO:
         sym = f"{sym}-USD"
     elif (m := _CRYPTO_PAIR.match(sym)) and m.group(1) in CRYPTO_NAMES:
         sym = f"{m.group(1)}-{m.group(2)}"
@@ -198,7 +203,7 @@ async def resolve_company(ticker: str) -> CompanyRef:
         logger.warning("resolve %s failed: %s", sym, exc)
         ref = None
     if ref is not None:
-        return ref
+        return replace(ref, aliases=list(ref.aliases))  # callers may mutate; keep the cached copy pristine
     sec_entry: tuple[str, str] | None = None
     try:
         from app.intel.sec import get_cik_map

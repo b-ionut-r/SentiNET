@@ -12,7 +12,7 @@ Trust tiers (multiplicative weights, 1.0 = typical finance outlet):
     1.05-1.15  strong general/business press (NYT, CNN, Fortune, Nikkei …)
     0.9-1.0    mainstream finance (Yahoo Finance, Motley Fool, Seeking Alpha …)
     0.6-0.8    algorithmic/aggregator outlets (MarketBeat, GuruFocus, Stock Titan …)
-    0.55       press-release wires and company newsrooms
+    0.55       press-release wires, company newsrooms, low-quality content sites
     0.5        MarketBeat-network auto-content sites
     0.8        unknown
 """
@@ -122,6 +122,16 @@ _PUBLISHERS: tuple[tuple[str, float, tuple[str, ...]], ...] = (
     ("Insider Monkey", 0.7, ("insider monkey", "insidermonkey.com")),
     ("Moomoo", 0.7, ("moomoo", "moomoo.com")),
     ("Finviz", 0.8, ("finviz", "finviz.com")),
+    ("MarketScreener", 0.85, ("marketscreener", "marketscreener.com", "zonebourse")),
+    ("AOL", 0.9, ("aol", "aol.com", "aol.ca")),
+    ("inkl", 0.85, ("inkl", "inkl.com")),
+    ("The Business Journals", 1.0, ("the business journals", "bizjournals", "bizjournals.com")),
+    ("New York Post", 0.85, ("new york post", "nypost", "nypost.com")),
+    ("Times of India", 0.9, ("times of india", "the times of india", "timesofindia.indiatimes.com")),
+    ("Deadline", 0.95, ("deadline", "deadline.com")),
+    ("Quiver Quantitative", 0.7, ("quiver quantitative", "quiverquant.com")),
+    ("Finbold", 0.6, ("finbold", "finbold.com")),
+    ("Traders Union", 0.6, ("traders union", "tradersunion.com")),
     # --- algorithmic / aggregator ------------------------------------------- #
     ("GuruFocus", 0.75, ("gurufocus", "gurufocus.com")),
     ("MarketBeat", 0.65, ("marketbeat", "marketbeat.com")),
@@ -136,6 +146,7 @@ _PUBLISHERS: tuple[tuple[str, float, tuple[str, ...]], ...] = (
     ("Techi", 0.55, ("techi.com", "techi")),
     ("EquityPandit", 0.55, ("equitypandit.com", "equitypandit")),
     ("BigGo Finance", 0.55, ("finance.biggo.com", "biggo")),
+    ("MarketsMojo", 0.55, ("marketsmojo", "markets mojo", "marketsmojo.com")),
     # MarketBeat network auto-content sites.
     ("ETF Daily News", 0.5, ("etf daily news", "etfdailynews.com")),
     ("Defense World", 0.5, ("defense world", "defenseworld.net")),
@@ -168,10 +179,14 @@ _PUBLISHERS: tuple[tuple[str, float, tuple[str, ...]], ...] = (
     ("Benzinga Press Releases", PRESS_RELEASE_TRUST, ("benzinga press releases",)),
 )
 
-_PR_WIRES = frozenset(name for name, trust, _ in _PUBLISHERS if trust == PRESS_RELEASE_TRUST)
+# Named explicitly: low-quality content sites share the 0.55 weight but are not wires.
+_PR_WIRES = frozenset({
+    "PR Newswire", "GlobeNewswire", "Business Wire", "ACCESS Newswire", "Newsfile", "EIN Presswire", "PRWeb",
+    "Marketwired", "Newswire.ca", "NewMediaWire", "TheNewswire", "openPR", "Benzinga Press Releases",
+})
 
 # Company-owned channels: "NVIDIA Newsroom", "Apple Investor Relations", "NVIDIA Blog".
-_COMPANY_CHANNEL_RE = re.compile(r"\b(?:newsroom|press releases?|investor relations|ir|media center|blog)$",
+_COMPANY_CHANNEL_RE = re.compile(r"\b(?:newsroom|press releases?|investor relations|ir|media center)$",
                                  re.IGNORECASE)
 # Content of class-action solicitations and paid releases (almost always via PR wires).
 _PR_TEXT_RE = re.compile(
@@ -236,8 +251,10 @@ def _lookup(raw: str) -> tuple[str | None, str]:
             candidate = ".".join(labels[i:])
             if candidate in _ALIAS:
                 return _ALIAS[candidate], host
-        if len(labels) >= 2 and labels[-2] in _ALIAS:  # bloomberg.co.jp-style
-            return _ALIAS[labels[-2]], host
+        # Brand label before the public suffix: bloomberg.co.jp, reuters.de.
+        brand = labels[-3] if len(labels) >= 3 and labels[-2] in {"co", "com", "net", "org"} else labels[-2]
+        if brand in _ALIAS and len(brand) >= 3:
+            return _ALIAS[brand], host
         return None, host
     value = _VIA_RE.sub("", value)
     key = _key(value)

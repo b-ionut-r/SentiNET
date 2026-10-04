@@ -63,10 +63,11 @@ function WatchNext({ a, className }: { a: Analysis; className?: string }) {
   const e = a.earnings;
   const earningsDays = e?.days_until ?? daysUntil(e?.next_date);
   const hasEarningsCatalyst = upcoming.some((c) => c.kind === "earnings");
+  const showEarnings = !!e?.next_date && earningsDays != null && earningsDays >= 0;
 
   return (
     <Panel title="Watch next" subtitle="Upcoming catalysts, then what just happened" className={className}>
-      {e?.next_date && earningsDays != null && earningsDays >= 0 && (
+      {showEarnings && e?.next_date && earningsDays != null && (
         <div className="mb-3 flex items-center gap-3.5 rounded-lg bg-sunken p-3" style={{ boxShadow: "inset 0 0 0 1px var(--hairline)" }}>
           <div className="text-center">
             <div className="text-[28px] font-semibold leading-none tracking-[-0.02em] text-ink">{earningsDays}</div>
@@ -87,7 +88,11 @@ function WatchNext({ a, className }: { a: Analysis; className?: string }) {
         </div>
       )}
       {upcoming.length + recent.length === 0 ? (
-        <Empty title="No dated catalysts">No earnings date, dividends, rating changes or material filings in range.</Empty>
+        showEarnings ? (
+          <p className="text-xs text-muted">No other dated catalysts — no dividends, rating changes or material filings in range.</p>
+        ) : (
+          <Empty title="No dated catalysts">No earnings date, dividends, rating changes or material filings in range.</Empty>
+        )
       ) : (
         <ol className="relative space-y-0.5">
           {upcoming

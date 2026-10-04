@@ -10,6 +10,7 @@ from app import cli
 from app.schemas import (
     AnalystView,
     AttentionView,
+    Brief,
     Catalyst,
     CrowdView,
     InsiderView,
@@ -70,12 +71,15 @@ def test_render_smart_money_crowd_and_catalysts(consoles):
         "catalysts": [Catalyst(date=NOW, kind="earnings", title="Q3 earnings", upcoming=True, detail="beat 7/8")],
         "insights": [Insight(kind="crowding", severity="watch", polarity="bear", title="Crowded long",
                              detail="71% bulls")],
+        "brief": Brief(summary="Leaning bullish on member growth.", bull_points=["Members +35% y/y"],
+                       bear_points=["Dilution from converts", "Credit losses rising"], watch=["Q3 on Oct 27"]),
     })
     cli.render_analysis(a, consoles[0])
     text = consoles[0].export_text()
     for needle in ("hold · 25 analysts", "$20.30", "+29%", "3 buys $1.20M", "net -$3.30M",
                    "71% bullish of 59 tagged", "#7 · 310 mentions/24h", "+158%", "Q3 earnings", "WATCH",
-                   "Crowded long"):
+                   "Crowded long", "▲ Bull case", "▼ Bear case", "Members +35% y/y", "Credit losses rising",
+                   "Watch: Q3 on Oct 27"):
         assert needle in text, needle
 
 

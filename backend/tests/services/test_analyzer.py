@@ -331,3 +331,21 @@ async def test_concurrent_runs_are_capped_and_queued(world: FakeWorld, monkeypat
     assert peak == 2 and len(world.inputs) == 3
     queued = [t for t, r in recs.items() if r.by_key("queue")]
     assert queued == ["CCC"] and recs["CCC"].by_key("queue") == ["running", "ok"]
+
+
+async def test_unknown_symbol_despite_name_search_failures(world: FakeWorld):
+    """Live-observed shape: bare echo profile, GDELT/Wikipedia failing, Yahoo says no quote."""
+    from app.schemas import Profile
+
+    world.resolve = CompanyRef(ticker="QZXWV", name="QZXWV", short_name="QZXWV")
+    world.sources = [(FakeSource("google_news", signals=0), "enabled"),
+                     (FakeSource("stocktwits", "social", signals=0), "enabled")]
+    world.intel.update(profile=Profile(symbol="QZXWV", name="QZXWV"), quote=None, technicals=None,
+                       analysts=None, tone=Sentinel(exc=RuntimeError("HTTP 429")),
+                       wiki=Sentinel(exc=RuntimeError("Wikipedia HTTP 403")))
+    world.intel["tone"] = Sentinel(delay=5)  # slow provider must not delay the verdict
+    started = asyncio.get_running_loop().time()
+    with pytest.raises(UnknownSymbol):
+        await analyzer.analyze("QZXWV")
+    assert asyncio.get_running_loop().time() - started < 1.0
+    assert not any(t.get_name() == "bounded:intel:tone" for t in tasks._background)  # cancelled, not kept

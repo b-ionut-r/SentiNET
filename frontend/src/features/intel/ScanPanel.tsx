@@ -154,21 +154,25 @@ function ScanChip({ c }: { c: Chip }) {
     ) : (
       <span className="size-1.5 rounded-full bg-[rgb(var(--faint))]" />
     );
+  const showDetail = c.detail && c.status !== "running" && c.status !== "queued";
   return (
     <li
       className={cx(
-        "flex h-7 items-center gap-2 rounded-md px-2 text-xs transition-colors duration-300",
+        "rounded-md px-2 py-1.5 text-xs transition-colors duration-300",
         c.status === "queued" || c.status === "skipped" ? "text-faint" : "bg-raised text-ink-2",
         c.status === "running" && "text-ink",
       )}
       title={c.detail ?? undefined}
     >
-      <span className="flex size-3.5 shrink-0 items-center justify-center">{icon}</span>
-      <span className="min-w-0 flex-1 truncate">{c.label}</span>
-      <span className="shrink-0 font-mono text-2xs text-muted">
-        {c.status === "ok" && c.count != null ? c.count : c.status === "error" ? "err" : c.status === "skipped" ? "key" : ""}
-        {c.ms != null && c.status !== "running" ? <span className="ml-1.5 text-faint">{ms(c.ms)}</span> : null}
-      </span>
+      <div className="flex items-center gap-2">
+        <span className="flex size-3.5 shrink-0 items-center justify-center">{icon}</span>
+        <span className="min-w-0 flex-1 truncate">{c.label}</span>
+        <span className="shrink-0 font-mono text-2xs text-muted">
+          {c.status === "ok" && c.count != null ? c.count : c.status === "error" ? "err" : c.status === "skipped" ? "key" : ""}
+          {c.ms != null && c.status !== "running" ? <span className="ml-1.5 text-faint">{ms(c.ms)}</span> : null}
+        </span>
+      </div>
+      {showDetail && <div className={cx("mt-0.5 truncate pl-[22px] font-mono text-[10.5px] leading-4", c.status === "error" ? "text-critical" : "text-muted")}>{c.detail}</div>}
     </li>
   );
 }

@@ -1,0 +1,613 @@
+{
+ "description": "Real Google News RSS headlines (search: \"Nvidia\" (stock OR shares OR NVDA) when:7d), captured 2026-10-04. 'story' = hand-labeled narrative ('a|b' = either acceptable, '?' = unknown, null = its own story); 'relevant' = hand-labeled company relevance.",
+ "company": {
+  "ticker": "NVDA",
+  "name": "NVIDIA Corporation",
+  "short_name": "Nvidia",
+  "aliases": [],
+  "industry": "Semiconductors",
+  "sector": "Technology"
+ },
+ "items": [
+  {
+   "title": "NVIDIA Announces a $150 Billion Share Repurchase Authorization Increase - NVIDIA Newsroom",
+   "publisher": "NVIDIA Newsroom",
+   "timestamp": "2026-09-28T17:02:51+00:00",
+   "story": "buyback"
+  },
+  {
+   "title": "Nvidia sets biggest-ever buyback plan as AI chip competition weighs on stock performance - Reuters",
+   "publisher": "Reuters",
+   "timestamp": "2026-09-28T11:06:00+00:00",
+   "story": "buyback"
+  },
+  {
+   "title": "Nvidia's record buyback shows chipmaker's stock is too cheap for CEO Huang to resist - CNBC",
+   "publisher": "CNBC",
+   "timestamp": "2026-09-29T11:00:01+00:00",
+   "story": "buyback"
+  },
+  {
+   "title": "Nvidia Stock Gains After Morgan Stanley Names It a 'Top Semiconductor Pick' - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T12:55:16+00:00",
+   "story": "ms_top_pick"
+  },
+  {
+   "title": "Nvidia Adds $150 Billion to Massive Stock Buyback, the Largest Ever - The New York Times",
+   "publisher": "The New York Times",
+   "timestamp": "2026-09-28T13:49:59+00:00",
+   "story": "buyback"
+  },
+  {
+   "title": "Nvidia Adds Record $150 Billion to Stock Buyback - WSJ",
+   "publisher": "WSJ",
+   "timestamp": "2026-09-28T13:56:00+00:00",
+   "story": "buyback"
+  },
+  {
+   "title": "The 2 Triggers That Can Help Nvidia Nail a Fresh Stock Milestone - Barron's",
+   "publisher": "Barron's",
+   "timestamp": "2026-10-04T11:52:34+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Jensen Huang Tops $200 Billion Fortune After Nvidia Shares Reach Record High - Forbes",
+   "publisher": "Forbes",
+   "timestamp": "2026-10-02T16:00:35+00:00",
+   "story": "record_high|huang_fortune"
+  },
+  {
+   "title": "Nvidia Stock Has Become Deeply Undervalued, But Watch Out For Accounts Receivable (NVDA) - Seeking Alpha",
+   "publisher": "Seeking Alpha",
+   "timestamp": "2026-10-02T18:16:38+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Nvidia Stock Just Gave Investors Notice Its Best Days Are Over - Investor's Business Daily",
+   "publisher": "Investor's Business Daily",
+   "timestamp": "2026-09-29T11:40:00+00:00",
+   "story": null
+  },
+  {
+   "title": "Nvidia stock hits new all-time high, market cap at $5.7 trillion - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T14:13:32+00:00",
+   "story": "record_high"
+  },
+  {
+   "title": "Nvidia is repurchasing its own shares—what stock buybacks mean for investors - CNBC",
+   "publisher": "CNBC",
+   "timestamp": "2026-09-30T19:06:18+00:00",
+   "story": "buyback"
+  },
+  {
+   "title": "'So much cash': Nvidia stock jumps after largest share buyback ever - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-28T15:34:35+00:00",
+   "story": "buyback"
+  },
+  {
+   "title": "Nvidia share buyback plan gets $150 billion boost - CNBC",
+   "publisher": "CNBC",
+   "timestamp": "2026-09-28T11:34:46+00:00",
+   "story": "buyback"
+  },
+  {
+   "title": "Nvidia announces jaw-dropping $150 billion stock buyback, largest single authorization in history - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-28T19:11:26+00:00",
+   "story": "buyback"
+  },
+  {
+   "title": "NVDA Stock Is Back As Morgan Stanley’s Top Pick – All AI Trends Play To Nvidia’s ‘Strengths,’ Says Analyst - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T12:49:34+00:00",
+   "story": "ms_top_pick"
+  },
+  {
+   "title": "Nvidia is trading like an oil stock — and taking advantage of the moment - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-29T10:00:00+00:00",
+   "story": null
+  },
+  {
+   "title": "3 Reasons Investors Love Nvidia (NVDA) - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T17:26:03+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Stock Market Today, Sept. 30: Nvidia Authorizes $150B Buyback, Lifting Total to $235B - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-30T21:40:01+00:00",
+   "story": "buyback"
+  },
+  {
+   "title": "Why Nvidia Stock Is a Good Buy Now - Barchart.com",
+   "publisher": "Barchart.com",
+   "timestamp": "2026-09-30T19:58:54+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Nvidia Stock Rises As AI Chipmaker Plans Huge Share Buyback - Investor's Business Daily",
+   "publisher": "Investor's Business Daily",
+   "timestamp": "2026-09-28T20:47:00+00:00",
+   "story": "buyback"
+  },
+  {
+   "title": "Nvidia Boosts Share Buyback by a Record $150 Billion - Bloomberg.com",
+   "publisher": "Bloomberg.com",
+   "timestamp": "2026-09-28T14:16:27+00:00",
+   "story": "buyback"
+  },
+  {
+   "title": "Cerebras stock hits post-IPO low, tumbling 20% for the week on Nvidia pressure and lockup expiration - CNBC",
+   "publisher": "CNBC",
+   "timestamp": "2026-10-02T21:45:06+00:00",
+   "story": null
+  },
+  {
+   "title": "NVDY: NVIDIA Shares Break To Record Highs, Don't Cede The Upside Now (NYSEARCA:NVDY) - Seeking Alpha",
+   "publisher": "Seeking Alpha",
+   "timestamp": "2026-10-04T19:14:39+00:00",
+   "story": "record_high"
+  },
+  {
+   "title": "Why Nvidia (NVDA) Stock Is Trading Up Today - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-28T22:38:36+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Nvidia and Micron Can't Make AI Chips Without This Growth Stock. Here's Why It Could Soar. - The Motley Fool",
+   "publisher": "The Motley Fool",
+   "timestamp": "2026-10-02T12:00:00+00:00",
+   "story": null
+  },
+  {
+   "title": "How Nvidia, Micron and a surprising jobs report drove last week's stock action - CNBC",
+   "publisher": "CNBC",
+   "timestamp": "2026-10-03T15:06:10+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Why is NVIDIA stock climbing today? - Investing.com",
+   "publisher": "Investing.com",
+   "timestamp": "2026-10-02T09:56:22+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Nvidia (NVDA) Stock Gets Fair Value Boost As AI Demand And Analyst Views Shift - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-01T22:05:50+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Nvidia’s $235 Billion Buyback Offers a Powerful Lesson for Founders - inc.com",
+   "publisher": "inc.com",
+   "timestamp": "2026-10-04T21:16:08+00:00",
+   "story": "buyback"
+  },
+  {
+   "title": "Here’s Why Investors Keep Buying Nvidia (NVDA) - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T05:42:00+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Nvidia Shares Rise After Market Cap Reaches $5.7 Trillion - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T18:22:08+00:00",
+   "story": "record_high"
+  },
+  {
+   "title": "Should You Buy Nvidia Stock in October? What Its Decade-Low Valuation Signals - The Motley Fool",
+   "publisher": "The Motley Fool",
+   "timestamp": "2026-10-01T19:30:00+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Nvidia unveils massive $150B increase to share buyback program (NVDA:NASDAQ) - Seeking Alpha",
+   "publisher": "Seeking Alpha",
+   "timestamp": "2026-09-28T11:11:23+00:00",
+   "story": "buyback"
+  },
+  {
+   "title": "Nvidia (NVDA) Is At The Center Of An $8 Billion AI Financing Shift - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-03T23:06:22+00:00",
+   "story": "amazon_chips"
+  },
+  {
+   "title": "What Could Send NVIDIA Stock Higher? - trefis.com",
+   "publisher": "trefis.com",
+   "timestamp": "2026-10-02T09:37:43+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Stocks slip as bond yields rise, but Nvidia stock is rising: AlphaCheck - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-28T13:45:06+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Buy Nvidia Today Because It’s Likely To Be Worth A Lot More In 2 Year’s Time - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T16:45:15+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Why Is NVIDIA Stock Gaining Monday? - NVIDIA (NASDAQ:NVDA) - Benzinga",
+   "publisher": "Benzinga",
+   "timestamp": "2026-09-28T12:25:33+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Jensen Huang Press Q&A: 'Nvidia Stock Is Undervalued' - Key Context by Tae Kim",
+   "publisher": "Key Context by Tae Kim",
+   "timestamp": "2026-09-29T06:49:02+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Amazon seeks to offload $8 billion of Nvidia chips to investors, FT reports - Reuters",
+   "publisher": "Reuters",
+   "timestamp": "2026-10-02T04:12:00+00:00",
+   "story": "amazon_chips"
+  },
+  {
+   "title": "Is NVIDIA Stock Increasing Your Market Risk? - trefis.com",
+   "publisher": "trefis.com",
+   "timestamp": "2026-10-01T18:05:35+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Nvidia Stock Is Back at Its May Record. Its Quarterly Revenue Is 41% Higher. - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T22:07:02+00:00",
+   "story": "record_high"
+  },
+  {
+   "title": "Here's My Top AI Stock to Buy in October - The Motley Fool",
+   "publisher": "The Motley Fool",
+   "timestamp": "2026-10-02T04:00:00+00:00",
+   "story": "?"
+  },
+  {
+   "title": "What a $10,000 Investment Split Between Nvidia and Broadcom Could Be Worth by 2030 - The Motley Fool",
+   "publisher": "The Motley Fool",
+   "timestamp": "2026-10-04T13:25:00+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Is The Market Underpricing NVIDIA Stock? - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-29T12:52:42+00:00",
+   "story": "?"
+  },
+  {
+   "title": "This Under-the-Radar Supplier Could Be Nvidia's Secret Weapon - The Motley Fool",
+   "publisher": "The Motley Fool",
+   "timestamp": "2026-10-04T09:15:00+00:00",
+   "story": null
+  },
+  {
+   "title": "Here's What a $10,000 Investment in Nvidia Stock Could Be Worth in 10 Years - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-01T11:45:00+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Nvidia Just Put Another $150 Billion Behind Its Own Stock - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-28T14:43:04+00:00",
+   "story": "buyback"
+  },
+  {
+   "title": "Nvidia unveils security platform to rein in AI agents and $150bn stock buyback - The Guardian",
+   "publisher": "The Guardian",
+   "timestamp": "2026-09-28T15:32:00+00:00",
+   "story": "buyback|ai_agents"
+  },
+  {
+   "title": "Nvidia's cash machine and cheaper stock make the case for historic buyback: Chart of the Day - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-29T09:00:00+00:00",
+   "story": "buyback"
+  },
+  {
+   "title": "3 AI Chip Stocks To Watch After Nvidia Stock Hit A Fresh All Time High - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-03T01:11:00+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Amazon seeks to offload $8bn of Nvidia chips to investors - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T08:51:44+00:00",
+   "story": "amazon_chips"
+  },
+  {
+   "title": "How Nvidia’s Big Win at Trump’s AI Lunch Will Help the Stock - Barron's",
+   "publisher": "Barron's",
+   "timestamp": "2026-09-30T18:18:00+00:00",
+   "story": null
+  },
+  {
+   "title": "Nvidia's bet that its chips can finance the AI boom gets a Wall Street reality check - Reuters",
+   "publisher": "Reuters",
+   "timestamp": "2026-10-01T19:26:22+00:00",
+   "story": "amazon_chips|?"
+  },
+  {
+   "title": "Nvidia Stock Regains ‘Top Pick’ Status At Morgan Stanley - Investor's Business Daily",
+   "publisher": "Investor's Business Daily",
+   "timestamp": "2026-10-02T20:09:00+00:00",
+   "story": "ms_top_pick"
+  },
+  {
+   "title": "Nvidia Defies Critics—as Its Stock Falls Just Shy of First Record Since May - Barron's",
+   "publisher": "Barron's",
+   "timestamp": "2026-10-02T20:10:00+00:00",
+   "story": "record_high"
+  },
+  {
+   "title": "China Weighs Letting ByteDance and Alibaba Buy New Nvidia (NVDA) Chips - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-28T19:21:15+00:00",
+   "story": "china_chips"
+  },
+  {
+   "title": "Nvidia Shares Jump to Record High After Strong AI Growth - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T17:41:48+00:00",
+   "story": "record_high"
+  },
+  {
+   "title": "Nvidia stock hits record high, market cap nears $6 trillion - qz.com",
+   "publisher": "qz.com",
+   "timestamp": "2026-10-02T17:55:01+00:00",
+   "story": "record_high"
+  },
+  {
+   "title": "How much Nvidia stock does CEO Jensen Huang actually own? - thestreet.com",
+   "publisher": "thestreet.com",
+   "timestamp": "2026-10-03T13:53:00+00:00",
+   "story": null
+  },
+  {
+   "title": "Nvidia CEO Jensen Huang Just Reaffirmed His Jaw-Dropping Projection for 2030 - The Motley Fool",
+   "publisher": "The Motley Fool",
+   "timestamp": "2026-10-04T05:30:00+00:00",
+   "story": null
+  },
+  {
+   "title": "Michael Burry Buys Put Options on Nvidia, Micron, and Palantir as \"The Big Short\" Investor Predicts a 1987-Style Market Crash - The Motley Fool",
+   "publisher": "The Motley Fool",
+   "timestamp": "2026-09-30T18:30:00+00:00",
+   "story": "burry"
+  },
+  {
+   "title": "AMD Reaches a $1 Trillion Market Cap. Can It Finally Dethrone Nvidia? - The Motley Fool",
+   "publisher": "The Motley Fool",
+   "timestamp": "2026-10-04T14:14:00+00:00",
+   "story": null
+  },
+  {
+   "title": "Nvidia Stock Technicals Are Flashing Green. A Record High Could Be Next. - Barron's",
+   "publisher": "Barron's",
+   "timestamp": "2026-09-29T18:15:00+00:00",
+   "story": "record_high"
+  },
+  {
+   "title": "Jim Cramer Highlights NVIDIA (NVDA) Architecture Framework And Historic Share Buyback - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T21:33:23+00:00",
+   "story": "buyback"
+  },
+  {
+   "title": "Nvidia adds record $150 billion to stock buyback push - qz.com",
+   "publisher": "qz.com",
+   "timestamp": "2026-09-28T13:51:05+00:00",
+   "story": "buyback"
+  },
+  {
+   "title": "Morgan Stanley Has Strong Message For Nvidia Stock Investors - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T19:58:18+00:00",
+   "story": "ms_top_pick"
+  },
+  {
+   "title": "Amazon Looks to Offload $8B of Nvidia AI Chips From Its Balance Sheet - Investopedia",
+   "publisher": "Investopedia",
+   "timestamp": "2026-10-02T14:59:46+00:00",
+   "story": "amazon_chips"
+  },
+  {
+   "title": "Nvidia (NVDA) Shares Rise Premarket as Morgan Stanley Names It T - GuruFocus",
+   "publisher": "GuruFocus",
+   "timestamp": "2026-10-02T13:09:06+00:00",
+   "story": "ms_top_pick"
+  },
+  {
+   "title": "Michael Burry Warns Nvidia, AI Infrastructure Expansion Mirroring 1960s Computer Leasing Bubble - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-01T21:37:00+00:00",
+   "story": "burry"
+  },
+  {
+   "title": "NVIDIA Rises 2% as Board Authorizes Record $150B Buyback Increase; AMD and Broadcom Slip - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-28T13:04:01+00:00",
+   "story": "buyback"
+  },
+  {
+   "title": "Nvidia Hits First Record Since May as Value Nears $6 Trillion - Bloomberg.com",
+   "publisher": "Bloomberg.com",
+   "timestamp": "2026-10-02T20:26:19+00:00",
+   "story": "record_high"
+  },
+  {
+   "title": "Watch Nvidia Up on Share-Repurchase Program; Mining Stocks Slide | Stock Movers - Bloomberg.com",
+   "publisher": "Bloomberg.com",
+   "timestamp": "2026-09-28T14:56:30+00:00",
+   "story": "buyback"
+  },
+  {
+   "title": "Samsung to inject $1 billion into Nvidia- and KKR-backed AI infrastructure firm - CNBC",
+   "publisher": "CNBC",
+   "timestamp": "2026-09-29T00:00:00+00:00",
+   "story": null
+  },
+  {
+   "title": "NVDA Stock Climbs After Nvidia Approves ‘Largest Buyback Increase’ In Company History - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-28T12:28:14+00:00",
+   "story": "buyback"
+  },
+  {
+   "title": "NVDA Stock Hits Record High After Morgan Stanley Names Nvidia Top Pick, Says AI Trends Play To Its ‘Strengths’ - TradingView",
+   "publisher": "TradingView",
+   "timestamp": "2026-10-02T12:49:34+00:00",
+   "story": "ms_top_pick|record_high"
+  },
+  {
+   "title": "Nvidia set for historic $150B in share repurchases as its surging stock momentum slows to 19% growth in 2026 - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-29T11:30:00+00:00",
+   "story": "buyback"
+  },
+  {
+   "title": "Stock Market Finishes Strong, Yields Off Highs; Micron, Meta, Nvidia, Tesla In Focus: Weekly Review - Investor's Business Daily",
+   "publisher": "Investor's Business Daily",
+   "timestamp": "2026-10-02T15:39:00+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Nvidia stock buyback plan increased by $150 billion - KRON4",
+   "publisher": "KRON4",
+   "timestamp": "2026-09-28T16:11:42+00:00",
+   "story": "buyback"
+  },
+  {
+   "title": "NVIDIA (NASDAQ:NVDA) Screens as a Decent Value Stock - Chart Mill",
+   "publisher": "Chart Mill",
+   "timestamp": "2026-10-03T12:31:08+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Where Will Intel Stock Be in 5 Years: Comeback Story or Cautionary Tale? - The Motley Fool",
+   "publisher": "The Motley Fool",
+   "timestamp": "2026-10-03T11:47:00+00:00",
+   "story": null
+  },
+  {
+   "title": "Better Artificial Intelligence Stock: NVIDIA vs. SK Hynix - The Motley Fool",
+   "publisher": "The Motley Fool",
+   "timestamp": "2026-10-03T03:55:00+00:00",
+   "story": null
+  },
+  {
+   "title": "NVIDIA Opens Applications for 2027–2028 Graduate Fellowships With Awards Up to $60,000 - NVIDIA Blog",
+   "publisher": "NVIDIA Blog",
+   "timestamp": "2026-09-30T20:45:41+00:00",
+   "story": null
+  },
+  {
+   "title": "Nvidia Hits Record High, Wall Street Still Sees Up to 99% Upside - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-03T00:39:00+00:00",
+   "story": "record_high"
+  },
+  {
+   "title": "Not Intel. Not Nvidia. The $2.4 Trillion Chipmaker That Wall Street Calls the Ultimate AI \"Picks-and-Shovels\" Play - The Motley Fool",
+   "publisher": "The Motley Fool",
+   "timestamp": "2026-10-04T09:00:00+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Nvidia Stock Can Top $400 in 5 Years If One Assumption Holds Up - The Motley Fool",
+   "publisher": "The Motley Fool",
+   "timestamp": "2026-09-30T23:17:00+00:00",
+   "story": null
+  },
+  {
+   "title": "Citi Sees $11 Billion Optical Networking Boom Driven By Google, Nvidia - Investor's Business Daily",
+   "publisher": "Investor's Business Daily",
+   "timestamp": "2026-09-28T11:42:00+00:00",
+   "story": null
+  },
+  {
+   "title": "Nvidia's new AI platform, Nor'easter flight delays, NFL's drone focus and more in Morning Squawk - CNBC",
+   "publisher": "CNBC",
+   "timestamp": "2026-09-28T12:09:46+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Nvidia Boosts Share Buyback Authorization by $150 Billion - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-28T11:16:22+00:00",
+   "story": "buyback"
+  },
+  {
+   "title": "Nvidia Adds $150 Billion to Massive Stock Buyback, the Largest Ever - seattletimes.com",
+   "publisher": "seattletimes.com",
+   "timestamp": "2026-09-28T15:36:50+00:00",
+   "story": "buyback"
+  },
+  {
+   "title": "Jensen Huang's Fortune Surpasses $200 Billion as Nvidia Shares Hit Record - finance.biggo.com",
+   "publisher": "finance.biggo.com",
+   "timestamp": "2026-10-03T18:07:00+00:00",
+   "story": "record_high|huang_fortune"
+  },
+  {
+   "title": "I Correctly Predicted Nvidia Would Overtake Apple in Stock Buybacks and Dividends. Here's the Better Buy Now. - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T11:20:00+00:00",
+   "story": "?"
+  },
+  {
+   "title": "NVDA Stock In Focus: China Reportedly Weighs Letting ByteDance, Alibaba Buy Some Nvidia AI Chips - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-28T03:13:00+00:00",
+   "story": "china_chips"
+  },
+  {
+   "title": "NVDA Is ‘Best In Breed’ Stock On Sale, Hightower Advisors' Stephanie Link Says - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T18:15:05+00:00",
+   "story": null
+  },
+  {
+   "title": "Here's Why SpaceX Buying More Nvidia GPUs Is Bigger News for SpaceX's Stock Than Nvidia's - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-29T20:20:00+00:00",
+   "story": null
+  },
+  {
+   "title": "Watch Nvidia (NVDA) Rolls Out New Tools to Keep AI Agents in Line - Bloomberg.com",
+   "publisher": "Bloomberg.com",
+   "timestamp": "2026-09-28T00:00:00+00:00",
+   "story": "ai_agents"
+  },
+  {
+   "title": "Nvidia Well Positioned as AI Bottleneck Shifts, Morgan Stanley Says - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T15:12:04+00:00",
+   "story": "ms_top_pick"
+  },
+  {
+   "title": "Nvidia hits record high as AI optimism, buyback lift shares - Yahoo Finance Singapore",
+   "publisher": "Yahoo Finance Singapore",
+   "timestamp": "2026-10-02T14:42:16+00:00",
+   "story": "record_high"
+  },
+  {
+   "title": "Investor Makes Bold Prediction: NVIDIA Could Deliver “$360 Billion in Free Cash Flow” Next Year - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T18:52:49+00:00",
+   "story": null
+  }
+ ]
+}
