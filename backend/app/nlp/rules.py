@@ -25,7 +25,8 @@ import html
 import math
 import re
 from dataclasses import dataclass, field
-from typing import Callable, NamedTuple, Optional
+from typing import NamedTuple, Optional
+from collections.abc import Callable
 
 from app.nlp import lexicon as lx
 
@@ -43,7 +44,7 @@ class Token(NamedTuple):
 
 
 _URL = re.compile(r"(?:https?://|www\.)\S+")
-_ZW = re.compile(r"[​-‏⁠﻿︎️]")
+_ZW = re.compile("[\u200b-\u200f\u2060\ufeff\ufe0e\ufe0f]")
 _ABBREV = re.compile(
     r"\b(vs|inc|corp|co|ltd|plc|jr|sr|st|mr|mrs|ms|dr|est|approx|adj|avg|jan|feb|mar|apr|jun|jul|aug|"
     r"sep|sept|oct|nov|dec|nos|fig|bln|mln|mn|bn|yr|qtr|pts|no)\.(?=\s|$|\d)", re.I)
@@ -157,6 +158,7 @@ class Hit:
     negated: bool = False
     anchor: int = -1  # token that carries the meaning (the verb of "sales ... rose"); -1 = start
     parts: tuple[tuple[int, int], ...] = ()  # token ranges naming the evidence (metric, verb, %)
+    display: str = ""  # driver text shown to users (verbatim span when short; else ``term``)
 
     def __post_init__(self) -> None:
         if self.anchor < 0:
@@ -313,6 +315,10 @@ _GUID = (r"(?:full\s+year\s+|annual\s+|fy\s*\d*\s+|\d{4}\s+|q[1-4]\s+|quarterly\
          r"profit\s+|earnings\s+|eps\s+)?(?:guidance|outlook|forecasts?|view|guide|projections?|targets?|"
          r"estimates?|expectations?)")
 _GAP = r"(?:\s+[^\s.;!?$]+){0,4}?\s+"
+# "... outlook to up 1.3%-1.5% from up 1.5%-2.5%": the figures detail the revision, they are not moves
+_RANGE_TAIL = (r"(?:\s+(?:to|at|of)\s+(?:a\s+range\s+of\s+)?(?:up\s+|down\s+)?[^\s.;!?]*\d[^\s;!?]*"
+               r"(?:\s+(?:to|-)\s+[^\s;!?]*\d[^\s;!?]*)?(?:\s+(?:from|vs\.?)\s+(?:up\s+|down\s+)?"
+               r"[^\s;!?]*\d[^\s;!?]*(?:\s+(?:to|-)\s+[^\s;!?]*\d[^\s;!?]*)?)?)?")
 _UPV = (r"raise[sd]?|raising|lift(?:s|ed|ing)?|boost(?:s|ed|ing)?|bump(?:s|ed|ing)?|hike[sd]?|hiking|"
         r"increas(?:e|es|ed|ing)|up(?:s|ped|ping)?|nudge[sd]?\s+up|push(?:es|ed)\s+up|improv(?:e|es|ed|ing)|"
         r"strengthen(?:s|ed|ing)?")
@@ -321,7 +327,7 @@ _DNV = (r"cut(?:s|ting)?|lower(?:s|ed|ing)?|slash(?:es|ed|ing)?|trim(?:s|med|min
         r"lop(?:s|ped)?|halv(?:e|es|ed|ing)|reel(?:s|ed|ing)?\s+in|rein(?:s|ed|ing)?\s+in")
 _PT = r"(?:price\s+targets?|target\s+price|price\s+objective|price\s+tgt|pt|tgt|targets?)"
 # "beats by $0.04" / "misses on revenue" (not "Top Executive Calls on Government")
-_BY_ON = (r"(?:by\s+(?:[$€£¥]|\d)|on\s+(?:the\s+)?(?:top\s+line|bottom\s+line|revenues?|revs?|sales|eps|earnings|"
+_BY_ON = (r"(?:by\s+(?:[$€£¥]\s?)?\d[\d,]*(?:\.\d+)?(?:\s?(?:cents?|c|%|percent)\b)?|on\s+(?:the\s+)?(?:top\s+line|bottom\s+line|revenues?|revs?|sales|eps|earnings|"
           r"profits?|estimates|expectations|both|the\s+top|the\s+bottom|ebitda|margins?|guidance))")
 
 
@@ -526,11 +532,13 @@ _RULES: list[tuple[str, re.Pattern[str], Callable[[re.Match[str]], Optional[Rule
     ("inline", re.compile(r"\b(?:match(?:es|ed|ing)?|meet(?:s|ing)?|met)\s+(?:[^\s.;!?]+\s+){0,3}?" + _EXP + r"\b"),
      _fixed(0.25, "meets estimates", "inline")),
     # --- guidance
-    ("guidance", re.compile(r"\b(?:" + _UPV + r")\b(?:\s+[^\s.;!?$]+){0,4}?\s+" + _GUID + r"\b"), _guidance(1)),
+    ("guidance", re.compile(r"\b(?:" + _UPV + r")\b(?:\s+[^\s.;!?$]+){0,4}?\s+" + _GUID + r"\b" + _RANGE_TAIL),
+     _guidance(1)),
     ("guidance", re.compile(
         r"\b(?:" + _DNV + r"|withdraw(?:s|n|ing)?|withdrew|pull(?:s|ed|ing)?|suspend(?:s|ed|ing)?|"
         r"scrap(?:s|ped|ping)?|scal(?:e|es|ed|ing)\s+back|temper(?:s|ed|ing)?|dial(?:s|ed|ing)?\s+back|"
-        r"rein(?:s|ed|ing)?\s+in|reel(?:s|ed|ing)?\s+in|walk(?:s|ed|ing)?\s+back)\b(?:\s+[^\s.;!?$]+){0,4}?\s+" + _GUID + r"\b"), _guidance(-1)),
+        r"rein(?:s|ed|ing)?\s+in|reel(?:s|ed|ing)?\s+in|walk(?:s|ed|ing)?\s+back)\b(?:\s+[^\s.;!?$]+){0,4}?\s+" + _GUID + r"\b" + _RANGE_TAIL),
+     _guidance(-1)),
     ("guidance", re.compile(r"\b(?:guidance|outlook|forecast|view)\s+(?:\S+\s+){0,2}?(?:raised|lifted|boosted|"
                             r"increased|hiked|upped|improved)\b"), _guidance(1)),
     ("guidance", re.compile(r"\b(?:guidance|outlook|forecast|view)\s+(?:\S+\s+){0,2}?(?:cut|lowered|slashed|"
@@ -563,7 +571,7 @@ _RULES: list[tuple[str, re.Pattern[str], Callable[[re.Match[str]], Optional[Rule
     # --- legal relief / resolution
     ("legal_relief", re.compile(
         r"\b(?:dismiss(?:es|ed)?|drop(?:s|ped)?|toss(?:es|ed)?|throw(?:s|n)?\s+out|threw\s+out|end(?:s|ed)?|"
-        r"close[sd]?|suspend(?:s|ed)?|clear(?:s|ed)?|wins?|won|prevail(?:s|ed)?\s+in)\b(?:\s+[^\s.;!?]+){0,3}?\s+"
+        r"close[sd]?|suspend(?:s|ed)?|clear(?:s|ed)?|wins?|won|prevail(?:s|ed)?\s+in)\b(?:\s+[^\s.;!?]+){0,4}?\s+"
         r"(?:lawsuit|suit|case|probe|investigation|charges|complaint|inquiry|patent\s+(?:case|suit|trial))\b"),
      _fixed(0.7, "legal relief", "legal_relief")),
     ("legal_relief", re.compile(
@@ -685,7 +693,7 @@ def _numeric_hits(rtext: str, tokens: list[Token], at: list[Optional[_Span]], cl
         return hits
     matches = [(m, "cmp") for m in _CMP.finditer(rtext)] + [(m, "from") for m in _CMP_FROM.finditer(rtext)]
     used_until = -1
-    for m, kind in sorted(matches, key=lambda mk: mk[0].start()):
+    for m, _kind in sorted(matches, key=lambda mk: mk[0].start()):
         if m.start() < used_until:
             continue
         new_raw, old_raw = m.group("new"), m.group("old")
@@ -772,7 +780,7 @@ _UPDOWN_NEXT = frozenset({"premarket", "pre", "pre-market", "after", "on", "as",
                           "yoy", "ytd", "points", "pts", "bps", "strongly", "modestly", "double", "triple",
                           "in", "for", "this", "so", "about", "around", "roughly", "following", "despite", "amid",
                           "ahead", "versus", "vs", "year", "week", "month", "quarter", "overnight", "early", "late",
-                          "midday", "afternoon", "intraday", "big", "hard", "considerably"})
+                          "midday", "afternoon", "intraday", "hard", "considerably"})
 _LEVEL_TRIGGERS = frozenset({"hit", "hits", "hitting", "touch", "touches", "touched", "reach", "reaches", "reached",
                              "at", "near", "to", "new", "fresh", "set", "sets", "notch", "notches", "notched",
                              "record", "all", "time", "week", "year", "years", "month", "months", "decade",
@@ -785,7 +793,7 @@ _FILLER = frozenset({"the", "a", "an", "its", "their", "his", "her", "our", "thi
                      "full", "year", "annual", "quarterly", "fiscal", "first", "second", "third", "fourth",
                      "quarter", "q1", "q2", "q3", "q4", "h1", "h2", "fy", "company", "group", "total", "overall",
                      "adjusted", "adj", "comparable", "global", "us", "domestic", "international", "core",
-                     "organic", "underlying", "reported", "consolidated", "its", "own", "per", "share", "and"})
+                     "organic", "underlying", "reported", "consolidated", "own", "per", "share", "and"})
 
 
 def _pct_magnitude(p: float) -> float:
@@ -796,11 +804,12 @@ def _pct_magnitude(p: float) -> float:
 
 def _find_metric(tokens: list[Token], at: list[Optional[_Span]], i0: int, step: int, limit: float, *,
                  soft_ok: bool = False, stop_words: frozenset[str] = frozenset(),
-                 through_moves: bool = False) -> Optional[_Span]:
+                 through_moves: bool = False, stop_at_valence: bool = False) -> Optional[_Span]:
     """Scan from token ``i0`` in direction ``step`` for a metric span within ``limit`` content words.
 
     Stops at hard boundaries, other movement words, contrast markers and (unless
-    ``soft_ok``) commas/colons, so "costs surge, shares tumble" pairs correctly."""
+    ``soft_ok``) commas/colons, so "costs surge, shares tumble" pairs correctly.
+    ``stop_at_valence`` also stops at evaluative words ("more weak demand" is weak demand)."""
     seen = 0.0
     j = i0
     n = len(tokens)
@@ -823,7 +832,7 @@ def _find_metric(tokens: list[Token], at: list[Optional[_Span]], i0: int, step: 
             if sp.direction is not None and sp.metric is None and sp.key not in lx.FOOTPRINT_VERBS \
                     and not sp.level_qual and sp.key not in ("record", "records") and not through_moves:
                 return None
-            if sp.contrast is not None:
+            if sp.contrast is not None or (stop_at_valence and sp.lex and sp.metric is None):
                 return None
             j = sp.end if step > 0 else sp.start - 1
             seen += 1
@@ -915,6 +924,21 @@ _RECORD_PREV = frozenset({"new", "fresh", "hit", "hits", "hitting", "at", "to", 
                           "reached", "notch", "notches", "notched", "close", "closes", "closed", "another", "all"})
 
 
+_QTY_QUALIFIERS = frozenset({"over", "nearly", "almost", "about", "around", "roughly", "more", "than", "by", "some",
+                             "another", "a", "further", "as", "much", "at", "least", "just", "only"})
+
+
+def _quantity_after(tokens: list[Token], i: int) -> bool:
+    """A number/percent follows within a few qualifier words ("down over 9%", "up by $2")."""
+    for j in range(i, min(len(tokens), i + 4)):
+        t = tokens[j]
+        if t.kind in ("pct", "num", "cur"):
+            return True
+        if t.text not in _QTY_QUALIFIERS:
+            return False
+    return False
+
+
 def _attach(sp: _Span, tokens: list[Token], at: list[Optional[_Span]]) -> Optional[tuple[Optional[_Span], float]]:
     """Find the metric a movement word moves. None = not a movement here (skip)."""
     d = sp.direction
@@ -950,9 +974,12 @@ def _attach(sp: _Span, tokens: list[Token], at: list[Optional[_Span]]) -> Option
             return None if sp.key == "records" else (None, 0.75)
         return None
     if d.pos == "p":  # up / down
-        if prev is not None and prev.text in _PHRASAL_PREV:
+        quantified = _quantity_after(tokens, sp.end)  # "stock up 3.5%", "down over 9%" are moves
+        if prev is not None and prev.text in _PHRASAL_PREV and not quantified:
             return None
         metric = _find_metric(tokens, at, sp.start - 1, -1, 3, soft_ok=True)
+        if metric is not None and quantified and metric.key in lx.TREND_METRICS:
+            metric = None  # "extends losses, now down 5%": the stock is down, not the losses
         if nxt is not None and nxt.text == "for":
             tail = " ".join(t.text for t in tokens[sp.end + 1: sp.end + 4])
             return (metric, 1.0) if _SECOND_ROUND.match(tail) else None
@@ -977,7 +1004,7 @@ def _attach(sp: _Span, tokens: list[Token], at: list[Optional[_Span]]) -> Option
     if d.pos == "a":
         metric = None
         if nxt is not None and nxt.text not in _PREPS:  # "higher raw material costs", not "lower on concerns"
-            metric = _find_metric(tokens, at, sp.end, 1, 3, stop_words=_PREPS)
+            metric = _find_metric(tokens, at, sp.end, 1, 3, stop_words=_PREPS, stop_at_valence=True)
         if metric is None and d.default > 0:
             metric = _find_metric(tokens, at, sp.start - 1, -1, 4)
         return metric, 1.0
@@ -997,6 +1024,10 @@ def _attach_verb(sp: _Span, tokens: list[Token], at: list[Optional[_Span]], nxt:
     if key in lx.TREND_ONLY:
         metric = _find_metric(tokens, at, sp.end, 1, 3)
         return (metric, 1.0) if metric is not None and metric.key in lx.TREND_METRICS else None
+    right = at[sp.end] if sp.end < len(tokens) else None
+    if key.endswith("ing") and right is not None and right.metric is not None and not right.neutral \
+            and (prev is None or prev.text not in _BE):
+        return right, 1.0  # participle as adjective: "decelerating growth" (not "is cutting costs")
     metric = None
     if key in lx.TRANSITIVE or key.split(" ")[0] in lx.TRANSITIVE:  # object: "cut existing tariffs"
         metric = _find_metric(tokens, at, sp.end, 1, 3, stop_words=_PREPS)
@@ -1188,8 +1219,22 @@ def extract(text: str, *, social: bool = False) -> Evidence:
     for h in hits:
         if not h.term:
             h.term = _term(norm, tokens, h)
+        h.display = _display(norm, tokens, h)
     ev.hits = hits
     return ev
+
+
+MAX_VERBATIM_WORDS = 6
+
+
+def _display(norm: str, tokens: list[Token], h: Hit) -> str:
+    """User-facing driver: rule evidence shows its exact wording when short ("tops expectations",
+    "cut to Neutral from Buy") so UIs can highlight it; long spans keep the canonical label
+    ("price target cut to $14 from $18"), which also states what the numbers imply."""
+    if not h.source.startswith("rule:") or h.source == "rule:numbers":
+        return h.term
+    span = norm[tokens[h.start].start: tokens[h.end - 1].end]
+    return span if len(span.split()) <= MAX_VERBATIM_WORDS else h.term
 
 
 def _term(norm: str, tokens: list[Token], h: Hit) -> str:
@@ -1221,6 +1266,7 @@ def _apply_modifiers(ev: Evidence, tokens: list[Token], at: list[Optional[_Span]
             and sent[-1] == 0 and n > 2 and tokens[1].kind in ("w", "tag"):
         question_sents.add(0)
     ev.question = bool(question_sents)
+    asking = _question_tokens(tokens, sent, question_sents)
     ev.listicle = bool(_LISTICLE.search(low))
     ev.text_hedge = any(sp.key in lx.TEXT_HEDGES for sp in spans)
     if _ATTRIBUTION.search(low):
@@ -1228,7 +1274,7 @@ def _apply_modifiers(ev: Evidence, tokens: list[Token], at: list[Optional[_Span]
 
     negators = [sp for sp in spans if sp.negator and not sp.neutral]
     _absorb_intensifying_adjectives(tokens, spans, hits)
-    background = _background_clauses(tokens)
+    background = _background_clauses(tokens, hits, sent)
     hedge_spans = [sp for sp in spans if sp.hedge is not None]
     intens_spans = [sp for sp in spans if sp.intens is not None]
     contrast_spans = [sp for sp in spans if sp.contrast is not None]
@@ -1270,13 +1316,14 @@ def _apply_modifiers(ev: Evidence, tokens: list[Token], at: list[Optional[_Span]
                     w *= CONCESSIVE_FACTOR
         if background[a]:
             w *= BACKGROUND_FACTOR
-        if sent[a] in question_sents:
+        if asking[a]:
             w *= QUESTION_FACTOR
         if ev.listicle:
             w *= LISTICLE_FACTOR
         if ev.text_hedge:
             w *= TEXT_HEDGE_FACTOR
         h.weight = min(1.8, w)
+    _cap_background(hits, background)
 
     # negators that negated nothing but carry meaning themselves ("fails to meet")
     for sp in negators:
@@ -1284,12 +1331,56 @@ def _apply_modifiers(ev: Evidence, tokens: list[Token], at: list[Optional[_Span]
             hits.append(Hit(sp.start, sp.end, lx.NEGATOR_FALLBACK[sp.key], "", "lex"))
 
 
-def _background_clauses(tokens: list[Token]) -> list[bool]:
-    """Tokens inside "after ..." / "following ..." / "amid ..." clauses: context for the main
-    move ("Gold falls after strong jobs report"), so they count less than the headline verb."""
+def _question_tokens(tokens: list[Token], sent: list[int], question_sents: set[int]) -> list[bool]:
+    """Tokens inside the clause that actually asks. "Earnings dropped 16%, how did it fare?" states
+    the drop and asks about the rest: the question starts at the last comma/colon followed by a
+    question word; without one the whole sentence is the question."""
     n = len(tokens)
     flags = [False] * n
+    for sid in question_sents:
+        idx = [i for i in range(n) if sent[i] == sid]
+        start = idx[0]
+        for i in idx[:-1]:
+            if tokens[i].kind == "soft" and tokens[i + 1].text in lx.QUESTION_STARTERS:
+                start = i + 1
+        for i in idx:
+            flags[i] = i >= start
+    return flags
+
+
+BACKGROUND_CAP = 0.5  # opposing context may offset at most half of the main clause
+
+
+def _cap_background(hits: list[Hit], background: list[bool]) -> None:
+    """Context never overturns the headline: "bounces 1.7% after plunging 14%" stays a bounce."""
+    main = sum(h.value for h in hits if not background[h.anchor])
+    ctx = sum(h.value for h in hits if background[h.anchor])
+    if main and ctx and (main > 0) != (ctx > 0) and abs(ctx) > BACKGROUND_CAP * abs(main):
+        scale = BACKGROUND_CAP * abs(main) / abs(ctx)
+        for h in hits:
+            if background[h.anchor]:
+                h.weight *= scale
+
+
+_AS_NOT_CAUSAL = frozenset({"well", "such", "much", "many", "long", "soon", "far", "of", "part", "a", "an", "the",
+                            "expected", "anticipated", "forecast", "planned", "usual", "per", "if", "though", "to",
+                            "high", "low", "little", "few", "good", "big", "always", "ever", "is", "it"})
+
+
+def _background_clauses(tokens: list[Token], hits: list[Hit], sent: list[int]) -> list[bool]:
+    """Tokens inside "after ..." / "following ..." / "amid ..." clauses - and "... as <clause>" once
+    the main clause already carries evidence ("Dollar rises as relations worsen") - are context
+    for the main move, so they count less than the headline verb."""
+    n = len(tokens)
+    flags = [False] * n
+    evidence_at = sorted(h.anchor for h in hits)
     for i, t in enumerate(tokens):
+        if t.text == "as" and 0 < i < n - 1 and tokens[i + 1].text not in _AS_NOT_CAUSAL \
+                and tokens[i - 1].text not in _AS_NOT_CAUSAL and tokens[i + 1].kind == "w" \
+                and any(a < i and sent[a] == sent[i] for a in evidence_at):
+            for j in range(i + 1, _clause_end(tokens, i + 1)):
+                flags[j] = True
+            continue
         if t.text == "from" and i > 0 and tokens[i - 1].text in _RECOVERY_WORDS:
             for j in range(i + 1, _clause_end(tokens, i + 1)):  # "bounces back from a steep sell-off"
                 flags[j] = True

@@ -18,7 +18,7 @@ import html
 import logging
 import re
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, UTC
 from typing import Any, Literal
 from urllib.parse import quote
 
@@ -204,8 +204,9 @@ def _pick_polarity(pols: list[Pol]) -> Pol:
 def decode_8k(items_field: str) -> tuple[str, list[str], Importance, Pol]:
     """'2.02,9.01' -> ("Results of operations (earnings release)", codes, importance, polarity)."""
     codes = [c.strip() for c in (items_field or "").split(",") if c.strip()]
-    infos = [ITEMS_8K[c] for c in codes if c in ITEMS_8K]
-    meaningful = [i for c, i in zip(codes, infos) if c != "9.01"] or infos
+    known = [(c, ITEMS_8K[c]) for c in codes if c in ITEMS_8K]
+    infos = [info for _, info in known]
+    meaningful = [info for c, info in known if c != "9.01"] or infos
     if not meaningful:
         return "Current report", codes, "low", "neutral"
     ordered = sorted(meaningful, key=lambda i: -_RANK[i.importance])
@@ -225,7 +226,7 @@ def filings_from_submissions(
     recent = ((sub or {}).get("filings") or {}).get("recent") or {}
     forms: list[str] = recent.get("form") or []
     cik_int = int(str(sub.get("cik") or "0") or 0)
-    today = today or datetime.now(timezone.utc).date()
+    today = today or datetime.now(UTC).date()
     since = today - timedelta(days=window_days)
 
     rows: list[tuple[Filing, str | None]] = []
@@ -494,7 +495,7 @@ async def get_filings(company: CompanyRef, limit: int = 20) -> list[Filing]:
     sub = await get_submissions(cik)
     if not sub:
         return []
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(UTC).date()
     filings = filings_from_submissions(sub, limit=limit, today=today)
     docs = narrative_8k_docs(sub, today=today)
     if not docs:
@@ -618,7 +619,7 @@ async def get_form4_insiders(cik: str, window_days: int = 180, max_filings: int 
     sub = await get_submissions(cik)
     if not sub:
         return None
-    since = datetime.now(timezone.utc).date() - timedelta(days=window_days)
+    since = datetime.now(UTC).date() - timedelta(days=window_days)
     urls = form4_documents(sub, since=since, limit=max_filings)
     if not urls:
         return None

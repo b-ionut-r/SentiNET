@@ -15,7 +15,7 @@ import logging
 import re
 import time
 import unicodedata
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, UTC
 from typing import Any
 from urllib.parse import quote
 
@@ -154,7 +154,7 @@ async def _pageviews(
         return None
     views = views_from_page(page)
     if days > ACTION_API_MAX_DAYS:
-        end = datetime.now(timezone.utc).date() - timedelta(days=1)
+        end = datetime.now(UTC).date() - timedelta(days=1)
         start = end - timedelta(days=days - 1)
         title = quote(str(page["title"]).replace(" ", "_"), safe="")
         try:

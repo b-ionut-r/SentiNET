@@ -278,6 +278,13 @@ _IRREGULAR = {
 }
 _KEEP = frozenset({"news", "series", "analysis", "data", "media", "us", "its", "this", "has", "was",
                    "does", "is", "always", "perhaps", "species", "chaos", "plus", "bonus", "status"})
+# Final stems for words the suffix rules would collide with unrelated ones
+# ("rating" -> "rat" == "rates"; "united" -> "unit"; "news" family).
+_FIXED = {
+    "rating": "rating", "ratings": "rating", "rated": "rating", "rate": "rate", "rates": "rate",
+    "united": "united", "deliver": "delivery", "delivers": "delivery", "delivered": "delivery",
+    "deliveries": "delivery", "delivery": "delivery",
+}
 _VOWELS = frozenset("aeiouy")
 
 
@@ -295,6 +302,8 @@ def stem(word: str) -> str:
     w = word.lower()
     if w in _KEEP:
         return w
+    if w in _FIXED:
+        return _FIXED[w]
     w = _IRREGULAR.get(w, w)
     if len(w) <= 3 or not w.replace("-", "").isalpha():
         return w

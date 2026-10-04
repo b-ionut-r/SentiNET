@@ -11,7 +11,7 @@ import { DriverText } from "../../components/ui/DriverText";
 import { Empty, Segmented } from "../../components/ui/Misc";
 import { Panel } from "../../components/ui/Panel";
 import { cx } from "../../lib/cx";
-import { plural, timeAgo } from "../../lib/format";
+import { compact, plural, timeAgo } from "../../lib/format";
 import { polarityOf } from "../../lib/sentiment";
 import { eventLabel, themeLabel } from "./themes";
 
@@ -141,26 +141,48 @@ export function SignalExplorer({ a }: { a: Analysis }) {
   );
 }
 
+/** Dot-separated run that wraps as one unit, so a separator never starts a line. */
+function MetaGroup({ items }: { items: ReactNode[] }) {
+  const parts = items.filter(Boolean);
+  if (!parts.length) return null;
+  return (
+    <span className="inline-flex flex-wrap items-center gap-x-1.5">
+      {parts.map((m, i) => (
+        <span key={i} className="inline-flex items-center gap-x-1.5 whitespace-nowrap">
+          {i > 0 && <span className="text-faint" aria-hidden>·</span>}
+          {m}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 function SignalRow({ s }: { s: Signal }) {
-  const meta: ReactNode[] = [
+  const provenance: ReactNode[] = [
     <span key="pub" className="font-medium text-ink-2">
       {s.publisher ?? (s.author ? `@${s.author}` : s.source_label)}
     </span>,
     s.publisher || s.author ? <span key="src">{s.source_label}</span> : null,
-    <span key="t">{timeAgo(s.timestamp)}</span>,
+    <span key="t" title={s.timestamp ?? undefined}>
+      {timeAgo(s.timestamp)}
+    </span>,
+  ];
+  const metrics: ReactNode[] = [
     <span key="rel" title="How clearly the item is about this ticker">
       relevance {Math.round(s.relevance * 100)}%
     </span>,
     <span key="w" title="Aggregation weight: source trust × recency × engagement × relevance × confidence">
       weight {s.weight.toFixed(2)}
     </span>,
+  ];
+  const reach: ReactNode[] = [
     s.duplicates > 0 ? (
       <span key="dup" className="text-ink-2">
         ×{s.duplicates + 1} syndicated
       </span>
     ) : null,
-    s.engagement > 0 ? <span key="eng">{s.engagement} engagement</span> : null,
-  ].filter(Boolean);
+    s.engagement > 0 ? <span key="eng">{compact(s.engagement)} engagement</span> : null,
+  ];
   return (
     <li className="grid grid-cols-[64px_minmax(0,1fr)] gap-3 px-4 py-2.5">
       <div className="pt-px">
@@ -183,13 +205,10 @@ function SignalRow({ s }: { s: Signal }) {
             </a>
           )}
         </div>
-        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-2xs text-muted">
-          {meta.map((m, i) => (
-            <span key={i} className="inline-flex items-center gap-2">
-              {i > 0 && <span className="text-faint">·</span>}
-              {m}
-            </span>
-          ))}
+        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-2xs text-muted">
+          <MetaGroup items={provenance} />
+          <MetaGroup items={metrics} />
+          <MetaGroup items={reach} />
           {s.user_label && (
             <Chip tone={s.user_label === "bullish" ? "bull" : s.user_label === "bearish" ? "bear" : "neutral"}>
               author tag: {s.user_label}

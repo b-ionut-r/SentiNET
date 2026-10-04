@@ -21,7 +21,7 @@ from __future__ import annotations
 import math
 import re
 from collections.abc import Iterable
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import date, datetime, time, timedelta, UTC
 from itertools import pairwise
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -45,7 +45,7 @@ from app.schemas import (
 )
 
 NY = ZoneInfo("America/New_York")
-UTC = timezone.utc
+UTC = UTC
 
 
 # --------------------------------------------------------------------------- #
@@ -273,7 +273,7 @@ def closes_from_history(df: pd.DataFrame | None) -> list[tuple[date, float]]:
     if df is None or df.empty or "Close" not in df:
         return []
     closes = df["Close"].dropna()
-    return [(d, float(c)) for d, c in zip(_local_dates(closes.index), closes.to_numpy())]
+    return [(d, float(c)) for d, c in zip(_local_dates(closes.index), closes.to_numpy(), strict=True)]
 
 
 def wilder_rsi(closes: list[float], period: int = 14) -> float | None:
@@ -297,7 +297,7 @@ def wilder_rsi(closes: list[float], period: int = 14) -> float | None:
 
 
 def _close_on_or_before(dates: list[date], closes: list[float], target: date) -> float | None:
-    for d, c in zip(reversed(dates), reversed(closes)):
+    for d, c in zip(reversed(dates), reversed(closes), strict=True):
         if d <= target:
             return c
     return None

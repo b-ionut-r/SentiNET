@@ -259,7 +259,7 @@ class SentinelEngine:
         merged: dict[str, float] = {}
         counts: dict[str, int] = {}
         for h in ev.hits:
-            term = " ".join(h.term.split())
+            term = " ".join((h.display or h.term).split())
             if not term:
                 continue
             counts[term] = counts.get(term, 0) + 1

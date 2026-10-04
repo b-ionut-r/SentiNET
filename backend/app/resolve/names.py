@@ -20,6 +20,8 @@ import re
 import unicodedata
 from dataclasses import dataclass, field
 
+from app.resolve.words import COMMON_WORDS
+
 # --------------------------------------------------------------------------- #
 # Curated brands: ticker -> (short_name, aliases)
 # --------------------------------------------------------------------------- #
@@ -237,37 +239,13 @@ _DESCRIPTORS = {
     "brands", "enterprises", "solutions", "industries", "therapeutics",
     "pharmaceuticals", "biosciences", "biotherapeutics", "labs", "laboratories",
     "motors", "athletica", "resorts", "hospitality", "financial", "bancorp",
+    "sciences", "medicine", "health", "healthcare", "energy", "foods", "restaurants", "aviation",
+    "airways", "pharma", "biotech", "biopharma", "biopharmaceuticals", "diagnostics", "genomics",
+    "robotics", "oncology", "motor", "computing", "quantum", "ai", "investments", "enterprise",
 }
 # Descriptors that may also be dropped after a multi-word head
 # ("Capital One Financial" -> "Capital One", "Philip Morris International").
-_MULTI_OK = {"financial", "international", "worldwide", "global"}
-# Heads that are ordinary English words: keep the descriptor for precision
-# ("Bloom Energy", "Applied Materials", "Beam Therapeutics", "Zoom ...").
-COMMON_WORDS = {
-    "apple", "target", "meta", "block", "snap", "visa", "shell", "amazon",
-    "oracle", "ford", "gap", "square", "delta", "united", "american",
-    "southwest", "alphabet", "zoom", "unity", "lucid", "ball", "arch",
-    "carnival", "booking", "progressive", "general", "discover", "match",
-    "global", "snowflake", "affirm", "upstart", "root", "lemonade", "oscar",
-    "plug", "ally", "citizens", "regions", "marathon", "pioneer",
-    "continental", "spirit", "frontier", "monster", "celsius", "constellation",
-    "crocs", "academy", "express", "guess", "tapestry", "columbia", "figs",
-    "beam", "applied", "analog", "advanced", "bloom", "first", "western",
-    "eastern", "northern", "southern", "national", "digital", "universal",
-    "international", "royal", "super", "micro", "intuitive", "edge", "fortune",
-    "sun", "star", "eagle", "coherent", "lumen", "compass", "rocket", "public",
-    "service", "enterprise", "waste", "republic", "summit", "pacific",
-    "atlantic", "liberty", "freedom", "fidelity", "prudential", "principal",
-    "realty", "energy", "power", "solar", "wave", "vital", "core", "prime",
-    "bright", "clear", "smart", "open", "next", "new", "best", "big", "true",
-    "blue", "green", "red", "black", "white", "silver", "gold", "diamond",
-    "crown", "keystone", "anchor", "harbor", "bridge", "tower", "peak",
-    "mosaic", "alliance", "union", "capital", "trade", "desk", "data",
-    "cloud", "signal", "vector", "matrix", "quantum", "fusion", "nexus",
-    "atlas", "titan", "apex", "zenith", "vertex", "pulse", "spark", "flex",
-    "bumble", "chewy", "toast", "sweetgreen", "hims", "peloton", "nikola",
-    "robinhood", "opendoor", "sea", "grab", "coupang", "wish", "poshmark",
-}
+_MULTI_OK = {"financial", "international", "worldwide", "global", "investments"}
 # All-caps tokens that are real acronyms/stylings, not shouting.
 _KEEP_UPPER = {
     "ASML", "AECOM", "AMETEK", "CBRE", "IDEX", "NIO", "IBM", "CSX", "EPAM",
@@ -353,8 +331,8 @@ def _fix_case_token(tok: str, *, all_caps_name: bool) -> str:
         return tok[:1].upper() + tok[1:].lower()  # "BERKSHIRE HATHAWAY INC" -> "... Inc"
     if _ROMAN.match(bare):
         return tok.upper()  # "Acquisition Corp VIII"
-    if all_caps_name and bare.lower() in _WORDS3:
-        return tok[:1].upper() + tok[1:].lower()  # "CAPITAL ONE" -> "Capital One"
+    if all_caps_name and (bare.lower() in _WORDS3 or bare.lower() in COMMON_WORDS):
+        return tok[:1].upper() + tok[1:].lower()  # "CAPITAL ONE" -> "Capital One", "OLD DOMINION" -> "Old …"
     if len(letters) <= 3:
         return tok  # acronym-sized: "AMC", "CVS"
     if len(letters) == 4 and not _wordlike(bare.upper()):
@@ -401,7 +379,7 @@ def _base_clean_with_tail(raw: str) -> tuple[list[str], list[str]]:
 
 
 def _distinctive(token: str) -> bool:
-    bare = token.strip(".,&'")
+    bare = token.strip(".,&'!")
     return len(bare) >= 3 and bare.lower() not in COMMON_WORDS
 
 
@@ -422,6 +400,24 @@ def _strip_descriptors(tokens: list[str]) -> list[str]:
     return tokens
 
 
+def _needs_suffix(head: str) -> bool:
+    """A lone head that is no brand on its own: a generic word ("News") or a tiny word ("On", "Nu")."""
+    bare = head.lower().strip(".,")
+    letters = [c for c in head if c.isalpha()]
+    return bare in _GENERIC_HEADS or (len(letters) <= 2 and not _is_shouting(head) and not any(c.isdigit() for c in head))
+
+
+def _legal_alias(short: str, candidates: list[str]) -> str | None:
+    """"Sea" + "Sea Limited" -> "Sea Limited": the precise form of an everyday-word brand."""
+    for cand in candidates:
+        tokens, tail = _base_clean_with_tail(cand)
+        if tail and " ".join(tokens).lower().strip(" ,.") == short.lower():
+            suffix = tail[0].rstrip(".,")
+            if _norm_token(suffix) not in {"the", "new", "com", "&", "and"}:
+                return f"{short} {fix_case(suffix) if _is_shouting(suffix) else suffix}"
+    return None
+
+
 def clean_company_name(raw: str) -> str:
     """Registry name -> brand name used in headlines.
 
@@ -438,8 +434,8 @@ def clean_company_name(raw: str) -> str:
     if not tokens:
         return (raw or "").strip()
     tokens = _strip_descriptors(tokens)
-    if len(tokens) == 1 and tokens[0].lower().strip(".,") in _GENERIC_HEADS and legal_tail:
-        tokens = [tokens[0], legal_tail[0].rstrip(".,")]  # "NEWS CORP" -> "News Corp"
+    if len(tokens) == 1 and legal_tail and _needs_suffix(tokens[0]):
+        tokens = [tokens[0], legal_tail[0].rstrip(".,")]  # "NEWS CORP" -> "News Corp", "On Holding"
     name = " ".join(tokens).strip(" ,.&")
     name = name.removesuffix(" and")
     return fix_case(name)
@@ -524,6 +520,9 @@ def derive_names(
             full = fix_case(" ".join(_base_clean(cand)).strip(" ,.&"))
             if full and full.lower() != short.lower():
                 aliases.append(full)
+        # An everyday-word brand is unambiguous with its legal suffix ("Sea Limited", "Pool Corporation").
+        if is_common_word_name(short) and (legal := _legal_alias(short, candidates)):
+            aliases.append(legal)
 
     folded = ascii_fold(short)
     if folded and folded != short:
@@ -532,7 +531,7 @@ def derive_names(
     unique: list[str] = []
     for alias in aliases:
         key = alias.lower()
-        if alias and key not in seen and key != ticker.lower():
+        if alias and key not in seen and key != ticker.lower() and not _needs_suffix(alias):
             seen.add(key)
             unique.append(alias)
     return NameResult(short_name=short or ticker, aliases=unique)

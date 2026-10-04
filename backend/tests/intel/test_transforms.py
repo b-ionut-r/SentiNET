@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import math
-from datetime import date, datetime, timezone
+from datetime import date, datetime, UTC
 from itertools import pairwise
 
 import pandas as pd
@@ -11,7 +11,7 @@ import pytest
 from app.intel import transforms as tx
 from tests.intel import helpers as fx
 
-NOW = datetime(2026, 10, 4, 22, 0, tzinfo=timezone.utc)  # fixtures were captured on Sunday 2026-10-04
+NOW = datetime(2026, 10, 4, 22, 0, tzinfo=UTC)  # fixtures were captured on Sunday 2026-10-04
 TODAY = NOW.date()
 
 
@@ -67,7 +67,7 @@ def test_profile_from_info_trims_summary() -> None:
 def test_candles_intraday_and_crypto() -> None:
     candles = tx.candles_from_history(fx.bars("NVDA", "5m"))
     assert len(candles) >= 70
-    assert all(c.t.tzinfo == timezone.utc for c in candles)
+    assert all(c.t.tzinfo == UTC for c in candles)
     assert all(c.l <= min(c.o, c.c) + 1e-6 and c.h >= max(c.o, c.c) - 1e-6 for c in candles)
     assert [c.t for c in candles] == sorted(c.t for c in candles)
     assert tx.candles_from_history(None) == [] and tx.candles_from_history(pd.DataFrame()) == []
@@ -114,7 +114,7 @@ def test_technicals_match_independent_pandas_math() -> None:
 
 def test_technicals_skip_partial_session_volume() -> None:
     df = fx.bars("NVDA")
-    during = datetime(2026, 10, 2, 18, 0, tzinfo=timezone.utc)  # Fri 14:00 New York, market open
+    during = datetime(2026, 10, 2, 18, 0, tzinfo=UTC)  # Fri 14:00 New York, market open
     t = tx.technicals_from_history(df, now=during)
     vol = df["Volume"]
     assert t is not None and t.volume_ratio == pytest.approx(vol.iloc[-2] / vol.iloc[-65:-2].mean(), abs=0.01)

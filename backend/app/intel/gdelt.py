@@ -23,7 +23,7 @@ import logging
 import math
 import re
 import time
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, UTC
 from typing import Any
 
 import httpx
@@ -314,7 +314,7 @@ async def _tone_trend(query: str, fallback: str, days: int) -> ToneTrend | None:
     except UpstreamError as exc:  # tone without volume is still the core signal
         logger.info("GDELT volume unavailable for %r: %s", query, exc)
         volume = {}
-    return build_trend(query, tone, volume, today=datetime.now(timezone.utc).date())
+    return build_trend(query, tone, volume, today=datetime.now(UTC).date())
 
 
 # Last good result per query: GDELT refuses often from shared IPs, and a trend

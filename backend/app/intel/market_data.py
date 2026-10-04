@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, UTC
 from typing import Any, TypeVar
 
 import pandas as pd
@@ -68,7 +68,7 @@ INDEX_SYMBOLS: dict[str, str] = {
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _is_not_found(exc: BaseException) -> bool:

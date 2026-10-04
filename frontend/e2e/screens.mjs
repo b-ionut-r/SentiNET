@@ -207,6 +207,18 @@ try {
         await page.waitForTimeout(250); // let effects (hotkeys, observers) attach
         if (pg.act) await pg.act(page);
         await page.waitForTimeout(pg.settle ?? 700);
+        // Layout check: nothing may push the page wider than the viewport (no sideways scroll on phones).
+        const overflow = await page.evaluate(() => {
+          const vw = document.documentElement.clientWidth;
+          const extra = document.documentElement.scrollWidth - vw;
+          if (extra <= 1) return null;
+          const culprits = [...document.querySelectorAll("main *")]
+            .filter((el) => el.getBoundingClientRect().right > vw + 1 && el.children.length === 0)
+            .slice(0, 3)
+            .map((el) => `${el.tagName.toLowerCase()}.${String(el.className).split(" ").slice(0, 3).join(".")} "${(el.textContent ?? "").trim().slice(0, 30)}"`);
+          return `${extra}px wider than the viewport: ${culprits.join(" | ")}`;
+        });
+        if (overflow) errors.push(`${pg.name}@${width}/${theme} overflow: ${overflow}`);
         const file = join(OUT, `${pg.name}.${width}.${theme}.png`);
         await page.screenshot({ path: file, fullPage: !pg.viewportOnly });
         console.log("shot", file);

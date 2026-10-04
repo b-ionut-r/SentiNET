@@ -8,7 +8,7 @@ import type { Analysis } from "../../api/types";
 import { TickerLogo } from "../../components/ui/Misc";
 import { Tip } from "../../components/ui/Tooltip";
 import { cx } from "../../lib/cx";
-import { compact, money, ms, pct, price, signed, timeAgo } from "../../lib/format";
+import { compact, dayTime, money, ms, pct, price, signed, timeAgo } from "../../lib/format";
 import { glyph, polarityOf, textTone } from "../../lib/sentiment";
 
 interface Props {
@@ -55,7 +55,9 @@ export function HeaderStrip({ a, watched, onWatch, onRefresh, refreshing, progre
               </span>
             )}
           </div>
-          <p className="mt-1.5 text-2xs text-muted">{qt?.as_of ? `as of ${timeAgo(qt.as_of)}` : "quote unavailable"}</p>
+          <p className="mt-1.5 text-2xs text-muted" title={qt?.as_of ?? undefined}>
+            {qt?.as_of ? `as of ${quoteAge(qt.as_of)}` : qt?.price != null ? "latest quote" : "quote unavailable"}
+          </p>
         </div>
         <DayRange low={qt?.day_low ?? null} high={qt?.day_high ?? null} last={qt?.price ?? null} currency={qt?.currency} />
         <Stat label="Mkt cap" value={money(qt?.market_cap, qt?.currency)} />
@@ -119,6 +121,12 @@ export function HeaderStrip({ a, watched, onWatch, onRefresh, refreshing, progre
       </div>
     </header>
   );
+}
+
+/** Recent quotes read as "5m ago"; stale ones (weekend, halted) show the exact session time. */
+function quoteAge(asOf: string): string {
+  const t = Date.parse(asOf);
+  return Number.isFinite(t) && Date.now() - t > 6 * 3600_000 ? dayTime(asOf) : timeAgo(asOf);
 }
 
 function Stat({ label, value }: { label: string; value: React.ReactNode }) {

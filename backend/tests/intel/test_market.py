@@ -1,7 +1,7 @@
 """Market-wide intel: Fear & Greed, trending tickers, merged headlines."""
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, UTC
 
 import httpx
 import pytest
@@ -21,7 +21,7 @@ from app.intel.market import (
 from app.sources.base import RawSignal
 from tests.intel.helpers import load_json, load_text
 
-CAPTURED = datetime(2026, 10, 4, 22, 40, tzinfo=timezone.utc)
+CAPTURED = datetime(2026, 10, 4, 22, 40, tzinfo=UTC)
 
 
 @pytest.fixture(autouse=True)

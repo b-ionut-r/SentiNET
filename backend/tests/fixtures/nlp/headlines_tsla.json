@@ -1,0 +1,613 @@
+{
+ "description": "Real Google News RSS headlines (search: \"Tesla\" (stock OR shares OR TSLA) when:7d), captured 2026-10-04 ~23:20 UTC. HELD-OUT narrative set: labeled before any clustering output was inspected and never used for tuning. 'story' = hand-labeled narrative ('a|b' = either acceptable, '?' = don't care, null = its own story).",
+ "company": {
+  "ticker": "TSLA",
+  "name": "Tesla, Inc.",
+  "short_name": "Tesla",
+  "aliases": [],
+  "industry": "Auto Manufacturers",
+  "sector": "Consumer Cyclical"
+ },
+ "items": [
+  {
+   "title": "Tesla (TSLA) is Expanding Beyond Passenger Cars. Can it Unlock Another Growth Engine? - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-28T04:06:00+00:00",
+   "story": null
+  },
+  {
+   "title": "Prediction: Tesla Stock Will Plunge to $100 if the S&P 500 Enters a Bear Market - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-28T11:23:00+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Tesla Faces Q3 Delivery Test — JPMorgan Cuts Forecast, Flags Weakness In Two Key Markets - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-28T13:05:55+00:00",
+   "story": "delivery_preview"
+  },
+  {
+   "title": "Can This Number Push Tesla Stock Higher? - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-28T14:27:40+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Tesla (TSLA) Q3 2026 delivery estimates range from 422,000 to 482,000 - Electrek",
+   "publisher": "Electrek",
+   "timestamp": "2026-09-28T16:33:00+00:00",
+   "story": "delivery_preview"
+  },
+  {
+   "title": "Tesla Stock Drops Over 3% Before Cybercab's Federal Answers Come Due - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-28T19:22:09+00:00",
+   "story": null
+  },
+  {
+   "title": "Tesla Pushes Roadster Event To Oct. 15 After Storm Forecast, Says It ‘Can Only Be Held Outdoors’ - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-28T20:20:25+00:00",
+   "story": "roadster_event"
+  },
+  {
+   "title": "Why Tesla Stock Is Tied to SpaceX Ahead of a Big Week for the EV Maker - barrons.com",
+   "publisher": "barrons.com",
+   "timestamp": "2026-09-28T20:22:00+00:00",
+   "story": "spacex_merger|?"
+  },
+  {
+   "title": "Tesla Wins FSD Approval in Croatia. Is the Rest of Europe Next? - barrons.com",
+   "publisher": "barrons.com",
+   "timestamp": "2026-09-29T14:02:00+00:00",
+   "story": null
+  },
+  {
+   "title": "Tesla (TSLA) wins SEC OK to auto-vote retail shares with board ahead of SpaceX merger - Electrek",
+   "publisher": "Electrek",
+   "timestamp": "2026-09-29T16:57:00+00:00",
+   "story": "autovote_sec"
+  },
+  {
+   "title": "Tesla lines up $30 billion credit lines as capex, AI push accelerate - Reuters",
+   "publisher": "Reuters",
+   "timestamp": "2026-09-29T21:24:09+00:00",
+   "story": "credit_line"
+  },
+  {
+   "title": "Nasdaq-100® Inside the Index: Tesla - Nasdaq",
+   "publisher": "Nasdaq",
+   "timestamp": "2026-09-30T09:13:00+00:00",
+   "story": null
+  },
+  {
+   "title": "What Does Tesla's $30B Credit Lines Mean for Its Growth Plans? - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-30T11:17:00+00:00",
+   "story": "credit_line"
+  },
+  {
+   "title": "Should You Buy Tesla Stock Before Oct. 2? - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-30T13:20:00+00:00",
+   "story": "buy_before_oct2"
+  },
+  {
+   "title": "Cathie Wood Just Bought More Tesla as a Bear Sounds a $30 Billion Warning - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-30T14:19:59+00:00",
+   "story": "credit_line|?"
+  },
+  {
+   "title": "Tesla Shares Q3 2026 Analyst Delivery Consensus - Not a Tesla App",
+   "publisher": "Not a Tesla App",
+   "timestamp": "2026-09-30T14:40:00+00:00",
+   "story": "delivery_preview"
+  },
+  {
+   "title": "Tesla Locks In $30 Billion Credit Line To Fund Soaring AI Spending - Investor's Business Daily",
+   "publisher": "Investor's Business Daily",
+   "timestamp": "2026-09-30T15:02:00+00:00",
+   "story": "credit_line"
+  },
+  {
+   "title": "Why Tesla’s $25 Billion Credit Line Is a High-Stakes Bet on AI and Robotaxis - barrons.com",
+   "publisher": "barrons.com",
+   "timestamp": "2026-09-30T15:28:00+00:00",
+   "story": "credit_line"
+  },
+  {
+   "title": "How to Play Tesla Stock Ahead of Its Hotly Anticipated Roadster Reveal - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-30T17:16:42+00:00",
+   "story": "roadster_event"
+  },
+  {
+   "title": "SpaceX Just Got a Little Closer to a Tesla Merger - barrons.com",
+   "publisher": "barrons.com",
+   "timestamp": "2026-09-30T20:25:00+00:00",
+   "story": "spacex_merger"
+  },
+  {
+   "title": "SEC clears Tesla-crafted auto-vote plan for wide use, worrying activists - Reuters",
+   "publisher": "Reuters",
+   "timestamp": "2026-09-30T22:36:33+00:00",
+   "story": "autovote_sec"
+  },
+  {
+   "title": "Tesla Stock Price Prediction: Can TSLA Stock See a New Rally as Next-Gen Roadster Nears Launch? - tradingkey.com",
+   "publisher": "tradingkey.com",
+   "timestamp": "2026-10-01T04:02:47+00:00",
+   "story": "roadster_event"
+  },
+  {
+   "title": "Tesla Registrations Rise Across Several European Markets in September - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-01T10:18:46+00:00",
+   "story": "europe_regs"
+  },
+  {
+   "title": "Tesla Trades at 350 Times Earnings. Here's What Has to Be True for That to Make Sense. - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-01T11:20:00+00:00",
+   "story": "valuation_350x"
+  },
+  {
+   "title": "Tesla Trades at 350 Times Earnings. Here's What Has to Be True for That to Make Sense. - The Motley Fool",
+   "publisher": "The Motley Fool",
+   "timestamp": "2026-10-01T12:00:00+00:00",
+   "story": "valuation_350x"
+  },
+  {
+   "title": "Tesla Bears Retreat as Sell Ratings Hit 3-Year Low: 'Don't Bet Against Musk' - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-01T13:28:36+00:00",
+   "story": null
+  },
+  {
+   "title": "Tesla European Car Registrations Surge Across Key Markets in September Rebound - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-01T13:46:15+00:00",
+   "story": "europe_regs"
+  },
+  {
+   "title": "Musk’s AI ambitions are changing how investors see Tesla - Los Angeles Times",
+   "publisher": "Los Angeles Times",
+   "timestamp": "2026-10-01T14:21:29+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Europe Is Tesla's Bright Spot Ahead Of Likely Lackluster Q3 Deliveries - Investor's Business Daily",
+   "publisher": "Investor's Business Daily",
+   "timestamp": "2026-10-01T14:34:00+00:00",
+   "story": "europe_regs|delivery_preview"
+  },
+  {
+   "title": "Tesla September registrations rise across Europe, extending recovery - Reuters",
+   "publisher": "Reuters",
+   "timestamp": "2026-10-01T16:39:38+00:00",
+   "story": "europe_regs"
+  },
+  {
+   "title": "Tesla global sales likely down in third quarter, analysts say - detroitnews.com",
+   "publisher": "detroitnews.com",
+   "timestamp": "2026-10-01T16:41:00+00:00",
+   "story": "delivery_preview"
+  },
+  {
+   "title": "4 Experts Weigh In on How Tesla's Next Chapter Could Make or Break the Stock - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-01T17:00:24+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Not Cars. Not Energy Storage. Tesla's Robotics and Robotaxi Ambitions Are the Real Reason the Stock Is Priced Like a Tech Company. - The Motley Fool",
+   "publisher": "The Motley Fool",
+   "timestamp": "2026-10-01T18:22:00+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Tesla Is Down 20% in 2026. These Two Other EV Makers Are Doing Even Worse. - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-01T19:13:17+00:00",
+   "story": "ytd_laggard"
+  },
+  {
+   "title": "Why the Tesla Roadster Event Was Delayed—and What It Means for the Stock - barrons.com",
+   "publisher": "barrons.com",
+   "timestamp": "2026-10-01T20:18:00+00:00",
+   "story": "roadster_event"
+  },
+  {
+   "title": "Tesla Is the Only Magnificent Seven Stock in the Red for 2026 - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T02:57:00+00:00",
+   "story": "ytd_laggard"
+  },
+  {
+   "title": "Should You Buy Tesla Stock Before Oct. 2? - The Motley Fool",
+   "publisher": "The Motley Fool",
+   "timestamp": "2026-10-02T07:00:00+00:00",
+   "story": "buy_before_oct2"
+  },
+  {
+   "title": "How Bad Would A Cash Shortfall Be For Tesla Stock? - Trefis",
+   "publisher": "Trefis",
+   "timestamp": "2026-10-02T10:25:10+00:00",
+   "story": null
+  },
+  {
+   "title": "Ron Baron: Elon Musk’s ‘unbelievable’ new product that all Americans will want — and ‘now’ is the time to buy stock - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T10:45:00+00:00",
+   "story": "baron"
+  },
+  {
+   "title": "Analyst sets Tesla (TSLA) stock price target for 12 months - Finbold",
+   "publisher": "Finbold",
+   "timestamp": "2026-10-02T10:48:38+00:00",
+   "story": null
+  },
+  {
+   "title": "Dow Jones Futures Rise, Oil Prices Tumble With Tesla, Jobs Due; Nike, Seagate, Western Digital Are Big Losers - Investor's Business Daily",
+   "publisher": "Investor's Business Daily",
+   "timestamp": "2026-10-02T12:07:00+00:00",
+   "story": "?"
+  },
+  {
+   "title": "US Regulator Backs Tesla Plan Allowing Investors to Auto Vote Proxy Ballots With Management - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T12:15:57+00:00",
+   "story": "autovote_sec"
+  },
+  {
+   "title": "Tesla stock jumps 5% on better-than-expected vehicle deliveries report - CNBC",
+   "publisher": "CNBC",
+   "timestamp": "2026-10-02T13:03:51+00:00",
+   "story": "q3_deliveries"
+  },
+  {
+   "title": "Tesla Third Quarter 2026 Production, Deliveries & Deployments - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T13:06:00+00:00",
+   "story": "q3_deliveries"
+  },
+  {
+   "title": "Tesla sales smash Wall Street's expectations - Business Insider",
+   "publisher": "Business Insider",
+   "timestamp": "2026-10-02T13:06:00+00:00",
+   "story": "q3_deliveries"
+  },
+  {
+   "title": "Tesla (TSLA) Q3 2026 deliveries slip 2% to 486,532, but beat estimates - Electrek",
+   "publisher": "Electrek",
+   "timestamp": "2026-10-02T13:11:00+00:00",
+   "story": "q3_deliveries"
+  },
+  {
+   "title": "Rivian Jumps 4% After Delivering 19,248 Vehicles and Reaffirming Full-Year Guidance; Tesla Rises 2% - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T13:30:49+00:00",
+   "story": "q3_deliveries|?"
+  },
+  {
+   "title": "Tesla stock rises as company reports Q3 deliveries that top analyst estimates - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T13:39:42+00:00",
+   "story": "q3_deliveries"
+  },
+  {
+   "title": "Tesla’s EV sales top estimates with auto business rebounding - ttnews.com",
+   "publisher": "ttnews.com",
+   "timestamp": "2026-10-02T13:48:00+00:00",
+   "story": "q3_deliveries"
+  },
+  {
+   "title": "Tesla Is Winning the New EV Race. Here’s How. - barrons.com",
+   "publisher": "barrons.com",
+   "timestamp": "2026-10-02T13:53:00+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Tesla Stock: The Vision And The Timeline (NASDAQ:TSLA) - Seeking Alpha",
+   "publisher": "Seeking Alpha",
+   "timestamp": "2026-10-02T14:00:00+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Why is Tesla stock surging today? - Investing.com",
+   "publisher": "Investing.com",
+   "timestamp": "2026-10-02T14:16:18+00:00",
+   "story": "q3_deliveries|?"
+  },
+  {
+   "title": "Tesla Stock Jumps 6% on Delivery Beat: Will Earnings Back It Up? - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T14:32:24+00:00",
+   "story": "q3_deliveries"
+  },
+  {
+   "title": "Tesla's car business back on growth path as deliveries beat forecasts - Reuters",
+   "publisher": "Reuters",
+   "timestamp": "2026-10-02T14:49:43+00:00",
+   "story": "q3_deliveries"
+  },
+  {
+   "title": "Tesla Surges 5% as 486,532 Deliveries Top Company Consensus; Rivian Slides 3% - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T14:50:42+00:00",
+   "story": "q3_deliveries"
+  },
+  {
+   "title": "Tesla shares climb 5% after sales surprise Wall Street despite AI, robotaxis pivot - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T14:59:14+00:00",
+   "story": "q3_deliveries"
+  },
+  {
+   "title": "Tesla shares climb 5% after sales surprise Wall Street despite AI, robotaxis pivot - New York Post",
+   "publisher": "New York Post",
+   "timestamp": "2026-10-02T15:03:09+00:00",
+   "story": "q3_deliveries"
+  },
+  {
+   "title": "Tesla Stock Gains As European Demand Boosts Q3 Deliveries - Benzinga",
+   "publisher": "Benzinga",
+   "timestamp": "2026-10-02T15:25:55+00:00",
+   "story": "q3_deliveries"
+  },
+  {
+   "title": "Tesla Stock Jumps After Deliveries Top Estimates - Investopedia",
+   "publisher": "Investopedia",
+   "timestamp": "2026-10-02T15:36:23+00:00",
+   "story": "q3_deliveries"
+  },
+  {
+   "title": "Stock Market Finishes Strong, Yields Off Highs; Micron, Meta, Nvidia, Tesla In Focus: Weekly Review - Investor's Business Daily",
+   "publisher": "Investor's Business Daily",
+   "timestamp": "2026-10-02T15:39:00+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Tesla vehicle deliveries are on the rise - Austin American-Statesman",
+   "publisher": "Austin American-Statesman",
+   "timestamp": "2026-10-02T15:41:34+00:00",
+   "story": "q3_deliveries"
+  },
+  {
+   "title": "Tesla Shares Rise as Third-Quarter Deliveries Exceed Expectations - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T15:57:59+00:00",
+   "story": "q3_deliveries"
+  },
+  {
+   "title": "Tesla Shares Rise as Third-Quarter Deliveries Exceed Expectations - marketscreener.com",
+   "publisher": "marketscreener.com",
+   "timestamp": "2026-10-02T15:58:15+00:00",
+   "story": "q3_deliveries"
+  },
+  {
+   "title": "Tesla Sales Are Down. But They're Doing A Lot Better Than Some Competitors - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T16:02:50+00:00",
+   "story": "q3_deliveries"
+  },
+  {
+   "title": "Cybertruck sales in free fall as Tesla reports mediocre sales for Q3 - Ars Technica",
+   "publisher": "Ars Technica",
+   "timestamp": "2026-10-02T16:05:26+00:00",
+   "story": "q3_deliveries"
+  },
+  {
+   "title": "Tesla Stock Surges 5% After Company Reports Better-Than-Expected Q3 Deliveries - forbes.com",
+   "publisher": "forbes.com",
+   "timestamp": "2026-10-02T16:17:07+00:00",
+   "story": "q3_deliveries"
+  },
+  {
+   "title": "Why Tesla Stock Jumped Today - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T16:31:35+00:00",
+   "story": "q3_deliveries|?"
+  },
+  {
+   "title": "Tesla Stock Jumps After Surprise Q3 Delivery Beat - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T16:33:16+00:00",
+   "story": "q3_deliveries"
+  },
+  {
+   "title": "Tesla Stock Jumps After Surprise Q3 Delivery Beat - TradingView",
+   "publisher": "TradingView",
+   "timestamp": "2026-10-02T16:33:16+00:00",
+   "story": "q3_deliveries"
+  },
+  {
+   "title": "Billionaire Investor Ron Baron Raves About Elon Musk’s Tesla Technology: ‘The Time to Buy the Stock Is Now’ - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T16:36:04+00:00",
+   "story": "baron"
+  },
+  {
+   "title": "Tesla shares rise as Q3 deliveries beat production - Yahoo! Finance Canada",
+   "publisher": "Yahoo! Finance Canada",
+   "timestamp": "2026-10-02T16:41:00+00:00",
+   "story": "q3_deliveries"
+  },
+  {
+   "title": "Stocks making the biggest moves midday: Tesla, Broadcom, Nike, ON Semiconductor & more - CNBC",
+   "publisher": "CNBC",
+   "timestamp": "2026-10-02T16:56:21+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Tesla Stock Could Be in for a Massive Move. Here’s My 2027 Price Prediction - 24/7 Wall St.",
+   "publisher": "24/7 Wall St.",
+   "timestamp": "2026-10-02T17:00:00+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Tesla Gets Model 3 Sales Boost in Canada After Carney’s China Deal - Bloomberg.com",
+   "publisher": "Bloomberg.com",
+   "timestamp": "2026-10-02T17:03:14+00:00",
+   "story": null
+  },
+  {
+   "title": "Tesla Delivered 486,532 Vehicles in Q3. Here’s Why the Real Test Could Come on Oct. 21. - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T17:10:01+00:00",
+   "story": "q3_deliveries"
+  },
+  {
+   "title": "Tesla: Shares Rise on Third-Quarter Deliveries Ahead of Consensus Estimates - Morningstar",
+   "publisher": "Morningstar",
+   "timestamp": "2026-10-02T17:19:46+00:00",
+   "story": "q3_deliveries"
+  },
+  {
+   "title": "Tesla shares jump 5% as Q3 deliveries beat expectations - Investing.com",
+   "publisher": "Investing.com",
+   "timestamp": "2026-10-02T17:27:40+00:00",
+   "story": "q3_deliveries"
+  },
+  {
+   "title": "Tesla Delivered 486,532 Vehicles in Q3. Here’s Why the Real Test Could Come on Oct. 21. - The Motley Fool",
+   "publisher": "The Motley Fool",
+   "timestamp": "2026-10-02T17:50:00+00:00",
+   "story": "q3_deliveries"
+  },
+  {
+   "title": "The Dots Are Connecting for an Eventual Tesla-SpaceX Merger - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T18:08:18+00:00",
+   "story": "spacex_merger"
+  },
+  {
+   "title": "Tesla Q3 Deliveries Top Expectations; The Stock Is Rising - Investor's Business Daily",
+   "publisher": "Investor's Business Daily",
+   "timestamp": "2026-10-02T18:25:00+00:00",
+   "story": "q3_deliveries"
+  },
+  {
+   "title": "Musk Gets $61 Billion Richer On Friday, Nearing $1 Trillion Again - forbes.com",
+   "publisher": "forbes.com",
+   "timestamp": "2026-10-02T18:28:10+00:00",
+   "story": "q3_deliveries|?"
+  },
+  {
+   "title": "Dear Tesla Stock Fans, Mark Your Calendars for October 15 - Barchart.com",
+   "publisher": "Barchart.com",
+   "timestamp": "2026-10-02T19:05:32+00:00",
+   "story": "roadster_event"
+  },
+  {
+   "title": "TSLA Stock Pops as Tesla Surprises on Q3 Deliveries - Barchart.com",
+   "publisher": "Barchart.com",
+   "timestamp": "2026-10-02T19:25:06+00:00",
+   "story": "q3_deliveries"
+  },
+  {
+   "title": "Buy, Hold, or Fade Tesla Stock After Its Q3 Delivery Beat? - Zacks Investment Research",
+   "publisher": "Zacks Investment Research",
+   "timestamp": "2026-10-02T19:31:38+00:00",
+   "story": "q3_deliveries"
+  },
+  {
+   "title": "Tesla Stock Jumps After Massive Operational Victory - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T19:57:51+00:00",
+   "story": "q3_deliveries|?"
+  },
+  {
+   "title": "Tesla shares jump after global car sales top estimates - afp.com",
+   "publisher": "afp.com",
+   "timestamp": "2026-10-02T19:58:17+00:00",
+   "story": "q3_deliveries"
+  },
+  {
+   "title": "Tesla Just Lined Up $30 Billion in Credit: What It Means for AI, Capex, and the Investment Case - The Motley Fool",
+   "publisher": "The Motley Fool",
+   "timestamp": "2026-10-02T20:30:00+00:00",
+   "story": "credit_line"
+  },
+  {
+   "title": "Stock Market Today, Oct. 2: Tesla Rises on Q3 Delivery Beat - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T21:31:28+00:00",
+   "story": "q3_deliveries"
+  },
+  {
+   "title": "Tesla Q3 deliveries better-than-expected, stock jumps on news - CNBC",
+   "publisher": "CNBC",
+   "timestamp": "2026-10-02T22:00:00+00:00",
+   "story": "q3_deliveries"
+  },
+  {
+   "title": "Tesla sold a lot more EVs than Wall Street expected, and the stock is surging - marketwatch.com",
+   "publisher": "marketwatch.com",
+   "timestamp": "2026-10-02T22:29:00+00:00",
+   "story": "q3_deliveries"
+  },
+  {
+   "title": "Why Tesla (TSLA) Stock Is Trading Up Today - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-03T00:06:00+00:00",
+   "story": "q3_deliveries|?"
+  },
+  {
+   "title": "Tesla, Rivian Deliveries Beat Estimates: Analysts Explain Why TSLA Rallied While RIVN Fell - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-03T00:24:00+00:00",
+   "story": "q3_deliveries"
+  },
+  {
+   "title": "Dan Ives Says Tesla Could Have A ‘Golden Year’ In 2027 — Robotaxis, Optimus And Cybercab In Focus - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-03T07:09:41+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Tesla’s Cybercab had a rocky first month in Austin. Now comes the hard part: expanding - CNBC",
+   "publisher": "CNBC",
+   "timestamp": "2026-10-03T11:00:01+00:00",
+   "story": null
+  },
+  {
+   "title": "Top 3 Founder Led Stocks To Watch In October 2026 - Simply Wall Street",
+   "publisher": "Simply Wall Street",
+   "timestamp": "2026-10-03T11:50:08+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Elon Musk Hints at Tesla-SpaceX Merger: “Who Can Imagine What Action One Might Take” - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-03T13:15:05+00:00",
+   "story": "spacex_merger"
+  },
+  {
+   "title": "$Tesla (TSLA.US)$ - Moomoo",
+   "publisher": "Moomoo",
+   "timestamp": "2026-10-03T15:36:55+00:00",
+   "story": "?"
+  },
+  {
+   "title": "In 2013, A Los Angeles Engineer Spent $19,000 On His First Tesla Shares. He Survived A 2018 Margin Call And A 76% Crash In 2023. Here's What Investors Can Learn From The Wild Story Of Jason DeBolt's $19,000 Purchase Turning Into $2.8 Million. - 24/7 Wall St.",
+   "publisher": "24/7 Wall St.",
+   "timestamp": "2026-10-03T19:52:00+00:00",
+   "story": null
+  },
+  {
+   "title": "Tesla (TSLA) Q3 2026 vehicle deliveries grew 1.3% QoQ and dropped by 2.1% YoY, energy business also slows down - Tesla Oracle",
+   "publisher": "Tesla Oracle",
+   "timestamp": "2026-10-03T22:36:04+00:00",
+   "story": "q3_deliveries"
+  },
+  {
+   "title": "Tesla Delivered 22,141 More Vehicles Than It Built in Q3. Here’s the Production Number That Decides What Comes Next - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-04T15:48:41+00:00",
+   "story": "q3_deliveries"
+  }
+ ]
+}

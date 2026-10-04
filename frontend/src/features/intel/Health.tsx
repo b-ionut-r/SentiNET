@@ -90,7 +90,9 @@ export function SourcesPanel({ a, className }: { a: Analysis; className?: string
   const needKey = a.sources.filter((s) => s.status === "unconfigured").length;
   const failed = a.sources.filter((s) => s.status === "error").length;
   const order: Record<SourceReport["status"], number> = { ok: 0, empty: 1, error: 2, unconfigured: 3, disabled: 4 };
-  const list = [...a.sources].sort((x, y) => order[x.status] - order[y.status] || y.kept - x.kept);
+  const list = [...a.sources].filter((s) => s.status !== "unconfigured" && s.status !== "disabled").sort((x, y) => order[x.status] - order[y.status] || y.kept - x.kept);
+  const keyless = a.sources.filter((s) => s.status === "unconfigured");
+  const disabled = a.sources.filter((s) => s.status === "disabled");
   return (
     <Panel
       id="sources"
@@ -101,7 +103,7 @@ export function SourcesPanel({ a, className }: { a: Analysis; className?: string
     >
       <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
         {list.map((s) => (
-          <li key={s.key} className={cx("rounded-lg bg-sunken p-2.5", (s.status === "unconfigured" || s.status === "disabled") && "opacity-80")} style={{ boxShadow: "inset 0 0 0 1px var(--hairline)" }}>
+          <li key={s.key} className="rounded-lg bg-sunken p-2.5" style={{ boxShadow: "inset 0 0 0 1px var(--hairline)" }}>
             <div className="flex items-center justify-between gap-2">
               <span className="truncate text-xs font-medium text-ink">{s.label}</span>
               <StatusBadge status={s.status} />
@@ -122,24 +124,41 @@ export function SourcesPanel({ a, className }: { a: Analysis; className?: string
                 </span>
                 {s.score != null && s.kept > 0 && <ScoreChip score={s.score} />}
               </div>
-            ) : s.status === "unconfigured" ? (
-              <div className="mt-1.5 text-2xs">
-                {docs.get(s.key) ? (
-                  <a className="font-medium text-accent hover:underline" href={docs.get(s.key) ?? undefined} target="_blank" rel="noreferrer">
-                    Add a free API key →
-                  </a>
-                ) : (
-                  <span className="text-muted">Add a free API key in backend/.env</span>
-                )}
-              </div>
             ) : (
               <p className="mt-1.5 truncate text-2xs text-critical" title={s.error ?? undefined}>
-                {s.error ?? (s.status === "disabled" ? "Disabled in settings" : "Failed")}
+                {s.error ?? "Failed"}
               </p>
             )}
           </li>
         ))}
       </ul>
+      {keyless.length > 0 && (
+        <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg px-2.5 py-2 text-2xs" style={{ boxShadow: "inset 0 0 0 1px var(--hairline)" }}>
+          <StatusBadge status="unconfigured" />
+          <span className="text-muted">free key unlocks:</span>
+          <span className="min-w-0">
+            {keyless.map((s, i) => (
+              <span key={s.key}>
+                {docs.get(s.key) ? (
+                  <a className="whitespace-nowrap font-medium text-accent hover:underline" href={docs.get(s.key) ?? undefined} target="_blank" rel="noreferrer" title={`Get a free ${s.label} key`}>
+                    {s.label}
+                  </a>
+                ) : (
+                  <span className="whitespace-nowrap font-medium text-ink-2">{s.label}</span>
+                )}
+                {i < keyless.length - 1 && <span className="text-faint">{"\u00a0· "}</span>}
+              </span>
+            ))}
+          </span>
+          <span className="text-muted">— set it in backend/.env</span>
+        </div>
+      )}
+      {disabled.length > 0 && (
+        <p className="mt-2 flex flex-wrap items-center gap-x-2 text-2xs text-muted">
+          <StatusBadge status="disabled" />
+          {disabled.map((s) => s.label).join(" · ")}
+        </p>
+      )}
     </Panel>
   );
 }

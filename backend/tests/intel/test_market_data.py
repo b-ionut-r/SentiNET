@@ -1,7 +1,7 @@
 """Fetch/caching plumbing of app.intel.market_data (yfinance replaced by fixtures)."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 
 import pytest
 
@@ -12,7 +12,7 @@ from app.schemas import InsiderView
 from app.sources.base import CompanyRef
 from tests.intel import helpers as fx
 
-NOW = datetime(2026, 10, 4, 22, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 10, 4, 22, 0, tzinfo=UTC)
 
 
 class YFRateLimitError(Exception):

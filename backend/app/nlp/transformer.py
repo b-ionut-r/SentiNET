@@ -15,7 +15,8 @@ import logging
 import threading
 import time
 from collections import OrderedDict
-from typing import Any, Optional, Sequence
+from typing import Any, Optional
+from collections.abc import Sequence
 
 import httpx
 
@@ -64,7 +65,7 @@ class _EnsembleEngine:
         except Exception as exc:  # noqa: BLE001 - optional engine must never break scoring
             logger.warning("%s unavailable (%s); using sentinel scores", self.name, exc)
             return base
-        return [self._blend(b, p) for b, p in zip(base, probs)]
+        return [self._blend(b, p) for b, p in zip(base, probs, strict=True)]
 
     def _predict(self, texts: list[str]) -> list[Optional[Probs]]:  # pragma: no cover - abstract
         raise NotImplementedError
@@ -178,7 +179,7 @@ class FinBertApiEngine(_EnsembleEngine):
             if len(idx) == 1 and rows and isinstance(rows[0], dict):
                 rows = [rows]  # single input may come back un-nested
             with self._lock:
-                for i, row in zip(idx, rows):
+                for i, row in zip(idx, rows, strict=False):  # a short/malformed reply leaves the rest None
                     probs = _probs_from(row)
                     out[i] = probs
                     if probs is not None:

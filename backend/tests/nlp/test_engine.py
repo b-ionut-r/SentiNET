@@ -79,7 +79,7 @@ CASES: list[tuple[str, str, str]] = [
     ("Aurora Cannabis stock slides 16% premarket", "bearish", "news"),
     ("Why Diabetes Stock Insulet Jumped 13.3% in January", "bullish", "news"),
     ("$EBAY - EBay +6% after selling StubHub", "bullish", "news"),
-    ("$VRNS - Varonis -6% on wider-than-expected loss forecast", "bearish", "news"),
+    ("$ZS - Zscaler -7% on wider-than-expected loss outlook", "bearish", "news"),
     ("Dow up 300 points as tech stocks rally", "bullish", "news"),
     ("S&P 500 sinks 3% in worst day since March", "bearish", "news"),
     ("Stocks give up gains", "bearish", "news"),
@@ -93,9 +93,9 @@ CASES: list[tuple[str, str, str]] = [
     ("Dow futures pare gains as Home Depot's stock sinks 5%", "bearish", "news"),
     ("Wall Street bounces back from a steep sell-off", "bullish", "news"),
     # compositional metrics (release language)
-    ("Operating profit rose to EUR 13.1 mn from EUR 8.7 mn in the corresponding period in 2007", "bullish", "news"),
+    ("Operating income rose to $21.4 million from $17.9 million a year earlier", "bullish", "news"),
     ("Net sales decreased to EUR 3.2 mn from EUR 4.5 mn", "bearish", "news"),
-    ("Operating loss narrowed to EUR 1.2 mn from EUR 3.4 mn", "bullish", "news"),
+    ("Operating loss narrowed to $1.2 million from $3.4 million", "bullish", "news"),
     ("The company's net loss widened to EUR 5 mn", "bearish", "news"),
     ("Costs rose sharply in the quarter", "bearish", "news"),
     ("The company cut costs by 15%", "bullish", "news"),
@@ -105,13 +105,13 @@ CASES: list[tuple[str, str, str]] = [
     ("Unemployment rate falls to record low", "bullish", "news"),
     ("Jobless claims rise more than expected", "bearish", "news"),
     ("Inflation eases for a third straight month", "bullish", "news"),
-    ("Pre-tax loss totalled EUR 0.3 mn compared to a loss of EUR 2.2 mn", "bullish", "news"),
-    ("It moved to an operating profit of EUR 2 mn from a loss of EUR 1 mn", "bullish", "news"),
-    ("Componenta's net sales doubled to EUR131m from EUR76m", "bullish", "news"),
+    ("Pretax loss was $0.4 million compared with a loss of $3.1 million last year", "bullish", "news"),
+    ("It moved to an operating profit of $2 million from a loss of $1 million", "bullish", "news"),
+    ("Acme's net sales doubled to EUR240m from EUR118m", "bullish", "news"),
     ("Order intake grew by 23% to EUR 450 mn", "bullish", "news"),
     ("Higher raw material costs weighed on margins", "bearish", "news"),
     ("Lower interest rates boosted housing demand", "bullish", "news"),
-    ("Operating profit, excluding non-recurring items, rose to EUR 5.1 mn", "bullish", "news"),
+    ("Adjusted EBITDA, excluding one-time items, rose to $5.1 million", "bullish", "news"),
     ("Sales growth slowed to 2% in the third quarter", "bearish", "news"),
     ("U.S. Claims for Jobless Benefits Fall to Lowest Since April", "bullish", "news"),
     # negation
@@ -196,8 +196,8 @@ CASES: list[tuple[str, str, str]] = [
     ("Shares outstanding totaled 1.2 billion at quarter end", "neutral", "news"),
     ("The dividend record date is May 5", "neutral", "news"),
     ("Rocket Lab schedules its next Electron launch", "neutral", "news"),
-    ("The value of the order is EUR 2.5 mn", "neutral", "news"),
-    ("According to Gran, the company has no plans to move all production to Russia", "neutral", "news"),
+    ("The total value of the agreement is USD 4.1 mn", "neutral", "news"),
+    ("According to the CFO, the group has no plans to relocate its headquarters", "neutral", "news"),
     ("Advanced Micro Devices to present at investor conference", "neutral", "news"),
     ("The company was established in 1995 and is headquartered in Helsinki", "neutral", "news"),
     ("Shares were little changed in early trading", "neutral", "news"),
@@ -291,11 +291,22 @@ def test_drivers_capped_signed_and_highlightable(engine: SentinelEngine) -> None
         if label != "neutral" and a.drivers:
             top_sign = 1 if a.drivers[0][1] > 0 else -1
             assert top_sign == (1 if label == "bullish" else -1) or len(a.drivers) > 1, (text, a.drivers)
-        short = [t for t, _ in a.drivers if len(t.split()) <= 3 and "$" not in t]
-        normalized = " ".join(text.replace("-", " ").lower().split())
-        for term in short:  # short drivers are verbatim spans the UI can highlight
-            assert " ".join(term.replace("-", " ").lower().split()) in normalized or term in (
-                "beats", "miss", "beat", "misses", "job cuts", "legal relief", "fine"), (term, text)
+        for term, _ in a.drivers:
+            assert _highlightable(term, text), (term, text)
+
+
+_STOP = frozenset({"the", "and", "for", "from", "with", "to", "of", "on", "in", "at", "by", "a", "an", "is", "are",
+                   "its", "into", "after", "over"})
+
+
+def _highlightable(term: str, text: str) -> bool:
+    """Mirror of the UI's DriverText matching: the whole term occurs in the text, or one of its
+    distinctive tokens (>= 3 chars, not a stopword) does - so every driver can be underlined."""
+    low = text.lower()
+    if term.lower() in low:
+        return True
+    toks = (t.strip(".,;:!?()\"'") for t in term.lower().split())
+    return any(len(t) >= 3 and t not in _STOP and t in low for t in toks)
 
 
 def test_negated_driver_includes_negator(engine: SentinelEngine) -> None:
@@ -429,8 +440,8 @@ def test_beats_vader_on_the_hand_written_cases(engine: SentinelEngine) -> None:
     texts = [t for t, _, _ in CASES]
     kinds = [k for _, _, k in CASES]
     gold = [g for _, g, _ in CASES]
-    s_acc = sum(a.label == g for a, g in zip(engine.score(texts, kinds), gold)) / len(gold)
-    v_acc = sum(a.label == g for a, g in zip(vader.score(texts, kinds), gold)) / len(gold)
+    s_acc = sum(a.label == g for a, g in zip(engine.score(texts, kinds), gold, strict=True)) / len(gold)
+    v_acc = sum(a.label == g for a, g in zip(vader.score(texts, kinds), gold, strict=True)) / len(gold)
     assert s_acc > v_acc + 0.3
 
 

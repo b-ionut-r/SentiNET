@@ -1,0 +1,320 @@
+"""Raw source items -> clean, relevant, de-duplicated, scored and weighted items.
+
+Pipeline (per analysis):
+
+1. clean title/body, drop empty/boilerplate and stale (> 21 d) items;
+2. relevance: drop < 0.35 unless the provider guarantees the ticker
+   (`ticker_specific`, floored at 0.7); multi-ticker roundups are capped;
+3. collapse syndicated near-copies into one representative (the most trusted
+   outlet), keeping the copies' outlets/times as coverage evidence;
+4. score representatives with the sentiment engine (+ themes, events);
+5. weight = source weight × outlet trust × recency × engagement × relevance
+   × (0.5 + 0.5·confidence) × (1 + 0.15·ln(1 + copies)).
+"""
+from __future__ import annotations
+
+import math
+from collections import Counter
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from typing import Any, Literal
+
+from app.analytics import textkit
+from app.analytics.inputs import SourceRun
+from app.analytics.util import clamp, stable_id
+from app.nlp.types import DetectedEvent
+from app.schemas import Driver, SentimentLabel, Signal, SignalKind
+from app.sources.base import CompanyRef, RawSignal
+
+Group = Literal["news", "social"]
+
+MAX_AGE = timedelta(days=21)
+FUTURE_TOLERANCE = timedelta(hours=1)  # clock skew; anything later is treated as undated
+MIN_RELEVANCE = 0.35
+SPECIFIC_RELEVANCE = 0.7  # floor for items a provider guarantees are about the ticker
+CONTEXT_DISCOUNT = 0.8  # a mention only in the snippet/parent story is weaker evidence
+ROUNDUP_SYMBOLS = 4  # items tagged with this many tickers are roundups
+ROUNDUP_CAP = 0.4
+PROVIDER_RELEVANCE_MIN = 0.6
+PRESS_RELEASE_TRUST = 0.55
+HALF_LIFE_H: dict[Group, float] = {"news": 72.0, "social": 36.0}
+RECENCY_FLOOR = 0.15
+UNDATED_RECENCY = 0.5
+MAX_BODY = 600
+MAX_DRIVERS = 5
+
+
+@dataclass
+class Copy:
+    """A syndicated near-copy collapsed into a representative item."""
+
+    publisher: str | None
+    timestamp: datetime | None
+    title: str
+
+
+@dataclass
+class Item:
+    """One kept piece of text with everything analytics needs about it."""
+
+    id: str
+    source: str
+    source_label: str
+    source_weight: float
+    kind: SignalKind
+    title: str
+    body: str | None = None
+    url: str | None = None
+    author: str | None = None
+    publisher: str | None = None
+    timestamp: datetime | None = None
+    engagement: int = 0
+    user_label: SentimentLabel | None = None
+    ticker_specific: bool = False
+    extra: dict[str, Any] = field(default_factory=dict)
+    relevance: float = 1.0
+    trust: float = 1.0
+    press_release: bool = False
+    copies: list[Copy] = field(default_factory=list)
+    scored: bool = False
+    score: float = 0.0
+    label: SentimentLabel = "neutral"
+    confidence: float = 0.0
+    drivers: list[tuple[str, float]] = field(default_factory=list)
+    themes: list[str] = field(default_factory=list)
+    events: list[DetectedEvent] = field(default_factory=list)
+    weight: float = 0.0
+    narrative_id: str | None = None
+
+    @property
+    def group(self) -> Group:
+        """Aggregation bucket: published media vs. crowd chatter."""
+        return "social" if self.kind == "social" else "news"
+
+    @property
+    def duplicates(self) -> int:
+        return len(self.copies)
+
+    @property
+    def coverage(self) -> int:
+        """This item plus its syndicated copies."""
+        return 1 + len(self.copies)
+
+    @property
+    def event_keys(self) -> list[str]:
+        return list(dict.fromkeys(e.key for e in self.events))
+
+    def outlets(self) -> list[str]:
+        """Distinct outlets carrying this item (itself first)."""
+        names = [self.publisher] + [c.publisher for c in self.copies]
+        return list(dict.fromkeys(n for n in names if n))
+
+    def times(self) -> list[datetime]:
+        stamps = [self.timestamp] + [c.timestamp for c in self.copies]
+        return [t for t in stamps if t is not None]
+
+    def titles(self) -> list[str]:
+        return [self.title] + [c.title for c in self.copies]
+
+    def age_hours(self, now: datetime) -> float | None:
+        if self.timestamp is None:
+            return None
+        return max(0.0, (now - self.timestamp).total_seconds() / 3600.0)
+
+    def to_signal(self) -> Signal:
+        return Signal(
+            id=self.id, source=self.source, source_label=self.source_label, kind=self.kind,
+            title=self.title, body=self.body, url=self.url, author=self.author, publisher=self.publisher,
+            timestamp=self.timestamp, engagement=self.engagement,
+            score=round(self.score, 3), label=self.label, confidence=round(self.confidence, 3),
+            relevance=round(self.relevance, 3), weight=round(self.weight, 4),
+            themes=list(self.themes), events=self.event_keys,
+            drivers=[Driver(term=t, impact=round(v, 3)) for t, v in self.drivers[:MAX_DRIVERS]],
+            user_label=self.user_label, narrative_id=self.narrative_id, duplicates=self.duplicates,
+        )
+
+
+@dataclass
+class Prepared:
+    items: list[Item]  # kept representatives, heaviest first
+    fetched: Counter[str] = field(default_factory=Counter)  # raw items per source
+    kept: Counter[str] = field(default_factory=Counter)  # representatives per source
+    dropped: Counter[str] = field(default_factory=Counter)  # reason -> count
+    engine_error: str | None = None  # sentiment scoring failed: items are unscored
+
+    @property
+    def scored(self) -> list[Item]:
+        return [it for it in self.items if it.scored]
+
+
+# --------------------------------------------------------------------------- #
+# Entry point
+# --------------------------------------------------------------------------- #
+def prepare(company: CompanyRef | None, runs: list[SourceRun], now: datetime) -> Prepared:
+    """Turn every source's raw items into kept, scored, weighted `Item`s.
+
+    `company=None` skips the relevance filter (market-wide headlines)."""
+    out = Prepared(items=[])
+    candidates: list[Item] = []
+    for run in runs:
+        if run.batch is None:
+            continue
+        for raw in run.batch.signals:
+            out.fetched[run.source.key] += 1
+            made = _candidate(raw, run, company, now)
+            if isinstance(made, str):
+                out.dropped[made] += 1
+            else:
+                candidates.append(made)
+
+    items = _collapse_duplicates(candidates)
+    out.dropped["duplicate"] += len(candidates) - len(items)
+    out.engine_error = _score(items)
+    for it in items:
+        it.weight = item_weight(it, now)
+    items.sort(key=lambda it: (-it.weight, it.id))
+    _unique_ids(items)
+    out.items = items
+    out.kept.update(it.source for it in items)
+    return out
+
+
+# --------------------------------------------------------------------------- #
+# Steps
+# --------------------------------------------------------------------------- #
+def _candidate(raw: RawSignal, run: SourceRun, company: CompanyRef | None, now: datetime) -> Item | str:
+    """A cleaned, relevance-scored item — or the reason it was dropped."""
+    src = run.source
+    extra = raw.extra or {}
+    kind: SignalKind = "analysis" if src.kind == "news" and extra.get("type") == "analysis" else src.kind
+    publisher = textkit.publisher_name(raw.publisher or extra.get("domain"))
+    title = textkit.clean(raw.title)
+    if kind != "social":
+        title = textkit.strip_suffix(title, raw.publisher)
+    if not title or not textkit.meaningful(title):
+        return "empty"
+
+    ts = raw.timestamp
+    if ts is not None and ts.tzinfo is None:
+        ts = None  # naive timestamps are ambiguous; never guess a timezone
+    if ts is not None and ts > now + FUTURE_TOLERANCE:
+        ts = None
+    if ts is not None and now - ts > MAX_AGE:
+        return "stale"
+
+    body = textkit.clean(raw.body)[:MAX_BODY] or None
+    rel = 1.0 if company is None else _relevance(title, body or extra.get("story"), extra, raw, company)
+    if rel < MIN_RELEVANCE:
+        return "irrelevant"
+
+    group: Group = "social" if kind == "social" else "news"
+    trust, is_pr = 1.0, False
+    if group == "news":
+        trust = textkit.publisher_trust(publisher or extra.get("domain"))
+        is_pr = textkit.press_release(publisher, title)
+        if is_pr:
+            trust = min(trust, PRESS_RELEASE_TRUST)
+    return Item(
+        id=stable_id(src.key, raw.url or title),
+        source=src.key, source_label=src.label, source_weight=float(src.weight), kind=kind,
+        title=title, body=body if body != title else None, url=raw.url, author=raw.author,
+        publisher=publisher, timestamp=ts, engagement=max(0, int(raw.engagement or 0)),
+        user_label=raw.user_label, ticker_specific=bool(raw.ticker_specific), extra=extra,
+        relevance=round(rel, 3), trust=trust, press_release=is_pr,
+    )
+
+
+def _relevance(title: str, context: str | None, extra: dict[str, Any], raw: RawSignal,
+               company: CompanyRef) -> float:
+    title_rel = textkit.relevance(title, company)
+    rel = title_rel
+    if context:
+        rel = max(rel, CONTEXT_DISCOUNT * textkit.relevance(f"{title}. {context[:400]}", company))
+    symbols = extra.get("symbols")
+    if isinstance(symbols, int) and symbols >= ROUNDUP_SYMBOLS:
+        rel = rel * 0.85 if title_rel >= 0.8 else min(rel, ROUNDUP_CAP)
+    provider = extra.get("provider_relevance")
+    if isinstance(provider, (int, float)) and provider >= PROVIDER_RELEVANCE_MIN:
+        rel = max(rel, min(float(provider), 0.9))
+    if raw.ticker_specific:
+        rel = max(rel, SPECIFIC_RELEVANCE)
+    return clamp(rel)
+
+
+def _collapse_duplicates(items: list[Item]) -> list[Item]:
+    """Merge syndicated near-copies; the most trusted (then earliest) item represents them."""
+    if len(items) < 2:
+        return list(items)
+    def priority(i: int) -> tuple[Any, ...]:
+        it = items[i]
+        ts = it.timestamp.timestamp() if it.timestamp else float("inf")
+        return (it.group != "news", -it.trust * it.source_weight, -it.relevance, ts, i)
+
+    order = sorted(range(len(items)), key=priority)
+    groups = textkit.duplicates([items[i].title for i in order])
+    reps: list[Item] = []
+    seen: set[int] = set()
+    for group in groups:
+        members = [order[g] for g in group if 0 <= g < len(order) and order[g] not in seen]
+        if not members:
+            continue
+        seen.update(members)
+        rep = items[members[0]]
+        for m in members[1:]:
+            dup = items[m]
+            rep.copies.append(Copy(dup.publisher, dup.timestamp, dup.title))
+            rep.copies.extend(dup.copies)
+            rep.ticker_specific |= dup.ticker_specific
+            rep.relevance = max(rep.relevance, dup.relevance)
+        reps.append(rep)
+    reps.extend(items[i] for i in order if i not in seen)  # defensive: a partition missing indices
+    return reps
+
+
+def _score(items: list[Item]) -> str | None:
+    """Run the engine over representatives; returns an error description on failure."""
+    if not items:
+        return None
+    texts = [it.title for it in items]
+    kinds = ["social" if it.group == "social" else "news" for it in items]
+    try:
+        results = textkit.analyze(texts, kinds)
+        if len(results) != len(items):
+            raise RuntimeError(f"engine returned {len(results)} results for {len(items)} texts")
+    except Exception as exc:  # noqa: BLE001 - reported as a data-quality problem, never fabricated
+        return f"{type(exc).__name__}: {exc}"[:200]
+    for it, res in zip(items, results, strict=True):
+        it.scored = True
+        it.score = clamp(float(res.score), -1.0, 1.0)
+        it.label = res.label if res.label in ("bullish", "bearish", "neutral") else "neutral"
+        it.confidence = clamp(float(res.confidence))
+        it.drivers = [(str(t), float(v)) for t, v in (res.drivers or [])][:MAX_DRIVERS]
+        it.themes = list(dict.fromkeys(res.themes or []))
+        it.events = list(res.events or [])
+    return None
+
+
+def recency(it: Item, now: datetime) -> float:
+    """Exponential decay by age (half-life 72 h news / 36 h social), floored."""
+    age = it.age_hours(now)
+    if age is None:
+        return UNDATED_RECENCY
+    return max(RECENCY_FLOOR, 0.5 ** (age / HALF_LIFE_H[it.group]))
+
+
+def item_weight(it: Item, now: datetime) -> float:
+    """Aggregation weight (see module docstring)."""
+    engagement = 1.0 + min(1.0, math.log1p(it.engagement) / 8.0)
+    confidence = 0.5 + 0.5 * (it.confidence if it.scored else 0.0)
+    syndication = 1.0 + 0.15 * math.log1p(it.duplicates)
+    w = it.source_weight * it.trust * recency(it, now) * engagement * it.relevance * confidence * syndication
+    return round(max(w, 0.0), 6)
+
+
+def _unique_ids(items: list[Item]) -> None:
+    """Two raw items can share source+url with different titles: keep ids unique."""
+    seen: set[str] = set()
+    for it in items:
+        if it.id in seen:
+            it.id = stable_id(it.id, it.title)
+        seen.add(it.id)

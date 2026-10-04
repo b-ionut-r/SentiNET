@@ -275,7 +275,7 @@ NEGATIVE: dict[str, float] = {
     "failure": -0.9, "failures": -0.8, "flop": -0.8, "flops": -0.8, "setback": -0.8, "setbacks": -0.8,
     "blow": -0.5, "dealt a blow": -0.8, "beaten down": -0.6, "beat down": -0.5, "beaten up": -0.5, "complete response letter": -1.1, "clinical hold": -1.1,
     "recall": -0.9, "recalls": -0.9, "recalled": -0.9, "defect": -0.7, "defects": -0.7,
-    "defective": -0.8, "faulty": -0.7, "contamination": -0.8, "contaminated": -0.8, "explosion": -0.8,
+    "defective": -0.8, "faulty": -0.7, "contamination": -0.8, "contaminated": -0.8,
     "accident": -0.6, "fatal": -0.7, "spill": -0.8, "disaster": -1.0, "tragedy": -0.8,
     "breach": -0.8, "data breach": -1.0, "hack": -0.8, "hacked": -0.9, "cyberattack": -0.9,
     "ransomware": -0.9, "outage": -0.8, "outages": -0.8, "glitch": -0.6, "disruption": -0.6,
@@ -564,7 +564,7 @@ TRANSITIVE: frozenset[str] = frozenset(
                    "eliminate", "improve", "strengthen", "weaken", "erode", "wipe", "shorten", "omit", "create",
                    "hire", "slap", "impose", "build", "spur", "fuel", "allay", "assuage", "calm", "soothe",
                    "offset", "outweigh", "knock", "halt", "squeeze", "contain", "stem", "dent", "hinder", "pare",
-                   "stop", "idle",
+                   "stop", "idle", "ease",
                    "hamper", "crimp", "impair", "jeopardize", "threaten", "undermine", "diminish")
     for f in _forms(base, double=base in ("up", "bump", "cut", "trim", "add", "omit", "knock", "stop"))
 ) | {"lost", "cuts", "shrank", "built", "give", "gives", "gave", "giving", "given", "ax", "axe", "axes", "axed",
@@ -575,8 +575,7 @@ TREND_ONLY: frozenset[str] = frozenset(_forms("extend"))
 TREND_METRICS: frozenset[str] = frozenset({
     "gains", "gain", "rally", "losses", "loss", "decline", "declines", "slide", "slump", "selloff", "rebound",
     "recovery", "advance", "winning streak", "losing streak", "lead", "momentum", "growth", "shutdown",
-    "shutdowns", "closures", "lockdown", "lockdowns", "strike", "delays", "declines", "losses", "slump",
-    "record run"})
+    "shutdowns", "closures", "lockdown", "lockdowns", "strike", "delays", "record run"})
 
 # Barriers: "lifts tariffs" / "lifted the ban" means *removing* them.
 LIFTABLE: frozenset[str] = frozenset({

@@ -18,7 +18,7 @@ import html
 import logging
 import math
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, UTC
 from typing import Any
 from urllib.parse import parse_qs, urlsplit
 
@@ -38,7 +38,7 @@ CRYPTO_FNG_URL = "https://api.alternative.me/fng/"
 APEWISDOM_URL = "https://apewisdom.io/api/v1.0/filter/all-stocks/page/1"
 STOCKTWITS_TRENDING_URL = "https://api.stocktwits.com/api/2/trending/symbols.json"
 
-UTC = timezone.utc
+UTC = UTC
 
 
 def _now() -> datetime:

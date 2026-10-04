@@ -66,9 +66,9 @@ function CoverageMix({ narratives }: { narratives: Narrative[] }) {
   const bear = narratives.filter((n) => polarityOf(n.score) === "bear").reduce((s, n) => s + n.count, 0);
   return (
     <div className="px-4 pb-3.5">
-      <div className="mb-1.5 flex items-baseline justify-between text-2xs text-muted">
-        <span>Coverage mix by story</span>
-        <span>
+      <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-x-3 text-2xs text-muted">
+        <span>Coverage by story</span>
+        <span className="whitespace-nowrap">
           <span className="font-semibold text-bull">▲ {Math.round((bull / total) * 100)}%</span> bullish-toned ·{" "}
           <span className="font-semibold text-bear">▼ {Math.round((bear / total) * 100)}%</span> bearish-toned
         </span>

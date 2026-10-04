@@ -50,6 +50,7 @@ from app.sources.base import CompanyRef
 # headline sets in tests/fixtures/nlp, see test_narratives.py).
 CLUSTER_THRESHOLD = 0.08
 LINKAGE = "average"
+LINKAGE_CENTROID = 0
 SINGLETON_DAMPING = 0.3
 MIN_EVIDENCE = 2.0
 HUB_MIN_DF = 4
@@ -57,6 +58,16 @@ HUB_REFERENCE = 0.1
 HUB_FLOOR = 0.2
 TIME_GRACE_H = 24.0
 TIME_FADE_H = 144.0
+# Clusters sharing no anchor (entity, amount, bigram, concept, firm) need this
+# much average-link similarity to merge: plain words link only near-paraphrases.
+NONANCHOR_SIM = 0.4
+CANDIDATE_MAX_DF = 0.2
+# Refinement (see _refine): cores, defining features, attach/merge cut-offs.
+REFINE = 1
+CORE_MIN = 3
+DEFINING_FRAC = 0.5
+ATTACH_SIM = 0.2
+CORE_MERGE_SIM = 0.35
 
 # --------------------------------------------------------------------------- #
 # Duplicates
@@ -168,7 +179,10 @@ _ATTRIB_RE = re.compile(r"\s+by investing\.com.*$|\s+-\s+[\w.' ]{2,30}$", re.IGN
 _PHRASES: tuple[tuple[re.Pattern[str], str], ...] = tuple((re.compile(p, re.IGNORECASE), c) for p, c in (
     ((r"\b(?:share|stock)[- ]repurchase(?:s| program| plan| authori[sz]ation)?\b|\brepurchas\w*\b|"
       r"\bbuy[- ]?backs?\b|\bbuy(?:ing)? back\b|\bbought back\b"), " buyback "),
-    (r"\b(?:all[- ]time|record)[- ]highs?\b|\bfirst record\b|\brecord territory\b", " record-high "),
+    ((r"\b(?:all[- ]time|record)[- ]highs?\b|\bfirst record\b|\brecord (?:territory|close|closing high)\b|"
+      r"\b(?:back at|at|hits?|to|reach(?:es|ed)?|sets?|notch(?:es|ed)?|new|fresh)\s+(?:a\s+|its\s+|another\s+)?"
+      r"(?:new\s+|fresh\s+|(?-i:[A-Z])\w+\s+)?record\b(?!\s+(?:revenue|sales|profit|earnings|quarter|deliveries|"
+      r"buyback|repurchase|low|loss|\$|\d))"), " record-high "),
     (r"\bprice[- ]targets?\b|\btarget[- ]prices?\b|\bPTs?\b", " price-target "),
     (r"\bmarket (?:cap(?:italization)?|value|valuation)\b", " market-cap "),
     (r"\btop (?:\w+ )?picks?\b", " top-pick "),
@@ -189,6 +203,13 @@ _PHRASES: tuple[tuple[re.Pattern[str], str], ...] = tuple((re.compile(p, re.IGNO
       r"lifted|trimmed|boosted|reduced|increased|decreased|grown)\s+by\b"), " inst-holding "),
     (r"\b(?:earnings|eps|revenue|profit)s? (?:beat|tops?|topped)\b", " earnings-beat "),
     (r"\b(?:earnings|eps|revenue|profit)s? miss(?:es|ed)?\b", " earnings-miss "),
+    # "third-quarter" == "Q3" == "3Q"; analysts' "expectations" == "estimates" == "consensus".
+    (r"\b(?:first|1st)[- ]quarter\b|\b1q\b", " q1 "),
+    (r"\b(?:second|2nd)[- ]quarter\b|\b2q\b", " q2 "),
+    (r"\b(?:third|3rd)[- ]quarter\b|\b3q\b", " q3 "),
+    (r"\b(?:fourth|4th)[- ]quarter\b|\b4q\b", " q4 "),
+    ((r"\b(?:analysts'? |wall street(?:'s)? |street )?(?:expectations|estimates?|forecasts|consensus(?: estimates?)?|"
+      r"projections)\b"), " estimates "),
 ))
 
 _ACRONYMS = wordset("ai ceo cfo coo cto us usa uk eu ev evs ipo etf etfs q1 q2 q3 q4 eps gdp cpi fed sec ftc doj "
@@ -215,6 +236,36 @@ _W_MONTH = 0.3
 _W_MOVE = 0.15
 _W_EVENT = 0.9
 _W_FIRM = 1.2
+_W_TIMED = 0.8
+
+# Events that make headlines about the same development on the same trading
+# session one story ("Tesla stock jumps 5% on delivery beat" / "Why is Tesla
+# stock surging today?"): event group x session day becomes a feature.
+_TIMED_GROUPS = {
+    "price_up": "move-up", "all_time_high": "move-up", "price_down": "move-down", "low_52w": "move-down",
+    "analyst_upgrade": "analyst-bull", "pt_raise": "analyst-bull", "analyst_downgrade": "analyst-bear",
+    "pt_cut": "analyst-bear", "earnings_beat": "results-beat", "record_results": "results-beat",
+    "earnings_miss": "results-miss", "guidance_raise": "guide-up", "guidance_cut": "guide-down",
+}
+_SESSION_SHIFT_S = 6 * 3600  # US session day: ~02:00 ET cut-over
+# Analyst stance in coverage that names no firm ("Scored a New 'Buy' Rating",
+# "Buy Target Stock, Analyst Says"): same-session notes are one story.
+_ANALYST_BULL_RE = re.compile(
+    r"\b['\"]?(?:buy|outperform|overweight|strong[- ]buy)['\"]?\s+(?:rating|call|recommendation)\b|"
+    r"\banalysts?\s+(?:says?|calls?|recommends?)\b[^.?!]{0,20}\bbuy\b|\bbuy\b[^.?!]{0,40}\banalysts?\s+says?\b|"
+    r"\banalysts?\s+(?:prais\w+|cheer\w*|turns?\s+bullish|upbeat)\b",
+    re.IGNORECASE,
+)
+_ANALYST_BEAR_RE = re.compile(
+    r"\b['\"]?(?:sell|underperform|underweight)['\"]?\s+(?:rating|call|recommendation)\b|"
+    r"\banalysts?\s+(?:says?|calls?)\b[^.?!]{0,20}\bsell\b|\bsell\b[^.?!]{0,40}\banalysts?\s+says?\b|"
+    r"\banalysts?\s+(?:turns?\s+bearish|slams?|downbeat)\b",
+    re.IGNORECASE,
+)
+
+
+def _session_day(ts: float) -> int:
+    return int((ts - _SESSION_SHIFT_S) // 86400)
 
 
 def _focus(title: str, own: frozenset[str]) -> str:
@@ -274,8 +325,20 @@ def _is_entity_shape(surface: str) -> bool:
     return surface.isupper() and 2 <= len(surface) <= 6 and surface.lower() not in _ACRONYMS
 
 
+def _own_subject(title: str, span: str | None, own: frozenset[str]) -> bool:
+    """True when the company is named right before an event span ("Tesla
+    stock jumps 5%"), i.e. the move is the company's, not a rival's."""
+    if not span or not own:
+        return False
+    text = fold(title)
+    idx = text.find(span)
+    if idx < 0:
+        return False
+    return bool(set(tokenize(text[max(0, idx - 40):idx])[-4:]) & own)
+
+
 def _raw_features(title: str, own: frozenset[str], proper: frozenset[str]
-                  ) -> tuple[dict[str, float], set[str], dict[str, str]]:
+                  ) -> tuple[dict[str, float], set[str], dict[str, str], set[str]]:
     text = _focus(title, own)
     for pattern, concept in _PHRASES:
         text = pattern.sub(concept, text)
@@ -333,13 +396,21 @@ def _raw_features(title: str, own: frozenset[str], proper: frozenset[str]
     for (f1, s1, g1), (f2, s2, g2) in pairwise(content):
         if f1 and f2 and f1 != f2 and not (g1 and g2):
             add(f"{f1} {f2}", _W_BIGRAM, f"{s1} {s2}", anchor=True)
+    timed: set[str] = set()
+    if _ANALYST_BULL_RE.search(title):
+        timed.add("analyst-bull")
+    if _ANALYST_BEAR_RE.search(title):
+        timed.add("analyst-bear")
     for event in detect_events(title):
+        group = _TIMED_GROUPS.get(event.key)
+        if group and (not group.startswith("move-") or _own_subject(title, event.span, own)):
+            timed.add(group)
         if event.key in {"price_up", "price_down"}:
             continue
         add(f"ev:{event.key}", _W_EVENT, event.key, anchor=event.key not in _GENERIC_EVENTS)
         if event.firm:
             add(f"firm:{event.firm.lower()}", _W_FIRM, event.firm, anchor=True)
-    return feats, anchors, surfaces
+    return feats, anchors, surfaces, timed
 
 
 _CONCEPTS = frozenset(c.strip() for _p, c in _PHRASES if "-" in c)
@@ -383,21 +454,28 @@ def _hub_damping(vectors: list[dict[str, float]], df: Counter[str]) -> dict[str,
     return damping
 
 
-def _vectorize(titles: list[str], company: CompanyRef | None
+def _vectorize(titles: list[str], company: CompanyRef | None, times: list[float | None] | None = None
                ) -> tuple[list[_Doc], dict[str, float], frozenset[str]]:
     own = company_terms(company)
     proper, common = _learn_case(titles)
     raw = [_raw_features(t or "", own, proper) for t in titles]
+    for (feats, anchors, _s, timed), ts in zip(raw, times or [None] * len(titles), strict=True):
+        if ts is None:
+            continue
+        for group in timed:
+            key = f"t:{group}@{_session_day(ts)}"
+            feats[key] = _W_TIMED
+            anchors.add(key)
     n = len(titles)
-    df = Counter(f for feats, _a, _s in raw for f in feats)
+    df = Counter(f for feats, _a, _s, _t in raw for f in feats)
     idf = {f: math.log((n + 1) / (c + 0.5)) for f, c in df.items()}
     # Features seen once cannot link anything; keep them faint so they don't
     # swamp the shared ones in the norm.
     weighted = [{f: w * idf[f] * (SINGLETON_DAMPING if df[f] == 1 else 1.0) for f, w in feats.items() if idf[f] > 0}
-                for feats, _a, _s in raw]
+                for feats, _a, _s, _t in raw]
     hubs = _hub_damping(weighted, df)
     docs: list[_Doc] = []
-    for vec, (_f, anchors, surfaces) in zip(weighted, raw):
+    for vec, (_f, anchors, surfaces, _t) in zip(weighted, raw, strict=True):
         vec = {f: w * hubs.get(f, 1.0) for f, w in vec.items()}
         docs.append(_Doc(vec=_unit(vec), raw=vec, anchors=frozenset(a for a in anchors if a in vec),
                          surfaces=surfaces))
@@ -430,10 +508,15 @@ def _average_link(docs: list[_Doc], threshold: float, times: list[float | None] 
     anchors: dict[int, set[str]] = {i: set(d.anchors) for i, d in enumerate(docs)}
     members: dict[int, list[int]] = {i: [i] for i in range(len(docs))}
     version = dict.fromkeys(sums, 0)
-    by_anchor: dict[str, set[int]] = defaultdict(set)
-    for i, keys in anchors.items():
-        for f in keys:
-            by_anchor[f].add(i)
+    # Candidate pairs share an anchor or a reasonably specific term; terms in
+    # a large share of the batch only cost time (their pairs score low).
+    df = Counter(f for d in docs for f in d.vec)
+    cap = max(3, int(CANDIDATE_MAX_DF * len(docs)))
+    keys: dict[int, set[str]] = {i: {f for f in d.vec if f in d.anchors or df[f] <= cap} for i, d in enumerate(docs)}
+    by_key: dict[str, set[int]] = defaultdict(set)
+    for i, feats in keys.items():
+        for f in feats:
+            by_key[f].add(i)
 
     heap: list[tuple[float, int, int, int, int]] = []
 
@@ -455,16 +538,18 @@ def _average_link(docs: list[_Doc], threshold: float, times: list[float | None] 
     def push(a: int, b: int) -> None:
         a, b = min(a, b), max(a, b)
         dot = _dot(sums[a], sums[b])
-        if LINKAGE == "centroid":
+        if LINKAGE == "centroid" or LINKAGE_CENTROID:
             sim = dot / (norms[a] * norms[b])
         else:
             sim = dot / (len(members[a]) * len(members[b]))
         sim *= _time_factor(clock[a], clock[b])
-        if sim >= threshold and evidence(a, b) >= MIN_EVIDENCE:
+        if sim < threshold or (sim < NONANCHOR_SIM and not anchors[a] & anchors[b]):
+            return
+        if evidence(a, b) >= MIN_EVIDENCE:
             heapq.heappush(heap, (-sim, a, b, version[a], version[b]))
 
-    for i, keys in anchors.items():
-        for j in {j for f in keys for j in by_anchor[f] if j > i}:
+    for i, feats in keys.items():
+        for j in {j for f in feats for j in by_key[f] if j > i}:
             push(i, j)
 
     while heap:
@@ -475,19 +560,97 @@ def _average_link(docs: list[_Doc], threshold: float, times: list[float | None] 
             sums[a][f] = sums[a].get(f, 0.0) + w
         for f, w in raws.pop(b).items():
             raws[a][f] = raws[a].get(f, 0.0) + w
-        for f in anchors.pop(b):
-            by_anchor[f].discard(b)
-            by_anchor[f].add(a)
-            anchors[a].add(f)
+        anchors[a] |= anchors.pop(b)
+        for f in keys.pop(b):
+            by_key[f].discard(b)
+            by_key[f].add(a)
+            keys[a].add(f)
         members[a].extend(members.pop(b))
         ta, tb = clock[a], clock.pop(b)
         clock[a] = (ta[0] + tb[0], ta[1] + tb[1])
         version[a] += 1
         version.pop(b)
         norms[a] = norm(a)
-        for j in {j for f in anchors[a] for j in by_anchor[f] if j != a}:
+        for j in {j for f in keys[a] for j in by_key[f] if j != a}:
             push(a, j)
     return [sorted(m) for m in members.values()]
+
+
+def _span(group: list[int], times: list[float | None]) -> tuple[float, float] | None:
+    stamps = [t for i in group if (t := times[i]) is not None]
+    return (min(stamps), max(stamps)) if stamps else None
+
+
+def _span_factor(a: tuple[float, float] | None, b: tuple[float, float] | None) -> float:
+    """Like _time_factor, but on the gap between two clusters' time ranges:
+    a follow-up inside (or next to) a week-long story's coverage window
+    is not penalized for being far from the story's mean timestamp."""
+    if a is None or b is None:
+        return 1.0
+    gap_h = max(0.0, max(a[0], b[0]) - min(a[1], b[1])) / 3600.0
+    return max(0.5, 1.0 - max(0.0, gap_h - TIME_GRACE_H) / TIME_FADE_H)
+
+
+def _profile(group: list[int], docs: list[_Doc]) -> tuple[dict[str, float], set[str]]:
+    """(unit centroid, defining features): features carried by at least
+    DEFINING_FRAC of the members — what the story *is* ("buyback", "$150B")
+    as opposed to terms a few members happen to mention ("AI")."""
+    total: dict[str, float] = defaultdict(float)
+    counts: Counter[str] = Counter()
+    for i in group:
+        for f, w in docs[i].vec.items():
+            total[f] += w
+            counts[f] += 1
+    need = max(2.0, DEFINING_FRAC * len(group)) if len(group) > 1 else 1.0
+    return _unit(total), {f for f, c in counts.items() if c >= need}
+
+
+def _refine(groups: list[list[int]], docs: list[_Doc], times: list[float | None]) -> list[list[int]]:
+    """Second pass over the average-link result. Average linkage keeps
+    stories tight but leaves satellites behind: a big story's own terms are
+    frequent (low idf), and a short follow-up headline is never similar to
+    *every* member. Here (1) cores (>= CORE_MIN members) whose centroids are
+    close and share a defining feature merge, then (2) every smaller cluster
+    joins the core it shares a defining feature with and is most similar to
+    (centroid cosine >= ATTACH_SIM, time-faded)."""
+    cores = sorted((g for g in groups if len(g) >= CORE_MIN), key=lambda g: (-len(g), g[0]))
+    small = [g for g in groups if len(g) < CORE_MIN]
+    merged = True
+    while merged and len(cores) > 1:
+        merged = False
+        profiles = [_profile(g, docs) for g in cores]
+        best: tuple[float, int, int] | None = None
+        for a in range(len(cores)):
+            for b in range(a + 1, len(cores)):
+                if not profiles[a][1] & profiles[b][1]:
+                    continue
+                sim = _dot(profiles[a][0], profiles[b][0]) * _span_factor(_span(cores[a], times),
+                                                                          _span(cores[b], times))
+                if sim >= CORE_MERGE_SIM and (best is None or sim > best[0]):
+                    best = (sim, a, b)
+        if best:
+            _sim, a, b = best
+            cores[a] = sorted(cores[a] + cores.pop(b))
+            merged = True
+    if not cores:
+        return groups
+    profiles = [_profile(g, docs) for g in cores]
+    out = [list(g) for g in cores]
+    for g in small:
+        centroid, feats = _profile(g, docs)
+        own = set(centroid)
+        best_k, best_sim = -1, ATTACH_SIM
+        for k, (core_centroid, defining) in enumerate(profiles):
+            if not own & defining:
+                continue
+            sim = _dot(centroid, core_centroid) * _span_factor(_span(g, times), _span(cores[k], times))
+            if sim >= best_sim:
+                best_k, best_sim = k, sim
+        if best_k >= 0:
+            out[best_k].extend(g)
+        else:
+            out.append(list(g))
+    return [sorted(g) for g in out]
 
 
 def _is_weak_headline(title: str) -> bool:
@@ -496,7 +659,7 @@ def _is_weak_headline(title: str) -> bool:
 
 
 def cluster_narratives(items: list[ClusterItem], company: CompanyRef | None = None,
-                       max_clusters: int = 12, threshold: float = CLUSTER_THRESHOLD) -> list[Cluster]:
+                       max_clusters: int = 12, threshold: float | None = None) -> list[Cluster]:
     """Group `items` into stories, biggest (by item weight) first.
 
     Singletons are returned too (after multi-item clusters with the same
@@ -507,9 +670,11 @@ def cluster_narratives(items: list[ClusterItem], company: CompanyRef | None = No
     if not items:
         return []
     titles = [it.title or "" for it in items]
-    docs, idf, common = _vectorize(titles, company)
     times = [it.timestamp.timestamp() if it.timestamp else None for it in items]
-    groups = _average_link(docs, threshold, times)
+    docs, idf, common = _vectorize(titles, company, times)
+    groups = _average_link(docs, CLUSTER_THRESHOLD if threshold is None else threshold, times)
+    if REFINE:
+        groups = _refine(groups, docs, times)
 
     def group_key(g: list[int]) -> tuple[float, int, float]:
         weight = sum(max(items[i].weight, 0.0) for i in g)
@@ -582,7 +747,7 @@ def _top_terms(group: list[int], docs: list[_Doc], idf: dict[str, float], common
     min_count = 2 if len(group) >= 3 else 1
     scored: list[tuple[float, str]] = []
     for f, c in counts.items():
-        if c < min_count or f.startswith(("ev:", "firm:")) or _YEAR_RE.match(f) or _PCT_RE.match(f):
+        if c < min_count or f.startswith(("ev:", "firm:", "t:")) or _YEAR_RE.match(f) or _PCT_RE.match(f):
             continue
         words = f.split()
         if any(w in _WEAK_STEMS or _NUM_RE.match(w) for w in words):

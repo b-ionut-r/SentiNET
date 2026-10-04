@@ -27,15 +27,17 @@ interface ColumnsProps {
   labels?: "all" | "emphasis" | "none";
   /** Symmetric domain magnitude; defaults to max |value|. */
   max?: number;
+  /** Shaded ±band around zero (e.g. the |r| a result needs to be significant); forces a centered baseline. */
+  band?: { value: number; label: string } | null;
   className?: string;
   ariaLabel: string;
 }
 
-export function Columns({ items, height = 96, format = (v) => v.toFixed(1), labels = "emphasis", max, className, ariaLabel }: ColumnsProps) {
+export function Columns({ items, height = 96, format = (v) => v.toFixed(1), labels = "emphasis", max, band, className, ariaLabel }: ColumnsProps) {
   const { showAt, hide } = useTooltip();
   const vals = items.map((i) => i.value).filter((v): v is number => v != null && Number.isFinite(v));
-  const hasNeg = vals.some((v) => v < 0);
-  const hasPos = vals.some((v) => v > 0);
+  const hasNeg = !!band || vals.some((v) => v < 0);
+  const hasPos = !!band || vals.some((v) => v > 0);
   const m = max ?? Math.max(1e-9, ...vals.map(Math.abs));
   const labelBand = 14;
   const plotH = height - labelBand * (hasNeg && hasPos ? 2 : 1);
@@ -46,6 +48,14 @@ export function Columns({ items, height = 96, format = (v) => v.toFixed(1), labe
   return (
     <div className={cx("min-w-0", className)}>
       <div className="relative" style={{ height }} role="img" aria-label={ariaLabel}>
+        {band && band.value > 0 && (
+          <div
+            className="absolute inset-x-0 rounded-sm bg-[rgb(var(--ink-2)/0.09)]"
+            style={{ top: zeroTop - Math.min(band.value, m) * scale, height: 2 * Math.min(band.value, m) * scale }}
+            title={band.label}
+            aria-hidden
+          />
+        )}
         <div className="absolute inset-x-0 h-px bg-[rgb(var(--axis))]" style={{ top: zeroTop }} />
         <div className="absolute inset-0 flex">
           {items.map((it) => {

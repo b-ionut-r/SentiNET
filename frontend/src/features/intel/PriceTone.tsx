@@ -31,7 +31,10 @@ import { textTone } from "../../lib/sentiment";
 import { tokenColor, useTheme } from "../../lib/theme";
 
 const RANGES: PriceRange[] = ["1D", "5D", "1M", "3M", "6M", "1Y", "5Y"];
-const DAILY: ReadonlySet<PriceRange> = new Set(["1M", "3M", "6M", "1Y"]);
+/** Ranges with one bar per session or week (date-keyed time axis). */
+const DAILY: ReadonlySet<PriceRange> = new Set(["1M", "3M", "6M", "1Y", "5Y"]);
+/** Ranges where the daily tone pane is meaningful (GDELT history is ~90 days). */
+const TONE_RANGES: ReadonlySet<PriceRange> = new Set(["1M", "3M", "6M", "1Y"]);
 const TZ_SHIFT = -new Date().getTimezoneOffset() * 60;
 
 interface Row {
@@ -41,12 +44,22 @@ interface Row {
   volume: number | null;
 }
 
+/**
+ * Calendar day of a daily candle. Bars are stamped at local midnight of the
+ * exchange (04:00Z for New York, 15:00Z the day before for Tokyo); shifting by
+ * 12h lands every exchange from UTC−12 to UTC+12 on its own session date.
+ */
+function sessionDay(t: string): string {
+  const ms = Date.parse(t);
+  return Number.isFinite(ms) ? new Date(ms + 12 * 3600_000).toISOString().slice(0, 10) : t.slice(0, 10);
+}
+
 /** Build one shared time index for both panes (trading days + trailing news-only days). */
 function buildRows(candles: Candle[], tone: TonePoint[], daily: boolean): Row[] {
   if (!daily) {
     return candles.map((c) => ({ time: (Math.floor(new Date(c.t).getTime() / 1000) + TZ_SHIFT) as UTCTimestamp, candle: c, tone: null, volume: null }));
   }
-  const rows: Row[] = candles.map((c) => ({ time: c.t.slice(0, 10), candle: c, tone: null, volume: null }));
+  const rows: Row[] = candles.map((c) => ({ time: sessionDay(c.t), candle: c, tone: null, volume: null }));
   const days = rows.map((r) => r.time as string);
   const bucket = new Map<string, number[]>();
   const vol = new Map<string, number>();
@@ -81,8 +94,9 @@ export default function PriceTone({ a }: { a: Analysis }) {
   const history = useHistory(a.ticker, 90);
   const daily = DAILY.has(range);
   const toneSeries = a.tone?.series ?? [];
-  const rows = useMemo(() => buildRows(priceQ.data?.candles ?? [], toneSeries, daily), [priceQ.data, toneSeries, daily]);
-  const showTone = daily && toneSeries.length > 0;
+  const withTone = TONE_RANGES.has(range);
+  const rows = useMemo(() => buildRows(priceQ.data?.candles ?? [], withTone ? toneSeries : [], daily), [priceQ.data, toneSeries, daily, withTone]);
+  const showTone = withTone && toneSeries.length > 0;
   const currency = priceQ.data?.currency ?? a.quote?.currency;
 
   return (
@@ -408,6 +422,17 @@ function ToneLeadPanel({ a, history, loading, error, className }: { a: Analysis;
   );
 }
 
+/**
+ * Smallest |r| that is significant (two-sided p < 0.05) for n paired points:
+ * r = t / sqrt(df + t²) with the Student-t 97.5% quantile approximated by a
+ * Cornish–Fisher series (within ~1% of exact for df ≥ 4).
+ */
+function criticalR(n: number): number {
+  const df = n - 2;
+  const t = 1.96 + 2.37 / df + 2.8 / (df * df);
+  return t / Math.sqrt(df + t * t);
+}
+
 function LagView({ h }: { h: HistoryResponse }) {
   const best = h.best_lag;
   const sig = (p: number) => p < 0.05;
@@ -429,15 +454,32 @@ function LagView({ h }: { h: HistoryResponse }) {
         </div>
       ),
     }));
-  const maxAbs = Math.max(0.3, ...h.lags.map((l) => Math.abs(l.r)));
+  const ns = h.lags.map((l) => l.n).filter((n) => n > 3).sort((x, y) => x - y);
+  const nMid = ns.length ? ns[Math.floor(ns.length / 2)] : 0;
+  const rCrit = nMid > 3 ? criticalR(nMid) : null;
+  const maxAbs = Math.max(0.5, (rCrit ?? 0) * 1.6, ...h.lags.map((l) => Math.abs(l.r)));
   return (
     <div>
       <p className="mb-3 text-sm leading-5 text-ink">{h.interpretation || "No interpretation available."}</p>
-      <Columns items={items} height={76} max={maxAbs} format={(v) => signed(v)} labels="emphasis" ariaLabel="Correlation of news tone with returns by lag" />
+      <Columns
+        items={items}
+        height={84}
+        max={maxAbs}
+        band={rCrit != null ? { value: rCrit, label: `|r| < ${rCrit.toFixed(2)} is indistinguishable from noise at n = ${nMid}` } : null}
+        format={(v) => signed(v)}
+        labels="emphasis"
+        ariaLabel="Correlation of news tone with returns by lag"
+      />
       <div className="mt-1.5 flex justify-between text-2xs text-faint">
         <span>← returns lead tone</span>
         <span>tone leads returns →</span>
       </div>
+      {rCrit != null && (
+        <p className="mt-1.5 flex items-center gap-1.5 text-2xs text-muted">
+          <span className="inline-block h-2.5 w-3 rounded-sm bg-[rgb(var(--ink-2)/0.09)]" aria-hidden />
+          Shaded band = noise: |r| below {rCrit.toFixed(2)} isn't significant at n = {nMid} (p ≥ 0.05)
+        </p>
+      )}
       {best && (
         <div className="mt-3 grid grid-cols-4 gap-2 text-center text-xs">
           {(

@@ -1,0 +1,615 @@
+{
+ "description": "Real Google News RSS headlines (search: \"Amazon\" (stock OR shares OR AMZN) when:7d), captured 2026-10-04 ~23:20 UTC. HELD-OUT narrative set: labeled before any clustering output was inspected and never used for tuning. 'story' = hand-labeled narrative ('a|b' = either acceptable, '?' = don't care, null = its own story).",
+ "company": {
+  "ticker": "AMZN",
+  "name": "Amazon.com, Inc.",
+  "short_name": "Amazon",
+  "aliases": [
+   "AWS"
+  ],
+  "industry": "Internet Retail",
+  "sector": "Consumer Cyclical"
+ },
+ "items": [
+  {
+   "title": "Update: Apple, Amazon Face Renewed UK Consumer Lawsuit - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-28T12:19:44+00:00",
+   "story": "?"
+  },
+  {
+   "title": "What Is Going on With Amazon Stock on Monday? - Benzinga",
+   "publisher": "Benzinga",
+   "timestamp": "2026-09-28T17:30:53+00:00",
+   "story": "monday_dip|?"
+  },
+  {
+   "title": "Apple Stock Edges Higher Although Two Legal Bills Stack Up - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-28T19:26:53+00:00",
+   "story": null
+  },
+  {
+   "title": "Amazon (AMZN) vs. Alibaba (BABA): Which AI Bet Is Starting to Pay Off? - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-28T20:03:03+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Why Amazon (AMZN) Dipped More Than Broader Market Today - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-28T20:45:02+00:00",
+   "story": "monday_dip|?"
+  },
+  {
+   "title": "Amazon.com (AMZN) Draws Senate Questions Over AI Data Center Tax Deductions - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-29T16:05:01+00:00",
+   "story": "ai_tax"
+  },
+  {
+   "title": "Amazon Stock Slips as Bedrock Expands Model Choice - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-29T16:38:05+00:00",
+   "story": null
+  },
+  {
+   "title": "Constellation and Amazon Announce 20-Year Power Purchase Agreement Adding 190 Megawatts of Nuclear Capacity at Calvert Cliffs - constellationenergy.com",
+   "publisher": "constellationenergy.com",
+   "timestamp": "2026-09-30T08:00:00+00:00",
+   "story": "nuclear_deal"
+  },
+  {
+   "title": "Amazon (AMZN) Stock Could Be 43% Undervalued After AI Tax Break Scrutiny - Simply Wall Street",
+   "publisher": "Simply Wall Street",
+   "timestamp": "2026-09-30T08:44:51+00:00",
+   "story": "ai_tax"
+  },
+  {
+   "title": "These 7 Stocks Are Analyst Favorites For Magnificent Earnings Growth; Amazon In New Base - Investor's Business Daily",
+   "publisher": "Investor's Business Daily",
+   "timestamp": "2026-09-30T12:15:00+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Anthropic IPO Filing Reveals a Major Vulnerability: Nearly 50% of Sales Flow Through Amazon and Google as - Benzinga",
+   "publisher": "Benzinga",
+   "timestamp": "2026-09-30T12:18:17+00:00",
+   "story": "anthropic|?"
+  },
+  {
+   "title": "Synopsys and Amazon Sign Multi-Year Silicon IP Agreement Valued at More Than $1 Billion - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-30T13:51:18+00:00",
+   "story": "synopsys_deal"
+  },
+  {
+   "title": "Could Amazon Stock Survive AI Spending Outrunning Its Cash? - Trefis",
+   "publisher": "Trefis",
+   "timestamp": "2026-09-30T14:24:36+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Amazon Target Lifted as Rosenblatt Says AI Agents Won’t Disrupt Business Model - 24/7 Wall St.",
+   "publisher": "24/7 Wall St.",
+   "timestamp": "2026-09-30T15:45:00+00:00",
+   "story": "rosenblatt"
+  },
+  {
+   "title": "Amazon Target Lifted as Rosenblatt Says AI Agents Won’t Disrupt Business Model - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-30T15:45:19+00:00",
+   "story": "rosenblatt"
+  },
+  {
+   "title": "Amazon: Anthropic's $110 Billion Commitment Changes The AI Capex Debate (Rating Reiterated) - Seeking Alpha",
+   "publisher": "Seeking Alpha",
+   "timestamp": "2026-09-30T16:20:08+00:00",
+   "story": "anthropic"
+  },
+  {
+   "title": "Amazon Stock Has 46% Upside. Muse and Dots Threats Are ‘Overstated.’ - barrons.com",
+   "publisher": "barrons.com",
+   "timestamp": "2026-09-30T18:29:00+00:00",
+   "story": "rosenblatt|?"
+  },
+  {
+   "title": "How much AMZN stock does Amazon founder Jeff Bezos actually own? - thestreet.com",
+   "publisher": "thestreet.com",
+   "timestamp": "2026-09-30T20:00:12+00:00",
+   "story": null
+  },
+  {
+   "title": "Constellation, Amazon sign 20-yr nuclear power agreement (CEG:NASDAQ) - Seeking Alpha",
+   "publisher": "Seeking Alpha",
+   "timestamp": "2026-09-30T21:10:33+00:00",
+   "story": "nuclear_deal"
+  },
+  {
+   "title": "Investors thought they were buying pre-IPO OpenAI and SpaceX shares. Their cash went to strip clubs, Bloomingdale’s, and shopping on Amazon, SEC alleges - Fortune",
+   "publisher": "Fortune",
+   "timestamp": "2026-10-01T00:12:00+00:00",
+   "story": null
+  },
+  {
+   "title": "Anthropic Plans to Spend $518 Billion on Cloud and Data Centers. More Than $100 Billion Is Already Promised to Amazon. - The Motley Fool",
+   "publisher": "The Motley Fool",
+   "timestamp": "2026-10-01T01:37:00+00:00",
+   "story": "anthropic"
+  },
+  {
+   "title": "Amazon Stock Pays $0 in Dividends. Here's Why Long-Term Investors Should Own It Anyway. - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-01T06:50:00+00:00",
+   "story": "no_dividend"
+  },
+  {
+   "title": "Amazon Stock Pays $0 in Dividends. Here's Why Long-Term Investors Should Own It Anyway. - The Globe and Mail",
+   "publisher": "The Globe and Mail",
+   "timestamp": "2026-10-01T06:50:00+00:00",
+   "story": "no_dividend"
+  },
+  {
+   "title": "$Amazon (AMZN.US)$ my expert TA all in 💀 - Moomoo",
+   "publisher": "Moomoo",
+   "timestamp": "2026-10-01T07:00:00+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Amazon Stock Pays $0 in Dividends. Here's Why Long-Term Investors Should Own It Anyway. - The Motley Fool",
+   "publisher": "The Motley Fool",
+   "timestamp": "2026-10-01T07:30:00+00:00",
+   "story": "no_dividend"
+  },
+  {
+   "title": "Warren Buffett's Successor, Greg Abel, Jettisoned Amazon Earlier This Year and More Than 6X'd Berkshire's Stake in the \"Apple\" of His Eye - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-01T09:26:01+00:00",
+   "story": null
+  },
+  {
+   "title": "Amazon.com (AMZN) Signs $1 Billion AI Chip Design Deal As AWS Goes Deeper In House - Simply Wall Street",
+   "publisher": "Simply Wall Street",
+   "timestamp": "2026-10-01T09:47:22+00:00",
+   "story": "synopsys_deal"
+  },
+  {
+   "title": "The 3 Best Stocks to Buy in October - The Motley Fool",
+   "publisher": "The Motley Fool",
+   "timestamp": "2026-10-01T09:58:00+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Goldman Sachs adds Amazon stock and four others to Director’s Cut list for October - Investing.com",
+   "publisher": "Investing.com",
+   "timestamp": "2026-10-01T09:58:47+00:00",
+   "story": "goldman_conviction"
+  },
+  {
+   "title": "Goldman Sachs adds Amazon stock to monthly Director’s Cut list - Investing.com",
+   "publisher": "Investing.com",
+   "timestamp": "2026-10-01T10:27:57+00:00",
+   "story": "goldman_conviction"
+  },
+  {
+   "title": "By 2001, His Amazon Shares Had Fallen 93% And Wall Street Was Predicting The Company Would Go Bankrupt. Bill Miller Didn't Care, He Doubled Down At $6 A Share. Two Decades Later He Had More Amazon Stock Than Anyone Not Named Bezos - 24/7 Wall St.",
+   "publisher": "24/7 Wall St.",
+   "timestamp": "2026-10-01T10:38:00+00:00",
+   "story": "bill_miller"
+  },
+  {
+   "title": "By 2001, His Amazon Shares Had Fallen 93% And Wall Street Was Predicting The Company Would Go Bankrupt. Bill Miller Didn’t Care, He Doubled Down At $6 A Share. Two Decades Later He Had More Amazon Stock Than Anyone Not Named Bezos - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-01T10:38:38+00:00",
+   "story": "bill_miller"
+  },
+  {
+   "title": "Wells Fargo reiterates Amazon stock Overweight on AWS pricing power - Investing.com",
+   "publisher": "Investing.com",
+   "timestamp": "2026-10-01T10:48:22+00:00",
+   "story": "wells_overweight"
+  },
+  {
+   "title": "Amazon signed a 20-year, $3 billion nuclear power deal with Constellation Energy in Maryland - qz.com",
+   "publisher": "qz.com",
+   "timestamp": "2026-10-01T11:30:50+00:00",
+   "story": "nuclear_deal"
+  },
+  {
+   "title": "Wells Fargo reiterates Amazon stock Overweight on AWS pricing power By Investing.com - Investing.com Nigeria",
+   "publisher": "Investing.com Nigeria",
+   "timestamp": "2026-10-01T11:41:09+00:00",
+   "story": "wells_overweight"
+  },
+  {
+   "title": "Amazon Raised Its 2026 Capex Guide to $220 Billion. Here’s What Drove the Increase - TIKR.com",
+   "publisher": "TIKR.com",
+   "timestamp": "2026-10-01T11:45:33+00:00",
+   "story": null
+  },
+  {
+   "title": "Why Amazon got a call-up to the Goldman Sachs conviction list of top stocks - marketwatch.com",
+   "publisher": "marketwatch.com",
+   "timestamp": "2026-10-01T12:12:00+00:00",
+   "story": "goldman_conviction"
+  },
+  {
+   "title": "Goldman Sachs added Amazon to its conviction list with a $375 price target - qz.com",
+   "publisher": "qz.com",
+   "timestamp": "2026-10-01T13:15:05+00:00",
+   "story": "goldman_conviction"
+  },
+  {
+   "title": "Goldman Sachs sets Amazon stock price for 12 months - Finbold",
+   "publisher": "Finbold",
+   "timestamp": "2026-10-01T14:13:25+00:00",
+   "story": "goldman_conviction"
+  },
+  {
+   "title": "Amazon is expanding FTC Prime settlement payments to millions more customers - qz.com",
+   "publisher": "qz.com",
+   "timestamp": "2026-10-01T14:25:51+00:00",
+   "story": null
+  },
+  {
+   "title": "Amazon Nuke Deal Fuels Constellation Energy After Axed Data Center - Investor's Business Daily",
+   "publisher": "Investor's Business Daily",
+   "timestamp": "2026-10-01T14:28:00+00:00",
+   "story": "nuclear_deal"
+  },
+  {
+   "title": "Price Prediction: Amazon Stock Will Hit $400 on This Date - 24/7 Wall St.",
+   "publisher": "24/7 Wall St.",
+   "timestamp": "2026-10-01T14:30:00+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Why Amazon’s (AMZN) Infrastructure Investment Sets Up Record Downstream FCF - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-01T14:53:48+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Watch McCormick Climbs on Sales; Constellation Energy Gains on Amazon Deal | Stock Movers - Bloomberg.com",
+   "publisher": "Bloomberg.com",
+   "timestamp": "2026-10-01T15:10:52+00:00",
+   "story": "nuclear_deal|?"
+  },
+  {
+   "title": "Best Pokémon TCG deal: 30th Celebration Tech Sticker Collection Lucario gets price cut - Mashable",
+   "publisher": "Mashable",
+   "timestamp": "2026-10-01T15:57:25+00:00",
+   "story": null
+  },
+  {
+   "title": "Synopsys Stock Rallies After AI Deals With OpenAI and Amazon - investopedia.com",
+   "publisher": "investopedia.com",
+   "timestamp": "2026-10-01T16:32:55+00:00",
+   "story": "synopsys_deal"
+  },
+  {
+   "title": "Alphabet vs. Amazon vs. Microsoft: Which \"Magnificent Seven\" Stock Is the Better Buy Right Now? - The Motley Fool",
+   "publisher": "The Motley Fool",
+   "timestamp": "2026-10-01T18:17:00+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Amazon, Top Warship Builder Added To Goldman's Conviction List - Investor's Business Daily",
+   "publisher": "Investor's Business Daily",
+   "timestamp": "2026-10-01T18:26:00+00:00",
+   "story": "goldman_conviction"
+  },
+  {
+   "title": "Synopsys Is the Top Stock in the Nasdaq 100 Today. Here’s Why. - barrons.com",
+   "publisher": "barrons.com",
+   "timestamp": "2026-10-01T18:32:00+00:00",
+   "story": "synopsys_deal|?"
+  },
+  {
+   "title": "Amazon (AMZN) and GoodRx (GDRX) Chase Prescription Subscribers as Insurance Coverage Slips - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-01T20:38:53+00:00",
+   "story": null
+  },
+  {
+   "title": "Amazon Signs 20 Year Nuclear Power Deal. That's Great News for This Nuclear Stock - The Motley Fool",
+   "publisher": "The Motley Fool",
+   "timestamp": "2026-10-01T22:37:00+00:00",
+   "story": "nuclear_deal"
+  },
+  {
+   "title": "Amazon and these four U.S. stocks are latest additions to Goldman’s flagship list - Investing.com",
+   "publisher": "Investing.com",
+   "timestamp": "2026-10-01T22:56:22+00:00",
+   "story": "goldman_conviction"
+  },
+  {
+   "title": "Why Synopsys Stock’s 13% Jump Followed a $1 Billion Amazon Deal - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T00:07:00+00:00",
+   "story": "synopsys_deal"
+  },
+  {
+   "title": "Did Amazon’s AI Chip and Nuclear Power Deals Just Shift Amazon.com's (AMZN) Investment Narrative? - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T03:10:00+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Amazon seeks to offload $8B of Nvidia chips to investors, FT reports (AMZN:NASDAQ) - Seeking Alpha",
+   "publisher": "Seeking Alpha",
+   "timestamp": "2026-10-02T04:07:26+00:00",
+   "story": "nvidia_chips_offload"
+  },
+  {
+   "title": "Amazon seeks to offload $8 billion of Nvidia chips to investors, FT reports - Reuters",
+   "publisher": "Reuters",
+   "timestamp": "2026-10-02T04:12:00+00:00",
+   "story": "nvidia_chips_offload"
+  },
+  {
+   "title": "Amazon seeks to offload $8 bln of Nvidia chips to investors- FT - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T04:48:00+00:00",
+   "story": "nvidia_chips_offload"
+  },
+  {
+   "title": "$Amazon (AMZN.US)$ almost hit the top👍 - Moomoo",
+   "publisher": "Moomoo",
+   "timestamp": "2026-10-02T07:00:00+00:00",
+   "story": "?"
+  },
+  {
+   "title": "84,750 Shares in Amazon.com, Inc. $AMZN Bought by EMC Capital Management - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-02T07:14:36+00:00",
+   "story": "inst_13f"
+  },
+  {
+   "title": "3,646,830 Shares of Amazon.com, Inc. $AMZN Acquired by Nykredit A S - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-02T07:28:40+00:00",
+   "story": "inst_13f"
+  },
+  {
+   "title": "Does A Postal Service Backup Plan Materially Alter Amazon’s Cash Outlook? - Trefis",
+   "publisher": "Trefis",
+   "timestamp": "2026-10-02T07:38:24+00:00",
+   "story": null
+  },
+  {
+   "title": "Amazon seeks to offload $8bn of Nvidia chips to investors - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T08:51:44+00:00",
+   "story": "nvidia_chips_offload"
+  },
+  {
+   "title": "Amazon to invest $1 billion over five years in US data center communities - Reuters",
+   "publisher": "Reuters",
+   "timestamp": "2026-10-02T09:05:01+00:00",
+   "story": "dc_communities"
+  },
+  {
+   "title": "AMZN Inches Higher Premarket: Amazon Reportedly Seeks To Offload $8B Of Nvidia Chips To Investors - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T09:06:04+00:00",
+   "story": "nvidia_chips_offload"
+  },
+  {
+   "title": "Amazon pledges $1 billion for data center communities as US backlash grows - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T10:18:17+00:00",
+   "story": "dc_communities"
+  },
+  {
+   "title": "The Dates That Matter Most For Amazon Stock - Trefis",
+   "publisher": "Trefis",
+   "timestamp": "2026-10-02T10:26:48+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Amazon Reportedly Seeks Investors for $8 Billion Nvidia Chip Financing Structure - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T10:29:29+00:00",
+   "story": "nvidia_chips_offload"
+  },
+  {
+   "title": "$10,000 in Amazon Stock: What Could It Be Worth in 5 Years? - 24/7 Wall St.",
+   "publisher": "24/7 Wall St.",
+   "timestamp": "2026-10-02T11:15:00+00:00",
+   "story": "10k_worth"
+  },
+  {
+   "title": "$10,000 in Amazon Stock: What Could It Be Worth in 5 Years? - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T11:15:31+00:00",
+   "story": "10k_worth"
+  },
+  {
+   "title": "Amazon is pledging $1 billion to communities near its data centers - qz.com",
+   "publisher": "qz.com",
+   "timestamp": "2026-10-02T11:38:44+00:00",
+   "story": "dc_communities"
+  },
+  {
+   "title": "5 Things to Know Before the Stock Market Opens on Friday - investopedia.com",
+   "publisher": "investopedia.com",
+   "timestamp": "2026-10-02T11:57:43+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Constellation Energy Stock Climbs Following 20-Year Nuclear Power Deal With Amazon - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T12:14:40+00:00",
+   "story": "nuclear_deal"
+  },
+  {
+   "title": "Amazon Just Joined Goldman Sachs' Conviction List: 5 New Top Stock Picks With Massive Upside - 24/7 Wall St.",
+   "publisher": "24/7 Wall St.",
+   "timestamp": "2026-10-02T12:15:00+00:00",
+   "story": "goldman_conviction"
+  },
+  {
+   "title": "Amazon Just Joined Goldman Sachs’ Conviction List: 5 New Top Stock Picks With Massive Upside - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T12:15:12+00:00",
+   "story": "goldman_conviction"
+  },
+  {
+   "title": "Amazon is raising AI chip rental prices 15% and exploring an $8 billion Nvidia leaseback - qz.com",
+   "publisher": "qz.com",
+   "timestamp": "2026-10-02T12:22:18+00:00",
+   "story": "nvidia_chips_offload|chip_rental"
+  },
+  {
+   "title": "Constellation Energy Stock Climbs Following 20-Year Nuclear Power Deal With Amazon - TIKR.com",
+   "publisher": "TIKR.com",
+   "timestamp": "2026-10-02T12:35:09+00:00",
+   "story": "nuclear_deal"
+  },
+  {
+   "title": "Qualcomm Is Losing Apple and Adding Amazon. Is the Stock Ready? - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T12:58:51+00:00",
+   "story": null
+  },
+  {
+   "title": "Amazon Stock Forecast: $8 Billion Chip Financing Report Puts AI Spending in Focus - tradingkey.com",
+   "publisher": "tradingkey.com",
+   "timestamp": "2026-10-02T13:01:46+00:00",
+   "story": "nvidia_chips_offload"
+  },
+  {
+   "title": "Why Amazon is trying to offload $8B of chips from its balance sheet - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T13:43:46+00:00",
+   "story": "nvidia_chips_offload"
+  },
+  {
+   "title": "Can Pricier AI Chip Rentals Accelerate Amazon’s AWS Revenue Growth? - Trefis",
+   "publisher": "Trefis",
+   "timestamp": "2026-10-02T14:36:41+00:00",
+   "story": "chip_rental"
+  },
+  {
+   "title": "Amazon Looks to Offload $8B of Nvidia AI Chips From Its Balance Sheet - investopedia.com",
+   "publisher": "investopedia.com",
+   "timestamp": "2026-10-02T14:59:46+00:00",
+   "story": "nvidia_chips_offload"
+  },
+  {
+   "title": "Will Custom Chips And Nuclear Power Change Amazon Stock Narrative - Simply Wall Street",
+   "publisher": "Simply Wall Street",
+   "timestamp": "2026-10-02T15:40:40+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Amazon Will Raise Most GPU Reservation Prices 15% or More on October 7. Here’s Where the Stock Could Go by 2030 - TIKR.com",
+   "publisher": "TIKR.com",
+   "timestamp": "2026-10-02T16:07:27+00:00",
+   "story": "chip_rental"
+  },
+  {
+   "title": "Amazon Stock Rises on $1 Billion AWS Data Center Push - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T16:56:19+00:00",
+   "story": "dc_communities"
+  },
+  {
+   "title": "Amazon Stock Rises on $1 Billion AWS Data Center Push - TradingView",
+   "publisher": "TradingView",
+   "timestamp": "2026-10-02T16:56:19+00:00",
+   "story": "dc_communities"
+  },
+  {
+   "title": "Amazon (AMZN) Workers Strike At New York SWF1 Warehouse Over Safety Concerns - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T17:08:05+00:00",
+   "story": null
+  },
+  {
+   "title": "How Much Could Better Retail Margins Add to Amazon’s Value? - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T17:56:22+00:00",
+   "story": "?"
+  },
+  {
+   "title": "What Are Amazon Investors Paying for AWS Without Investment Gains? - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T18:26:54+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Amazon.com (NASDAQ:AMZN) Stock Price Up 1.3% - Here's What Happened - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-02T21:23:16+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Should You Buy Amazon Stock (AMZN) in October? - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T22:50:00+00:00",
+   "story": "buy_october"
+  },
+  {
+   "title": "Amazon stock forecast for October: the Prime Day calendar trap - techi.com",
+   "publisher": "techi.com",
+   "timestamp": "2026-10-02T23:23:38+00:00",
+   "story": null
+  },
+  {
+   "title": "Should You Buy Amazon Stock (AMZN) in October? - The Motley Fool",
+   "publisher": "The Motley Fool",
+   "timestamp": "2026-10-02T23:30:00+00:00",
+   "story": "buy_october"
+  },
+  {
+   "title": "denkapparat Operations GmbH Purchases 2,192 Shares of Amazon.com, Inc. $AMZN - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-03T07:12:24+00:00",
+   "story": "inst_13f"
+  },
+  {
+   "title": "The S&P 500 Is Not Enough: My 3-Stock Starter Portfolio for New Investors - The Motley Fool",
+   "publisher": "The Motley Fool",
+   "timestamp": "2026-10-03T18:15:00+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Amazon Pledges $1 Billion for Data Center Communities - Amazon.com (NASDAQ:AMZN) - Benzinga",
+   "publisher": "Benzinga",
+   "timestamp": "2026-10-04T02:56:54+00:00",
+   "story": "dc_communities"
+  },
+  {
+   "title": "4,848 Shares of Amazon.com, Inc. $AMZN Purchased by Hopwood Nicholas Hunter - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-04T07:14:44+00:00",
+   "story": "inst_13f"
+  },
+  {
+   "title": "Amazon.com (AMZN), Is There More To Its Latest Attention? - Simply Wall Street",
+   "publisher": "Simply Wall Street",
+   "timestamp": "2026-10-04T08:47:35+00:00",
+   "story": "?"
+  },
+  {
+   "title": "Amazon AWS CEO reveals surprising risk to AI stocks and U.S. economy - thestreet.com",
+   "publisher": "thestreet.com",
+   "timestamp": "2026-10-04T13:03:00+00:00",
+   "story": null
+  },
+  {
+   "title": "Amazon Stock Is Underperforming Amid Agentic AI Fears. How to Play AMZN Here. - Barchart.com",
+   "publisher": "Barchart.com",
+   "timestamp": "2026-10-04T15:30:02+00:00",
+   "story": "?"
+  },
+  {
+   "title": "What a 20-Year Deal With Amazon Means for Constellation Energy Stock - Barchart.com",
+   "publisher": "Barchart.com",
+   "timestamp": "2026-10-04T18:30:02+00:00",
+   "story": "nuclear_deal"
+  }
+ ]
+}

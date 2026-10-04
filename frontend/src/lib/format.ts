@@ -85,10 +85,16 @@ export function int(n: number | null | undefined): string {
 /* Dates                                                                       */
 /* ------------------------------------------------------------------------- */
 
-/** Parse "YYYY-MM-DD" as a local calendar date (no timezone drift); ISO datetimes as-is. */
+/**
+ * Parse "YYYY-MM-DD" as a local calendar date (no timezone drift); ISO
+ * datetimes as-is. Exactly-midnight-UTC datetimes are how date-only events
+ * (earnings day, ex-dividend, filing date) arrive when the API types them as
+ * datetimes — read those as calendar dates too, or the Americas see them a
+ * day early.
+ */
 export function parseDate(s: string | null | undefined): Date | null {
   if (!s) return null;
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  const m = /^(\d{4})-(\d{2})-(\d{2})(?:T00:00(?::00(?:\.0+)?)?(?:Z|[+-]00:?00))?$/.exec(s);
   const d = m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(s);
   return Number.isNaN(d.getTime()) ? null : d;
 }

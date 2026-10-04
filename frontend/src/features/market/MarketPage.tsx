@@ -197,12 +197,12 @@ function FearGreedPanel({ fg, className }: { fg: FearGreed | null; className?: s
           <SubHead right="fear ← 50 → greed">Components</SubHead>
           <ul className="space-y-2.5">
             {fg.components.map((c) => (
-              <li key={c.key} className="grid grid-cols-[minmax(0,140px)_minmax(0,1fr)_112px] items-center gap-3 text-xs">
+              <li key={c.key} className="grid grid-cols-[minmax(0,112px)_minmax(0,1fr)_96px] items-center gap-2.5 text-xs sm:grid-cols-[minmax(0,140px)_minmax(0,1fr)_112px] sm:gap-3">
                 <span className="truncate text-ink-2">{c.label}</span>
                 <DivergingBar value={c.score} deadZone={5} />
                 <span className="flex items-center justify-end gap-1.5">
                   <span className="font-semibold text-ink num">{c.score != null ? Math.round(c.score) : "—"}</span>
-                  <span className="w-[78px] truncate text-right text-2xs text-muted">{c.rating ?? ""}</span>
+                  <span className="w-[64px] truncate text-right text-2xs text-muted sm:w-[78px]" title={c.rating ?? undefined}>{c.rating ?? ""}</span>
                 </span>
               </li>
             ))}
@@ -221,7 +221,10 @@ function FearGreedPanel({ fg, className }: { fg: FearGreed | null; className?: s
                   { from: 75, to: 100, label: "Extreme greed", color: toneVar("bull", 0.09) },
                 ]}
                 valueFormat={(v) => `${Math.round(v)} · ${fearGreedBand(v).label}`}
-                xFormat={(ms) => new Date(ms).toLocaleDateString("en-US", { month: "short" })}
+                xFormat={(ms) => {
+                  const d = new Date(ms);
+                  return `${d.toLocaleDateString("en-US", { month: "short" })} ’${String(d.getFullYear()).slice(2)}`;
+                }}
                 ariaLabel="Fear and Greed index over the last year"
               />
             </div>
@@ -233,36 +236,62 @@ function FearGreedPanel({ fg, className }: { fg: FearGreed | null; className?: s
 }
 
 function CryptoPanel({ fg }: { fg: FearGreed | null }) {
+  const series = useMemo(
+    () => (fg ? [{ key: "cfg", label: "Crypto Fear & Greed", color: "rgb(var(--ink-2))", points: fg.history.slice(-90).map((h) => ({ x: Date.parse(h.t), y: h.v })) }] : []),
+    [fg],
+  );
   if (!fg) {
     return (
       <Panel title="Crypto Fear & Greed">
-        <Empty title="Unavailable" />
+        <Empty title="Unavailable">alternative.me's index couldn't be fetched right now.</Empty>
       </Panel>
     );
   }
   const band = fearGreedBand(fg.score);
-  const spark = fg.history.slice(-60).map((h) => h.v);
+  const refs: Array<[string, number | null]> = [
+    ["yday", fg.previous_close],
+    ["1w", fg.week_ago],
+    ["1m", fg.month_ago],
+  ];
   return (
-    <Panel title="Crypto Fear & Greed" subtitle="alternative.me · daily">
+    <Panel title="Crypto Fear & Greed" subtitle="alternative.me · daily, 0 = extreme fear · 100 = extreme greed">
       <div className="flex items-end justify-between gap-4">
-        <div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-[32px] font-semibold leading-none tracking-[-0.03em] text-ink">{Math.round(fg.score)}</span>
-            <span className={cx("text-sm font-semibold", textTone[band.polarity])}>
-              <Mark p={band.polarity} /> {fg.rating || band.label}
-            </span>
-          </div>
-          <div className="mt-2 flex gap-3 text-2xs text-muted">
-            {fg.previous_close != null && <span>yday {Math.round(fg.previous_close)}</span>}
-            {fg.week_ago != null && <span>1w {Math.round(fg.week_ago)}</span>}
-            {fg.month_ago != null && <span>1m {Math.round(fg.month_ago)}</span>}
-          </div>
+        <div className="flex items-baseline gap-2">
+          <span className="text-[32px] font-semibold leading-none tracking-[-0.03em] text-ink">{Math.round(fg.score)}</span>
+          <span className={cx("text-sm font-semibold", textTone[band.polarity])}>
+            <Mark p={band.polarity} /> {fg.rating || band.label}
+          </span>
         </div>
-        <div className="w-36">
-          <Sparkline values={spark} height={40} domain={[0, 100]} reference={50} color="rgb(var(--ink-2))" ariaLabel="Crypto Fear and Greed, 60 days" />
-          <div className="mt-0.5 text-right text-2xs text-faint">60 days · line at 50</div>
-        </div>
+        <dl className="flex gap-3 text-2xs">
+          {refs
+            .filter(([, v]) => v != null)
+            .map(([l, v]) => (
+              <div key={l} className="text-right">
+                <dt className="text-muted">{l}</dt>
+                <dd className="font-medium text-ink-2 num">{Math.round(v as number)}</dd>
+              </div>
+            ))}
+        </dl>
       </div>
+      {series[0].points.length > 1 && (
+        <div className="mt-3">
+          <LineChart
+            series={series}
+            height={112}
+            yDomain={[0, 100]}
+            yTicks={[0, 50, 100]}
+            baseline={50}
+            zones={[
+              { from: 0, to: 25, label: "Extreme fear", color: toneVar("bear", 0.09) },
+              { from: 75, to: 100, label: "Extreme greed", color: toneVar("bull", 0.09) },
+            ]}
+            valueFormat={(v) => `${Math.round(v)} · ${fearGreedBand(v).label}`}
+            xFormat={(ms) => new Date(ms).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+            ariaLabel="Crypto Fear and Greed, last 90 days"
+          />
+          <p className="mt-1 text-right text-2xs text-faint">last {series[0].points.length} days</p>
+        </div>
+      )}
     </Panel>
   );
 }
@@ -372,9 +401,9 @@ function TrendingPanel({ trending, className }: { trending: TrendingTicker[]; cl
           <thead>
             <tr className="text-2xs text-muted hairline-t hairline-b">
               <th className="py-1.5 pl-4 text-left font-normal">#</th>
-              <th className="py-1.5 text-left font-normal">Ticker</th>
-              <th className="py-1.5 text-left font-normal">Mentions</th>
-              <th className="py-1.5 text-right font-normal">24h</th>
+              <th className="py-1.5 pl-1 text-left font-normal">Ticker</th>
+              <th className="py-1.5 text-right font-normal sm:text-left">Mentions</th>
+              <th className="py-1.5 pl-2 text-right font-normal">24h</th>
               <th className="py-1.5 pr-4 text-right font-normal">WSB</th>
             </tr>
           </thead>
@@ -383,25 +412,29 @@ function TrendingPanel({ trending, className }: { trending: TrendingTicker[]; cl
               const rankChg = t.rank != null && t.rank_prev != null ? t.rank_prev - t.rank : null;
               return (
                 <tr key={`${t.source}-${t.symbol}`} className="group hover:bg-raised/60">
-                  <td className="py-1.5 pl-4 text-muted num">
+                  <td className="whitespace-nowrap py-1.5 pl-4 text-muted num">
                     {t.rank ?? "—"}
-                    {rankChg != null && rankChg !== 0 && <Delta value={rankChg} className="ml-1 text-2xs" />}
+                    {rankChg != null && rankChg !== 0 && (
+                      <span title={`${rankChg > 0 ? "up" : "down"} ${Math.abs(rankChg)} places vs yesterday (#${t.rank_prev})`}>
+                        <Delta value={rankChg} className="ml-1 text-2xs" />
+                      </span>
+                    )}
                   </td>
-                  <td className="max-w-[150px] py-1.5">
-                    <Link to={`/t/${encodeURIComponent(t.symbol)}`} className="flex min-w-0 items-baseline gap-1.5">
+                  <td className="max-w-[150px] py-1.5 pl-1">
+                    <Link to={`/t/${encodeURIComponent(t.symbol)}`} className="flex min-w-0 items-baseline gap-1.5" title={t.name ?? t.symbol}>
                       <span className="font-mono font-semibold text-ink group-hover:underline">{t.symbol}</span>
-                      <span className="truncate text-2xs text-muted">{t.name}</span>
+                      <span className="hidden truncate text-2xs text-muted sm:inline">{t.name}</span>
                     </Link>
                   </td>
                   <td className="w-[28%] py-1.5">
-                    <div className="flex items-center gap-2">
-                      <div className="h-1.5 flex-1 rounded-full bg-[rgb(var(--grid))]">
+                    <div className="flex items-center justify-end gap-2 sm:justify-start">
+                      <div className="hidden h-1.5 flex-1 rounded-full bg-[rgb(var(--grid))] sm:block">
                         <div className="h-full rounded-full bg-[rgb(var(--ink-2))]" style={{ width: `${((t.mentions ?? 0) / maxM) * 100}%` }} />
                       </div>
-                      <span className="w-6 text-right text-ink-2 num">{int(t.mentions)}</span>
+                      <span className="w-7 text-right text-ink-2 num">{int(t.mentions)}</span>
                     </div>
                   </td>
-                  <td className={cx("py-1.5 text-right font-medium num", t.change_pct == null ? "text-faint" : t.change_pct > 0 ? "text-ink" : "text-muted")}>{t.change_pct != null ? pct(t.change_pct, 0) : "new"}</td>
+                  <td className={cx("whitespace-nowrap py-1.5 pl-2 text-right font-medium num", t.change_pct == null ? "text-faint" : t.change_pct > 0 ? "text-ink" : "text-muted")}>{t.change_pct != null ? pct(t.change_pct, 0) : "new"}</td>
                   <td className="py-1.5 pr-4 text-right">{t.sentiment != null ? <ScoreChip score={t.sentiment} /> : <span className="text-faint">—</span>}</td>
                 </tr>
               );
