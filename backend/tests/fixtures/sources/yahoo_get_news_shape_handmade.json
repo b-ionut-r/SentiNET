@@ -1,0 +1,49 @@
+[
+ {
+  "id": "n-1",
+  "content": {
+   "id": "n-1",
+   "contentType": "STORY",
+   "title": "Example: Nvidia example headline",
+   "summary": "Synthetic summary.",
+   "pubDate": "2026-10-04T18:00:00Z",
+   "provider": {
+    "displayName": "Example Wire"
+   },
+   "canonicalUrl": {
+    "url": "https://example.com/yahoo/1"
+   },
+   "clickThroughUrl": null,
+   "finance": {
+    "stockTickers": [
+     {
+      "symbol": "NVDA"
+     }
+    ]
+   }
+  }
+ },
+ {
+  "id": "n-2",
+  "content": {
+   "id": "n-2",
+   "contentType": "STORY",
+   "title": "Example: unrelated company headline",
+   "summary": "",
+   "pubDate": "2026-10-04T17:00:00Z",
+   "provider": {
+    "displayName": "Example Wire"
+   },
+   "canonicalUrl": {
+    "url": "https://example.com/yahoo/2"
+   },
+   "finance": {
+    "stockTickers": [
+     {
+      "symbol": "AMD"
+     }
+    ]
+   }
+  }
+ }
+]

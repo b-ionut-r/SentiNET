@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/"
+  xmlns:foaf="http://xmlns.com/foaf/0.1/" xmlns:og="http://ogp.me/ns#"
+  xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#" xmlns:schema="http://schema.org/"
+  xmlns:sioc="http://rdfs.org/sioc/ns#" xmlns:sioct="http://rdfs.org/sioc/types#"
+  xmlns:skos="http://www.w3.org/2004/02/skos/core#" xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
+  xmlns:nasdaq="http://nasdaq.com/reference/feeds/1.0" version="2.0" xml:base="https://www.nasdaq.com/feed/rssoutbound">
+ <channel>
+  <title>NVDA Feed</title>
+  <link>https://www.nasdaq.com/feed/rssoutbound</link>
+  <description>This feed is responsible for generating the rss feed related to the topic NVDA</description>
+  <language>en</language>
+  <item>
+   <title>Stocks Settle Higher as Fed Rate Hike Concerns Ease</title>
+   <link>https://www.nasdaq.com/articles/stocks-settle-higher-fed-rate-hike-concerns-ease</link>
+   <description>
+        The S&amp;P 500 Index ($SPX ) (SPY ) closed up by +0.73% on Friday, the Dow Jones Industrial Average ($DOWI ) (DIA ) closed up by +0.49%, and the Nasdaq 100 Index ($IUXX ) (QQQ ) closed up +1.00%.  December E-mini S&amp;P futures (ESZ26 ) rose +0.73%, and December E-mini...
+    </description>
+   <pubDate>Sun, 04 Oct 2026 21:51:57 +0000</pubDate>
+   <guid isPermaLink="true">https://www.nasdaq.com/articles/stocks-settle-higher-fed-rate-hike-concerns-ease?time=1791150717</guid>
+   <dc:creator>Barchart</dc:creator>
+   <category>Stocks</category>
+   <nasdaq:tickers>GOOGL,AMAT,AAPL,AVGO,ADI,TXN,ASML,MSFT,NTAP,TSLA,IBM,STX,WDC,AMD,LRCX,GLOB,CTSH,SPY,DIA,ON,KLAC,NVDA,META,NKE,ACN,QQQ,EPAM,SOXX,MCHP,ARM,HPE,AMZN,SYNA</nasdaq:tickers>
+  </item><item>
+   <title>2 Millionaire-Maker Quantum Computing Stocks to Buy Hand Over Fist</title>
+   <link>https://www.nasdaq.com/articles/2-millionaire-maker-quantum-computing-stocks-buy-hand-over-fist</link>
+   <description>
+        Key PointsIonQ is an obvious quantum computing stock with huge upside.
+    </description>
+   <pubDate>Sun, 04 Oct 2026 17:20:00 +0000</pubDate>
+   <guid isPermaLink="true">https://www.nasdaq.com/articles/2-millionaire-maker-quantum-computing-stocks-buy-hand-over-fist?time=1791134400</guid>
+   <dc:creator>The Motley Fool</dc:creator>
+   <category>Markets</category>
+   <nasdaq:tickers>NVDA,NVDA,IONQ</nasdaq:tickers>
+  </item><item>
+   <title>Is It Too Late to Buy Micron Technology Stock After Its 12-Month Gain of 500%?</title>
+   <link>https://www.nasdaq.com/articles/it-too-late-buy-micron-technology-stock-after-its-12-month-gain-500</link>
+   <description>
+        Key PointsArtificial intelligence (AI) workloads in data centers, smartphones, computers, and even cars require an increasing amount of memory capacity.
+    </description>
+   <pubDate>Sun, 04 Oct 2026 14:49:00 +0000</pubDate>
+   <guid isPermaLink="true">https://www.nasdaq.com/articles/it-too-late-buy-micron-technology-stock-after-its-12-month-gain-500?time=1791125340</guid>
+   <dc:creator>The Motley Fool</dc:creator>
+   <category>Markets</category>
+   <nasdaq:tickers>MU,MU,MSFT,AMZN,NVDA,AMD,UBS</nasdaq:tickers>
+  </item><item>
+   <title>AMD Reaches a $1 Trillion Market Cap. Can It Finally Dethrone Nvidia?</title>
+   <link>https://www.nasdaq.com/articles/amd-reaches-1-trillion-market-cap-can-it-finally-dethrone-nvidia</link>
+   <description>
+        Key PointsNvidia is growing faster and is larger than AMD.
+    </description>
+   <pubDate>Sun, 04 Oct 2026 13:34:00 +0000</pubDate>
+   <guid isPermaLink="true">https://www.nasdaq.com/articles/amd-reaches-1-trillion-market-cap-can-it-finally-dethrone-nvidia?time=1791120840</guid>
+   <dc:creator>The Motley Fool</dc:creator>
+   <category>Markets</category>
+   <nasdaq:tickers>AMD,AMD,NVDA</nasdaq:tickers>
+  </item><item>
+   <title>What a $10,000 Investment Split Between Nvidia and Broadcom Could Be Worth by 2030</title>
+   <link>https://www.nasdaq.com/articles/what-10000-investment-split-between-nvidia-and-broadcom-could-be-worth-2030</link>
+   <description>
+        Key PointsNvidia's and Broadcom's computing units fill important niches.
+    </description>
+   <pubDate>Sun, 04 Oct 2026 12:45:00 +0000</pubDate>
+   <guid isPermaLink="true">https://www.nasdaq.com/articles/what-10000-investment-split-between-nvidia-and-broadcom-could-be-worth-2030?time=1791117900</guid>
+   <dc:creator>The Motley Fool</dc:creator>
+   <category>Markets</category>
+   <nasdaq:tickers>AVGO,AVGO,NVDA</nasdaq:tickers>
+  </item><item>
+   <title>What Is Market Cap? A Foolish Analyst's Plain-English Guide to the Metric That Separates Winners From Losers.</title>
+   <link>https://www.nasdaq.com/articles/what-market-cap-foolish-analysts-plain-english-guide-metric-separates-winners-losers</link>
+   <description>
+        Key PointsMarket capitalization, or "market cap," is a way of measuring companies' size and value based on current stock market prices.
+    </description>
+   <pubDate>Sun, 04 Oct 2026 09:20:00 +0000</pubDate>
+   <guid isPermaLink="true">https://www.nasdaq.com/articles/what-market-cap-foolish-analysts-plain-english-guide-metric-separates-winners-losers?time=1791105600</guid>
+   <dc:creator>The Motley Fool</dc:creator>
+   <category>Markets</category>
+   <nasdaq:tickers>GOOGL,GOOGL,AAPL,NVDA,IWM,VOO,GOOG,IJJ</nasdaq:tickers>
+  </item><item>
+   <title>This Under-the-Radar Supplier Could Be Nvidia's Secret Weapon</title>
+   <link>https://www.nasdaq.com/articles/under-radar-supplier-could-be-nvidias-secret-weapon</link>
+   <description>
+        Key PointsNvidia locking up scarce HBM gives it a big advantage in the AI chip market.
+    </description>
+   <pubDate>Sun, 04 Oct 2026 08:35:00 +0000</pubDate>
+   <guid isPermaLink="true">https://www.nasdaq.com/articles/under-radar-supplier-could-be-nvidias-secret-weapon?time=1791102900</guid>
+   <dc:creator>The Motley Fool</dc:creator>
+   <category>Markets</category>
+   <nasdaq:tickers>NVDA,NVDA,MU,ASML</nasdaq:tickers>
+  </item><item>
+   <title>Not Intel. Not Nvidia. The $2.4 Trillion Chipmaker That Wall Street Calls the Ultimate AI &amp;quot;Picks-and-Shovels&amp;quot; Play</title>
+   <link>https://www.nasdaq.com/articles/not-intel-not-nvidia-24-trillion-chipmaker-wall-street-calls-ultimate-ai-picks-and-shovels</link>
+   <description>
+        Key PointsTSMC is the only maker of advanced semiconductors in the world.
+    </description>
+   <pubDate>Sun, 04 Oct 2026 08:20:00 +0000</pubDate>
+   <guid isPermaLink="true">https://www.nasdaq.com/articles/not-intel-not-nvidia-24-trillion-chipmaker-wall-street-calls-ultimate-ai-picks-and-shovels?time=1791102000</guid>
+   <dc:creator>The Motley Fool</dc:creator>
+   <category>Markets</category>
+   <nasdaq:tickers>TSM,TSM,AAPL,INTC,NVDA</nasdaq:tickers>
+  </item><item>
+   <title>This Rare Market Signal Has Appeared Only 2 Times in a Century. Here Is What History Says Comes Next.</title>
+   <link>https://www.nasdaq.com/articles/rare-market-signal-has-appeared-only-2-times-century-here-what-history-says-comes-next</link>
+   <description>
+        Key PointsThe S&amp;amp;P 500 has soared in recent years, but headwinds have emerged in recent times.
+    </description>
+   <pubDate>Sun, 04 Oct 2026 08:15:00 +0000</pubDate>
+   <guid isPermaLink="true">https://www.nasdaq.com/articles/rare-market-signal-has-appeared-only-2-times-century-here-what-history-says-comes-next?time=1791101700</guid>
+   <dc:creator>The Motley Fool</dc:creator>
+   <category>Markets</category>
+   <nasdaq:tickers>NVDA,MU</nasdaq:tickers>
+  </item><item>
+   <title>Nvidia CEO Jensen Huang Just Reaffirmed His Jaw-Dropping Projection for 2030</title>
+   <link>https://www.nasdaq.com/articles/nvidia-ceo-jensen-huang-just-reaffirmed-his-jaw-dropping-projection-2030</link>
+   <description>
+        Key PointsNvidia's revenue could more than triple if its projection turns out.
+    </description>
+   <pubDate>Sun, 04 Oct 2026 04:50:00 +0000</pubDate>
+   <guid isPermaLink="true">https://www.nasdaq.com/articles/nvidia-ceo-jensen-huang-just-reaffirmed-his-jaw-dropping-projection-2030?time=1791089400</guid>
+   <dc:creator>The Motley Fool</dc:creator>
+   <category>Markets</category>
+   <nasdaq:tickers>NVDA,NVDA</nasdaq:tickers>
+  </item>
+ </channel>
+</rss>

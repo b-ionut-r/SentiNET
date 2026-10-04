@@ -1,0 +1,7 @@
+{
+ "did": "did:plc:example",
+ "handle": "example.bsky.social",
+ "accessJwt": "test-access-jwt",
+ "refreshJwt": "test-refresh-jwt",
+ "active": true
+}

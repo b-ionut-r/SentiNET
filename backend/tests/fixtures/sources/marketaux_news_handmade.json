@@ -1,0 +1,78 @@
+{
+ "meta": {
+  "found": 2,
+  "returned": 2,
+  "limit": 3,
+  "page": 1
+ },
+ "data": [
+  {
+   "uuid": "u-1",
+   "title": "Example: Tesla deliveries beat example estimates",
+   "description": "Synthetic description.",
+   "keywords": "",
+   "snippet": "Synthetic snippet.",
+   "url": "https://example.com/mx/1",
+   "image_url": "",
+   "language": "en",
+   "published_at": "2026-10-04T18:30:00.000000Z",
+   "source": "example.com",
+   "relevance_score": null,
+   "entities": [
+    {
+     "symbol": "TSLA",
+     "name": "Tesla, Inc.",
+     "exchange": null,
+     "exchange_long": null,
+     "country": "us",
+     "type": "equity",
+     "industry": "Consumer Cyclical",
+     "match_score": 41.2,
+     "sentiment_score": 0.6124,
+     "highlights": [
+      {
+       "highlight": "<em>Tesla</em> deliveries beat",
+       "sentiment": 0.6124,
+       "highlighted_in": "title"
+      }
+     ]
+    }
+   ],
+   "similar": []
+  },
+  {
+   "uuid": "u-2",
+   "title": "Example: EV makers in example roundup",
+   "description": "Mentions Tesla in passing.",
+   "keywords": "",
+   "snippet": "",
+   "url": "https://example.com/mx/2",
+   "image_url": "",
+   "language": "en",
+   "published_at": "2026-10-03T12:00:00.000000Z",
+   "source": "example.org",
+   "relevance_score": null,
+   "entities": [
+    {
+     "symbol": "TSLA",
+     "name": "Tesla, Inc.",
+     "exchange": null,
+     "exchange_long": null,
+     "country": "us",
+     "type": "equity",
+     "industry": "Consumer Cyclical",
+     "match_score": 9.1,
+     "sentiment_score": -0.1,
+     "highlights": [
+      {
+       "highlight": "<em>Tesla</em> was mentioned",
+       "sentiment": -0.1,
+       "highlighted_in": "main_text"
+      }
+     ]
+    }
+   ],
+   "similar": []
+  }
+ ]
+}

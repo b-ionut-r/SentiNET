@@ -1,0 +1,153 @@
+{
+ "hits": [
+  {
+   "_tags": [
+    "comment",
+    "author_mitthrowaway2",
+    "story_49944227"
+   ],
+   "author": "mitthrowaway2",
+   "comment_text": "Then we miscommunicated, so let me be clearer. I&#x27;m worried about ~20 years from now (plus or minus), when AI decides to kill us all because it&#x27;s misaligned and is capable of doing so because it&#x27;s super intelligent. And then we all suddenly die without any idea what happened. I don&#x27;t want that to happen to me or my daughter and I would prefer all AI capabilities development stops until alignment research catches up and figures out how to robustly prevent AI from ever trying to achieve such outcomes. If that means pausing AI capabilities development <i>forever</i>, I&#x27;m fine with that. If that means Anthropic and Nvidia lose all their value in a stock market collapse, I&#x27;m fine with that. I just don&#x27;t want us to all die, I want the world to keep existing for humans.<p>I believe that other harms from AI, like criminals abusing them, or unemployment, or copyright infringement, or deepfake disinformation, are valid real harms that it&#x27;s important to be concerned about, and I support efforts to deal with those, and I agree that they&#x27;re already happening today, but my main concern is AI killing everybody.<p>My read is this puts me in the same boat as the authors of <i>If Anyone Builds It Everyone Dies</i>, and yet, I don&#x27;t get invitations to Berkeley sex parties. Am I doing something wrong? At any rate, please don&#x27;t discredit <i>my</i> opinions about AI based on the sexual preferences of random people who happen to share those opinions about AI.",
+   "created_at": "2026-10-04T16:49:04Z",
+   "created_at_i": 1791132544,
+   "objectID": "49955538",
+   "parent_id": 49954966,
+   "story_id": 49944227,
+   "story_title": "I quit OpenAI because its culture is broken",
+   "story_url": "https://www.theatlantic.com/technology/2026/10/openai-safety-team-resignation/688881/?gift=v5U_UzUTothfWXsPxtvNVAh7esWToMRD6XnbXmc5WgA",
+   "updated_at": "2026-10-04T17:16:40Z"
+  },
+  {
+   "_tags": [
+    "comment",
+    "author_xnx",
+    "story_49933958"
+   ],
+   "author": "xnx",
+   "comment_text": "Also today: Nvidia stock hits new all-time high",
+   "created_at": "2026-10-02T14:57:21Z",
+   "created_at_i": 1790953041,
+   "objectID": "49934227",
+   "parent_id": 49933958,
+   "story_id": 49933958,
+   "story_title": "Amazon seeks to offload $8B of Nvidia chips to investors",
+   "story_url": "https://www.reuters.com/business/retail-consumer/amazon-seeks-offload-8-billion-nvidia-chips-investors-ft-reports-2026-10-02/",
+   "updated_at": "2026-10-02T15:49:51Z"
+  },
+  {
+   "_tags": [
+    "comment",
+    "author_tinco",
+    "story_49913571"
+   ],
+   "author": "tinco",
+   "children": [
+    49914541,
+    49914396
+   ],
+   "comment_text": "So here&#x27;s a crazy conspiracy theory for you: Google is not letting outside people use their models because if they did they would have to scale up their TPU production faster than they can manage, and they would instead have to buy and use nvidia hardware which would destroy their profit margins and tank their stock.<p>Gemini runs fully on TPU&#x27;s right? Is Google maxing out the production on those?",
+   "created_at": "2026-09-30T20:51:55Z",
+   "created_at_i": 1790801515,
+   "objectID": "49914252",
+   "parent_id": 49913571,
+   "story_id": 49913571,
+   "story_title": "Gemini 4 Argon",
+   "story_url": "https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-4-argon/",
+   "updated_at": "2026-10-01T09:04:59Z"
+  },
+  {
+   "_tags": [
+    "comment",
+    "author_dist-epoch",
+    "story_49899051"
+   ],
+   "author": "dist-epoch",
+   "children": [
+    49900815,
+    49901080
+   ],
+   "comment_text": "The same thing was said 4 years ago about NVIDIA on HN, that it&#x27;s stock it&#x27;s outrageously overpriced, given it&#x27;s $20 bln revenue, that it should have at least 10 times more revenue to justify that stock price, which is fantasy, that there is no plausible way for such demand no matter what you think about GPT-2.",
+   "created_at": "2026-09-29T21:06:03Z",
+   "created_at_i": 1790715963,
+   "objectID": "49900542",
+   "parent_id": 49899976,
+   "story_id": 49899051,
+   "story_title": "Memory Companies Have Destroyed the Consumer Market",
+   "story_url": "https://gamersnexus.net/news-features/memory-companies-have-destroyed-consumer-market",
+   "updated_at": "2026-09-30T04:47:55Z"
+  },
+  {
+   "_tags": [
+    "comment",
+    "author_jqpabc123",
+    "story_49891337"
+   ],
+   "author": "jqpabc123",
+   "comment_text": "It could --- and it already does.<p>Nvidia is currently &quot;investing&quot; billions in the companies that buy and support it&#x27;s products up and down the AI stack. And at the same time, Nvidia is &quot;investing&quot; directly in itself with plans to buyback hundreds of billions of it&#x27;s own stock.<p>But as you might suspect, this &quot;circular financing&quot; can&#x27;t continue indefinitely --- just like with any Ponzi scheme",
+   "created_at": "2026-09-29T12:55:09Z",
+   "created_at_i": 1790686509,
+   "objectID": "49892402",
+   "parent_id": 49891457,
+   "story_id": 49891337,
+   "story_title": "Tech's Trillion-Dollar Internal Inconsistency",
+   "story_url": "https://www.apollo.com/wealth/insights-news/insights/daily-spark/tech-trillion-dollar-internal-inconsistency",
+   "updated_at": "2026-09-29T13:16:56Z"
+  },
+  {
+   "_tags": [
+    "comment",
+    "author_windexh8er",
+    "story_49872723"
+   ],
+   "author": "windexh8er",
+   "comment_text": "Maybe? That&#x27;s the smoking gun. Nvidia is a behemoth now with reams of lawyers. Back then? I doubt it.  I&#x27;ve seen a lot of startups in the 2020s miss the obvious things in options grants. There was one company that I worked for that didn&#x27;t use a third party to manage and they provided no language in the acceptance that in the event of a termination event the options had any timetable to be purchased. I asked for the paperwork from them about 6 months later as I was considering selling to a private party and they informed me the time frame had expired.  I asked for paperwork I signed that stated that and they had nothing. I sold those options.<p>In another case I was paid out and my options supposedly terminated when a company I worked for was acquired by Splunk. The startup had used Carta to manage the options and nobody terminated the agreements in Carta and I kept vesting. The joke was I was going to wait to fully vest and then ask them to convert to Splunk stock. Someone eventually noticed and they revoked all agreements in the system. I still wonder how that would have played out legally, but I also wasn&#x27;t interested in double dipping.",
+   "created_at": "2026-09-29T12:29:32Z",
+   "created_at_i": 1790684972,
+   "objectID": "49892080",
+   "parent_id": 49873321,
+   "story_id": 49872723,
+   "story_title": "Owed a billion dollars in Nvidia stock",
+   "story_url": "https://colo.to/nvidia-stock-narrative.html",
+   "updated_at": "2026-09-30T04:25:55Z"
+  },
+  {
+   "_tags": [
+    "comment",
+    "author_altmanaltman",
+    "story_49879883"
+   ],
+   "author": "altmanaltman",
+   "comment_text": "You&#x27;re speaking as if Jensen is the only one dragging Nvidia on his shoulders. Nvidia will always have its employees push to make more money, that&#x27;s the entire point of a company. Jensen has made enough to last several generations but his wealth is tied to Nvidia stock massively. It would be different if he was the only one getting rich off Nvidia which is not true at all.",
+   "created_at": "2026-09-29T05:46:51Z",
+   "created_at_i": 1790660811,
+   "objectID": "49888753",
+   "parent_id": 49886823,
+   "story_id": 49879883,
+   "story_title": "Nvidia wants to put a watchdog chip next to every AI agent",
+   "story_url": "https://www.cnbc.com/2026/09/28/nvidia-releases.html",
+   "updated_at": "2026-09-29T08:38:07Z"
+  },
+  {
+   "_tags": [
+    "comment",
+    "author_tomhow",
+    "story_49872723"
+   ],
+   "author": "tomhow",
+   "comment_text": "We don&#x27;t know enough to justify the jeering. We don&#x27;t know he was rich in 1996. We don&#x27;t know he&#x27;s rich now. We can read between the lines and infer that he possibly still retains Nvidia stock that is worth a lot, but we don&#x27;t know that for sure. We only know that a tranche of stock that he was entitled to remains with Nvidia and is worth a lot of money now. Maybe he would have done really admirable, benevolent things with that money. Who knows? It doesn&#x27;t matter. It&#x27;s never ok to jeer or sneer on HN.",
+   "created_at": "2026-09-28T23:36:40Z",
+   "created_at_i": 1790638600,
+   "objectID": "49885966",
+   "parent_id": 49882930,
+   "story_id": 49872723,
+   "story_title": "Owed a billion dollars in Nvidia stock",
+   "story_url": "https://colo.to/nvidia-stock-narrative.html",
+   "updated_at": "2026-09-28T23:41:22Z"
+  }
+ ],
+ "nbHits": 31,
+ "page": 0,
+ "hitsPerPage": 8,
+ "query": "Nvidia stock",
+ "params": "query=Nvidia+stock&typoTolerance=false&queryType=prefixNone&advancedSyntax=true&numericFilters=created_at_i%3E1789943393&tags=comment&hitsPerPage=8&analyticsTags=backend"
+}

@@ -1,0 +1,52 @@
+{
+ "count": 696,
+ "pages": 7,
+ "current_page": 7,
+ "results": [
+  {
+   "rank": 601,
+   "ticker": "SCKT",
+   "name": "Socket Mobile",
+   "mentions": 1,
+   "upvotes": 1,
+   "rank_24h_ago": 697,
+   "mentions_24h_ago": 1
+  },
+  {
+   "rank": 602,
+   "ticker": "SMR",
+   "name": "NuScale Power",
+   "mentions": 1,
+   "upvotes": 1,
+   "rank_24h_ago": 698,
+   "mentions_24h_ago": 1
+  },
+  {
+   "rank": 603,
+   "ticker": "ABSI",
+   "name": "Absci",
+   "mentions": 1,
+   "upvotes": 1,
+   "rank_24h_ago": 0,
+   "mentions_24h_ago": null
+  },
+  {
+   "rank": 604,
+   "ticker": "BBAI",
+   "name": "BigBear.ai",
+   "mentions": 1,
+   "upvotes": 1,
+   "rank_24h_ago": 701,
+   "mentions_24h_ago": 1
+  },
+  {
+   "rank": 605,
+   "ticker": "PRE",
+   "name": "Prenetics",
+   "mentions": 1,
+   "upvotes": 3,
+   "rank_24h_ago": 0,
+   "mentions_24h_ago": null
+  }
+ ]
+}

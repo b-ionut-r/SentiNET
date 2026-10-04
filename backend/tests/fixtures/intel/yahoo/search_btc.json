@@ -1,0 +1,60 @@
+[
+ {
+  "exchange": "CCC",
+  "shortname": "Bitcoin USD",
+  "quoteType": "CRYPTOCURRENCY",
+  "symbol": "BTC-USD",
+  "index": "quotes",
+  "score": 312913.6,
+  "typeDisp": "Cryptocurrency",
+  "longname": "Bitcoin USD",
+  "exchDisp": "CCC",
+  "isYahooFinance": true
+ },
+ {
+  "exchange": "CME",
+  "shortname": "Bitcoin Futures,Oct-2026",
+  "quoteType": "FUTURE",
+  "symbol": "BTC=F",
+  "index": "quotes",
+  "score": 30548.0,
+  "typeDisp": "Futures",
+  "exchDisp": "Chicago Mercantile Exchange",
+  "isYahooFinance": true
+ },
+ {
+  "exchange": "BTS",
+  "shortname": "NEOS Bitcoin High Income ETF",
+  "quoteType": "ETF",
+  "symbol": "BTCI",
+  "index": "quotes",
+  "score": 21487.0,
+  "typeDisp": "ETF",
+  "exchDisp": "BATS Trading",
+  "isYahooFinance": true
+ },
+ {
+  "exchange": "CCC",
+  "shortname": "Bitcoin EUR",
+  "quoteType": "CRYPTOCURRENCY",
+  "symbol": "BTC-EUR",
+  "index": "quotes",
+  "score": 21401.0,
+  "typeDisp": "Cryptocurrency",
+  "longname": "Bitcoin EUR",
+  "exchDisp": "CCC",
+  "isYahooFinance": true
+ },
+ {
+  "exchange": "PCX",
+  "shortname": "Grayscale Bitcoin Trust (BTC)",
+  "quoteType": "ETF",
+  "symbol": "GBTC",
+  "index": "quotes",
+  "score": 21044.0,
+  "typeDisp": "ETF",
+  "longname": "Grayscale Bitcoin Trust ETF",
+  "exchDisp": "NYSEArca",
+  "isYahooFinance": true
+ }
+]

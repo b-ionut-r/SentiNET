@@ -1,0 +1,367 @@
+{
+ "count": 696,
+ "pages": 7,
+ "current_page": 1,
+ "results": [
+  {
+   "rank": 1,
+   "ticker": "SPY",
+   "name": "SPDR S&amp;P 500 ETF Trust",
+   "mentions": 38,
+   "upvotes": 81,
+   "rank_24h_ago": 1,
+   "mentions_24h_ago": 46
+  },
+  {
+   "rank": 2,
+   "ticker": "MU",
+   "name": "Micron Technology",
+   "mentions": 28,
+   "upvotes": 73,
+   "rank_24h_ago": 2,
+   "mentions_24h_ago": 31
+  },
+  {
+   "rank": 3,
+   "ticker": "QQQ",
+   "name": "Invesco QQQ ETF",
+   "mentions": 20,
+   "upvotes": 38,
+   "rank_24h_ago": 3,
+   "mentions_24h_ago": 39
+  },
+  {
+   "rank": 4,
+   "ticker": "DTE",
+   "name": "DTE Energy",
+   "mentions": 17,
+   "upvotes": 34,
+   "rank_24h_ago": 5,
+   "mentions_24h_ago": 27
+  },
+  {
+   "rank": 5,
+   "ticker": "AMD",
+   "name": "AMD",
+   "mentions": 13,
+   "upvotes": 27,
+   "rank_24h_ago": 11,
+   "mentions_24h_ago": 14
+  },
+  {
+   "rank": 6,
+   "ticker": "META",
+   "name": "Meta Platforms (Facebook)",
+   "mentions": 12,
+   "upvotes": 13,
+   "rank_24h_ago": 35,
+   "mentions_24h_ago": 1
+  },
+  {
+   "rank": 7,
+   "ticker": "TLT",
+   "name": "BlackRock Institutional Trust Company N.A. - BTC iShares 20+ Year Trea",
+   "mentions": 11,
+   "upvotes": 13,
+   "rank_24h_ago": 17,
+   "mentions_24h_ago": 9
+  },
+  {
+   "rank": 8,
+   "ticker": "VOO",
+   "name": "Vanguard S&amp;P 500 ETF",
+   "mentions": 10,
+   "upvotes": 10,
+   "rank_24h_ago": 16,
+   "mentions_24h_ago": 10
+  },
+  {
+   "rank": 9,
+   "ticker": "YOU",
+   "name": "CLEAR Secure",
+   "mentions": 10,
+   "upvotes": 29,
+   "rank_24h_ago": 55,
+   "mentions_24h_ago": 4
+  },
+  {
+   "rank": 10,
+   "ticker": "WULF",
+   "name": "TeraWulf",
+   "mentions": 10,
+   "upvotes": 9,
+   "rank_24h_ago": 22,
+   "mentions_24h_ago": 11
+  },
+  {
+   "rank": 11,
+   "ticker": "DRTS",
+   "name": "Alpha Tau Medical",
+   "mentions": 10,
+   "upvotes": 49,
+   "rank_24h_ago": 696,
+   "mentions_24h_ago": null
+  },
+  {
+   "rank": 12,
+   "ticker": "NBIS",
+   "name": "Nebius Group",
+   "mentions": 10,
+   "upvotes": 67,
+   "rank_24h_ago": 775,
+   "mentions_24h_ago": 1
+  },
+  {
+   "rank": 13,
+   "ticker": "ES",
+   "name": "Eversource Energy",
+   "mentions": 9,
+   "upvotes": 44,
+   "rank_24h_ago": 28,
+   "mentions_24h_ago": 7
+  },
+  {
+   "rank": 14,
+   "ticker": "NKE",
+   "name": "Nike",
+   "mentions": 9,
+   "upvotes": 17,
+   "rank_24h_ago": 6,
+   "mentions_24h_ago": 12
+  },
+  {
+   "rank": 15,
+   "ticker": "UUUU",
+   "name": "Energy Fuels",
+   "mentions": 8,
+   "upvotes": 129,
+   "rank_24h_ago": 333,
+   "mentions_24h_ago": 1
+  },
+  {
+   "rank": 16,
+   "ticker": "SGOV",
+   "name": "iShares Trust - iShares 0-3 Month Treasury Bond ETF",
+   "mentions": 8,
+   "upvotes": 19,
+   "rank_24h_ago": 8,
+   "mentions_24h_ago": 21
+  },
+  {
+   "rank": 17,
+   "ticker": "GME",
+   "name": "GameStop",
+   "mentions": 8,
+   "upvotes": 385,
+   "rank_24h_ago": 30,
+   "mentions_24h_ago": 6
+  },
+  {
+   "rank": 18,
+   "ticker": "CD",
+   "name": "Chindata",
+   "mentions": 8,
+   "upvotes": 69,
+   "rank_24h_ago": 69,
+   "mentions_24h_ago": 2
+  },
+  {
+   "rank": 19,
+   "ticker": "MSFT",
+   "name": "Microsoft",
+   "mentions": 7,
+   "upvotes": 21,
+   "rank_24h_ago": 26,
+   "mentions_24h_ago": 3
+  },
+  {
+   "rank": 20,
+   "ticker": "SPCX",
+   "name": "SpaceX",
+   "mentions": 7,
+   "upvotes": 12,
+   "rank_24h_ago": 7,
+   "mentions_24h_ago": 8
+  },
+  {
+   "rank": 21,
+   "ticker": "EU",
+   "name": "enCore Energy",
+   "mentions": 7,
+   "upvotes": 27,
+   "rank_24h_ago": 14,
+   "mentions_24h_ago": 15
+  },
+  {
+   "rank": 22,
+   "ticker": "RDDT",
+   "name": "Reddit",
+   "mentions": 7,
+   "upvotes": 12,
+   "rank_24h_ago": 23,
+   "mentions_24h_ago": 6
+  },
+  {
+   "rank": 23,
+   "ticker": "TP",
+   "name": "Ticketplus",
+   "mentions": 7,
+   "upvotes": 16,
+   "rank_24h_ago": 36,
+   "mentions_24h_ago": 5
+  },
+  {
+   "rank": 24,
+   "ticker": "GOOG",
+   "name": "Alphabet (Google)",
+   "mentions": 6,
+   "upvotes": 25,
+   "rank_24h_ago": 37,
+   "mentions_24h_ago": 3
+  },
+  {
+   "rank": 25,
+   "ticker": "NVDA",
+   "name": "NVIDIA",
+   "mentions": 6,
+   "upvotes": 12,
+   "rank_24h_ago": 4,
+   "mentions_24h_ago": 21
+  },
+  {
+   "rank": 26,
+   "ticker": "NOW",
+   "name": "ServiceNow",
+   "mentions": 6,
+   "upvotes": 13,
+   "rank_24h_ago": 59,
+   "mentions_24h_ago": 1
+  },
+  {
+   "rank": 27,
+   "ticker": "WDC",
+   "name": "Western Digital",
+   "mentions": 6,
+   "upvotes": 10,
+   "rank_24h_ago": 10,
+   "mentions_24h_ago": 7
+  },
+  {
+   "rank": 28,
+   "ticker": "AM",
+   "name": "Antero Midstream",
+   "mentions": 6,
+   "upvotes": 13,
+   "rank_24h_ago": 408,
+   "mentions_24h_ago": 1
+  },
+  {
+   "rank": 29,
+   "ticker": "IT",
+   "name": "Gartner",
+   "mentions": 5,
+   "upvotes": -3,
+   "rank_24h_ago": 39,
+   "mentions_24h_ago": 2
+  },
+  {
+   "rank": 30,
+   "ticker": "MP",
+   "name": "MP Materials",
+   "mentions": 5,
+   "upvotes": 128,
+   "rank_24h_ago": 624,
+   "mentions_24h_ago": 1
+  },
+  {
+   "rank": 31,
+   "ticker": "ANY",
+   "name": "Sphere 3D",
+   "mentions": 5,
+   "upvotes": 38,
+   "rank_24h_ago": 627,
+   "mentions_24h_ago": 1
+  },
+  {
+   "rank": 32,
+   "ticker": "NU",
+   "name": "Nu Holdings",
+   "mentions": 5,
+   "upvotes": 29,
+   "rank_24h_ago": 647,
+   "mentions_24h_ago": null
+  },
+  {
+   "rank": 33,
+   "ticker": "APLD",
+   "name": "Applied Blockchain",
+   "mentions": 5,
+   "upvotes": 11,
+   "rank_24h_ago": 70,
+   "mentions_24h_ago": 2
+  },
+  {
+   "rank": 34,
+   "ticker": "GOOGL",
+   "name": "Alphabet (Google)",
+   "mentions": 5,
+   "upvotes": 12,
+   "rank_24h_ago": 24,
+   "mentions_24h_ago": 5
+  },
+  {
+   "rank": 35,
+   "ticker": "API",
+   "name": "Agora.io",
+   "mentions": 5,
+   "upvotes": 7,
+   "rank_24h_ago": 98,
+   "mentions_24h_ago": 1
+  },
+  {
+   "rank": 36,
+   "ticker": "AVGO",
+   "name": "Broadcom",
+   "mentions": 4,
+   "upvotes": 2,
+   "rank_24h_ago": 48,
+   "mentions_24h_ago": 2
+  },
+  {
+   "rank": 37,
+   "ticker": "CHTR",
+   "name": "Charter Communications",
+   "mentions": 4,
+   "upvotes": 6,
+   "rank_24h_ago": 58,
+   "mentions_24h_ago": 3
+  },
+  {
+   "rank": 38,
+   "ticker": "IQ",
+   "name": "iQIYI",
+   "mentions": 4,
+   "upvotes": 55,
+   "rank_24h_ago": 80,
+   "mentions_24h_ago": 1
+  },
+  {
+   "rank": 39,
+   "ticker": "CC",
+   "name": "Chemours",
+   "mentions": 4,
+   "upvotes": 14,
+   "rank_24h_ago": 40,
+   "mentions_24h_ago": 4
+  },
+  {
+   "rank": 40,
+   "ticker": "WTI",
+   "name": "W&amp;T Offshore",
+   "mentions": 4,
+   "upvotes": 11,
+   "rank_24h_ago": 42,
+   "mentions_24h_ago": 4
+  }
+ ]
+}

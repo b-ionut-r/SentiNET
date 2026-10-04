@@ -1,0 +1,394 @@
+<?xml version="1.0"?>
+<rss xmlns:sa="https://seekingalpha.com/api/1.0" xmlns:media="http://search.yahoo.com/mrss/" version="2.0">
+  <channel>
+    <title>NVIDIA Corporation - News and Analysis on Seeking Alpha</title>
+    <link>https://seekingalpha.com</link>
+    <description>&#xA9; seekingalpha.com. Use of this feed is limited to personal, non-commercial use and is governed by Seeking Alpha's Terms of Use (https://about.seekingalpha.com/terms). Publishing this feed for public or commercial use and/or misrepresentation by a third party is prohibited.</description>
+    <item>
+      <title>AI spending to drive another strong S&amp;P 500 earnings season, Goldman Sachs says</title>
+      <link>https://seekingalpha.com/symbol/NVDA/news?source=feed_symbol_NVDA</link>
+      <guid isPermaLink="false">https://seekingalpha.com/MarketCurrent:4650034</guid>
+      <pubDate>Sun, 04 Oct 2026 10:24:49 -0400</pubDate>
+      <sa:author_name>Rob Williams</sa:author_name>
+      <media:thumbnail url=""/>
+      <sa:picture/>
+      <sa:stock>
+        <sa:symbol>GOOG</sa:symbol>
+        <sa:company_name>Alphabet Inc.</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>AMZN</sa:symbol>
+        <sa:company_name>Amazon.com, Inc.</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>MSFT</sa:symbol>
+        <sa:company_name>Microsoft Corporation</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>ORCL</sa:symbol>
+        <sa:company_name>Oracle Corporation</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>NVDA</sa:symbol>
+        <sa:company_name>NVIDIA Corporation</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>MU</sa:symbol>
+        <sa:company_name>Micron Technology, Inc.</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>GOOGL</sa:symbol>
+        <sa:company_name>Alphabet Inc.</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>AIEQ</sa:symbol>
+        <sa:company_name>Amplify AI Powered Equity ETF</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>ARTY</sa:symbol>
+        <sa:company_name>iShares Future AI &amp; Tech ETF</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>SP500</sa:symbol>
+        <sa:company_name>S&amp;P 500 Index</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>COMP:IND</sa:symbol>
+        <sa:company_name>NASDAQ Composite Index</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>DJI</sa:symbol>
+        <sa:company_name>Dow Jones Industrial Average Index</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>CHAT</sa:symbol>
+        <sa:company_name>Roundhill Generative AI &amp; Technology ETF</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>WISE</sa:symbol>
+        <sa:company_name>Themes Generative Artificial Intelligence ETF</sa:company_name>
+      </sa:stock>
+    </item><item>
+      <title>Trump names intelligence chief Jay Clayton to lead new AI task force</title>
+      <link>https://seekingalpha.com/symbol/NVDA/news?source=feed_symbol_NVDA</link>
+      <guid isPermaLink="false">https://seekingalpha.com/MarketCurrent:4650031</guid>
+      <pubDate>Sun, 04 Oct 2026 09:13:10 -0400</pubDate>
+      <sa:author_name>Rob Williams</sa:author_name>
+      <media:thumbnail url=""/>
+      <sa:picture/>
+      <sa:stock>
+        <sa:symbol>AAPL</sa:symbol>
+        <sa:company_name>Apple Inc.</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>GOOG</sa:symbol>
+        <sa:company_name>Alphabet Inc.</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>AMZN</sa:symbol>
+        <sa:company_name>Amazon.com, Inc.</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>MSFT</sa:symbol>
+        <sa:company_name>Microsoft Corporation</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>ORCL</sa:symbol>
+        <sa:company_name>Oracle Corporation</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>NVDA</sa:symbol>
+        <sa:company_name>NVIDIA Corporation</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>TSLA</sa:symbol>
+        <sa:company_name>Tesla, Inc.</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>META</sa:symbol>
+        <sa:company_name>Meta Platforms, Inc.</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>GOOGL</sa:symbol>
+        <sa:company_name>Alphabet Inc.</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>SPCX</sa:symbol>
+        <sa:company_name>Space Exploration Technologies Corp.</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>OPENAI</sa:symbol>
+        <sa:company_name>OpenAI</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>ANTHRO</sa:symbol>
+        <sa:company_name>Anthropic</sa:company_name>
+      </sa:stock>
+    </item><item>
+      <title>Notable tech headlines for the week: Micron, Nvidia, Accenture in focus</title>
+      <link>https://seekingalpha.com/symbol/NVDA/news?source=feed_symbol_NVDA</link>
+      <guid isPermaLink="false">https://seekingalpha.com/MarketCurrent:4649994</guid>
+      <pubDate>Sat, 03 Oct 2026 10:10:51 -0400</pubDate>
+      <sa:author_name>Tiyashi Datta</sa:author_name>
+      <media:thumbnail url=""/>
+      <sa:picture/>
+      <sa:stock>
+        <sa:symbol>XLK</sa:symbol>
+        <sa:company_name>State Street Technology Select Sector SPDR ETF</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>ACN</sa:symbol>
+        <sa:company_name>Accenture plc</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>GPN</sa:symbol>
+        <sa:company_name>Global Payments Inc.</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>AMD</sa:symbol>
+        <sa:company_name>Advanced Micro Devices, Inc.</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>WDC</sa:symbol>
+        <sa:company_name>Western Digital Corporation</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>NVDA</sa:symbol>
+        <sa:company_name>NVIDIA Corporation</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>QCOM</sa:symbol>
+        <sa:company_name>QUALCOMM Incorporated</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>MU</sa:symbol>
+        <sa:company_name>Micron Technology, Inc.</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>SNPS</sa:symbol>
+        <sa:company_name>Synopsys, Inc.</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>TER</sa:symbol>
+        <sa:company_name>Teradyne, Inc.</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>FIS</sa:symbol>
+        <sa:company_name>Fidelity National Information Services, Inc.</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>COHR</sa:symbol>
+        <sa:company_name>Coherent Corp.</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>AVGO</sa:symbol>
+        <sa:company_name>Broadcom Inc.</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>FICO</sa:symbol>
+        <sa:company_name>Fair Isaac Corporation</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>META</sa:symbol>
+        <sa:company_name>Meta Platforms, Inc.</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>LITE</sa:symbol>
+        <sa:company_name>Lumentum Holdings Inc.</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>HPE</sa:symbol>
+        <sa:company_name>Hewlett Packard Enterprise Company</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>MDB</sa:symbol>
+        <sa:company_name>MongoDB, Inc.</sa:company_name>
+      </sa:stock>
+    </item><item>
+      <title>Nvidia in focus as Morgan Stanley reinstates as top pick</title>
+      <link>https://seekingalpha.com/symbol/NVDA/news?source=feed_symbol_NVDA</link>
+      <guid isPermaLink="false">https://seekingalpha.com/MarketCurrent:4649791</guid>
+      <pubDate>Fri, 02 Oct 2026 07:52:39 -0400</pubDate>
+      <sa:author_name>Chris Ciaccia</sa:author_name>
+      <media:thumbnail url=""/>
+      <sa:picture/>
+      <sa:stock>
+        <sa:symbol>NVDA</sa:symbol>
+        <sa:company_name>NVIDIA Corporation</sa:company_name>
+      </sa:stock>
+    </item><item>
+      <title>Amazon seeks to offload $8B of Nvidia chips to investors, FT reports</title>
+      <link>https://seekingalpha.com/symbol/NVDA/news?source=feed_symbol_NVDA</link>
+      <guid isPermaLink="false">https://seekingalpha.com/MarketCurrent:4649713</guid>
+      <pubDate>Fri, 02 Oct 2026 00:07:26 -0400</pubDate>
+      <sa:author_name>Arundhati Sarkar</sa:author_name>
+      <media:thumbnail url=""/>
+      <sa:picture/>
+      <sa:stock>
+        <sa:symbol>AMZN</sa:symbol>
+        <sa:company_name>Amazon.com, Inc.</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>NVDA</sa:symbol>
+        <sa:company_name>NVIDIA Corporation</sa:company_name>
+      </sa:stock>
+    </item><item>
+      <title>Nvidia's Demand Outlook Still Supports The Bull Case</title>
+      <link>https://seekingalpha.com/article/4951149-nvidia-demand-outlook-still-supports-bull-case?source=feed_symbol_NVDA</link>
+      <guid isPermaLink="false">https://seekingalpha.com/Article:4951149</guid>
+      <pubDate>Wed, 30 Sep 2026 16:18:43 -0400</pubDate>
+      <sa:author_name>Motti Sapir</sa:author_name>
+      <media:thumbnail url=""/>
+      <sa:picture/>
+      <sa:stock>
+        <sa:symbol>NVDA</sa:symbol>
+        <sa:company_name>NVIDIA Corporation</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>NVDA:CA</sa:symbol>
+        <sa:company_name>NVIDIA Corporation</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>ZNVD:CA</sa:symbol>
+        <sa:company_name>NVIDIA Corporation</sa:company_name>
+      </sa:stock>
+    </item><item>
+      <title>Nvidia Looks Criminally Cheap</title>
+      <link>https://seekingalpha.com/article/4951069-nvidia-looks-criminally-cheap?source=feed_symbol_NVDA</link>
+      <guid isPermaLink="false">https://seekingalpha.com/Article:4951069</guid>
+      <pubDate>Wed, 30 Sep 2026 12:01:39 -0400</pubDate>
+      <sa:author_name>Nova Capital</sa:author_name>
+      <media:thumbnail url=""/>
+      <sa:picture/>
+      <sa:stock>
+        <sa:symbol>NVDA</sa:symbol>
+        <sa:company_name>NVIDIA Corporation</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>NVDA:CA</sa:symbol>
+        <sa:company_name>NVIDIA Corporation</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>ZNVD:CA</sa:symbol>
+        <sa:company_name>NVIDIA Corporation</sa:company_name>
+      </sa:stock>
+    </item><item>
+      <title>Notable analyst calls this week: Target, Moderna and PepsiCo among top picks</title>
+      <link>https://seekingalpha.com/symbol/NVDA/news?source=feed_symbol_NVDA</link>
+      <guid isPermaLink="false">https://seekingalpha.com/MarketCurrent:4649946</guid>
+      <pubDate>Sat, 03 Oct 2026 10:05:01 -0400</pubDate>
+      <sa:author_name>Tiyashi Datta</sa:author_name>
+      <media:thumbnail url=""/>
+      <sa:picture/>
+      <sa:stock>
+        <sa:symbol>TGT</sa:symbol>
+        <sa:company_name>Target Corporation</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>ED</sa:symbol>
+        <sa:company_name>Consolidated Edison, Inc.</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>OXY</sa:symbol>
+        <sa:company_name>Occidental Petroleum Corporation</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>BP</sa:symbol>
+        <sa:company_name>BP p.l.c.</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>PEP</sa:symbol>
+        <sa:company_name>PepsiCo, Inc.</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>NVDA</sa:symbol>
+        <sa:company_name>NVIDIA Corporation</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>XOM</sa:symbol>
+        <sa:company_name>ExxonMobil Holdings Corporation</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>TRMLF</sa:symbol>
+        <sa:company_name>Tourmaline Oil Corp.</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>MRNA</sa:symbol>
+        <sa:company_name>Moderna, Inc.</sa:company_name>
+      </sa:stock>
+    </item><item>
+      <title>Nvidia: Competition Caps The Upside Case</title>
+      <link>https://seekingalpha.com/article/4951691-nvidia-competition-caps-the-upside-case?source=feed_symbol_NVDA</link>
+      <guid isPermaLink="false">https://seekingalpha.com/Article:4951691</guid>
+      <pubDate>Fri, 02 Oct 2026 18:00:22 -0400</pubDate>
+      <sa:author_name>The Value Portfolio</sa:author_name>
+      <media:thumbnail url=""/>
+      <sa:picture/>
+      <sa:stock>
+        <sa:symbol>AVGO</sa:symbol>
+        <sa:company_name>Broadcom Inc.</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>AVGO:CA</sa:symbol>
+        <sa:company_name>Broadcom Inc.</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>ZAVG:CA</sa:symbol>
+        <sa:company_name>Broadcom Inc.</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>OPENAI</sa:symbol>
+        <sa:company_name>OpenAI</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>ANTHRO</sa:symbol>
+        <sa:company_name>Anthropic</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>NVDA</sa:symbol>
+        <sa:company_name>NVIDIA Corporation</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>NVDA:CA</sa:symbol>
+        <sa:company_name>NVIDIA Corporation</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>ZNVD:CA</sa:symbol>
+        <sa:company_name>NVIDIA Corporation</sa:company_name>
+      </sa:stock>
+    </item><item>
+      <title>Nvidia Stock Has Become Deeply Undervalued, But Watch Out For Accounts Receivable</title>
+      <link>https://seekingalpha.com/article/4951661-nvidia-stock-has-become-deeply-undervalued-but-watch-out-for-accounts-receivable?source=feed_symbol_NVDA</link>
+      <guid isPermaLink="false">https://seekingalpha.com/Article:4951661</guid>
+      <pubDate>Fri, 02 Oct 2026 14:16:38 -0400</pubDate>
+      <sa:author_name>Johnny Zhang, CFA</sa:author_name>
+      <media:thumbnail url=""/>
+      <sa:picture/>
+      <sa:stock>
+        <sa:symbol>AMD</sa:symbol>
+        <sa:company_name>Advanced Micro Devices, Inc.</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>AMD:CA</sa:symbol>
+        <sa:company_name>Advanced Micro Devices, Inc.</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>ZAMD:CA</sa:symbol>
+        <sa:company_name>Advanced Micro Devices, Inc.</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>ZNVD:CA</sa:symbol>
+        <sa:company_name>NVIDIA Corporation</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>NVDA</sa:symbol>
+        <sa:company_name>NVIDIA Corporation</sa:company_name>
+      </sa:stock>
+      <sa:stock>
+        <sa:symbol>NVDA:CA</sa:symbol>
+        <sa:company_name>NVIDIA Corporation</sa:company_name>
+      </sa:stock>
+    </item>
+  </channel>
+</rss>
+

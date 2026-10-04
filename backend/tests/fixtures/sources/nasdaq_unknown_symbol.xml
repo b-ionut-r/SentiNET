@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/"
+  xmlns:foaf="http://xmlns.com/foaf/0.1/" xmlns:og="http://ogp.me/ns#"
+  xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#" xmlns:schema="http://schema.org/"
+  xmlns:sioc="http://rdfs.org/sioc/ns#" xmlns:sioct="http://rdfs.org/sioc/types#"
+  xmlns:skos="http://www.w3.org/2004/02/skos/core#" xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
+  xmlns:nasdaq="http://nasdaq.com/reference/feeds/1.0" version="2.0" xml:base="https://www.nasdaq.com/feed/rssoutbound">
+ <channel>
+  <title>Latest Article Feed</title>
+  <link>https://www.nasdaq.com/feed/rssoutbound</link>
+  <description>This feed is responsible for generating the rss feed related to the topic latest article</description>
+  <language>en</language>
+  <item>
+   <title>Bloom Energy Says Its Fuel Cells Can Save a Big AI Data Center $3.6 Billion. I'd Still Wait to Buy the Stock.</title>
+   <link>https://www.nasdaq.com/articles/bloom-energy-says-its-fuel-cells-can-save-big-ai-data-center-36-billion-id-still-wait-buy</link>
+   <description>
+        Key PointsBloom's own model says its fuel cells cut $3.6 billion, or 27%, off a 1-gigawatt AI data center's non-chip construction costs.
+    </description>
+   <pubDate>Sun, 04 Oct 2026 22:06:01 +0000</pubDate>
+   <guid isPermaLink="true">https://www.nasdaq.com/articles/bloom-energy-says-its-fuel-cells-can-save-big-ai-data-center-36-billion-id-still-wait-buy?time=1791151561</guid>
+   <dc:creator>The Motley Fool</dc:creator>
+   <category>Markets</category>
+   <nasdaq:tickers>BE,BE,NVDA</nasdaq:tickers>
+  </item><item>
+   <title>Stocks Settle Higher as Fed Rate Hike Concerns Ease</title>
+   <link>https://www.nasdaq.com/articles/stocks-settle-higher-fed-rate-hike-concerns-ease</link>
+   <description>
+        The S&amp;P 500 Index ($SPX ) (SPY ) closed up by +0.73% on Friday, the Dow Jones Industrial Average ($DOWI ) (DIA ) closed up by +0.49%, and the Nasdaq 100 Index ($IUXX ) (QQQ ) closed up +1.00%.  December E-mini S&amp;P futures (ESZ26 ) rose +0.73%, and December E-mini...
+    </description>
+   <pubDate>Sun, 04 Oct 2026 21:51:57 +0000</pubDate>
+   <guid isPermaLink="true">https://www.nasdaq.com/articles/stocks-settle-higher-fed-rate-hike-concerns-ease?time=1791150717</guid>
+   <dc:creator>Barchart</dc:creator>
+   <category>Stocks</category>
+   <nasdaq:tickers>GOOGL,AMAT,AAPL,AVGO,ADI,TXN,ASML,MSFT,NTAP,TSLA,IBM,STX,WDC,AMD,LRCX,GLOB,CTSH,SPY,DIA,ON,KLAC,NVDA,META,NKE,ACN,QQQ,EPAM,SOXX,MCHP,ARM,HPE,AMZN,SYNA</nasdaq:tickers>
+  </item><item>
+   <title>Better High-Yield Dividend Stock: Pfizer or Novo Nordisk?</title>
+   <link>https://www.nasdaq.com/articles/better-high-yield-dividend-stock-pfizer-or-novo-nordisk</link>
+   <description>
+        Key PointsNovo Nordisk is a leading GLP-1 company, but its portfolio beyond that is limited.
+    </description>
+   <pubDate>Sun, 04 Oct 2026 21:35:00 +0000</pubDate>
+   <guid isPermaLink="true">https://www.nasdaq.com/articles/better-high-yield-dividend-stock-pfizer-or-novo-nordisk?time=1791149700</guid>
+   <dc:creator>The Motley Fool</dc:creator>
+   <category>Markets</category>
+   <nasdaq:tickers>PFE,PFE,NVO,LLY</nasdaq:tickers>
+  </item>
+ </channel>
+</rss>

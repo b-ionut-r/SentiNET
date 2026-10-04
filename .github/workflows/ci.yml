@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master, "claude/**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend · ruff + pytest
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+      - name: Install
+        run: pip install -r requirements-dev.txt
+      - name: Lint
+        run: ruff check app tests
+      - name: Test (offline; live provider tests are opt-in)
+        run: pytest -q
+
+  frontend:
+    name: Frontend · typecheck + build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install
+        run: npm ci --no-audit --no-fund
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Build
+        run: npm run build
+
+  docker:
+    name: Docker · build + smoke test
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          push: false
+          tags: sentinet:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Smoke test
+        run: |
+          docker run -d --name sentinet -p 8000:8000 -e MONITOR_ENABLED=false sentinet:ci
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8000/api/health >/dev/null && break
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:8000/api/health | python3 -c 'import json,sys; h=json.load(sys.stdin); print(h); assert h["features"]["frontend"] and h["features"]["database"]'
+          curl -fsS http://127.0.0.1:8000/ | grep -qi "<!doctype html"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/api/analyze/'!!!')" = 400
+      - name: Container logs
+        if: always()
+        run: docker logs sentinet || true

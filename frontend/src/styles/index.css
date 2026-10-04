@@ -2,43 +2,214 @@
 @tailwind components;
 @tailwind utilities;
 
+/* -------------------------------------------------------------------------- */
+/* Design tokens. Channels are space-separated RGB so Tailwind alpha works.    */
+/* Dark is the default; light is opt-in via <html data-theme="light">.         */
+/* -------------------------------------------------------------------------- */
+:root {
+  color-scheme: dark;
+  --page: 11 11 10;
+  --panel: 20 20 19;
+  --raised: 26 26 25;
+  --sunken: 15 15 14;
+  --ink: 244 244 242;
+  --ink-2: 185 184 176;
+  --muted: 133 132 126;
+  --faint: 92 91 87;
+  --accent: 57 135 229;
+  --hairline: rgba(255, 255, 255, 0.08);
+  --hairline-strong: rgba(255, 255, 255, 0.14);
+  --glow-top: rgba(255, 255, 255, 0.05);
+
+  /* Sentiment (validated CVD-safe pair) + neutral midpoint. */
+  --bull: 13 162 147;
+  --bear: 229 83 63;
+  --neu: 138 137 132;
+  --mid: 56 56 53; /* diverging midpoint gray (track) */
+
+  /* Status — reserved meaning, always paired with icon + label. */
+  --good: 12 163 12;
+  --warn: 250 178 25;
+  --serious: 236 131 90;
+  --critical: 208 59 59;
+
+  /* Attention heat: its own one-hue sequential ramp (orange slot). */
+  --heat: 217 89 38;
+
+  /* Chart furniture. */
+  --grid: 38 38 36;
+  --axis: 56 56 53;
+
+  /* Categorical identity (compare). Fixed order. */
+  --cat-1: 57 135 229;
+  --cat-2: 217 89 38;
+  --cat-3: 25 158 112;
+  --cat-4: 201 133 0;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --page: 249 249 247;
+  --panel: 255 255 255;
+  --raised: 244 244 241;
+  --sunken: 246 246 243;
+  --ink: 17 17 16;
+  --ink-2: 82 81 78;
+  --muted: 117 116 110;
+  --faint: 160 158 151;
+  --accent: 42 120 214;
+  --hairline: rgba(11, 11, 11, 0.09);
+  --hairline-strong: rgba(11, 11, 11, 0.16);
+  --glow-top: rgba(255, 255, 255, 0.9);
+
+  --bull: 11 143 132;
+  --bear: 214 64 47;
+  --neu: 137 135 129;
+  --mid: 225 224 217;
+
+  --heat: 235 104 52;
+
+  --grid: 236 235 229;
+  --axis: 195 194 183;
+
+  --cat-1: 42 120 214;
+  --cat-2: 235 104 52;
+  --cat-3: 27 175 122;
+  --cat-4: 237 161 0;
+}
+
 @layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
   html,
   body,
   #root {
-    height: 100%;
+    min-height: 100%;
   }
   body {
-    @apply bg-bg text-slate-200 font-sans antialiased;
-    background-image: radial-gradient(
-        900px 500px at 80% -10%,
-        rgba(56, 189, 248, 0.08),
-        transparent
-      ),
-      radial-gradient(700px 400px at 0% 0%, rgba(34, 197, 94, 0.06), transparent);
+    @apply bg-page text-ink font-sans antialiased;
+    font-size: 13px;
+    line-height: 19px;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    overflow-x: hidden;
+  }
+  ::selection {
+    background: rgb(var(--accent) / 0.35);
+  }
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+  button {
+    -webkit-tap-highlight-color: transparent;
+  }
+  :focus-visible {
+    outline: 2px solid rgb(var(--accent));
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  input,
+  textarea,
+  select {
+    font: inherit;
   }
 }
 
 @layer components {
-  .card {
-    @apply bg-panel/80 border border-edge rounded-2xl p-5 backdrop-blur-sm;
+  .panel {
+    @apply bg-panel rounded-xl;
+    box-shadow: 0 0 0 1px var(--hairline);
   }
-  .card-title {
-    @apply text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3;
+  .eyebrow {
+    @apply text-2xs font-semibold uppercase text-muted;
+    letter-spacing: 0.08em;
+  }
+  .hairline-b {
+    border-bottom: 1px solid var(--hairline);
+  }
+  .hairline-t {
+    border-top: 1px solid var(--hairline);
+  }
+  .divide-hair > * + * {
+    border-top: 1px solid var(--hairline);
+  }
+  .num {
+    font-variant-numeric: tabular-nums;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 h-8 px-2.5 rounded-lg text-sm font-medium text-ink-2 transition-colors select-none whitespace-nowrap;
+    box-shadow: 0 0 0 1px var(--hairline);
+  }
+  .btn:hover {
+    @apply text-ink bg-raised;
+  }
+  .btn:disabled {
+    @apply opacity-50 pointer-events-none;
+  }
+  .btn-primary {
+    @apply bg-accent text-white;
+    box-shadow: none;
+  }
+  .btn-primary:hover {
+    @apply bg-accent/90 text-white;
+  }
+  .btn-ghost {
+    box-shadow: none;
+  }
+  .field {
+    @apply h-8 rounded-lg bg-sunken px-2.5 text-sm text-ink placeholder:text-muted outline-none transition-shadow;
+    box-shadow: 0 0 0 1px var(--hairline);
+  }
+  .field:focus {
+    box-shadow: 0 0 0 1px rgb(var(--accent) / 0.7), 0 0 0 3px rgb(var(--accent) / 0.18);
+  }
+  .kbd {
+    @apply inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded text-2xs font-mono text-muted bg-raised;
+    box-shadow: inset 0 -1px 0 var(--hairline-strong), 0 0 0 1px var(--hairline);
   }
   .skeleton {
-    @apply animate-pulse bg-panel-2 rounded;
+    @apply rounded bg-raised animate-pulse-soft;
   }
-  .chip {
-    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium;
+  .link {
+    @apply text-ink underline decoration-[color:var(--hairline-strong)] underline-offset-[3px] hover:decoration-current;
   }
 }
 
-/* Thin custom scrollbars for feed panels */
+/* Thin, quiet scrollbars for inner scroll areas. */
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--hairline-strong) transparent;
+}
 .scroll-thin::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 .scroll-thin::-webkit-scrollbar-thumb {
-  background: #2a3344;
+  background: var(--hairline-strong);
   border-radius: 9999px;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Keep the previous render visible while refetching. */
+.is-refetching {
+  opacity: 0.55;
+  transition: opacity 150ms ease;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }

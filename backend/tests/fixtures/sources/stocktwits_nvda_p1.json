@@ -1,0 +1,1829 @@
+{
+ "symbol": {
+  "id": 2925,
+  "symbol": "NVDA",
+  "symbol_mic": "NVDA.XNAS",
+  "symbol_display": "NVDA",
+  "exchange": "NASDAQ",
+  "region": "US",
+  "logo_url": "https://logos.stocktwits-cdn.com/NVDA.png",
+  "title": "NVIDIA Corp",
+  "aliases": [],
+  "deeplink": "symbol/NVDA",
+  "external_id": null,
+  "is_following": false,
+  "watchlist_count": 669990,
+  "has_pricing": true,
+  "instrument_class": "Stock",
+  "live_event": false,
+  "trade_status": "FRACTIONAL"
+ },
+ "cursor": {
+  "more": true,
+  "since": 665726693,
+  "max": 665723052
+ },
+ "regions": [],
+ "filters": [],
+ "messages": [
+  {
+   "id": 665726693,
+   "body": "Bears rn\n\n$QQQ $SPY $BTCUSD.X $SPCX $NVDA",
+   "created_at": "2026-10-04T22:19:53Z",
+   "discussion": false,
+   "source": {
+    "id": 1149,
+    "title": "StockTwits for iOS",
+    "url": "http://www.stocktwits.com/mobile"
+   },
+   "mentioned_users": [],
+   "entities": {
+    "media": [
+     {
+      "id": 14906235,
+      "type": "image",
+      "thumb": "https://media.stocktwits-cdn.com/api/3/media/14906235/thumb.webp",
+      "medium": "https://media.stocktwits-cdn.com/api/3/media/14906235/medium.webp",
+      "large": "https://media.stocktwits-cdn.com/api/3/media/14906235/large.webp",
+      "original": "https://media.stocktwits-cdn.com/api/3/media/14906235/original.png",
+      "url": "https://media.stocktwits-cdn.com/api/3/media/14906235/default.webp",
+      "height": 1254,
+      "width": 1254,
+      "ratio": 1.0,
+      "provider": null,
+      "provider_id": null
+     }
+    ],
+    "chart": {
+     "id": 14906235,
+     "type": "image",
+     "thumb": "https://media.stocktwits-cdn.com/api/3/media/14906235/thumb.webp",
+     "medium": "https://media.stocktwits-cdn.com/api/3/media/14906235/medium.webp",
+     "large": "https://media.stocktwits-cdn.com/api/3/media/14906235/large.webp",
+     "original": "https://media.stocktwits-cdn.com/api/3/media/14906235/original.png",
+     "url": "https://media.stocktwits-cdn.com/api/3/media/14906235/default.webp",
+     "height": 1254,
+     "width": 1254,
+     "ratio": 1.0
+    },
+    "sentiment": {
+     "basic": "Bullish"
+    },
+    "discussable": null
+   },
+   "user": {
+    "id": 6797705,
+    "username": "RealGambler",
+    "name": "Gambler",
+    "avatar_url": "https://avatars.stocktwits.com/production/6797705/thumb-1788572196.png",
+    "avatar_url_ssl": "https://avatars.stocktwits.com/production/6797705/thumb-1788572196.png",
+    "join_date": "2022-08-10",
+    "official": false,
+    "identity": "User",
+    "classification": [],
+    "badges": [],
+    "search_regions": [],
+    "followers": 184,
+    "following": 5,
+    "ideas": 3200,
+    "watchlist_stocks_count": 125,
+    "like_count": 1213,
+    "plus_tier": "",
+    "premium_room": "",
+    "trade_app": false,
+    "trade_status": "PENDING_MFA"
+   },
+   "likes": {
+    "total": 3,
+    "user_ids": [
+     8882471,
+     3819027,
+     367596
+    ]
+   },
+   "symbols": [
+    {
+     "id": 9581,
+     "symbol": "QQQ",
+     "symbol_mic": "QQQ.XNAS",
+     "symbol_display": "QQQ",
+     "exchange": "NASDAQ",
+     "region": "US",
+     "logo_url": "https://logos.stocktwits-cdn.com/QQQ.png",
+     "title": "Invesco QQQ Trust Series 1",
+     "aliases": [
+      "QQQQ"
+     ],
+     "deeplink": "symbol/QQQ",
+     "external_id": null,
+     "is_following": false,
+     "watchlist_count": 280520,
+     "has_pricing": true,
+     "instrument_class": "ExchangeTradedFund",
+     "live_event": false,
+     "trade_status": "FRACTIONAL",
+     "sentiment_change": 0.14,
+     "volume_change": 0.09
+    },
+    {
+     "id": 7271,
+     "symbol": "SPY",
+     "symbol_mic": "SPY.ARCX",
+     "symbol_display": "SPY",
+     "exchange": "NYSEArca",
+     "region": "US",
+     "logo_url": "https://logos.stocktwits-cdn.com/SPY.png",
+     "title": "SPDR S&P 500 ETF Trust",
+     "aliases": [],
+     "deeplink": "symbol/SPY",
+     "external_id": null,
+     "is_following": false,
+     "watchlist_count": 638308,
+     "has_pricing": true,
+     "instrument_class": "ExchangeTradedFund",
+     "live_event": false,
+     "trade_status": "FRACTIONAL",
+     "sentiment_change": 0.07,
+     "volume_change": -0.12
+    },
+    {
+     "id": 37792,
+     "symbol": "BTCUSD.X",
+     "symbol_mic": "BTCUSD.X",
+     "symbol_display": "BTCUSD",
+     "exchange": "CRYPTO",
+     "region": "X",
+     "logo_url": "https://logos.stocktwits-cdn.com/BTCUSD.X.webp",
+     "title": "Bitcoin USD (BTCFi)",
+     "aliases": [],
+     "deeplink": "coins/bitcoin-usd-btcfi",
+     "external_id": "bitcoin-usd-btcfi",
+     "is_following": false,
+     "watchlist_count": 381,
+     "has_pricing": true,
+     "instrument_class": "CRYPTO",
+     "live_event": false,
+     "sentiment_change": 3.33,
+     "volume_change": 20.0
+    },
+    {
+     "id": 282365,
+     "symbol": "SPCX",
+     "symbol_mic": "SPCX.XNAS",
+     "symbol_display": "SPCX",
+     "exchange": "NASDAQ",
+     "region": "US",
+     "logo_url": "https://logos.stocktwits-cdn.com/SPCX.png",
+     "title": "SpaceX",
+     "aliases": [],
+     "deeplink": "symbol/SPCX",
+     "external_id": null,
+     "is_following": false,
+     "watchlist_count": 106287,
+     "has_pricing": true,
+     "instrument_class": "Stock",
+     "live_event": false,
+     "sentiment_change": 0.03,
+     "volume_change": 0.64
+    },
+    {
+     "id": 2925,
+     "symbol": "NVDA",
+     "symbol_mic": "NVDA.XNAS",
+     "symbol_display": "NVDA",
+     "exchange": "NASDAQ",
+     "region": "US",
+     "logo_url": "https://logos.stocktwits-cdn.com/NVDA.png",
+     "title": "NVIDIA Corp",
+     "aliases": [],
+     "deeplink": "symbol/NVDA",
+     "external_id": null,
+     "is_following": false,
+     "watchlist_count": 669990,
+     "has_pricing": true,
+     "instrument_class": "Stock",
+     "live_event": false,
+     "trade_status": "FRACTIONAL",
+     "sentiment_change": 0.19,
+     "volume_change": 0.98
+    }
+   ]
+  },
+  {
+   "id": 665726514,
+   "body": "$MU $NVDA $MULL get ready for a face ripping week.\ud83e\udd1f",
+   "created_at": "2026-10-04T22:13:00Z",
+   "discussion": false,
+   "source": {
+    "id": 1149,
+    "title": "StockTwits for iOS",
+    "url": "http://www.stocktwits.com/mobile"
+   },
+   "mentioned_users": [],
+   "entities": {
+    "media": [],
+    "sentiment": {
+     "basic": "Bullish"
+    },
+    "discussable": null
+   },
+   "user": {
+    "id": 8752535,
+    "username": "dmd210",
+    "name": "dmd210",
+    "avatar_url": "https://avatars.stocktwits.com/production/8752535/thumb-1721344044.png",
+    "avatar_url_ssl": "https://avatars.stocktwits.com/production/8752535/thumb-1721344044.png",
+    "join_date": "2023-12-22",
+    "official": false,
+    "identity": "User",
+    "classification": [],
+    "badges": [],
+    "home_country": "US",
+    "search_regions": [],
+    "followers": 61,
+    "following": 3,
+    "ideas": 5401,
+    "watchlist_stocks_count": 20,
+    "like_count": 5329,
+    "plus_tier": "",
+    "premium_room": "",
+    "trade_app": false,
+    "trade_status": "PENDING_MFA"
+   },
+   "likes": {
+    "total": 4,
+    "user_ids": [
+     4486207,
+     10994761,
+     11093459,
+     6546520
+    ]
+   },
+   "symbols": [
+    {
+     "id": 6403,
+     "symbol": "MU",
+     "symbol_mic": "MU.XNAS",
+     "symbol_display": "MU",
+     "exchange": "NASDAQ",
+     "region": "US",
+     "logo_url": "https://logos.stocktwits-cdn.com/MU.png",
+     "title": "Micron Technology Inc",
+     "aliases": [],
+     "deeplink": "symbol/MU",
+     "external_id": null,
+     "is_following": false,
+     "watchlist_count": 218756,
+     "has_pricing": true,
+     "instrument_class": "Stock",
+     "live_event": false,
+     "trade_status": "FRACTIONAL",
+     "sentiment_change": 0.14,
+     "volume_change": 0.05
+    },
+    {
+     "id": 2925,
+     "symbol": "NVDA",
+     "symbol_mic": "NVDA.XNAS",
+     "symbol_display": "NVDA",
+     "exchange": "NASDAQ",
+     "region": "US",
+     "logo_url": "https://logos.stocktwits-cdn.com/NVDA.png",
+     "title": "NVIDIA Corp",
+     "aliases": [],
+     "deeplink": "symbol/NVDA",
+     "external_id": null,
+     "is_following": false,
+     "watchlist_count": 669990,
+     "has_pricing": true,
+     "instrument_class": "Stock",
+     "live_event": false,
+     "trade_status": "FRACTIONAL",
+     "sentiment_change": 0.19,
+     "volume_change": 0.98
+    },
+    {
+     "id": 69324,
+     "symbol": "MULL",
+     "symbol_mic": "MULL.XNAS",
+     "symbol_display": "MULL",
+     "exchange": "NASDAQ",
+     "region": "US",
+     "logo_url": "https://logos.stocktwits-cdn.com/MULL.png",
+     "title": "GraniteShares 2x Long MU Daily ETF",
+     "aliases": [],
+     "deeplink": "symbol/MULL",
+     "external_id": null,
+     "is_following": false,
+     "watchlist_count": 551,
+     "has_pricing": true,
+     "instrument_class": "ExchangeTradedFund",
+     "live_event": false,
+     "sentiment_change": 0.0,
+     "volume_change": 0.0
+    }
+   ]
+  },
+  {
+   "id": 665726492,
+   "body": "Risk &amp; Discipline \nWhen a big negative macro event thrusts itself into the scene and you don&#39;t know all the facts, slow down and don&#39;t panic. You might end up comparing apples to hand-grenades instead of apples to oranges. Find an expert you trust to guide you before you act (and not TikTokers!). \nDan&#39;s rule for red-news mornings \u2014 when the headlines are screaming, the first move is no move. \n\u2014 Dan Shapiro \n \n$NVDA $TSLA $MXL $IOVA $RIVN",
+   "created_at": "2026-10-04T22:11:58Z",
+   "discussion": false,
+   "source": {
+    "id": 2269,
+    "title": "StockTwits Web",
+    "url": "https://stocktwits.com"
+   },
+   "mentioned_users": [],
+   "entities": {
+    "media": [],
+    "sentiment": null,
+    "discussable": null
+   },
+   "user": {
+    "id": 1177006,
+    "username": "AccessATrader",
+    "name": "@danshep55 - PS60 Process",
+    "avatar_url": "https://avatars.stocktwits.com/production/1177006/thumb-1537898664.png",
+    "avatar_url_ssl": "https://avatars.stocktwits.com/production/1177006/thumb-1537898664.png",
+    "join_date": "2017-09-02",
+    "official": true,
+    "identity": "Official",
+    "classification": [
+     "official"
+    ],
+    "badges": [
+     {
+      "type": "official",
+      "show_icon": true
+     }
+    ],
+    "home_country": "US",
+    "search_regions": [],
+    "followers": 344,
+    "following": 42,
+    "ideas": 767,
+    "watchlist_stocks_count": 19,
+    "like_count": 13,
+    "plus_tier": "",
+    "premium_room": "",
+    "trade_app": false,
+    "trade_status": "PENDING_MFA"
+   },
+   "symbols": [
+    {
+     "id": 2925,
+     "symbol": "NVDA",
+     "symbol_mic": "NVDA.XNAS",
+     "symbol_display": "NVDA",
+     "exchange": "NASDAQ",
+     "region": "US",
+     "logo_url": "https://logos.stocktwits-cdn.com/NVDA.png",
+     "title": "NVIDIA Corp",
+     "aliases": [],
+     "deeplink": "symbol/NVDA",
+     "external_id": null,
+     "is_following": false,
+     "watchlist_count": 669990,
+     "has_pricing": true,
+     "instrument_class": "Stock",
+     "live_event": false,
+     "trade_status": "FRACTIONAL",
+     "sentiment_change": 0.19,
+     "volume_change": 0.98
+    },
+    {
+     "id": 8660,
+     "symbol": "TSLA",
+     "symbol_mic": "TSLA.XNAS",
+     "symbol_display": "TSLA",
+     "exchange": "NASDAQ",
+     "region": "US",
+     "logo_url": "https://logos.stocktwits-cdn.com/TSLA.png",
+     "title": "Tesla Inc",
+     "aliases": [],
+     "deeplink": "symbol/TSLA",
+     "external_id": null,
+     "is_following": false,
+     "watchlist_count": 1067960,
+     "has_pricing": true,
+     "instrument_class": "Stock",
+     "live_event": false,
+     "earnings_cta": "up_earn_tab",
+     "earnings_id": "d6f9af68-cd4a-4a15-8793-5a016bb0b555",
+     "trade_status": "FRACTIONAL",
+     "sentiment_change": -0.08,
+     "volume_change": 0.49
+    },
+    {
+     "id": 8594,
+     "symbol": "MXL",
+     "symbol_mic": "MXL.XNAS",
+     "symbol_display": "MXL",
+     "exchange": "NASDAQ",
+     "region": "US",
+     "logo_url": "https://logos.stocktwits-cdn.com/MXL.png",
+     "title": "MaxLinear Inc",
+     "aliases": [],
+     "deeplink": "symbol/MXL",
+     "external_id": null,
+     "is_following": false,
+     "watchlist_count": 3752,
+     "has_pricing": true,
+     "instrument_class": "Stock",
+     "live_event": false,
+     "earnings_cta": "up_earn_tab",
+     "earnings_id": "726240f6-7049-4933-9680-244faa590e05",
+     "trade_status": "FRACTIONAL",
+     "sentiment_change": 0.0,
+     "volume_change": 0.0
+    },
+    {
+     "id": 13643,
+     "symbol": "IOVA",
+     "symbol_mic": "IOVA.XNAS",
+     "symbol_display": "IOVA",
+     "exchange": "NASDAQ",
+     "region": "US",
+     "logo_url": "https://logos.stocktwits-cdn.com/IOVA.png",
+     "title": "Iovance Biotherapeutics Inc",
+     "aliases": [],
+     "deeplink": "symbol/IOVA",
+     "external_id": null,
+     "is_following": false,
+     "watchlist_count": 20979,
+     "has_pricing": true,
+     "instrument_class": "Stock",
+     "live_event": false,
+     "trade_status": "FRACTIONAL",
+     "sentiment_change": -0.08,
+     "volume_change": -0.46
+    },
+    {
+     "id": 19680,
+     "symbol": "RIVN",
+     "symbol_mic": "RIVN.XNAS",
+     "symbol_display": "RIVN",
+     "exchange": "NASDAQ",
+     "region": "US",
+     "logo_url": "https://logos.stocktwits-cdn.com/RIVN.png",
+     "title": "Rivian Automotive Inc",
+     "aliases": [],
+     "deeplink": "symbol/RIVN",
+     "external_id": null,
+     "is_following": false,
+     "watchlist_count": 88365,
+     "has_pricing": true,
+     "instrument_class": "Stock",
+     "live_event": false,
+     "earnings_cta": "up_earn_tab",
+     "earnings_id": "34a777b9-ed81-418f-9104-ac50ef55f312",
+     "trade_status": "FRACTIONAL",
+     "sentiment_change": -0.07,
+     "volume_change": 0.72
+    }
+   ]
+  },
+  {
+   "id": 665726423,
+   "body": "$NVDA Stocks that break through 52 week highs continue to break new records highs.\nBuy the dips and expect the am pullback off the highs and then a follow through over 240!\nLet\u2019s go",
+   "created_at": "2026-10-04T22:08:41Z",
+   "discussion": false,
+   "source": {
+    "id": 1149,
+    "title": "StockTwits for iOS",
+    "url": "http://www.stocktwits.com/mobile"
+   },
+   "mentioned_users": [],
+   "entities": {
+    "media": [
+     {
+      "id": 14906150,
+      "type": "gif",
+      "thumb": null,
+      "medium": null,
+      "large": null,
+      "original": null,
+      "url": null,
+      "height": 458,
+      "width": 480,
+      "ratio": 1.04803,
+      "provider": "giphy",
+      "provider_id": "4xpB3eE00FfBm"
+     }
+    ],
+    "giphy": {
+     "id": "4xpB3eE00FfBm"
+    },
+    "sentiment": null,
+    "discussable": null
+   },
+   "user": {
+    "id": 1950195,
+    "username": "Moneyman2019",
+    "name": "Moneyman",
+    "avatar_url": "http://avatars.stocktwits.com/images/default_avatar_10_thumb.png",
+    "avatar_url_ssl": "https://avatars.stocktwits.com/images/default_avatar_10_thumb.png",
+    "join_date": "2019-03-20",
+    "official": false,
+    "identity": "User",
+    "classification": [],
+    "badges": [],
+    "home_country": "US",
+    "search_regions": [],
+    "followers": 125,
+    "following": 21,
+    "ideas": 7698,
+    "watchlist_stocks_count": 298,
+    "like_count": 1200,
+    "plus_tier": "",
+    "premium_room": "",
+    "trade_app": false,
+    "trade_status": "PENDING_MFA"
+   },
+   "likes": {
+    "total": 2,
+    "user_ids": [
+     7727563,
+     11093459
+    ]
+   },
+   "symbols": [
+    {
+     "id": 2925,
+     "symbol": "NVDA",
+     "symbol_mic": "NVDA.XNAS",
+     "symbol_display": "NVDA",
+     "exchange": "NASDAQ",
+     "region": "US",
+     "logo_url": "https://logos.stocktwits-cdn.com/NVDA.png",
+     "title": "NVIDIA Corp",
+     "aliases": [],
+     "deeplink": "symbol/NVDA",
+     "external_id": null,
+     "is_following": false,
+     "watchlist_count": 669990,
+     "has_pricing": true,
+     "instrument_class": "Stock",
+     "live_event": false,
+     "trade_status": "FRACTIONAL",
+     "sentiment_change": 0.19,
+     "volume_change": 0.98
+    }
+   ]
+  },
+  {
+   "id": 665726201,
+   "body": "$BTC.X $ETH.X $SOL.X $META $NVDA \n\nNASA, we\u2019re a Go!",
+   "created_at": "2026-10-04T22:00:02Z",
+   "discussion": false,
+   "source": {
+    "id": 1149,
+    "title": "StockTwits for iOS",
+    "url": "http://www.stocktwits.com/mobile"
+   },
+   "mentioned_users": [],
+   "entities": {
+    "media": [
+     {
+      "id": 14906095,
+      "type": "gif",
+      "thumb": "https://media.stocktwits-cdn.com/api/3/media/14906095/thumb.webp",
+      "medium": "https://media.stocktwits-cdn.com/api/3/media/14906095/medium.webp",
+      "large": "https://media.stocktwits-cdn.com/api/3/media/14906095/large.webp",
+      "original": "https://media.stocktwits-cdn.com/api/3/media/14906095/original.gif",
+      "url": "https://media.stocktwits-cdn.com/api/3/media/14906095/default.webp",
+      "height": 270,
+      "width": 480,
+      "ratio": 1.77778,
+      "provider": null,
+      "provider_id": null
+     }
+    ],
+    "chart": {
+     "id": 14906095,
+     "type": "gif",
+     "thumb": "https://media.stocktwits-cdn.com/api/3/media/14906095/thumb.webp",
+     "medium": "https://media.stocktwits-cdn.com/api/3/media/14906095/medium.webp",
+     "large": "https://media.stocktwits-cdn.com/api/3/media/14906095/large.webp",
+     "original": "https://media.stocktwits-cdn.com/api/3/media/14906095/original.gif",
+     "url": "https://media.stocktwits-cdn.com/api/3/media/14906095/default.webp",
+     "height": 270,
+     "width": 480,
+     "ratio": 1.77778
+    },
+    "sentiment": null,
+    "discussable": null
+   },
+   "user": {
+    "id": 9310651,
+    "username": "theDurga",
+    "name": "souzan",
+    "avatar_url": "https://avatars.stocktwits.com/production/9310651/thumb-1789350442.png",
+    "avatar_url_ssl": "https://avatars.stocktwits.com/production/9310651/thumb-1789350442.png",
+    "join_date": "2024-07-15",
+    "official": false,
+    "identity": "User",
+    "classification": [],
+    "badges": [],
+    "home_country": "US",
+    "search_regions": [],
+    "followers": 190,
+    "following": 64,
+    "ideas": 1421,
+    "watchlist_stocks_count": 39,
+    "like_count": 3513,
+    "plus_tier": "",
+    "premium_room": "",
+    "trade_app": false,
+    "trade_status": "PENDING_MFA"
+   },
+   "likes": {
+    "total": 3,
+    "user_ids": [
+     9924854,
+     9043671,
+     11093459
+    ]
+   },
+   "symbols": [
+    {
+     "id": 11418,
+     "symbol": "BTC.X",
+     "symbol_mic": "BTC.X",
+     "symbol_display": "BTC",
+     "exchange": "CRYPTO",
+     "region": "X",
+     "logo_url": "https://logos.stocktwits-cdn.com/BTC.X.webp",
+     "title": "Bitcoin",
+     "aliases": [
+      "BTCUSD"
+     ],
+     "deeplink": "coins/bitcoin",
+     "external_id": "bitcoin",
+     "is_following": false,
+     "watchlist_count": 682851,
+     "has_pricing": true,
+     "instrument_class": "CRYPTO",
+     "live_event": false,
+     "sentiment_change": 1.99,
+     "volume_change": -0.25
+    },
+    {
+     "id": 13016,
+     "symbol": "ETH.X",
+     "symbol_mic": "ETH.X",
+     "symbol_display": "ETH",
+     "exchange": "CRYPTO",
+     "region": "X",
+     "logo_url": "https://logos.stocktwits-cdn.com/ETH.X.webp",
+     "title": "Ethereum",
+     "aliases": [
+      "ETHUSD"
+     ],
+     "deeplink": "coins/ethereum",
+     "external_id": "ethereum",
+     "is_following": false,
+     "watchlist_count": 339052,
+     "has_pricing": true,
+     "instrument_class": "CRYPTO",
+     "live_event": false,
+     "sentiment_change": 3.61,
+     "volume_change": -4.91
+    },
+    {
+     "id": 15770,
+     "symbol": "SOL.X",
+     "symbol_mic": "SOL.X",
+     "symbol_display": "SOL",
+     "exchange": "CRYPTO",
+     "region": "X",
+     "logo_url": "https://logos.stocktwits-cdn.com/SOL.X.webp",
+     "title": "Solana",
+     "aliases": [],
+     "deeplink": "coins/solana",
+     "external_id": "solana",
+     "is_following": false,
+     "watchlist_count": 84030,
+     "has_pricing": true,
+     "instrument_class": "CRYPTO",
+     "live_event": false,
+     "sentiment_change": 5.88,
+     "volume_change": -12.63
+    },
+    {
+     "id": 7871,
+     "symbol": "META",
+     "symbol_mic": "META.XNAS",
+     "symbol_display": "META",
+     "exchange": "NASDAQ",
+     "region": "US",
+     "logo_url": "https://logos.stocktwits-cdn.com/META.png",
+     "title": "Meta Platforms Inc",
+     "aliases": [
+      "FBOOK",
+      "MTVS",
+      "FB"
+     ],
+     "deeplink": "symbol/META",
+     "external_id": null,
+     "is_following": false,
+     "watchlist_count": 612609,
+     "has_pricing": true,
+     "instrument_class": "Stock",
+     "live_event": false,
+     "trade_status": "FRACTIONAL",
+     "sentiment_change": 0.25,
+     "volume_change": -0.49
+    },
+    {
+     "id": 2925,
+     "symbol": "NVDA",
+     "symbol_mic": "NVDA.XNAS",
+     "symbol_display": "NVDA",
+     "exchange": "NASDAQ",
+     "region": "US",
+     "logo_url": "https://logos.stocktwits-cdn.com/NVDA.png",
+     "title": "NVIDIA Corp",
+     "aliases": [],
+     "deeplink": "symbol/NVDA",
+     "external_id": null,
+     "is_following": false,
+     "watchlist_count": 669990,
+     "has_pricing": true,
+     "instrument_class": "Stock",
+     "live_event": false,
+     "trade_status": "FRACTIONAL",
+     "sentiment_change": 0.19,
+     "volume_change": 0.98
+    }
+   ]
+  },
+  {
+   "id": 665726117,
+   "body": "$NVDA board  curious if anyone here is also tracking $RYET? \n \nWould you rather watch the big established AI names or a micro-cap showing Smart Campus expected at $5.0M-$5.2M? Genuinely curious. \n \nExecution next.",
+   "created_at": "2026-10-04T21:57:39Z",
+   "discussion": false,
+   "source": {
+    "id": 2269,
+    "title": "StockTwits Web",
+    "url": "https://stocktwits.com"
+   },
+   "mentioned_users": [],
+   "entities": {
+    "media": [],
+    "sentiment": null,
+    "discussable": null
+   },
+   "user": {
+    "id": 10931384,
+    "username": "sophiealpha",
+    "name": "Sophie Hardy",
+    "avatar_url": "https://avatars.stocktwits.com/production/10931384/thumb-1775558199.png",
+    "avatar_url_ssl": "https://avatars.stocktwits.com/production/10931384/thumb-1775558199.png",
+    "join_date": "2026-04-07",
+    "official": false,
+    "identity": "User",
+    "classification": [],
+    "badges": [],
+    "home_country": "US",
+    "search_regions": [],
+    "followers": 1,
+    "following": 4,
+    "ideas": 10,
+    "watchlist_stocks_count": 7,
+    "like_count": 19,
+    "plus_tier": "",
+    "premium_room": "",
+    "trade_app": false,
+    "trade_status": "PENDING_MFA"
+   },
+   "likes": {
+    "total": 1,
+    "user_ids": [
+     10641566
+    ]
+   },
+   "symbols": [
+    {
+     "id": 2925,
+     "symbol": "NVDA",
+     "symbol_mic": "NVDA.XNAS",
+     "symbol_display": "NVDA",
+     "exchange": "NASDAQ",
+     "region": "US",
+     "logo_url": "https://logos.stocktwits-cdn.com/NVDA.png",
+     "title": "NVIDIA Corp",
+     "aliases": [],
+     "deeplink": "symbol/NVDA",
+     "external_id": null,
+     "is_following": false,
+     "watchlist_count": 669990,
+     "has_pricing": true,
+     "instrument_class": "Stock",
+     "live_event": false,
+     "trade_status": "FRACTIONAL",
+     "sentiment_change": 0.19,
+     "volume_change": 0.98
+    }
+   ]
+  },
+  {
+   "id": 665725895,
+   "body": "$NVDA gets the headlines... $RYET caught my eye for the numbers. \n \nWould you rather watch the big established AI names or a micro-cap showing a shift from AI narrative toward measurable revenue? Genuinely curious. \n \nAnyone else watching?",
+   "created_at": "2026-10-04T21:50:13Z",
+   "discussion": false,
+   "source": {
+    "id": 2269,
+    "title": "StockTwits Web",
+    "url": "https://stocktwits.com"
+   },
+   "mentioned_users": [],
+   "entities": {
+    "media": [],
+    "sentiment": null,
+    "discussable": null
+   },
+   "user": {
+    "id": 10393937,
+    "username": "HedgeAuroraPoint",
+    "name": "William Nguyen",
+    "avatar_url": "https://avatars.stocktwits.com/production/10393937/thumb-1755750965.png",
+    "avatar_url_ssl": "https://avatars.stocktwits.com/production/10393937/thumb-1755750965.png",
+    "join_date": "2025-08-10",
+    "official": false,
+    "identity": "User",
+    "classification": [],
+    "badges": [],
+    "home_country": "US",
+    "search_regions": [],
+    "followers": 0,
+    "following": 0,
+    "ideas": 7,
+    "watchlist_stocks_count": 0,
+    "like_count": 1,
+    "plus_tier": "",
+    "premium_room": "",
+    "trade_app": false,
+    "trade_status": "PENDING_MFA"
+   },
+   "symbols": [
+    {
+     "id": 2925,
+     "symbol": "NVDA",
+     "symbol_mic": "NVDA.XNAS",
+     "symbol_display": "NVDA",
+     "exchange": "NASDAQ",
+     "region": "US",
+     "logo_url": "https://logos.stocktwits-cdn.com/NVDA.png",
+     "title": "NVIDIA Corp",
+     "aliases": [],
+     "deeplink": "symbol/NVDA",
+     "external_id": null,
+     "is_following": false,
+     "watchlist_count": 669990,
+     "has_pricing": true,
+     "instrument_class": "Stock",
+     "live_event": false,
+     "trade_status": "FRACTIONAL",
+     "sentiment_change": 0.19,
+     "volume_change": 0.98
+    }
+   ]
+  },
+  {
+   "id": 665725462,
+   "body": "$AMD $INTC $NVDA \n\nIntel\u2019s quick sync is an unrealized competitor to Nvidia",
+   "created_at": "2026-10-04T21:35:35Z",
+   "discussion": false,
+   "source": {
+    "id": 1149,
+    "title": "StockTwits for iOS",
+    "url": "http://www.stocktwits.com/mobile"
+   },
+   "conversation": {
+    "parent_message_id": 665725462,
+    "in_reply_to_message_id": null,
+    "parent": true,
+    "replies": 1
+   },
+   "reshare_message": {
+    "reshared_count": 1,
+    "reshared_deleted": false,
+    "reshared_user_deleted": false,
+    "parent_reshared_deleted": false,
+    "message": {
+     "id": 665720695,
+     "body": "$INTC $AMD $NVDA \n\nIntel is undervalued",
+     "tokenized_body": [
+      {
+       "type": "cashTag",
+       "data": {
+        "text": "$INTC",
+        "symbol": "INTC",
+        "symbol_display": "INTC",
+        "logo_url": "https://logos.stocktwits-cdn.com/INTC.png",
+        "deeplink": "symbol/INTC"
+       }
+      },
+      {
+       "type": "text",
+       "data": {
+        "text": " "
+       }
+      },
+      {
+       "type": "cashTag",
+       "data": {
+        "text": "$AMD",
+        "symbol": "AMD",
+        "symbol_display": "AMD",
+        "logo_url": "https://logos.stocktwits-cdn.com/AMD.png",
+        "deeplink": "symbol/AMD"
+       }
+      },
+      {
+       "type": "text",
+       "data": {
+        "text": " "
+       }
+      },
+      {
+       "type": "cashTag",
+       "data": {
+        "text": "$NVDA",
+        "symbol": "NVDA",
+        "symbol_display": "NVDA",
+        "logo_url": "https://logos.stocktwits-cdn.com/NVDA.png",
+        "deeplink": "symbol/NVDA"
+       }
+      },
+      {
+       "type": "text",
+       "data": {
+        "text": " \n\nIntel is undervalued"
+       }
+      }
+     ],
+     "created_at": "2026-10-04T18:02:19Z",
+     "discussion": false,
+     "user": {
+      "id": 10669184,
+      "username": "Themadogtrader",
+      "name": "jjv",
+      "avatar_url": "https://avatars.stocktwits.com/production/10669184/thumb-1762900777.png",
+      "avatar_url_ssl": "https://avatars.stocktwits.com/production/10669184/thumb-1762900777.png",
+      "join_date": "2025-11-11",
+      "official": false,
+      "identity": "User",
+      "classification": [],
+      "badges": [],
+      "home_country": "CA",
+      "search_regions": [],
+      "followers": 104,
+      "following": 64,
+      "ideas": 6020,
+      "watchlist_stocks_count": 14,
+      "like_count": 2888,
+      "plus_tier": "",
+      "premium_room": "",
+      "trade_app": false,
+      "trade_status": "PENDING_MFA",
+      "subscribers_count": 11,
+      "subscribed_to_count": 0,
+      "following_stocks": 0,
+      "location": null,
+      "bio": "Themadogtrader group: https://discord.gg/hc7PBdzQev",
+      "website_url": null,
+      "trading_strategy": {
+       "assets_frequently_traded": [],
+       "approach": "Momentum",
+       "approaches": [
+        "Momentum"
+       ],
+       "holding_period": "Day Trader",
+       "holding_periods": [
+        "Day"
+       ],
+       "experience": "Intermediate",
+       "interests": []
+      },
+      "trading_profile": {
+       "industry": [],
+       "trading_experience": [],
+       "approach": [
+        "Momentum"
+       ],
+       "risk_profile": [],
+       "holding_period": [
+        "Day"
+       ],
+       "capitalization_bias": [],
+       "long_short": [],
+       "asset_classes_traded": [],
+       "interests": []
+      }
+     },
+     "source": {
+      "id": 1149,
+      "title": "StockTwits for iOS",
+      "url": "http://www.stocktwits.com/mobile"
+     },
+     "symbols": [
+      {
+       "id": 2310,
+       "symbol": "INTC",
+       "symbol_mic": "INTC.XNAS",
+       "symbol_display": "INTC",
+       "exchange": "NASDAQ",
+       "region": "US",
+       "logo_url": "https://logos.stocktwits-cdn.com/INTC.png",
+       "title": "Intel Corp",
+       "aliases": [],
+       "deeplink": "symbol/INTC",
+       "external_id": null,
+       "is_following": false,
+       "watchlist_count": 209384,
+       "has_pricing": true,
+       "instrument_class": "Stock",
+       "live_event": false,
+       "sector": "ElectronicTechnology",
+       "industry": "Semiconductors",
+       "trending": false,
+       "trending_score": -4.17487,
+       "trends": null,
+       "trade_status": "FRACTIONAL",
+       "features": {
+        "alerts_price": true,
+        "social_data": true,
+        "trending_messages": true,
+        "earnings": true
+       },
+       "cusip": "458140100",
+       "isin": "US4581401001",
+       "sentiment_change": -0.22,
+       "volume_change": 1.48,
+       "should_seo_index": true
+      },
+      {
+       "id": 4331,
+       "symbol": "AMD",
+       "symbol_mic": "AMD.XNAS",
+       "symbol_display": "AMD",
+       "exchange": "NASDAQ",
+       "region": "US",
+       "logo_url": "https://logos.stocktwits-cdn.com/AMD.png",
+       "title": "Advanced Micro Devices Inc",
+       "aliases": [],
+       "deeplink": "symbol/AMD",
+       "external_id": null,
+       "is_following": false,
+       "watchlist_count": 565555,
+       "has_pricing": true,
+       "instrument_class": "Stock",
+       "live_event": false,
+       "sector": "ElectronicTechnology",
+       "industry": "Semiconductors",
+       "trending": false,
+       "trending_score": -2.82234,
+       "trends": null,
+       "trade_status": "FRACTIONAL",
+       "features": {
+        "alerts_price": true,
+        "social_data": true,
+        "trending_messages": true,
+        "earnings": true
+       },
+       "cusip": "007903107",
+       "isin": "US0079031078",
+       "sentiment_change": -0.14,
+       "volume_change": -0.58,
+       "should_seo_index": true
+      },
+      {
+       "id": 2925,
+       "symbol": "NVDA",
+       "symbol_mic": "NVDA.XNAS",
+       "symbol_display": "NVDA",
+       "exchange": "NASDAQ",
+       "region": "US",
+       "logo_url": "https://logos.stocktwits-cdn.com/NVDA.png",
+       "title": "NVIDIA Corp",
+       "aliases": [],
+       "deeplink": "symbol/NVDA",
+       "external_id": null,
+       "is_following": false,
+       "watchlist_count": 669990,
+       "has_pricing": true,
+       "instrument_class": "Stock",
+       "live_event": false,
+       "sector": "ElectronicTechnology",
+       "industry": "Semiconductors",
+       "trending": false,
+       "trending_score": -3.49356,
+       "trends": null,
+       "trade_status": "FRACTIONAL",
+       "features": {
+        "alerts_price": true,
+        "social_data": true,
+        "trending_messages": true,
+        "earnings": true
+       },
+       "cusip": "67066G104",
+       "isin": "US67066G1040",
+       "sentiment_change": 0.24,
+       "volume_change": 0.96,
+       "should_seo_index": true
+      }
+     ],
+     "prices": [
+      {
+       "id": 2310,
+       "symbol": "INTC",
+       "symbol_mic": "INTC.XNAS",
+       "price": "119.15"
+      },
+      {
+       "id": 4331,
+       "symbol": "AMD",
+       "symbol_mic": "AMD.XNAS",
+       "price": "633.44"
+      },
+      {
+       "id": 2925,
+       "symbol": "NVDA",
+       "symbol_mic": "NVDA.XNAS",
+       "price": "234.23"
+      }
+     ],
+     "likes": {
+      "total": 6,
+      "user_ids": [
+       6081129,
+       6285400,
+       7532910,
+       10669184,
+       454795,
+       931953
+      ]
+     },
+     "mentioned_users": [],
+     "entities": {
+      "media": [
+       {
+        "id": 14904822,
+        "type": "image",
+        "thumb": "https://media.stocktwits-cdn.com/api/3/media/14904822/thumb.webp",
+        "medium": "https://media.stocktwits-cdn.com/api/3/media/14904822/medium.webp",
+        "large": "https://media.stocktwits-cdn.com/api/3/media/14904822/large.webp",
+        "original": "https://media.stocktwits-cdn.com/api/3/media/14904822/original.jpeg",
+        "url": "https://media.stocktwits-cdn.com/api/3/media/14904822/default.webp",
+        "height": 453,
+        "width": 697,
+        "ratio": 1.53863,
+        "provider": null,
+        "provider_id": null
+       }
+      ],
+      "chart": {
+       "id": 14904822,
+       "type": "image",
+       "thumb": "https://media.stocktwits-cdn.com/api/3/media/14904822/thumb.webp",
+       "medium": "https://media.stocktwits-cdn.com/api/3/media/14904822/medium.webp",
+       "large": "https://media.stocktwits-cdn.com/api/3/media/14904822/large.webp",
+       "original": "https://media.stocktwits-cdn.com/api/3/media/14904822/original.jpeg",
+       "url": "https://media.stocktwits-cdn.com/api/3/media/14904822/default.webp",
+       "height": 453,
+       "width": 697,
+       "ratio": 1.53863
+      },
+      "sentiment": {
+       "basic": "Bullish"
+      },
+      "discussable": null
+     }
+    }
+   },
+   "mentioned_users": [],
+   "entities": {
+    "media": [],
+    "sentiment": {
+     "basic": "Bullish"
+    },
+    "discussable": null
+   },
+   "user": {
+    "id": 10669184,
+    "username": "Themadogtrader",
+    "name": "jjv",
+    "avatar_url": "https://avatars.stocktwits.com/production/10669184/thumb-1762900777.png",
+    "avatar_url_ssl": "https://avatars.stocktwits.com/production/10669184/thumb-1762900777.png",
+    "join_date": "2025-11-11",
+    "official": false,
+    "identity": "User",
+    "classification": [],
+    "badges": [],
+    "home_country": "CA",
+    "search_regions": [],
+    "followers": 104,
+    "following": 64,
+    "ideas": 6024,
+    "watchlist_stocks_count": 14,
+    "like_count": 2889,
+    "plus_tier": "",
+    "premium_room": "",
+    "trade_app": false,
+    "trade_status": "PENDING_MFA"
+   },
+   "likes": {
+    "total": 1,
+    "user_ids": [
+     10669184
+    ]
+   },
+   "symbols": [
+    {
+     "id": 4331,
+     "symbol": "AMD",
+     "symbol_mic": "AMD.XNAS",
+     "symbol_display": "AMD",
+     "exchange": "NASDAQ",
+     "region": "US",
+     "logo_url": "https://logos.stocktwits-cdn.com/AMD.png",
+     "title": "Advanced Micro Devices Inc",
+     "aliases": [],
+     "deeplink": "symbol/AMD",
+     "external_id": null,
+     "is_following": false,
+     "watchlist_count": 565555,
+     "has_pricing": true,
+     "instrument_class": "Stock",
+     "live_event": false,
+     "trade_status": "FRACTIONAL",
+     "sentiment_change": -0.07,
+     "volume_change": -0.22
+    },
+    {
+     "id": 2310,
+     "symbol": "INTC",
+     "symbol_mic": "INTC.XNAS",
+     "symbol_display": "INTC",
+     "exchange": "NASDAQ",
+     "region": "US",
+     "logo_url": "https://logos.stocktwits-cdn.com/INTC.png",
+     "title": "Intel Corp",
+     "aliases": [],
+     "deeplink": "symbol/INTC",
+     "external_id": null,
+     "is_following": false,
+     "watchlist_count": 209385,
+     "has_pricing": true,
+     "instrument_class": "Stock",
+     "live_event": false,
+     "trade_status": "FRACTIONAL",
+     "sentiment_change": -0.16,
+     "volume_change": 1.2
+    },
+    {
+     "id": 2925,
+     "symbol": "NVDA",
+     "symbol_mic": "NVDA.XNAS",
+     "symbol_display": "NVDA",
+     "exchange": "NASDAQ",
+     "region": "US",
+     "logo_url": "https://logos.stocktwits-cdn.com/NVDA.png",
+     "title": "NVIDIA Corp",
+     "aliases": [],
+     "deeplink": "symbol/NVDA",
+     "external_id": null,
+     "is_following": false,
+     "watchlist_count": 669990,
+     "has_pricing": true,
+     "instrument_class": "Stock",
+     "live_event": false,
+     "trade_status": "FRACTIONAL",
+     "sentiment_change": 0.19,
+     "volume_change": 0.98
+    }
+   ]
+  },
+  {
+   "id": 665725393,
+   "body": "$QNT This. And they also have a partnership with Nvidia. $NVDA \ud83d\ude0e",
+   "created_at": "2026-10-04T21:33:02Z",
+   "discussion": false,
+   "source": {
+    "id": 1149,
+    "title": "StockTwits for iOS",
+    "url": "http://www.stocktwits.com/mobile"
+   },
+   "reshare_message": {
+    "reshared_count": 1,
+    "reshared_deleted": false,
+    "reshared_user_deleted": false,
+    "parent_reshared_deleted": false,
+    "message": {
+     "id": 665651672,
+     "body": "$QNT Quantinuum is still the technical leader in trapped-ion quantum computing. In the second quarter it reported $8 million of revenue, up 279% from a year earlier, and guided full-year 2026 revenue to $28\u201332 million, above what analysts had expected. Bookings were running ahead of that. It has an Oracle Cloud deal to put the Helios system in an Oracle data center, a finalized $100 million CHIPS R&amp;D award, about $2.1 billion in cash after the June IPO, and a claimed near 99.999% logical-qubit fidelity on Helios.  The lab and the balance sheet are in good shape.  The income statement and share price will follow.\ud83d\ude0e",
+     "tokenized_body": [
+      {
+       "type": "cashTag",
+       "data": {
+        "text": "$QNT",
+        "symbol": "QNT",
+        "symbol_display": "QNT",
+        "logo_url": "https://logos.stocktwits-cdn.com/placeholder.png",
+        "deeplink": "symbol/QNT"
+       }
+      },
+      {
+       "type": "text",
+       "data": {
+        "text": " Quantinuum is still the technical leader in trapped-ion quantum computing. In the second quarter it reported $8 million of revenue, up 279% from a year earlier, and guided full-year 2026 revenue to $28\u201332 million, above what analysts had expected. Bookings were running ahead of that. It has an Oracle Cloud deal to put the Helios system in an Oracle data center, a finalized $100 million CHIPS R&D award, about $2.1 billion in cash after the June IPO, and a claimed near 99.999% logical-qubit fidelity on Helios.  The lab and the balance sheet are in good shape.  The income statement and share price will follow.\ud83d\ude0e"
+       }
+      }
+     ],
+     "created_at": "2026-10-02T17:03:30Z",
+     "discussion": false,
+     "user": {
+      "id": 6288903,
+      "username": "Galaxy_Class_Investor",
+      "name": "GCI",
+      "avatar_url": "https://avatars.stocktwits.com/production/6288903/thumb-1770322490.png",
+      "avatar_url_ssl": "https://avatars.stocktwits.com/production/6288903/thumb-1770322490.png",
+      "join_date": "2022-01-28",
+      "official": false,
+      "identity": "User",
+      "classification": [],
+      "badges": [],
+      "home_country": "US",
+      "search_regions": [],
+      "followers": 60,
+      "following": 51,
+      "ideas": 1191,
+      "watchlist_stocks_count": 112,
+      "like_count": 8562,
+      "plus_tier": "",
+      "premium_room": "",
+      "trade_app": false,
+      "trade_status": "PENDING_MFA",
+      "subscribers_count": 4,
+      "subscribed_to_count": 0,
+      "following_stocks": 0,
+      "location": "",
+      "bio": "Sharing opinions and info based on knowledge, insights, experience, due diligence, and fundamentals analysis, while having some fun along the way. ALWAYS do your own due diligence regardless of what anyone says or posts! God bless, Jesus is Lord!",
+      "website_url": null,
+      "trading_strategy": {
+       "assets_frequently_traded": [],
+       "approach": null,
+       "approaches": [],
+       "holding_period": null,
+       "holding_periods": [],
+       "experience": null,
+       "interests": []
+      },
+      "trading_profile": {
+       "industry": [],
+       "trading_experience": [],
+       "approach": [],
+       "risk_profile": [],
+       "holding_period": [],
+       "capitalization_bias": [],
+       "long_short": [],
+       "asset_classes_traded": [],
+       "interests": []
+      }
+     },
+     "source": {
+      "id": 1149,
+      "title": "StockTwits for iOS",
+      "url": "http://www.stocktwits.com/mobile"
+     },
+     "symbols": [
+      {
+       "id": 278528,
+       "symbol": "QNT",
+       "symbol_mic": "QNT.XNAS",
+       "symbol_display": "QNT",
+       "exchange": "NASDAQ",
+       "region": "US",
+       "logo_url": "https://logos.stocktwits-cdn.com/placeholder.png",
+       "title": "Quantinuum Inc.",
+       "aliases": [],
+       "deeplink": "symbol/QNT",
+       "external_id": null,
+       "is_following": false,
+       "watchlist_count": 3822,
+       "has_pricing": true,
+       "instrument_class": "Stock",
+       "live_event": false,
+       "sector": "ElectronicTechnology",
+       "industry": "ComputerProcessingHardware",
+       "trending": true,
+       "trending_score": -0.452644,
+       "trends": null,
+       "features": {
+        "alerts_price": true,
+        "social_data": true,
+        "trending_messages": false,
+        "earnings": true
+       },
+       "cusip": null,
+       "isin": null,
+       "sentiment_change": -1.43,
+       "volume_change": -4.5,
+       "should_seo_index": true
+      }
+     ],
+     "prices": [
+      {
+       "id": 278528,
+       "symbol": "QNT",
+       "symbol_mic": "QNT.XNAS",
+       "price": "46.60"
+      }
+     ],
+     "likes": {
+      "total": 3,
+      "user_ids": [
+       10956484,
+       3658221,
+       5623974
+      ]
+     },
+     "mentioned_users": [],
+     "entities": {
+      "media": [],
+      "sentiment": {
+       "basic": "Bullish"
+      },
+      "discussable": null
+     }
+    }
+   },
+   "mentioned_users": [],
+   "entities": {
+    "media": [],
+    "sentiment": {
+     "basic": "Bullish"
+    },
+    "discussable": null
+   },
+   "user": {
+    "id": 6288903,
+    "username": "Galaxy_Class_Investor",
+    "name": "GCI",
+    "avatar_url": "https://avatars.stocktwits.com/production/6288903/thumb-1770322490.png",
+    "avatar_url_ssl": "https://avatars.stocktwits.com/production/6288903/thumb-1770322490.png",
+    "join_date": "2022-01-28",
+    "official": false,
+    "identity": "User",
+    "classification": [],
+    "badges": [],
+    "home_country": "US",
+    "search_regions": [],
+    "followers": 59,
+    "following": 51,
+    "ideas": 1199,
+    "watchlist_stocks_count": 112,
+    "like_count": 8562,
+    "plus_tier": "",
+    "premium_room": "",
+    "trade_app": false,
+    "trade_status": "PENDING_MFA"
+   },
+   "symbols": [
+    {
+     "id": 278528,
+     "symbol": "QNT",
+     "symbol_mic": "QNT.XNAS",
+     "symbol_display": "QNT",
+     "exchange": "NASDAQ",
+     "region": "US",
+     "logo_url": "https://logos.stocktwits-cdn.com/placeholder.png",
+     "title": "Quantinuum Inc.",
+     "aliases": [],
+     "deeplink": "symbol/QNT",
+     "external_id": null,
+     "is_following": false,
+     "watchlist_count": 3825,
+     "has_pricing": true,
+     "instrument_class": "Stock",
+     "live_event": false,
+     "sentiment_change": -2.15,
+     "volume_change": -6.0
+    },
+    {
+     "id": 2925,
+     "symbol": "NVDA",
+     "symbol_mic": "NVDA.XNAS",
+     "symbol_display": "NVDA",
+     "exchange": "NASDAQ",
+     "region": "US",
+     "logo_url": "https://logos.stocktwits-cdn.com/NVDA.png",
+     "title": "NVIDIA Corp",
+     "aliases": [],
+     "deeplink": "symbol/NVDA",
+     "external_id": null,
+     "is_following": false,
+     "watchlist_count": 669990,
+     "has_pricing": true,
+     "instrument_class": "Stock",
+     "live_event": false,
+     "trade_status": "FRACTIONAL",
+     "sentiment_change": 0.19,
+     "volume_change": 0.98
+    }
+   ]
+  },
+  {
+   "id": 665725374,
+   "body": "$NBIS so ur saying at this price point is 40 dollars less than their high and in that time they were called #1 by both $NVDA and $PLTR, had a blowout earnings, increased their compute pricing (lower future multiples), did a covert raise because of their project volume and nvidia started a project just for cyber security of open source\u2026. hmmm i think we should sell \ud83e\udd14\ud83e\udd14\ud83e\udd14\ud83e\udd14",
+   "created_at": "2026-10-04T21:32:13Z",
+   "discussion": false,
+   "source": {
+    "id": 1149,
+    "title": "StockTwits for iOS",
+    "url": "http://www.stocktwits.com/mobile"
+   },
+   "mentioned_users": [],
+   "entities": {
+    "media": [],
+    "sentiment": {
+     "basic": "Bullish"
+    },
+    "discussable": null
+   },
+   "user": {
+    "id": 11023379,
+    "username": "interestin",
+    "name": "welp",
+    "avatar_url": "https://avatars.stocktwits.com/production/11023379/thumb-1784566628.png",
+    "avatar_url_ssl": "https://avatars.stocktwits.com/production/11023379/thumb-1784566628.png",
+    "join_date": "2026-06-15",
+    "official": false,
+    "identity": "User",
+    "classification": [],
+    "badges": [],
+    "home_country": "US",
+    "search_regions": [],
+    "followers": 1,
+    "following": 1,
+    "ideas": 81,
+    "watchlist_stocks_count": 4,
+    "like_count": 25,
+    "plus_tier": "",
+    "premium_room": "",
+    "trade_app": false,
+    "trade_status": "PENDING_MFA"
+   },
+   "symbols": [
+    {
+     "id": 36182,
+     "symbol": "NBIS",
+     "symbol_mic": "NBIS.XNAS",
+     "symbol_display": "NBIS",
+     "exchange": "NASDAQ",
+     "region": "US",
+     "logo_url": "https://logos.stocktwits-cdn.com/NBIS.png",
+     "title": "Nebius Group N.V. ",
+     "aliases": [],
+     "deeplink": "symbol/NBIS",
+     "external_id": null,
+     "is_following": false,
+     "watchlist_count": 53025,
+     "has_pricing": true,
+     "instrument_class": "Stock",
+     "live_event": false,
+     "sentiment_change": 0.51,
+     "volume_change": -0.82
+    },
+    {
+     "id": 2925,
+     "symbol": "NVDA",
+     "symbol_mic": "NVDA.XNAS",
+     "symbol_display": "NVDA",
+     "exchange": "NASDAQ",
+     "region": "US",
+     "logo_url": "https://logos.stocktwits-cdn.com/NVDA.png",
+     "title": "NVIDIA Corp",
+     "aliases": [],
+     "deeplink": "symbol/NVDA",
+     "external_id": null,
+     "is_following": false,
+     "watchlist_count": 669990,
+     "has_pricing": true,
+     "instrument_class": "Stock",
+     "live_event": false,
+     "trade_status": "FRACTIONAL",
+     "sentiment_change": 0.19,
+     "volume_change": 0.98
+    },
+    {
+     "id": 8993,
+     "symbol": "PLTR",
+     "symbol_mic": "PLTR.XNAS",
+     "symbol_display": "PLTR",
+     "exchange": "NASDAQ",
+     "region": "US",
+     "logo_url": "https://logos.stocktwits-cdn.com/PLTR.png",
+     "title": "Palantir Technologies Inc",
+     "aliases": [],
+     "deeplink": "symbol/PLTR",
+     "external_id": null,
+     "is_following": false,
+     "watchlist_count": 324999,
+     "has_pricing": true,
+     "instrument_class": "Stock",
+     "live_event": false,
+     "trade_status": "FRACTIONAL",
+     "sentiment_change": -0.31,
+     "volume_change": 0.27
+    }
+   ]
+  },
+  {
+   "id": 665725254,
+   "body": "Different scale obviously, but $NVDA and $RYET both have me thinking about AI infrastructure and demand. \n \nWould you rather watch the big established AI names or a micro-cap showing Smart Campus expected at $5.0M-$5.2M? Genuinely curious.",
+   "created_at": "2026-10-04T21:27:10Z",
+   "discussion": false,
+   "source": {
+    "id": 2269,
+    "title": "StockTwits Web",
+    "url": "https://stocktwits.com"
+   },
+   "mentioned_users": [],
+   "entities": {
+    "media": [],
+    "sentiment": null,
+    "discussable": null
+   },
+   "user": {
+    "id": 10930355,
+    "username": "benorr95",
+    "name": "Ben Orr",
+    "avatar_url": "http://avatars.stocktwits.com/images/default_avatar_10_thumb.png",
+    "avatar_url_ssl": "https://avatars.stocktwits.com/images/default_avatar_10_thumb.png",
+    "join_date": "2026-04-06",
+    "official": false,
+    "identity": "User",
+    "classification": [],
+    "badges": [],
+    "home_country": "US",
+    "search_regions": [],
+    "followers": 2,
+    "following": 2,
+    "ideas": 21,
+    "watchlist_stocks_count": 37,
+    "like_count": 60,
+    "plus_tier": "",
+    "premium_room": "",
+    "trade_app": false,
+    "trade_status": "PENDING_MFA"
+   },
+   "symbols": [
+    {
+     "id": 2925,
+     "symbol": "NVDA",
+     "symbol_mic": "NVDA.XNAS",
+     "symbol_display": "NVDA",
+     "exchange": "NASDAQ",
+     "region": "US",
+     "logo_url": "https://logos.stocktwits-cdn.com/NVDA.png",
+     "title": "NVIDIA Corp",
+     "aliases": [],
+     "deeplink": "symbol/NVDA",
+     "external_id": null,
+     "is_following": false,
+     "watchlist_count": 669990,
+     "has_pricing": true,
+     "instrument_class": "Stock",
+     "live_event": false,
+     "trade_status": "FRACTIONAL",
+     "sentiment_change": 0.19,
+     "volume_change": 0.98
+    }
+   ]
+  },
+  {
+   "id": 665725107,
+   "body": "$QBTS and $NVDA \nAnd when I first bought Nividia. QBTS going to be in that number.",
+   "created_at": "2026-10-04T21:21:47Z",
+   "discussion": false,
+   "source": {
+    "id": 1149,
+    "title": "StockTwits for iOS",
+    "url": "http://www.stocktwits.com/mobile"
+   },
+   "mentioned_users": [],
+   "entities": {
+    "media": [
+     {
+      "id": 14905858,
+      "type": "image",
+      "thumb": "https://media.stocktwits-cdn.com/api/3/media/14905858/thumb.webp",
+      "medium": "https://media.stocktwits-cdn.com/api/3/media/14905858/medium.webp",
+      "large": "https://media.stocktwits-cdn.com/api/3/media/14905858/large.webp",
+      "original": "https://media.stocktwits-cdn.com/api/3/media/14905858/original.jpeg",
+      "url": "https://media.stocktwits-cdn.com/api/3/media/14905858/default.webp",
+      "height": 712,
+      "width": 749,
+      "ratio": 1.05197,
+      "provider": null,
+      "provider_id": null
+     }
+    ],
+    "chart": {
+     "id": 14905858,
+     "type": "image",
+     "thumb": "https://media.stocktwits-cdn.com/api/3/media/14905858/thumb.webp",
+     "medium": "https://media.stocktwits-cdn.com/api/3/media/14905858/medium.webp",
+     "large": "https://media.stocktwits-cdn.com/api/3/media/14905858/large.webp",
+     "original": "https://media.stocktwits-cdn.com/api/3/media/14905858/original.jpeg",
+     "url": "https://media.stocktwits-cdn.com/api/3/media/14905858/default.webp",
+     "height": 712,
+     "width": 749,
+     "ratio": 1.05197
+    },
+    "sentiment": null,
+    "discussable": null
+   },
+   "user": {
+    "id": 250071,
+    "username": "tpstulane",
+    "name": "TPS",
+    "avatar_url": "https://avatars.stocktwits.com/production/250071/thumb-1375910208.png",
+    "avatar_url_ssl": "https://avatars.stocktwits.com/production/250071/thumb-1375910208.png",
+    "join_date": "2013-08-07",
+    "official": false,
+    "identity": "User",
+    "classification": [],
+    "badges": [],
+    "home_country": "US",
+    "search_regions": [],
+    "followers": 240,
+    "following": 66,
+    "ideas": 15421,
+    "watchlist_stocks_count": 236,
+    "like_count": 19607,
+    "plus_tier": "",
+    "premium_room": "",
+    "trade_app": false,
+    "trade_status": "PENDING_MFA"
+   },
+   "likes": {
+    "total": 1,
+    "user_ids": [
+     9622413
+    ]
+   },
+   "symbols": [
+    {
+     "id": 26885,
+     "symbol": "QBTS",
+     "symbol_mic": "QBTS.XNYS",
+     "symbol_display": "QBTS",
+     "exchange": "NYSE",
+     "region": "US",
+     "logo_url": "https://logos.stocktwits-cdn.com/QBTS.png",
+     "title": "D-Wave Quantum Inc",
+     "aliases": [],
+     "deeplink": "symbol/QBTS",
+     "external_id": null,
+     "is_following": false,
+     "watchlist_count": 55860,
+     "has_pricing": true,
+     "instrument_class": "Stock",
+     "live_event": false,
+     "trade_status": "DISABLED",
+     "sentiment_change": 2.23,
+     "volume_change": 3.67
+    },
+    {
+     "id": 2925,
+     "symbol": "NVDA",
+     "symbol_mic": "NVDA.XNAS",
+     "symbol_display": "NVDA",
+     "exchange": "NASDAQ",
+     "region": "US",
+     "logo_url": "https://logos.stocktwits-cdn.com/NVDA.png",
+     "title": "NVIDIA Corp",
+     "aliases": [],
+     "deeplink": "symbol/NVDA",
+     "external_id": null,
+     "is_following": false,
+     "watchlist_count": 669990,
+     "has_pricing": true,
+     "instrument_class": "Stock",
+     "live_event": false,
+     "trade_status": "FRACTIONAL",
+     "sentiment_change": 0.19,
+     "volume_change": 0.98
+    }
+   ]
+  }
+ ],
+ "response": {
+  "status": 200
+ }
+}

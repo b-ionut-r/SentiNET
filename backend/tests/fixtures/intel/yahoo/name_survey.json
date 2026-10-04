@@ -1,0 +1,1542 @@
+{
+ "MSFT": {
+  "displayName": "Microsoft",
+  "shortName": "Microsoft Corporation",
+  "longName": "Microsoft Corporation",
+  "quoteType": "EQUITY",
+  "website": "https://www.microsoft.com",
+  "sector": "Technology",
+  "industry": "Software - Infrastructure",
+  "exchange": "NMS"
+ },
+ "AMZN": {
+  "displayName": "Amazon.com",
+  "shortName": "Amazon.com, Inc.",
+  "longName": "Amazon.com, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.amazon.com",
+  "sector": "Consumer Cyclical",
+  "industry": "Internet Retail",
+  "exchange": "NMS"
+ },
+ "GOOG": {
+  "displayName": "Alphabet",
+  "shortName": "Alphabet Inc.",
+  "longName": "Alphabet Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://abc.xyz",
+  "sector": "Communication Services",
+  "industry": "Internet Content & Information",
+  "exchange": "NMS"
+ },
+ "TSLA": {
+  "displayName": "Tesla",
+  "shortName": "Tesla, Inc.",
+  "longName": "Tesla, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.tesla.com",
+  "sector": "Consumer Cyclical",
+  "industry": "Auto Manufacturers",
+  "exchange": "NMS"
+ },
+ "AMD": {
+  "displayName": "Advanced Micro Devices",
+  "shortName": "Advanced Micro Devices, Inc.",
+  "longName": "Advanced Micro Devices, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.amd.com",
+  "sector": "Technology",
+  "industry": "Semiconductors",
+  "exchange": "NMS"
+ },
+ "INTC": {
+  "displayName": "Intel",
+  "shortName": "Intel Corporation",
+  "longName": "Intel Corporation",
+  "quoteType": "EQUITY",
+  "website": "https://www.intel.com",
+  "sector": "Technology",
+  "industry": "Semiconductors",
+  "exchange": "NMS"
+ },
+ "IBM": {
+  "displayName": "IBM",
+  "shortName": "International Business Machines",
+  "longName": "International Business Machines Corporation",
+  "quoteType": "EQUITY",
+  "website": "https://www.ibm.com",
+  "sector": "Technology",
+  "industry": "Information Technology Services",
+  "exchange": "NYQ"
+ },
+ "ORCL": {
+  "displayName": "Oracle",
+  "shortName": "Oracle Corporation",
+  "longName": "Oracle Corporation",
+  "quoteType": "EQUITY",
+  "website": "https://www.oracle.com",
+  "sector": "Technology",
+  "industry": "Software - Infrastructure",
+  "exchange": "NYQ"
+ },
+ "CRM": {
+  "displayName": "Salesforce",
+  "shortName": "Salesforce, Inc.",
+  "longName": "Salesforce, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.salesforce.com",
+  "sector": "Technology",
+  "industry": "Software - Application",
+  "exchange": "NYQ"
+ },
+ "ADBE": {
+  "displayName": "Adobe",
+  "shortName": "Adobe Inc.",
+  "longName": "Adobe Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.adobe.com",
+  "sector": "Technology",
+  "industry": "Software - Application",
+  "exchange": "NMS"
+ },
+ "NFLX": {
+  "displayName": "Netflix",
+  "shortName": "Netflix, Inc.",
+  "longName": "Netflix, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.netflix.com",
+  "sector": "Communication Services",
+  "industry": "Entertainment",
+  "exchange": "NMS"
+ },
+ "DIS": {
+  "displayName": null,
+  "shortName": "Walt Disney Company (The)",
+  "longName": "The Walt Disney Company",
+  "quoteType": "EQUITY",
+  "website": "https://thewaltdisneycompany.com",
+  "sector": "Communication Services",
+  "industry": "Entertainment",
+  "exchange": "NYQ"
+ },
+ "BA": {
+  "displayName": null,
+  "shortName": "Boeing Company (The)",
+  "longName": "The Boeing Company",
+  "quoteType": "EQUITY",
+  "website": "https://www.boeing.com",
+  "sector": "Industrials",
+  "industry": "Aerospace & Defense",
+  "exchange": "NYQ"
+ },
+ "GE": {
+  "displayName": null,
+  "shortName": "GE Aerospace",
+  "longName": "GE Aerospace",
+  "quoteType": "EQUITY",
+  "website": "https://www.geaerospace.com",
+  "sector": "Industrials",
+  "industry": "Aerospace & Defense",
+  "exchange": "NYQ"
+ },
+ "GM": {
+  "displayName": null,
+  "shortName": "General Motors Company",
+  "longName": "General Motors Company",
+  "quoteType": "EQUITY",
+  "website": "https://www.gm.com",
+  "sector": "Consumer Cyclical",
+  "industry": "Auto Manufacturers",
+  "exchange": "NYQ"
+ },
+ "F": {
+  "displayName": null,
+  "shortName": "Ford Motor Company",
+  "longName": "Ford Motor Company",
+  "quoteType": "EQUITY",
+  "website": "https://www.ford.com",
+  "sector": "Consumer Cyclical",
+  "industry": "Auto Manufacturers",
+  "exchange": "NYQ"
+ },
+ "T": {
+  "displayName": "AT&T",
+  "shortName": "AT&T Inc.",
+  "longName": "AT&T Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.att.com",
+  "sector": "Communication Services",
+  "industry": "Telecom Services",
+  "exchange": "NYQ"
+ },
+ "VZ": {
+  "displayName": "Verizon Communications",
+  "shortName": "Verizon Communications Inc.",
+  "longName": "Verizon Communications Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.verizon.com",
+  "sector": "Communication Services",
+  "industry": "Telecom Services",
+  "exchange": "NYQ"
+ },
+ "CSCO": {
+  "displayName": "Cisco Systems",
+  "shortName": "Cisco Systems, Inc.",
+  "longName": "Cisco Systems, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.cisco.com",
+  "sector": "Technology",
+  "industry": "Communication Equipment",
+  "exchange": "NMS"
+ },
+ "QCOM": {
+  "displayName": null,
+  "shortName": "QUALCOMM Incorporated",
+  "longName": "QUALCOMM Incorporated",
+  "quoteType": "EQUITY",
+  "website": "https://www.qualcomm.com",
+  "sector": "Technology",
+  "industry": "Semiconductors",
+  "exchange": "NMS"
+ },
+ "AVGO": {
+  "displayName": "Broadcom",
+  "shortName": "Broadcom Inc.",
+  "longName": "Broadcom Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.broadcom.com",
+  "sector": "Technology",
+  "industry": "Semiconductors",
+  "exchange": "NMS"
+ },
+ "TXN": {
+  "displayName": null,
+  "shortName": "Texas Instruments Incorporated",
+  "longName": "Texas Instruments Incorporated",
+  "quoteType": "EQUITY",
+  "website": "https://www.ti.com",
+  "sector": "Technology",
+  "industry": "Semiconductors",
+  "exchange": "NMS"
+ },
+ "MU": {
+  "displayName": "Micron Technology",
+  "shortName": "Micron Technology, Inc.",
+  "longName": "Micron Technology, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.micron.com",
+  "sector": "Technology",
+  "industry": "Semiconductors",
+  "exchange": "NMS"
+ },
+ "AMAT": {
+  "displayName": "Applied Materials",
+  "shortName": "Applied Materials, Inc.",
+  "longName": "Applied Materials, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.appliedmaterials.com",
+  "sector": "Technology",
+  "industry": "Semiconductor Equipment & Materials",
+  "exchange": "NMS"
+ },
+ "LRCX": {
+  "displayName": "Lam Research",
+  "shortName": "Lam Research Corporation",
+  "longName": "Lam Research Corporation",
+  "quoteType": "EQUITY",
+  "website": "https://www.lamresearch.com",
+  "sector": "Technology",
+  "industry": "Semiconductor Equipment & Materials",
+  "exchange": "NMS"
+ },
+ "ADI": {
+  "displayName": "Analog Devices",
+  "shortName": "Analog Devices, Inc.",
+  "longName": "Analog Devices, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.analog.com",
+  "sector": "Technology",
+  "industry": "Semiconductors",
+  "exchange": "NMS"
+ },
+ "MRVL": {
+  "displayName": "Marvell Technology",
+  "shortName": "Marvell Technology, Inc.",
+  "longName": "Marvell Technology, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.marvell.com",
+  "sector": "Technology",
+  "industry": "Semiconductors",
+  "exchange": "NMS"
+ },
+ "ANET": {
+  "displayName": "Arista Networks",
+  "shortName": "Arista Networks, Inc.",
+  "longName": "Arista Networks, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.arista.com",
+  "sector": "Technology",
+  "industry": "Computer Hardware",
+  "exchange": "NYQ"
+ },
+ "PANW": {
+  "displayName": "Palo Alto Networks",
+  "shortName": "Palo Alto Networks, Inc.",
+  "longName": "Palo Alto Networks, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.paloaltonetworks.com",
+  "sector": "Technology",
+  "industry": "Software - Infrastructure",
+  "exchange": "NMS"
+ },
+ "CRWD": {
+  "displayName": "CrowdStrike",
+  "shortName": "CrowdStrike Holdings, Inc.",
+  "longName": "CrowdStrike Holdings, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.crowdstrike.com",
+  "sector": "Technology",
+  "industry": "Software - Infrastructure",
+  "exchange": "NMS"
+ },
+ "SNOW": {
+  "displayName": "Snowflake",
+  "shortName": "Snowflake Inc.",
+  "longName": "Snowflake Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.snowflake.com",
+  "sector": "Technology",
+  "industry": "Software - Application",
+  "exchange": "NYQ"
+ },
+ "PLTR": {
+  "displayName": "Palantir",
+  "shortName": "Palantir Technologies Inc.",
+  "longName": "Palantir Technologies Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.palantir.com",
+  "sector": "Technology",
+  "industry": "Software - Infrastructure",
+  "exchange": "NMS"
+ },
+ "COIN": {
+  "displayName": "Coinbase Global",
+  "shortName": "Coinbase Global, Inc.",
+  "longName": "Coinbase Global, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.coinbase.com",
+  "sector": "Financial Services",
+  "industry": "Financial Data & Stock Exchanges",
+  "exchange": "NMS"
+ },
+ "HOOD": {
+  "displayName": "Robinhood Markets",
+  "shortName": "Robinhood Markets, Inc.",
+  "longName": "Robinhood Markets, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://robinhood.com",
+  "sector": "Financial Services",
+  "industry": "Capital Markets",
+  "exchange": "NMS"
+ },
+ "RIVN": {
+  "displayName": "Rivian Automotive",
+  "shortName": "Rivian Automotive, Inc.",
+  "longName": "Rivian Automotive, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.rivian.com",
+  "sector": "Consumer Cyclical",
+  "industry": "Auto Manufacturers",
+  "exchange": "NMS"
+ },
+ "LCID": {
+  "displayName": "Lucid",
+  "shortName": "Lucid Group, Inc.",
+  "longName": "Lucid Group, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.lucidmotors.com",
+  "sector": "Consumer Cyclical",
+  "industry": "Auto Manufacturers",
+  "exchange": "NMS"
+ },
+ "NIO": {
+  "displayName": "NIO",
+  "shortName": "NIO Inc.",
+  "longName": "NIO Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.nio.com",
+  "sector": "Consumer Cyclical",
+  "industry": "Auto Manufacturers",
+  "exchange": "NYQ"
+ },
+ "BABA": {
+  "displayName": "Alibaba Group Holding",
+  "shortName": "Alibaba Group Holding Limited",
+  "longName": "Alibaba Group Holding Limited",
+  "quoteType": "EQUITY",
+  "website": "https://www.alibabagroup.com",
+  "sector": "Consumer Cyclical",
+  "industry": "Internet Retail",
+  "exchange": "NYQ"
+ },
+ "TSM": {
+  "displayName": "Taiwan Semiconductor Manufacturing Company",
+  "shortName": "Taiwan Semiconductor Manufactur",
+  "longName": "Taiwan Semiconductor Manufacturing Company Limited",
+  "quoteType": "EQUITY",
+  "website": "https://www.tsmc.com",
+  "sector": "Technology",
+  "industry": "Semiconductors",
+  "exchange": "NYQ"
+ },
+ "ASML": {
+  "displayName": "ASML Holding",
+  "shortName": "ASML Holding N.V. - New York Re",
+  "longName": "ASML Holding N.V.",
+  "quoteType": "EQUITY",
+  "website": "https://www.asml.com",
+  "sector": "Technology",
+  "industry": "Semiconductor Equipment & Materials",
+  "exchange": "NMS"
+ },
+ "SMCI": {
+  "displayName": "Super Micro Computer",
+  "shortName": "Super Micro Computer, Inc.",
+  "longName": "Super Micro Computer, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.supermicro.com",
+  "sector": "Technology",
+  "industry": "Computer Hardware",
+  "exchange": "NMS"
+ },
+ "ARM": {
+  "displayName": "Arm",
+  "shortName": "Arm Holdings plc",
+  "longName": "Arm Holdings plc",
+  "quoteType": "EQUITY",
+  "website": "https://www.arm.com",
+  "sector": "Technology",
+  "industry": "Semiconductors",
+  "exchange": "NMS"
+ },
+ "UBER": {
+  "displayName": "Uber",
+  "shortName": "Uber Technologies, Inc.",
+  "longName": "Uber Technologies, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.uber.com",
+  "sector": "Technology",
+  "industry": "Software - Application",
+  "exchange": "NYQ"
+ },
+ "LYFT": {
+  "displayName": "Lyft",
+  "shortName": "Lyft, Inc.",
+  "longName": "Lyft, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.lyft.com",
+  "sector": "Technology",
+  "industry": "Software - Application",
+  "exchange": "NMS"
+ },
+ "ABNB": {
+  "displayName": "Airbnb",
+  "shortName": "Airbnb, Inc.",
+  "longName": "Airbnb, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.airbnb.com",
+  "sector": "Consumer Cyclical",
+  "industry": "Travel Services",
+  "exchange": "NMS"
+ },
+ "SHOP": {
+  "displayName": "Shopify",
+  "shortName": "Shopify Inc.",
+  "longName": "Shopify Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.shopify.com",
+  "sector": "Technology",
+  "industry": "Software - Application",
+  "exchange": "NMS"
+ },
+ "SQ": {
+  "displayName": null,
+  "shortName": null,
+  "longName": null,
+  "quoteType": "NONE",
+  "website": null,
+  "sector": null,
+  "industry": null,
+  "exchange": null
+ },
+ "PYPL": {
+  "displayName": "PayPal",
+  "shortName": "PayPal Holdings, Inc.",
+  "longName": "PayPal Holdings, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.paypal.com",
+  "sector": "Financial Services",
+  "industry": "Credit Services",
+  "exchange": "NMS"
+ },
+ "V": {
+  "displayName": "Visa",
+  "shortName": "Visa Inc.",
+  "longName": "Visa Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.visa.com",
+  "sector": "Financial Services",
+  "industry": "Credit Services",
+  "exchange": "NYQ"
+ },
+ "MA": {
+  "displayName": null,
+  "shortName": "Mastercard Incorporated",
+  "longName": "Mastercard Incorporated",
+  "quoteType": "EQUITY",
+  "website": "https://www.mastercard.com",
+  "sector": "Financial Services",
+  "industry": "Credit Services",
+  "exchange": "NYQ"
+ },
+ "AXP": {
+  "displayName": null,
+  "shortName": "American Express Company",
+  "longName": "American Express Company",
+  "quoteType": "EQUITY",
+  "website": "https://www.americanexpress.com",
+  "sector": "Financial Services",
+  "industry": "Credit Services",
+  "exchange": "NYQ"
+ },
+ "WMT": {
+  "displayName": "Walmart",
+  "shortName": "Walmart Inc.",
+  "longName": "Walmart Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.stock.walmart.com",
+  "sector": "Consumer Defensive",
+  "industry": "Discount Stores",
+  "exchange": "NMS"
+ },
+ "COST": {
+  "displayName": "Costco Wholesale",
+  "shortName": "Costco Wholesale Corporation",
+  "longName": "Costco Wholesale Corporation",
+  "quoteType": "EQUITY",
+  "website": "https://www.costco.com",
+  "sector": "Consumer Defensive",
+  "industry": "Discount Stores",
+  "exchange": "NMS"
+ },
+ "HD": {
+  "displayName": "The Home Depot",
+  "shortName": "Home Depot, Inc. (The)",
+  "longName": "The Home Depot, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.homedepot.com",
+  "sector": "Consumer Cyclical",
+  "industry": "Home Improvement Retail",
+  "exchange": "NYQ"
+ },
+ "LOW": {
+  "displayName": "Lowe's Companies",
+  "shortName": "Lowe's Companies, Inc.",
+  "longName": "Lowe's Companies, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://corporate.lowes.com",
+  "sector": "Consumer Cyclical",
+  "industry": "Home Improvement Retail",
+  "exchange": "NYQ"
+ },
+ "NKE": {
+  "displayName": "NIKE",
+  "shortName": "Nike, Inc.",
+  "longName": "NIKE, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.nike.com",
+  "sector": "Consumer Cyclical",
+  "industry": "Footwear & Accessories",
+  "exchange": "NYQ"
+ },
+ "SBUX": {
+  "displayName": "Starbucks",
+  "shortName": "Starbucks Corporation",
+  "longName": "Starbucks Corporation",
+  "quoteType": "EQUITY",
+  "website": "https://www.starbucks.com",
+  "sector": "Consumer Cyclical",
+  "industry": "Restaurants",
+  "exchange": "NMS"
+ },
+ "MCD": {
+  "displayName": "McDonald's",
+  "shortName": "McDonald's Corporation",
+  "longName": "McDonald's Corporation",
+  "quoteType": "EQUITY",
+  "website": "https://www.mcdonalds.com",
+  "sector": "Consumer Cyclical",
+  "industry": "Restaurants",
+  "exchange": "NYQ"
+ },
+ "PEP": {
+  "displayName": "PepsiCo",
+  "shortName": "Pepsico, Inc.",
+  "longName": "PepsiCo, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.pepsico.com",
+  "sector": "Consumer Defensive",
+  "industry": "Beverages - Non-Alcoholic",
+  "exchange": "NMS"
+ },
+ "PG": {
+  "displayName": null,
+  "shortName": "Procter & Gamble Company (The)",
+  "longName": "The Procter & Gamble Company",
+  "quoteType": "EQUITY",
+  "website": "https://www.pginvestor.com",
+  "sector": "Consumer Defensive",
+  "industry": "Household & Personal Products",
+  "exchange": "NYQ"
+ },
+ "JNJ": {
+  "displayName": null,
+  "shortName": "Johnson & Johnson",
+  "longName": "Johnson & Johnson",
+  "quoteType": "EQUITY",
+  "website": "https://www.jnj.com",
+  "sector": "Healthcare",
+  "industry": "Drug Manufacturers - General",
+  "exchange": "NYQ"
+ },
+ "PFE": {
+  "displayName": "Pfizer",
+  "shortName": "Pfizer, Inc.",
+  "longName": "Pfizer Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.pfizer.com",
+  "sector": "Healthcare",
+  "industry": "Drug Manufacturers - General",
+  "exchange": "NYQ"
+ },
+ "MRK": {
+  "displayName": "Merck &",
+  "shortName": "Merck & Company, Inc.",
+  "longName": "Merck & Co., Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.merck.com",
+  "sector": "Healthcare",
+  "industry": "Drug Manufacturers - General",
+  "exchange": "NYQ"
+ },
+ "LLY": {
+  "displayName": null,
+  "shortName": "Eli Lilly and Company",
+  "longName": "Eli Lilly and Company",
+  "quoteType": "EQUITY",
+  "website": "https://www.lilly.com",
+  "sector": "Healthcare",
+  "industry": "Drug Manufacturers - General",
+  "exchange": "NYQ"
+ },
+ "UNH": {
+  "displayName": null,
+  "shortName": "UnitedHealth Group Incorporated",
+  "longName": "UnitedHealth Group Incorporated",
+  "quoteType": "EQUITY",
+  "website": "https://www.unitedhealthgroup.com",
+  "sector": "Healthcare",
+  "industry": "Healthcare Plans",
+  "exchange": "NYQ"
+ },
+ "CVS": {
+  "displayName": "CVS Health",
+  "shortName": "CVS Health Corporation",
+  "longName": "CVS Health Corporation",
+  "quoteType": "EQUITY",
+  "website": "https://www.cvshealth.com",
+  "sector": "Healthcare",
+  "industry": "Healthcare Plans",
+  "exchange": "NYQ"
+ },
+ "ABBV": {
+  "displayName": "AbbVie",
+  "shortName": "AbbVie Inc.",
+  "longName": "AbbVie Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.abbvie.com",
+  "sector": "Healthcare",
+  "industry": "Drug Manufacturers - General",
+  "exchange": "NYQ"
+ },
+ "BMY": {
+  "displayName": null,
+  "shortName": "Bristol-Myers Squibb Company",
+  "longName": "Bristol-Myers Squibb Company",
+  "quoteType": "EQUITY",
+  "website": "https://www.bms.com",
+  "sector": "Healthcare",
+  "industry": "Drug Manufacturers - General",
+  "exchange": "NYQ"
+ },
+ "XOM": {
+  "displayName": "ExxonMobil",
+  "shortName": "ExxonMobil Holdings Corporation",
+  "longName": "ExxonMobil Holdings Corporation",
+  "quoteType": "EQUITY",
+  "website": "https://corporate.exxonmobil.com",
+  "sector": "Energy",
+  "industry": "Oil & Gas Integrated",
+  "exchange": "NYQ"
+ },
+ "CVX": {
+  "displayName": "Chevron",
+  "shortName": "Chevron Corporation",
+  "longName": "Chevron Corporation",
+  "quoteType": "EQUITY",
+  "website": "https://www.chevron.com",
+  "sector": "Energy",
+  "industry": "Oil & Gas Integrated",
+  "exchange": "NYQ"
+ },
+ "OXY": {
+  "displayName": "Occidental Petroleum",
+  "shortName": "Occidental Petroleum Corporatio",
+  "longName": "Occidental Petroleum Corporation",
+  "quoteType": "EQUITY",
+  "website": "https://www.oxy.com",
+  "sector": "Energy",
+  "industry": "Oil & Gas E&P",
+  "exchange": "NYQ"
+ },
+ "BP": {
+  "displayName": "BP p.l.c",
+  "shortName": "BP p.l.c.",
+  "longName": "BP p.l.c.",
+  "quoteType": "EQUITY",
+  "website": "https://www.bp.com",
+  "sector": "Energy",
+  "industry": "Oil & Gas Integrated",
+  "exchange": "NYQ"
+ },
+ "SHEL": {
+  "displayName": "Shell",
+  "shortName": "Shell PLC",
+  "longName": "Shell plc",
+  "quoteType": "EQUITY",
+  "website": "https://www.shell.com",
+  "sector": "Energy",
+  "industry": "Oil & Gas Integrated",
+  "exchange": "NYQ"
+ },
+ "GS": {
+  "displayName": "The Goldman Sachs",
+  "shortName": "Goldman Sachs Group, Inc. (The)",
+  "longName": "The Goldman Sachs Group, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.goldmansachs.com",
+  "sector": "Financial Services",
+  "industry": "Capital Markets",
+  "exchange": "NYQ"
+ },
+ "MS": {
+  "displayName": null,
+  "shortName": "Morgan Stanley",
+  "longName": "Morgan Stanley",
+  "quoteType": "EQUITY",
+  "website": "https://www.morganstanley.com",
+  "sector": "Financial Services",
+  "industry": "Capital Markets",
+  "exchange": "NYQ"
+ },
+ "BAC": {
+  "displayName": "Bank of America",
+  "shortName": "Bank of America Corporation",
+  "longName": "Bank of America Corporation",
+  "quoteType": "EQUITY",
+  "website": "https://www.bankofamerica.com",
+  "sector": "Financial Services",
+  "industry": "Banks - Diversified",
+  "exchange": "NYQ"
+ },
+ "C": {
+  "displayName": "Citigroup",
+  "shortName": "Citigroup, Inc.",
+  "longName": "Citigroup Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.citigroup.com",
+  "sector": "Financial Services",
+  "industry": "Banks - Diversified",
+  "exchange": "NYQ"
+ },
+ "WFC": {
+  "displayName": null,
+  "shortName": "Wells Fargo & Company",
+  "longName": "Wells Fargo & Company",
+  "quoteType": "EQUITY",
+  "website": "https://www.wellsfargo.com",
+  "sector": "Financial Services",
+  "industry": "Banks - Diversified",
+  "exchange": "NYQ"
+ },
+ "SCHW": {
+  "displayName": "The Charles Schwab",
+  "shortName": "Charles Schwab Corporation (The",
+  "longName": "The Charles Schwab Corporation",
+  "quoteType": "EQUITY",
+  "website": "https://www.aboutschwab.com",
+  "sector": "Financial Services",
+  "industry": "Capital Markets",
+  "exchange": "NYQ"
+ },
+ "BRK-A": {
+  "displayName": "Berkshire Hathaway",
+  "shortName": "Berkshire Hathaway Inc.",
+  "longName": "Berkshire Hathaway Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.berkshirehathaway.com",
+  "sector": "Financial Services",
+  "industry": "Insurance - Diversified",
+  "exchange": "NYQ"
+ },
+ "UPS": {
+  "displayName": "United Parcel Service",
+  "shortName": "United Parcel Service, Inc.",
+  "longName": "United Parcel Service, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.ups.com",
+  "sector": "Industrials",
+  "industry": "Integrated Freight & Logistics",
+  "exchange": "NYQ"
+ },
+ "FDX": {
+  "displayName": "FedEx",
+  "shortName": "FedEx Corporation",
+  "longName": "FedEx Corporation",
+  "quoteType": "EQUITY",
+  "website": "https://www.fedex.com",
+  "sector": "Industrials",
+  "industry": "Integrated Freight & Logistics",
+  "exchange": "NYQ"
+ },
+ "CAT": {
+  "displayName": "Caterpillar",
+  "shortName": "Caterpillar, Inc.",
+  "longName": "Caterpillar Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.caterpillar.com",
+  "sector": "Industrials",
+  "industry": "Farm & Heavy Construction Machinery",
+  "exchange": "NYQ"
+ },
+ "DE": {
+  "displayName": null,
+  "shortName": "Deere & Company",
+  "longName": "Deere & Company",
+  "quoteType": "EQUITY",
+  "website": "https://www.deere.com",
+  "sector": "Industrials",
+  "industry": "Farm & Heavy Construction Machinery",
+  "exchange": "NYQ"
+ },
+ "MMM": {
+  "displayName": null,
+  "shortName": "3M Company",
+  "longName": "3M Company",
+  "quoteType": "EQUITY",
+  "website": "https://www.3m.com",
+  "sector": "Industrials",
+  "industry": "Conglomerates",
+  "exchange": "NYQ"
+ },
+ "HON": {
+  "displayName": "Honeywell",
+  "shortName": "Honeywell International Inc.",
+  "longName": "Honeywell International Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.honeywell.com",
+  "sector": "Industrials",
+  "industry": "Conglomerates",
+  "exchange": "NMS"
+ },
+ "LMT": {
+  "displayName": "Lockheed Martin",
+  "shortName": "Lockheed Martin Corporation",
+  "longName": "Lockheed Martin Corporation",
+  "quoteType": "EQUITY",
+  "website": "https://www.lockheedmartin.com",
+  "sector": "Industrials",
+  "industry": "Aerospace & Defense",
+  "exchange": "NYQ"
+ },
+ "RTX": {
+  "displayName": "RTX",
+  "shortName": "RTX Corporation",
+  "longName": "RTX Corporation",
+  "quoteType": "EQUITY",
+  "website": "https://www.rtx.com",
+  "sector": "Industrials",
+  "industry": "Aerospace & Defense",
+  "exchange": "NYQ"
+ },
+ "NOC": {
+  "displayName": "Northrop Grumman",
+  "shortName": "Northrop Grumman Corporation",
+  "longName": "Northrop Grumman Corporation",
+  "quoteType": "EQUITY",
+  "website": "https://www.northropgrumman.com",
+  "sector": "Industrials",
+  "industry": "Aerospace & Defense",
+  "exchange": "NYQ"
+ },
+ "GME": {
+  "displayName": "GameStop",
+  "shortName": "GameStop Corporation",
+  "longName": "GameStop Corp.",
+  "quoteType": "EQUITY",
+  "website": "https://www.gamestop.com",
+  "sector": "Consumer Cyclical",
+  "industry": "Specialty Retail",
+  "exchange": "NYQ"
+ },
+ "AMC": {
+  "displayName": "AMC Entertainment",
+  "shortName": "AMC Entertainment Holdings, Inc",
+  "longName": "AMC Entertainment Holdings, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.amctheatres.com",
+  "sector": "Communication Services",
+  "industry": "Entertainment",
+  "exchange": "NYQ"
+ },
+ "BB": {
+  "displayName": "BlackBerry",
+  "shortName": "BlackBerry Limited",
+  "longName": "BlackBerry Limited",
+  "quoteType": "EQUITY",
+  "website": "https://www.blackberry.com",
+  "sector": "Technology",
+  "industry": "Software - Infrastructure",
+  "exchange": "NYQ"
+ },
+ "RBLX": {
+  "displayName": "Roblox",
+  "shortName": "Roblox Corporation",
+  "longName": "Roblox Corporation",
+  "quoteType": "EQUITY",
+  "website": "https://corp.roblox.com",
+  "sector": "Communication Services",
+  "industry": "Electronic Gaming & Multimedia",
+  "exchange": "NYQ"
+ },
+ "U": {
+  "displayName": "Unity Software",
+  "shortName": "Unity Software Inc.",
+  "longName": "Unity Software Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://unity.com",
+  "sector": "Technology",
+  "industry": "Software - Application",
+  "exchange": "NYQ"
+ },
+ "DKNG": {
+  "displayName": "DraftKings",
+  "shortName": "DraftKings Inc.",
+  "longName": "DraftKings Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.draftkings.com",
+  "sector": "Consumer Cyclical",
+  "industry": "Gambling",
+  "exchange": "NMS"
+ },
+ "CHWY": {
+  "displayName": "Chewy",
+  "shortName": "Chewy, Inc.",
+  "longName": "Chewy, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.chewy.com",
+  "sector": "Consumer Cyclical",
+  "industry": "Internet Retail",
+  "exchange": "NYQ"
+ },
+ "ETSY": {
+  "displayName": "Etsy",
+  "shortName": "Etsy, Inc.",
+  "longName": "Etsy, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.etsy.com",
+  "sector": "Consumer Cyclical",
+  "industry": "Internet Retail",
+  "exchange": "NYQ"
+ },
+ "ZM": {
+  "displayName": "Zoom Communications",
+  "shortName": "Zoom Communications, Inc.",
+  "longName": "Zoom Communications, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.zoom.com",
+  "sector": "Technology",
+  "industry": "Software - Application",
+  "exchange": "NMS"
+ },
+ "DOCU": {
+  "displayName": "DocuSign",
+  "shortName": "DocuSign, Inc.",
+  "longName": "DocuSign, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.docusign.com",
+  "sector": "Technology",
+  "industry": "Software - Application",
+  "exchange": "NMS"
+ },
+ "OKTA": {
+  "displayName": "Okta",
+  "shortName": "Okta, Inc.",
+  "longName": "Okta, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.okta.com",
+  "sector": "Technology",
+  "industry": "Software - Infrastructure",
+  "exchange": "NMS"
+ },
+ "NET": {
+  "displayName": "Cloudflare",
+  "shortName": "Cloudflare, Inc.",
+  "longName": "Cloudflare, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.cloudflare.com",
+  "sector": "Technology",
+  "industry": "Software - Infrastructure",
+  "exchange": "NYQ"
+ },
+ "DDOG": {
+  "displayName": "Datadog",
+  "shortName": "Datadog, Inc.",
+  "longName": "Datadog, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.datadoghq.com",
+  "sector": "Technology",
+  "industry": "Software - Application",
+  "exchange": "NMS"
+ },
+ "MDB": {
+  "displayName": "MongoDB",
+  "shortName": "MongoDB, Inc.",
+  "longName": "MongoDB, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.mongodb.com",
+  "sector": "Technology",
+  "industry": "Software - Infrastructure",
+  "exchange": "NGM"
+ },
+ "TEAM": {
+  "displayName": "Atlassian",
+  "shortName": "Atlassian Corporation",
+  "longName": "Atlassian Corporation",
+  "quoteType": "EQUITY",
+  "website": "https://www.atlassian.com",
+  "sector": "Technology",
+  "industry": "Software - Application",
+  "exchange": "NMS"
+ },
+ "WDAY": {
+  "displayName": "Workday",
+  "shortName": "Workday, Inc.",
+  "longName": "Workday, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.workday.com",
+  "sector": "Technology",
+  "industry": "Software - Application",
+  "exchange": "NMS"
+ },
+ "NOW": {
+  "displayName": "ServiceNow",
+  "shortName": "ServiceNow, Inc.",
+  "longName": "ServiceNow, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.servicenow.com",
+  "sector": "Technology",
+  "industry": "Software - Application",
+  "exchange": "NYQ"
+ },
+ "INTU": {
+  "displayName": "Intuit",
+  "shortName": "Intuit Inc.",
+  "longName": "Intuit Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.intuit.com",
+  "sector": "Technology",
+  "industry": "Software - Application",
+  "exchange": "NMS"
+ },
+ "ADSK": {
+  "displayName": "Autodesk",
+  "shortName": "Autodesk, Inc.",
+  "longName": "Autodesk, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.autodesk.com",
+  "sector": "Technology",
+  "industry": "Software - Application",
+  "exchange": "NMS"
+ },
+ "SPOT": {
+  "displayName": "Spotify Technology",
+  "shortName": "Spotify Technology S.A.",
+  "longName": "Spotify Technology S.A.",
+  "quoteType": "EQUITY",
+  "website": "https://www.spotify.com",
+  "sector": "Communication Services",
+  "industry": "Internet Content & Information",
+  "exchange": "NYQ"
+ },
+ "PINS": {
+  "displayName": "Pinterest",
+  "shortName": "Pinterest, Inc.",
+  "longName": "Pinterest, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.pinterest.com",
+  "sector": "Communication Services",
+  "industry": "Internet Content & Information",
+  "exchange": "NYQ"
+ },
+ "RDDT": {
+  "displayName": "Reddit",
+  "shortName": "Reddit, Inc.",
+  "longName": "Reddit, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://redditinc.com",
+  "sector": "Communication Services",
+  "industry": "Internet Content & Information",
+  "exchange": "NYQ"
+ },
+ "TTD": {
+  "displayName": "The Trade Desk",
+  "shortName": "The Trade Desk, Inc.",
+  "longName": "The Trade Desk, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.thetradedesk.com",
+  "sector": "Communication Services",
+  "industry": "Advertising Agencies",
+  "exchange": "NGM"
+ },
+ "ROKU": {
+  "displayName": "Roku",
+  "shortName": "Roku, Inc.",
+  "longName": "Roku, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.roku.com",
+  "sector": "Communication Services",
+  "industry": "Entertainment",
+  "exchange": "NMS"
+ },
+ "AAL": {
+  "displayName": "American Airlines",
+  "shortName": "American Airlines Group, Inc.",
+  "longName": "American Airlines Group Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.aa.com",
+  "sector": "Industrials",
+  "industry": "Airlines",
+  "exchange": "NMS"
+ },
+ "DAL": {
+  "displayName": "Delta Air Lines",
+  "shortName": "Delta Air Lines, Inc.",
+  "longName": "Delta Air Lines, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.delta.com",
+  "sector": "Industrials",
+  "industry": "Airlines",
+  "exchange": "NYQ"
+ },
+ "UAL": {
+  "displayName": "United Airlines",
+  "shortName": "United Airlines Holdings, Inc.",
+  "longName": "United Airlines Holdings, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.united.com",
+  "sector": "Industrials",
+  "industry": "Airlines",
+  "exchange": "NMS"
+ },
+ "LUV": {
+  "displayName": "Southwest Airlines",
+  "shortName": "Southwest Airlines Company",
+  "longName": "Southwest Airlines Co.",
+  "quoteType": "EQUITY",
+  "website": "https://www.southwest.com",
+  "sector": "Industrials",
+  "industry": "Airlines",
+  "exchange": "NYQ"
+ },
+ "CCL": {
+  "displayName": "Carnival",
+  "shortName": "Carnival Corporation Ltd.",
+  "longName": "Carnival Corporation Ltd.",
+  "quoteType": "EQUITY",
+  "website": "https://www.carnivalcorp.com",
+  "sector": "Consumer Cyclical",
+  "industry": "Travel Services",
+  "exchange": "NYQ"
+ },
+ "RCL": {
+  "displayName": "Royal Caribbean Cruises",
+  "shortName": "Royal Caribbean Cruises Ltd.",
+  "longName": "Royal Caribbean Cruises Ltd.",
+  "quoteType": "EQUITY",
+  "website": "https://www.rclinvestor.com",
+  "sector": "Consumer Cyclical",
+  "industry": "Travel Services",
+  "exchange": "NYQ"
+ },
+ "MAR": {
+  "displayName": "Marriott",
+  "shortName": "Marriott International",
+  "longName": "Marriott International, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.marriott.com",
+  "sector": "Consumer Cyclical",
+  "industry": "Lodging",
+  "exchange": "NMS"
+ },
+ "HLT": {
+  "displayName": "Hilton Worldwide",
+  "shortName": "Hilton Worldwide Holdings Inc.",
+  "longName": "Hilton Worldwide Holdings Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.hilton.com",
+  "sector": "Consumer Cyclical",
+  "industry": "Lodging",
+  "exchange": "NYQ"
+ },
+ "BKNG": {
+  "displayName": "Booking",
+  "shortName": "Booking Holdings Inc. Common St",
+  "longName": "Booking Holdings Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.bookingholdings.com",
+  "sector": "Consumer Cyclical",
+  "industry": "Travel Services",
+  "exchange": "NMS"
+ },
+ "EXPE": {
+  "displayName": "Expedia",
+  "shortName": "Expedia Group, Inc.",
+  "longName": "Expedia Group, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.expediagroup.com",
+  "sector": "Consumer Cyclical",
+  "industry": "Travel Services",
+  "exchange": "NMS"
+ },
+ "KO": {
+  "displayName": "Coca-Cola",
+  "shortName": "Coca-Cola Company (The)",
+  "longName": "The Coca-Cola Company",
+  "quoteType": "EQUITY",
+  "website": "https://www.coca-colacompany.com",
+  "sector": "Consumer Defensive",
+  "industry": "Beverages - Non-Alcoholic",
+  "exchange": "NYQ"
+ },
+ "MO": {
+  "displayName": "Altria",
+  "shortName": "Altria Group, Inc.",
+  "longName": "Altria Group, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.altria.com",
+  "sector": "Consumer Defensive",
+  "industry": "Tobacco",
+  "exchange": "NYQ"
+ },
+ "PM": {
+  "displayName": "Philip Morris",
+  "shortName": "Philip Morris International Inc",
+  "longName": "Philip Morris International Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.pmi.com",
+  "sector": "Consumer Defensive",
+  "industry": "Tobacco",
+  "exchange": "NYQ"
+ },
+ "KHC": {
+  "displayName": null,
+  "shortName": "The Kraft Heinz Company",
+  "longName": "The Kraft Heinz Company",
+  "quoteType": "EQUITY",
+  "website": "https://www.kraftheinzcompany.com",
+  "sector": "Consumer Defensive",
+  "industry": "Packaged Foods",
+  "exchange": "NYQ"
+ },
+ "GIS": {
+  "displayName": "General Mills",
+  "shortName": "General Mills, Inc.",
+  "longName": "General Mills, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.generalmills.com",
+  "sector": "Consumer Defensive",
+  "industry": "Packaged Foods",
+  "exchange": "NYQ"
+ },
+ "K": {
+  "displayName": null,
+  "shortName": null,
+  "longName": null,
+  "quoteType": null,
+  "website": null,
+  "sector": null,
+  "industry": null,
+  "exchange": null
+ },
+ "HSY": {
+  "displayName": null,
+  "shortName": "The Hershey Company",
+  "longName": "The Hershey Company",
+  "quoteType": "EQUITY",
+  "website": "https://www.thehersheycompany.com",
+  "sector": "Consumer Defensive",
+  "industry": "Confectioners",
+  "exchange": "NYQ"
+ },
+ "CL": {
+  "displayName": null,
+  "shortName": "Colgate-Palmolive Company",
+  "longName": "Colgate-Palmolive Company",
+  "quoteType": "EQUITY",
+  "website": "https://www.colgatepalmolive.com",
+  "sector": "Consumer Defensive",
+  "industry": "Household & Personal Products",
+  "exchange": "NYQ"
+ },
+ "EL": {
+  "displayName": "The Est\u00e9e Lauder Companies",
+  "shortName": "Estee Lauder Companies, Inc. (T",
+  "longName": "The Est\u00e9e Lauder Companies Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.elcompanies.com",
+  "sector": "Consumer Defensive",
+  "industry": "Household & Personal Products",
+  "exchange": "NYQ"
+ },
+ "ULTA": {
+  "displayName": "Ulta Beauty",
+  "shortName": "Ulta Beauty, Inc.",
+  "longName": "Ulta Beauty, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.ulta.com",
+  "sector": "Consumer Cyclical",
+  "industry": "Specialty Retail",
+  "exchange": "NMS"
+ },
+ "LULU": {
+  "displayName": "lululemon athletica",
+  "shortName": "lululemon athletica inc.",
+  "longName": "lululemon athletica inc.",
+  "quoteType": "EQUITY",
+  "website": "https://corporate.lululemon.com",
+  "sector": "Consumer Cyclical",
+  "industry": "Apparel Retail",
+  "exchange": "NMS"
+ },
+ "DECK": {
+  "displayName": "Deckers Outdoor",
+  "shortName": "Deckers Outdoor Corporation",
+  "longName": "Deckers Outdoor Corporation",
+  "quoteType": "EQUITY",
+  "website": "https://www.deckers.com",
+  "sector": "Consumer Cyclical",
+  "industry": "Footwear & Accessories",
+  "exchange": "NYQ"
+ },
+ "ON": {
+  "displayName": "ON Semiconductor",
+  "shortName": "ON Semiconductor Corporation",
+  "longName": "ON Semiconductor Corporation",
+  "quoteType": "EQUITY",
+  "website": "https://www.onsemi.com",
+  "sector": "Technology",
+  "industry": "Semiconductors",
+  "exchange": "NMS"
+ },
+ "ALL": {
+  "displayName": "The Allstate",
+  "shortName": "Allstate Corporation (The)",
+  "longName": "The Allstate Corporation",
+  "quoteType": "EQUITY",
+  "website": "https://www.allstate.com",
+  "sector": "Financial Services",
+  "industry": "Insurance - Property & Casualty",
+  "exchange": "NYQ"
+ },
+ "IT": {
+  "displayName": "Gartner",
+  "shortName": "Gartner, Inc.",
+  "longName": "Gartner, Inc.",
+  "quoteType": "EQUITY",
+  "website": "https://www.gartner.com",
+  "sector": "Technology",
+  "industry": "Information Technology Services",
+  "exchange": "NYQ"
+ },
+ "BE": {
+  "displayName": "Bloom Energy",
+  "shortName": "Bloom Energy Corporation",
+  "longName": "Bloom Energy Corporation",
+  "quoteType": "EQUITY",
+  "website": "https://www.bloomenergy.com",
+  "sector": "Industrials",
+  "industry": "Electrical Equipment & Parts",
+  "exchange": "NYQ"
+ },
+ "LOVE": {
+  "displayName": null,
+  "shortName": "The Lovesac Company",
+  "longName": "The Lovesac Company",
+  "quoteType": "EQUITY",
+  "website": "https://www.lovesac.com",
+  "sector": "Consumer Cyclical",
+  "industry": "Furnishings, Fixtures & Appliances",
+  "exchange": "NGM"
+ },
+ "QQQ": {
+  "displayName": null,
+  "shortName": "Invesco QQQ Trust, Series 1",
+  "longName": "Invesco QQQ Trust",
+  "quoteType": "ETF",
+  "website": null,
+  "sector": null,
+  "industry": null,
+  "exchange": "NGM"
+ },
+ "IWM": {
+  "displayName": null,
+  "shortName": "iShares Russell 2000 Index Fund",
+  "longName": "iShares Russell 2000 ETF",
+  "quoteType": "ETF",
+  "website": null,
+  "sector": null,
+  "industry": null,
+  "exchange": "PCX"
+ },
+ "DIA": {
+  "displayName": null,
+  "shortName": "State Street SPDR Dow Jones Ind",
+  "longName": "State Street SPDR Dow Jones Industrial Average ETF Trust",
+  "quoteType": "ETF",
+  "website": null,
+  "sector": null,
+  "industry": null,
+  "exchange": "PCX"
+ },
+ "ARKK": {
+  "displayName": null,
+  "shortName": "ARK Innovation ETF",
+  "longName": "ARK Innovation ETF",
+  "quoteType": "ETF",
+  "website": null,
+  "sector": null,
+  "industry": null,
+  "exchange": "BTS"
+ },
+ "TQQQ": {
+  "displayName": null,
+  "shortName": "ProShares UltraPro QQQ",
+  "longName": "ProShares UltraPro QQQ",
+  "quoteType": "ETF",
+  "website": null,
+  "sector": null,
+  "industry": null,
+  "exchange": "NGM"
+ },
+ "SOXL": {
+  "displayName": null,
+  "shortName": "Direxion Daily Semiconductor Bu",
+  "longName": "Direxion Daily Semiconductor Bull 3X Shares",
+  "quoteType": "ETF",
+  "website": null,
+  "sector": null,
+  "industry": null,
+  "exchange": "PCX"
+ },
+ "GLD": {
+  "displayName": null,
+  "shortName": "SPDR Gold Shares",
+  "longName": "SPDR Gold Shares",
+  "quoteType": "ETF",
+  "website": null,
+  "sector": null,
+  "industry": null,
+  "exchange": "PCX"
+ },
+ "SLV": {
+  "displayName": null,
+  "shortName": "iShares Silver Trust",
+  "longName": "iShares Silver Trust",
+  "quoteType": "ETF",
+  "website": null,
+  "sector": null,
+  "industry": null,
+  "exchange": "PCX"
+ },
+ "TLT": {
+  "displayName": null,
+  "shortName": "iShares 20+ Year Treasury Bond ",
+  "longName": "iShares 20+ Year Treasury Bond ETF",
+  "quoteType": "ETF",
+  "website": null,
+  "sector": null,
+  "industry": null,
+  "exchange": "NGM"
+ },
+ "XLF": {
+  "displayName": null,
+  "shortName": "State Street Financial Select S",
+  "longName": "State Street Financial Select Sector SPDR ETF",
+  "quoteType": "ETF",
+  "website": null,
+  "sector": null,
+  "industry": null,
+  "exchange": "PCX"
+ },
+ "ETH-USD": {
+  "displayName": null,
+  "shortName": "Ethereum USD",
+  "longName": "Ethereum USD",
+  "quoteType": "CRYPTOCURRENCY",
+  "website": "https://www.ethereum.org/",
+  "sector": null,
+  "industry": null,
+  "exchange": "CCC"
+ },
+ "SOL-USD": {
+  "displayName": null,
+  "shortName": "Solana USD",
+  "longName": "Solana USD",
+  "quoteType": "CRYPTOCURRENCY",
+  "website": "https://solana.com",
+  "sector": null,
+  "industry": null,
+  "exchange": "CCC"
+ },
+ "DOGE-USD": {
+  "displayName": null,
+  "shortName": "Dogecoin USD",
+  "longName": "Dogecoin USD",
+  "quoteType": "CRYPTOCURRENCY",
+  "website": "http://dogecoin.com/",
+  "sector": null,
+  "industry": null,
+  "exchange": "CCC"
+ },
+ "XRP-USD": {
+  "displayName": null,
+  "shortName": "XRP USD",
+  "longName": "XRP USD",
+  "quoteType": "CRYPTOCURRENCY",
+  "website": "https://xrpl.org/",
+  "sector": null,
+  "industry": null,
+  "exchange": "CCC"
+ }
+}

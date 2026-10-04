@@ -1,0 +1,216 @@
+{
+ "hits": [
+  {
+   "_tags": [
+    "story",
+    "author_Bender",
+    "story_49954823"
+   ],
+   "author": "Bender",
+   "children": [
+    49956809
+   ],
+   "created_at": "2026-10-04T15:36:54Z",
+   "created_at_i": 1791128214,
+   "num_comments": 1,
+   "objectID": "49954823",
+   "points": 7,
+   "story_id": 49954823,
+   "title": "Californian accused of shipping $300M worth of Nvidia chips to China",
+   "updated_at": "2026-10-04T20:33:11Z",
+   "url": "https://www.theregister.com/security/2026/10/02/californian-accused-of-shipping-300m-worth-of-nvidia-chips-to-china-without-uncle-sams-approval/5300856"
+  },
+  {
+   "_tags": [
+    "story",
+    "author_teleforce",
+    "story_49953950"
+   ],
+   "author": "teleforce",
+   "created_at": "2026-10-04T13:51:52Z",
+   "created_at_i": 1791121912,
+   "num_comments": 0,
+   "objectID": "49953950",
+   "points": 2,
+   "story_id": 49953950,
+   "title": "Nvidia DGX Spark 64GB Launched and Big 128GB GB10 Price Increases",
+   "updated_at": "2026-10-04T19:57:40Z",
+   "url": "https://www.servethehome.com/nvidia-dgx-spark-64gb-launched-and-big-128gb-gb10-price-increases/"
+  },
+  {
+   "_tags": [
+    "story",
+    "author_kristianp",
+    "story_49951093"
+   ],
+   "author": "kristianp",
+   "created_at": "2026-10-04T06:01:41Z",
+   "created_at_i": 1791093701,
+   "num_comments": 0,
+   "objectID": "49951093",
+   "points": 2,
+   "story_id": 49951093,
+   "title": "Nvidia Introduces 64GB DGX Spark",
+   "updated_at": "2026-10-04T18:50:25Z",
+   "url": "https://www.tomshardware.com/pc-components/gpus/nvidia-introduces-64gb-dgx-spark-to-throw-local-ai-fans-a-lifeline-amid-the-rampocalypse-new-gb10-config-starts-at-usd4999-for-those-who-can-work-with-less"
+  },
+  {
+   "_tags": [
+    "story",
+    "author_littlexsparkee",
+    "story_49937995"
+   ],
+   "author": "littlexsparkee",
+   "children": [
+    49938539,
+    49938336,
+    49939516,
+    49938552
+   ],
+   "created_at": "2026-10-02T20:07:39Z",
+   "created_at_i": 1790971659,
+   "num_comments": 8,
+   "objectID": "49937995",
+   "points": 16,
+   "story_id": 49937995,
+   "title": "CA tech executive arrested for allegedly smuggling $300M in Nvidia chips to CN",
+   "updated_at": "2026-10-04T20:52:26Z",
+   "url": "https://qz.com/greg-lui-earthmade-nvidia-ai-chips-smuggling-china-100226"
+  },
+  {
+   "_tags": [
+    "story",
+    "author_theanonymousone",
+    "story_49936136"
+   ],
+   "author": "theanonymousone",
+   "created_at": "2026-10-02T17:26:48Z",
+   "created_at_i": 1790962008,
+   "num_comments": 0,
+   "objectID": "49936136",
+   "points": 4,
+   "story_id": 49936136,
+   "title": "Nvidia introduces 64GB DGX Spark to throw local AI fans a lifeline",
+   "updated_at": "2026-10-02T19:24:05Z",
+   "url": "https://www.tomshardware.com/pc-components/gpus/nvidia-introduces-64gb-dgx-spark-to-throw-local-ai-fans-a-lifeline-amid-the-rampocalypse-new-gb10-config-starts-at-usd4999-for-those-who-can-work-with-less"
+  },
+  {
+   "_tags": [
+    "story",
+    "author_rbanffy",
+    "story_49934493"
+   ],
+   "author": "rbanffy",
+   "created_at": "2026-10-02T15:18:49Z",
+   "created_at_i": 1790954329,
+   "num_comments": 0,
+   "objectID": "49934493",
+   "points": 2,
+   "story_id": 49934493,
+   "title": "The 7-year-old Nvidia Shield TV is now $100 more expensive thanks to AI",
+   "updated_at": "2026-10-02T16:40:37Z",
+   "url": "https://arstechnica.com/gadgets/2026/10/the-7-year-old-nvidia-shield-tv-is-now-100-more-expensive-thanks-to-ai/"
+  },
+  {
+   "_tags": [
+    "story",
+    "author_wslh",
+    "story_49933958"
+   ],
+   "author": "wslh",
+   "children": [
+    49934276,
+    49934286,
+    49934265,
+    49934288,
+    49934206,
+    49934655,
+    49934329,
+    49934227,
+    49934563,
+    49934641,
+    49934463,
+    49934132,
+    49934959,
+    49934190,
+    49934359,
+    49934424,
+    49934935,
+    49934331,
+    49934341,
+    49935073
+   ],
+   "created_at": "2026-10-02T14:30:32Z",
+   "created_at_i": 1790951432,
+   "num_comments": 92,
+   "objectID": "49933958",
+   "points": 80,
+   "story_id": 49933958,
+   "title": "Amazon seeks to offload $8B of Nvidia chips to investors",
+   "updated_at": "2026-10-04T20:38:10Z",
+   "url": "https://www.reuters.com/business/retail-consumer/amazon-seeks-offload-8-billion-nvidia-chips-investors-ft-reports-2026-10-02/"
+  },
+  {
+   "_tags": [
+    "story",
+    "author_saltytechsailor",
+    "story_49933590"
+   ],
+   "author": "saltytechsailor",
+   "children": [
+    49933591
+   ],
+   "created_at": "2026-10-02T13:57:06Z",
+   "created_at_i": 1790949426,
+   "num_comments": 0,
+   "objectID": "49933590",
+   "points": 1,
+   "story_id": 49933590,
+   "title": "Setup Diffusers for Stable Diffusion XL Using a Nvidia Pascal GPU in Linux",
+   "updated_at": "2026-10-02T13:59:49Z",
+   "url": "https://zansf-personal-blog.statichost.page/how-to-setup-diffusers-for-stable-diffusion-xl-using-a-nvidia-pascal-gpu-in-linux-ubuntu-or-debian-based.html"
+  },
+  {
+   "_tags": [
+    "story",
+    "author_gmays",
+    "story_49933338"
+   ],
+   "author": "gmays",
+   "created_at": "2026-10-02T13:31:51Z",
+   "created_at_i": 1790947911,
+   "num_comments": 0,
+   "objectID": "49933338",
+   "points": 2,
+   "story_id": 49933338,
+   "title": "Nvidia/OpenShell: Safe, private runtime for autonomous AI agents",
+   "updated_at": "2026-10-02T13:54:19Z",
+   "url": "https://github.com/NVIDIA/OpenShell"
+  },
+  {
+   "_tags": [
+    "story",
+    "author_6thbit",
+    "story_49933234"
+   ],
+   "author": "6thbit",
+   "children": [
+    49935017
+   ],
+   "created_at": "2026-10-02T13:18:28Z",
+   "created_at_i": 1790947108,
+   "num_comments": 1,
+   "objectID": "49933234",
+   "points": 6,
+   "story_id": 49933234,
+   "title": "Nvidia DGX Spark 64GB Gives Developers More Ways to Build and Scale Local AI",
+   "updated_at": "2026-10-02T21:18:04Z",
+   "url": "https://blogs.nvidia.com/blog/local-ai-dgx-spark-64gb-sync/"
+  }
+ ],
+ "nbHits": 70,
+ "page": 0,
+ "hitsPerPage": 10,
+ "query": "Nvidia",
+ "params": "query=Nvidia&typoTolerance=false&queryType=prefixNone&advancedSyntax=true&numericFilters=created_at_i%3E1789943393&tags=story&restrictSearchableAttributes=title&hitsPerPage=10&analyticsTags=backend"
+}

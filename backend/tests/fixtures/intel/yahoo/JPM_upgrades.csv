@@ -1,0 +1,81 @@
+GradeDate,Firm,ToGrade,FromGrade,Action,priceTargetAction,currentPriceTarget,priorPriceTarget
+2026-09-28 13:56:12,HSBC,Hold,Hold,main,Raises,377.0,369.0
+2026-08-14 14:37:22,Wells Fargo,Overweight,Overweight,main,Raises,390.0,375.0
+2026-08-03 20:52:27,UBS,Buy,Buy,main,Raises,400.0,384.0
+2026-07-20 18:59:47,Citigroup,Neutral,Neutral,main,Raises,360.0,325.0
+2026-07-17 13:41:34,Evercore ISI Group,Outperform,Outperform,main,Raises,368.0,360.0
+2026-07-16 17:53:34,B of A Securities,Buy,Buy,main,Raises,420.0,408.0
+2026-07-15 17:34:51,Baird,Neutral,Neutral,main,Raises,305.0,295.0
+2026-07-15 15:48:14,RBC Capital,Outperform,Outperform,main,Raises,370.0,330.0
+2026-07-15 13:14:18,Wells Fargo,Overweight,Overweight,main,Raises,375.0,360.0
+2026-07-15 12:49:41,Truist Securities,Hold,Hold,main,Raises,352.0,344.0
+2026-07-15 12:24:27,Barclays,Overweight,Overweight,main,Raises,420.0,391.0
+2026-07-15 12:20:41,"Keefe, Bruyette & Woods",Outperform,Outperform,main,Raises,384.0,370.0
+2026-07-07 14:29:41,B of A Securities,Buy,Buy,main,Raises,408.0,362.0
+2026-07-07 13:29:20,UBS,Buy,Buy,main,Raises,384.0,375.0
+2026-07-06 16:29:31,Evercore ISI Group,Outperform,Outperform,main,Raises,360.0,340.0
+2026-07-06 11:17:41,Wells Fargo,Overweight,Overweight,main,Raises,360.0,350.0
+2026-06-29 17:27:02,Morgan Stanley,Equal-Weight,Equal-Weight,main,Raises,362.0,336.0
+2026-06-26 16:15:35,Truist Securities,Hold,Hold,main,Raises,344.0,332.0
+2026-04-17 12:30:19,Evercore ISI Group,Outperform,Outperform,main,Raises,340.0,320.0
+2026-04-15 17:04:17,Jefferies,Hold,Hold,main,Raises,320.0,310.0
+2026-04-15 14:22:32,Truist Securities,Hold,Hold,main,Raises,332.0,323.0
+2026-04-14 17:08:19,Piper Sandler,Overweight,Overweight,main,Raises,345.0,325.0
+2026-04-06 17:33:31,Evercore ISI Group,Outperform,Outperform,main,Lowers,320.0,350.0
+2026-03-30 17:49:29,Piper Sandler,Overweight,Overweight,reit,Lowers,325.0,345.0
+2026-03-26 17:17:34,Truist Securities,Hold,Hold,main,Lowers,323.0,330.0
+2026-03-26 12:53:41,Jefferies,Hold,,init,Announces,310.0,0.0
+2026-02-25 18:19:51,Truist Securities,Hold,Hold,main,Lowers,330.0,334.0
+2026-02-17 14:15:44,Wells Fargo,Overweight,Overweight,main,Lowers,350.0,360.0
+2026-01-22 10:20:56,Freedom Broker,Hold,Hold,main,Raises,320.0,310.0
+2026-01-14 13:02:10,CICC,Outperform,,init,Announces,355.0,0.0
+2026-01-06 15:03:11,Truist Securities,Hold,Hold,main,Raises,331.0,330.0
+2026-01-05 14:46:17,Barclays,Overweight,Overweight,main,Raises,391.0,342.0
+2025-12-18 14:29:56,Truist Securities,Hold,Hold,main,Raises,330.0,319.0
+2025-12-17 18:05:25,"Keefe, Bruyette & Woods",Outperform,Outperform,main,Raises,363.0,354.0
+2025-11-03 14:08:49,Wells Fargo,Overweight,Overweight,main,Raises,350.0,345.0
+2025-10-23 20:25:21,Freedom Broker,Hold,Hold,main,Raises,310.0,295.0
+2025-10-15 14:45:33,Barclays,Overweight,Overweight,main,Raises,342.0,330.0
+2025-10-15 13:04:40,Morgan Stanley,Equal-Weight,Equal-Weight,main,Raises,338.0,336.0
+2025-10-07 16:36:17,UBS,Buy,Buy,main,Raises,350.0,339.0
+2025-09-30 17:20:41,Evercore ISI Group,Outperform,Outperform,main,Raises,330.0,309.0
+2025-09-29 17:31:14,Morgan Stanley,Equal-Weight,Equal-Weight,main,Raises,336.0,298.0
+2025-09-24 17:21:52,Truist Securities,Hold,Hold,main,Raises,319.0,290.0
+2025-09-24 14:08:12,Citigroup,Neutral,Neutral,main,Raises,325.0,275.0
+2025-09-16 13:17:44,Wells Fargo,Overweight,Overweight,main,Raises,345.0,325.0
+2025-07-16 16:08:58,Wells Fargo,Overweight,Overweight,main,Raises,325.0,320.0
+2025-07-16 12:06:47,Morgan Stanley,Equal-Weight,Equal-Weight,main,Raises,298.0,296.0
+2025-07-16 12:02:38,"Keefe, Bruyette & Woods",Outperform,Outperform,main,Raises,330.0,327.0
+2025-07-16 11:17:36,B of A Securities,Buy,Buy,main,Raises,340.0,330.0
+2025-07-15 15:47:21,Piper Sandler,Overweight,Overweight,main,Raises,320.0,295.0
+2025-07-09 14:25:53,Truist Securities,Hold,Hold,main,Raises,290.0,280.0
+2025-07-03 16:14:55,Morgan Stanley,Equal-Weight,Equal-Weight,main,Raises,296.0,240.0
+2025-07-02 15:59:31,Evercore ISI Group,Outperform,Outperform,main,Raises,298.0,280.0
+2025-06-26 13:40:17,Citigroup,Neutral,Neutral,main,Raises,275.0,250.0
+2025-06-23 17:55:46,Morgan Stanley,Equal-Weight,Equal-Weight,main,Raises,240.0,236.0
+2025-06-18 14:10:19,B of A Securities,Buy,Buy,main,Raises,325.0,300.0
+2025-06-10 13:34:59,Wells Fargo,Overweight,Overweight,main,Raises,320.0,300.0
+2025-06-02 13:24:52,Truist Securities,Hold,Hold,main,Raises,280.0,270.0
+2025-05-23 12:53:26,Truist Securities,Hold,Hold,main,Raises,270.0,251.0
+2025-05-20 14:48:48,TD Securities,Buy,Buy,main,Raises,315.0,305.0
+2025-05-20 14:31:15,Piper Sandler,Overweight,Overweight,main,Raises,295.0,260.0
+2025-05-20 14:04:14,RBC Capital,Outperform,Outperform,main,Raises,285.0,255.0
+2025-05-20 13:18:37,Morgan Stanley,Equal-Weight,Equal-Weight,main,Raises,236.0,235.0
+2025-05-20 12:58:32,Baird,Neutral,Neutral,main,Raises,235.0,220.0
+2025-04-17 17:18:34,UBS,Buy,Buy,main,Raises,305.0,277.0
+2025-04-14 12:33:32,Truist Securities,Hold,Hold,main,Lowers,251.0,264.0
+2025-04-04 14:24:44,Truist Securities,Hold,Hold,main,Lowers,264.0,268.0
+2025-04-02 12:30:14,B of A Securities,Buy,Buy,main,Lowers,284.0,285.0
+2025-04-01 14:35:56,Evercore ISI Group,Outperform,Outperform,main,Lowers,265.0,273.0
+2025-01-16 20:25:21,UBS,Buy,Buy,main,Raises,287.0,276.0
+2025-01-16 17:59:28,Barclays,Overweight,Overweight,main,Raises,330.0,304.0
+2025-01-16 16:30:37,"Keefe, Bruyette & Woods",Market Perform,Market Perform,main,Raises,264.0,257.0
+2025-01-16 14:46:50,Truist Securities,Hold,Hold,main,Raises,268.0,260.0
+2025-01-07 17:46:53,B of A Securities,Buy,Buy,main,Raises,280.0,260.0
+2025-01-07 12:12:58,Truist Securities,Hold,,init,Announces,260.0,0.0
+2025-01-06 18:11:13,Barclays,Overweight,Overweight,main,Raises,304.0,257.0
+2024-12-03 16:13:59,Piper Sandler,Overweight,Overweight,main,Raises,275.0,240.0
+2024-12-03 12:40:18,"Keefe, Bruyette & Woods",Market Perform,Market Perform,main,Raises,254.0,216.0
+2024-11-20 14:35:42,Oppenheimer,Perform,Outperform,down,,0.0,0.0
+2024-11-19 16:45:14,Citigroup,Neutral,Neutral,main,Raises,250.0,215.0
+2024-11-15 12:51:27,Wells Fargo,Overweight,Overweight,main,Raises,270.0,240.0

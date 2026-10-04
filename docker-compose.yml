@@ -1,0 +1,19 @@
+# SentiNET: `docker compose up -d --build`, then open http://localhost:8000
+# Optional settings/keys: copy backend/.env.example to backend/.env (picked up if present).
+services:
+  sentinet:
+    build: .
+    image: sentinet:latest
+    ports:
+      - "${SENTINET_PORT:-8000}:8000"
+    env_file:
+      - path: backend/.env
+        required: false
+    environment:
+      DATABASE_PATH: /data/sentinet.db # snapshots, watchlist and alerts survive rebuilds
+    volumes:
+      - sentinet-data:/data
+    restart: unless-stopped
+
+volumes:
+  sentinet-data:

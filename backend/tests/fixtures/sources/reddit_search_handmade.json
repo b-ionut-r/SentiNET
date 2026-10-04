@@ -1,0 +1,58 @@
+{
+ "kind": "Listing",
+ "data": {
+  "after": null,
+  "dist": 3,
+  "children": [
+   {
+    "kind": "t3",
+    "data": {
+     "title": "Example: NVDA earnings play discussion",
+     "selftext": "Synthetic &amp; body text",
+     "permalink": "/r/wallstreetbets/comments/abc123/example/",
+     "url": "https://www.reddit.com/r/wallstreetbets/comments/abc123/example/",
+     "author": "example_user",
+     "subreddit": "wallstreetbets",
+     "created_utc": 1791140000.0,
+     "score": 120,
+     "num_comments": 45,
+     "over_18": false,
+     "stickied": false,
+     "link_flair_text": "Discussion"
+    }
+   },
+   {
+    "kind": "t3",
+    "data": {
+     "title": "Example: Daily discussion thread",
+     "selftext": "",
+     "permalink": "/r/stocks/comments/def456/daily/",
+     "author": "AutoModerator",
+     "subreddit": "stocks",
+     "created_utc": 1791100000.0,
+     "score": 10,
+     "num_comments": 900,
+     "over_18": false,
+     "stickied": true,
+     "link_flair_text": null
+    }
+   },
+   {
+    "kind": "t3",
+    "data": {
+     "title": "Example: NSFW post",
+     "selftext": "",
+     "permalink": "/r/options/comments/ghi789/x/",
+     "author": "x",
+     "subreddit": "options",
+     "created_utc": 1791100000.0,
+     "score": 1,
+     "num_comments": 0,
+     "over_18": true,
+     "stickied": false,
+     "link_flair_text": null
+    }
+   }
+  ]
+ }
+}

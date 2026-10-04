@@ -1,0 +1,878 @@
+"""Market-moving event detection in headlines and posts.
+
+`detect_events(text)` returns `DetectedEvent`s in text order. Analyst actions
+carry the brokerage (`firm`, canonicalized: "BofA Securities" / "Bank of
+America" / "B of A" -> "Bank of America") and the new price target (`value`);
+price moves carry the signed percent move. Direction of a price-target change
+comes from the numbers when both are present ("raises ... to $69 from $72" is
+a cut). Hypothetical/preview phrasing ("Will X Beat Estimates Again?",
+"Poised to Beat", "Could Soar") does not produce earnings/price events.
+
+Patterns were tuned on real Google News / StockTwits phrasing (US, UK and
+Nordic broker notes, MarketBeat/TradingView auto-headlines, law-firm blasts).
+"""
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass
+
+from app.nlp.text import clean_text, fold
+from app.nlp.types import DetectedEvent
+
+EVENT_LABELS: dict[str, str] = {
+    "analyst_upgrade": "Analyst upgrade",
+    "analyst_downgrade": "Analyst downgrade",
+    "analyst_initiate": "Coverage initiated",
+    "analyst_top_pick": "Named top pick",
+    "pt_raise": "Price target raised",
+    "pt_cut": "Price target cut",
+    "earnings_beat": "Earnings beat",
+    "earnings_miss": "Earnings miss",
+    "guidance_raise": "Guidance raised",
+    "guidance_cut": "Guidance cut",
+    "record_results": "Record results",
+    "buyback": "Buyback",
+    "dividend_raise": "Dividend raised",
+    "dividend_cut": "Dividend cut",
+    "layoffs": "Layoffs",
+    "lawsuit": "Lawsuit",
+    "investigation": "Investigation",
+    "settlement": "Settlement",
+    "m_and_a": "M&A",
+    "partnership": "Partnership",
+    "contract_win": "Contract win",
+    "product_launch": "Product launch",
+    "recall": "Recall",
+    "exec_departure": "Executive departure",
+    "exec_hire": "Executive hire",
+    "offering": "Share offering",
+    "bankruptcy": "Bankruptcy risk",
+    "delisting": "Delisting risk",
+    "short_report": "Short-seller report",
+    "insider_buy": "Insider buying",
+    "insider_sell": "Insider selling",
+    "all_time_high": "All-time high",
+    "low_52w": "52-week low",
+    "stock_split": "Stock split",
+    "price_up": "Price jump",
+    "price_down": "Price drop",
+    "regulatory_approval": "Regulatory approval",
+    "regulatory_setback": "Regulatory/trial setback",
+    "index_inclusion": "Index inclusion",
+    "data_breach": "Breach/outage",
+}
+
+EVENT_POLARITY: dict[str, str] = {
+    "analyst_upgrade": "bull", "analyst_downgrade": "bear", "analyst_initiate": "neutral",
+    "analyst_top_pick": "bull", "pt_raise": "bull", "pt_cut": "bear", "earnings_beat": "bull",
+    "earnings_miss": "bear", "guidance_raise": "bull", "guidance_cut": "bear", "record_results": "bull",
+    "buyback": "bull", "dividend_raise": "bull", "dividend_cut": "bear", "layoffs": "bear", "lawsuit": "bear",
+    "investigation": "bear", "settlement": "neutral", "m_and_a": "neutral", "partnership": "bull",
+    "contract_win": "bull", "product_launch": "bull", "recall": "bear", "exec_departure": "bear",
+    "exec_hire": "neutral", "offering": "bear", "bankruptcy": "bear", "delisting": "bear", "short_report": "bear",
+    "insider_buy": "bull", "insider_sell": "bear", "all_time_high": "bull", "low_52w": "bear",
+    "stock_split": "bull", "price_up": "bull", "price_down": "bear", "regulatory_approval": "bull",
+    "regulatory_setback": "bear", "index_inclusion": "bull", "data_breach": "bear",
+}
+
+# Theme implied by each event (see app.nlp.themes.THEMES).
+EVENT_THEMES: dict[str, str] = {
+    "analyst_upgrade": "analyst", "analyst_downgrade": "analyst", "analyst_initiate": "analyst",
+    "analyst_top_pick": "analyst", "pt_raise": "analyst", "pt_cut": "analyst", "earnings_beat": "earnings",
+    "earnings_miss": "earnings", "record_results": "earnings", "guidance_raise": "guidance",
+    "guidance_cut": "guidance", "buyback": "capital_return", "dividend_raise": "capital_return",
+    "dividend_cut": "capital_return", "layoffs": "labor", "lawsuit": "legal", "investigation": "legal",
+    "settlement": "legal", "bankruptcy": "legal", "m_and_a": "deals", "partnership": "deals",
+    "contract_win": "deals", "product_launch": "product", "recall": "product", "exec_departure": "management",
+    "exec_hire": "management", "short_report": "trading", "stock_split": "trading", "index_inclusion": "trading",
+    "insider_buy": "insider", "insider_sell": "insider", "delisting": "regulatory",
+    "regulatory_approval": "regulatory", "regulatory_setback": "regulatory", "data_breach": "legal",
+}
+
+# --------------------------------------------------------------------------- #
+# Brokerages
+# --------------------------------------------------------------------------- #
+# canonical -> aliases. Aliases in _CASED_FIRMS are common words and match only
+# with their exact capitalization ("Benchmark", "Citizens", "Wood").
+_FIRMS: dict[str, tuple[str, ...]] = {
+    "Morgan Stanley": ("Morgan Stanley",),
+    "Goldman Sachs": ("Goldman Sachs", "Goldman"),
+    "JPMorgan": ("JPMorgan Chase & Co.", "JPMorgan Chase", "JPMorgan", "JP Morgan", "J.P. Morgan", "J.P.Morgan"),
+    "Bank of America": ("BofA Securities", "BofA Global Research", "Bank of America Securities", "Bank of America",
+                        "BofA", "B of A Securities", "B of A", "BoA"),
+    "Citi": ("Citigroup", "Citi"),
+    "Wells Fargo": ("Wells Fargo & Company", "Wells Fargo"),
+    "Barclays": ("Barclays",),
+    "UBS": ("UBS",),
+    "Deutsche Bank": ("Deutsche Bank",),
+    "HSBC": ("HSBC",),
+    "Jefferies": ("Jefferies",),
+    "Mizuho": ("Mizuho",),
+    "Nomura": ("Nomura Instinet", "Nomura"),
+    "Macquarie": ("Macquarie",),
+    "RBC Capital Markets": ("RBC Capital Markets", "RBC Capital", "RBC"),
+    "BMO Capital Markets": ("BMO Capital Markets", "BMO Capital", "BMO"),
+    "TD Cowen": ("TD Cowen", "Cowen"),
+    "TD Securities": ("TD Securities",),
+    "Truist": ("Truist Securities", "Truist Financial", "Truist"),
+    "Piper Sandler": ("Piper Sandler",),
+    "Raymond James": ("Raymond James Financial", "Raymond James"),
+    "Stifel": ("Stifel Nicolaus", "Stifel"),
+    "Baird": ("Robert W. Baird", "Robert W Baird", "Baird"),
+    "KeyBanc": ("KeyBanc Capital Markets", "KeyBanc"),
+    "Wedbush": ("Wedbush Securities", "Wedbush"),
+    "Oppenheimer": ("Oppenheimer",),
+    "Needham": ("Needham & Company", "Needham"),
+    "Bernstein": ("Sanford C. Bernstein", "AllianceBernstein", "Bernstein SocGen", "Bernstein"),
+    "Evercore ISI": ("Evercore ISI", "Evercore"),
+    "Guggenheim": ("Guggenheim Securities", "Guggenheim"),
+    "Loop Capital": ("Loop Capital",),
+    "Rosenblatt": ("Rosenblatt Securities", "Rosenblatt"),
+    "Cantor Fitzgerald": ("Cantor Fitzgerald", "Cantor"),
+    "B. Riley": ("B. Riley Securities", "B. Riley", "B.Riley", "B Riley"),
+    "BTIG": ("BTIG Research", "BTIG"),
+    "D.A. Davidson": ("D.A. Davidson", "DA Davidson"),
+    "Canaccord Genuity": ("Canaccord Genuity", "Canaccord"),
+    "Citizens JMP": ("Citizens JMP", "JMP Securities"),
+    "Susquehanna": ("Susquehanna",),
+    "Melius Research": ("Melius Research", "Melius"),
+    "Redburn": ("Rothschild & Co Redburn", "Redburn Atlantic", "Redburn"),
+    "Daiwa": ("Daiwa",),
+    "CLSA": ("CLSA",),
+    "Argus": ("Argus Research", "Argus"),
+    "Morningstar": ("Morningstar",),
+    "CFRA": ("CFRA",),
+    "Wolfe Research": ("Wolfe Research",),
+    "Seaport": ("Seaport Research Partners", "Seaport Global", "Seaport"),
+    "William Blair": ("William Blair",),
+    "Stephens": ("Stephens",),
+    "KBW": ("Keefe, Bruyette & Woods", "Keefe Bruyette", "KBW"),
+    "Telsey Advisory": ("Telsey Advisory Group", "Telsey Advisory", "Telsey"),
+    "BNP Paribas": ("BNP Paribas Exane", "BNP Paribas", "BNP", "Exane"),
+    "Societe Generale": ("Societe Generale", "SocGen"),
+    "Berenberg": ("Berenberg",),
+    "Kepler Cheuvreux": ("Kepler Cheuvreux", "Kepler"),
+    "Scotiabank": ("Scotiabank",),
+    "CIBC": ("CIBC",),
+    "National Bank": ("National Bank Financial",),
+    "Desjardins": ("Desjardins",),
+    "ATB Capital": ("ATB Capital Markets", "ATB"),
+    "H.C. Wainwright": ("HC Wainwright & Co.", "H.C. Wainwright", "HC Wainwright"),
+    "Roth": ("Roth Capital", "Roth MKM", "Roth"),
+    "Craig-Hallum": ("Craig-Hallum",),
+    "Lake Street": ("Lake Street Capital", "Lake Street"),
+    "Northland": ("Northland Securities", "Northland"),
+    "Ladenburg Thalmann": ("Ladenburg Thalmann", "Ladenburg"),
+    "Maxim Group": ("Maxim Group",),
+    "Benchmark": ("Benchmark",),
+    "Chardan": ("Chardan",),
+    "Leerink Partners": ("Leerink Partners", "SVB Leerink", "Leerink"),
+    "Janney": ("Janney Montgomery Scott", "Janney"),
+    "Compass Point": ("Compass Point",),
+    "Freedom Broker": ("Freedom Capital Markets", "Freedom Capital", "Freedom Broker"),
+    "Zacks": ("Zacks Investment Research", "Zacks Research", "Zacks"),
+    "Wall Street Zen": ("Wall Street Zen",),
+    "Weiss Ratings": ("Weiss Ratings",),
+    "Phillip Securities": ("Phillip Securities",),
+    "DBS": ("DBS Bank", "DBS"),
+    "Itau BBA": ("Itau BBA",),
+    "BTG Pactual": ("BTG Pactual",),
+    "Santander": ("Santander",),
+    "Monness Crespi": ("Monness, Crespi, Hardt", "Monness Crespi", "Monness"),
+    "New Street Research": ("New Street Research", "New Street"),
+    "MoffettNathanson": ("MoffettNathanson", "Moffett Nathanson"),
+    "Tigress Financial": ("Tigress Financial", "Tigress"),
+    "Erste Group": ("Erste Group", "Erste"),
+    "DZ Bank": ("DZ Bank",),
+    "Commerzbank": ("Commerzbank",),
+    "Investec": ("Investec",),
+    "Peel Hunt": ("Peel Hunt",),
+    "Panmure Liberum": ("Panmure Liberum", "Panmure Gordon", "Liberum"),
+    "Oddo BHF": ("Oddo BHF", "Oddo"),
+    "Bryan Garnier": ("Bryan Garnier", "Bryan, Garnier"),
+    "Mediobanca": ("Mediobanca",),
+    "Pareto Securities": ("Pareto Securities", "Pareto"),
+    "DNB Carnegie": ("DNB Carnegie", "DNB Markets", "Carnegie"),
+    "SEB": ("SEB",),
+    "Nordea": ("Nordea",),
+    "Handelsbanken": ("Handelsbanken",),
+    "Danske Bank": ("Danske Bank",),
+    "SB1 Markets": ("SpareBank 1 Markets", "SB1 Markets", "SB1"),
+    "ABG Sundal Collier": ("ABG Sundal Collier", "ABG"),
+    "Arctic Securities": ("Arctic Securities",),
+    "Inderes": ("Inderes",),
+    "Swedbank": ("Swedbank",),
+    "Jefferies & Co": (),
+    "StoneX": ("StoneX",),
+    "Jones Trading": ("JonesTrading", "Jones Trading"),
+    "Texas Capital": ("Texas Capital",),
+    "Hovde Group": ("Hovde Group", "Hovde"),
+    "Rodman & Renshaw": ("Rodman & Renshaw",),
+    "D. Boral Capital": ("D. Boral Capital", "D. Boral"),
+    "Barrington Research": ("Barrington Research",),
+    "Huntington": ("Huntington Securities",),
+    "Wood & Company": ("Wood & Company", "Wood & Co", "Wood"),
+    "Kenanga": ("Kenanga",),
+    "Shenwan Hongyuan": ("Shenwan Hongyuan",),
+    "CICC": ("CICC",),
+    "Citic Securities": ("CITIC Securities", "Citic Securities"),
+    "Haitong": ("Haitong",),
+    "MarketsMOJO": ("MarketsMOJO",),
+    "GuruFocus": (),
+    "Emerging Growth Research": ("Emerging Growth Research",),
+    "Redeye": ("Redeye",),
+    "Hightower": (),
+}
+_CASED_FIRMS = frozenset({"Benchmark", "Wood", "Stephens", "Northland", "Roth", "Argus", "Cantor", "Kepler",
+                          "Erste", "Oddo", "Santander", "Seaport", "Hovde", "Chardan", "Monness", "Liberum",
+                          "Carnegie", "Pareto", "Exane", "Tigress", "Redeye", "Inderes", "Zacks", "Morningstar",
+                          "Goldman", "Evercore", "Telsey", "Janney", "Ladenburg", "Leerink", "Melius", "SEB",
+                          "Nordea", "BMO", "ATB", "DBS", "ABG", "SB1", "BNP", "BoA", "Baird", "Needham", "Cowen",
+                          "Truist", "Stifel", "Macquarie", "Nomura", "Daiwa", "Mizuho"})
+
+_FIRM_CANON: dict[str, str] = {}
+for _canon, _aliases in _FIRMS.items():
+    for _alias in _aliases:
+        _FIRM_CANON[_alias.lower()] = _canon
+
+
+def _alias_re(alias: str) -> str:
+    return re.escape(alias).replace(r"\ ", r"\s+")
+
+
+_FIRM_ALIASES = sorted((a for aliases in _FIRMS.values() for a in aliases), key=len, reverse=True)
+_FIRM_RE = re.compile(
+    r"(?<![\w&.])(?:" + "|".join(
+        (f"(?-i:{_alias_re(a)})" if a in _CASED_FIRMS else _alias_re(a)) for a in _FIRM_ALIASES
+    ) + r")(?:'s)?(?![\w&])",
+    re.IGNORECASE,
+)
+_GENERIC_ACTORS = frozenset({"analyst", "analysts", "wall street", "street", "firm", "brokerage", "bank", "research",
+                             "report", "update", "exclusive", "breaking", "watch", "stock", "shares", "the", "this",
+                             "why", "how", "what", "it", "investors", "weekly recap"})
+
+
+def canonical_firm(name: str) -> str:
+    """'BofA Securities' -> 'Bank of America'; unknown names are returned trimmed."""
+    key = re.sub(r"'s$", "", name.strip()).lower()
+    key = re.sub(r"\s+", " ", key)
+    return _FIRM_CANON.get(key, re.sub(r"'s$", "", name.strip()))
+
+
+# --------------------------------------------------------------------------- #
+# Shared vocabulary
+# --------------------------------------------------------------------------- #
+_NUM = r"\d[\d,]*(?:\.\d+)?"
+_CUR_PRE = (r"(?:(?:US|C|CA|A|AU|NZ|HK|S)\$|\$|€|£|¥|₹|Rs\.?\s?|"
+            r"(?:USD|EUR|GBP|GBp|CAD|AUD|CHF|SEK|NOK|DKK|JPY|INR|HKD|CNY|RMB)\s?)")
+_CUR_POST = r"(?:\s?(?:Danish kroner|Norwegian kroner|Swedish kronor|kronor|kroner|euros?|pence|p|USD|EUR|SEK|NOK|DKK))"
+_MONEY = rf"(?:{_CUR_PRE}{_NUM}|{_NUM}{_CUR_POST}|{_NUM})"
+_RATING = (r"(?:strong[- ]buy|buy|outperform|overweight|accumulate|add|positive|sector outperform|market outperform|"
+           r"conviction buy|top pick|equal[- ]weight|equalweight|neutral|hold|market perform|sector perform|"
+           r"peer perform|in-line|in line|mixed|sector weight|market weight|underperform|underweight|sell|"
+           r"strong[- ]sell|reduce|negative|sector underperform|market underperform|speculative buy)")
+_BULL_RATING = re.compile(r"strong[- ]buy|^buy|outperform|overweight|accumulate|^add|positive|top pick|"
+                          r"conviction buy|speculative buy", re.IGNORECASE)
+_BEAR_RATING = re.compile(r"underperform|underweight|sell|reduce|negative", re.IGNORECASE)
+
+# Price-target nouns; a bare "target" counts only in PT-shaped contexts (not "Target", the retailer).
+_PT = (r"(?:(?:12[- ]month\s+|1-year\s+|one-year\s+)?price[- ]targets?|target[- ]prices?|price objectives?|"
+       r"\bPTs?\b|(?:(?<=its )|(?<=their )|(?<=the )|(?<=his )|(?<=her )|(?<=a )|(?<=stock )|(?<=share )|"
+       r"(?<=street )|(?<=analyst )|(?<=analysts' )|(?<=consensus )|(?<=average ))targets?\b|"
+       r"targets?(?=\s+(?:to|from|on|for|of)\b|\s*$|\s*[,.;:-]))")
+_PT_UP = (r"raise[sd]?|raising|lift(?:s|ed|ing)?|boost(?:s|ed|ing)?|hike[sd]?|hiking|up(?:s|ped)|upp(?:ed|ing)|"
+          r"bump(?:s|ed)?(?: up)?|increase[sd]?|increasing|double[sd]?|doubling|triple[sd]?|tripling|"
+          r"nudge[sd]?(?: up)?|ratchet(?:s|ed)? up|lifts?")
+_PT_DOWN = (r"cut[s]?|cutting|lower(?:s|ed|ing)?|trim(?:s|med|ming)?|slash(?:es|ed|ing)?|reduce[sd]?|reducing|"
+            r"halve[sd]?|halving|chop(?:s|ped)?|pare[sd]?|paring|shave[sd]?|ratchet(?:s|ed)? down")
+_PT_NEUTRAL = r"reset[s]?|revamp[s]?|tweak[s]?|adjust(?:s|ed)?|update[sd]?|set[s]?|keep[s]?|kept|maintain(?:s|ed)?|reiterate[sd]?"
+_PASSIVE_UP = r"raised|lifted|boosted|hiked|increased|upped|bumped(?: up)?|doubled|tripled|nudged up"
+_PASSIVE_DOWN = r"cut|lowered|trimmed|slashed|reduced|halved|chopped|pared|shaved"
+# Up to four words between a PT verb and its noun, never crossing another PT verb.
+_GAP = (r"(?:(?!(?:rais|lift|boost|hik|cut|lower|trim|slash|reduc|reiterat|maintain|keep|set|upgrad|downgrad)"
+        r"\w*\b)[\w.&'$-]+\s+){0,4}?")
+
+_PT_ACTIVE_RE = re.compile(rf"\b(?P<verb>{_PT_UP}|{_PT_DOWN}|{_PT_NEUTRAL})\s+(?:its\s+|their\s+|the\s+)?{_GAP}{_PT}",
+                           re.IGNORECASE)
+_PT_PASSIVE_RE = re.compile(rf"{_PT}\s+(?:\w+\s+){{0,2}}?(?P<verb>{_PASSIVE_UP}|{_PASSIVE_DOWN})\b", re.IGNORECASE)
+_PT_NOUN_RE = re.compile(rf"\b(?P<verb>higher|lower|raised|reduced)\s+(?:[\w.&'-]+\s+){{0,2}}?{_PT}"
+                         rf"|(?:price[- ]targets?|targets?)\s+(?P<verb2>hikes?|raises?|increases?|boosts?|cuts?|"
+                         rf"reductions?)\b", re.IGNORECASE)
+
+_HYPOTHETICAL_RE = re.compile(
+    r"(?:\b(?:will|would|could|can|may|might|should|poised to|set to|expected to|likely to|on track to|"
+    r"aims? to|hopes? to|if|whether)\s+(?:[\w().&'-]+\s+){0,3}$)",
+    re.IGNORECASE,
+)
+_UPGRADE_NOISE_RE = re.compile(r"upgrade (?:cycle|supercycle|path|program)|(?:guidance|outlook|forecast|credit|"
+                               r"earnings|estimate|eps) upgrades?|upgrades? (?:to|for) (?:ios|android|windows|"
+                               r"its network|the network|infrastructure|software|firmware|the grid)|network upgrade|"
+                               r"software upgrade|free upgrade|upgrade(?:d|s)? (?:its|their|the) (?:network|fleet|"
+                               r"facilit|plant|systems?|stores?|app)", re.IGNORECASE)
+
+
+@dataclass
+class _Hit:
+    start: int
+    key: str
+    polarity: str
+    firm: str | None = None
+    value: float | None = None
+    span: str | None = None
+
+
+def _num(raw: str) -> float | None:
+    digits = re.search(_NUM, raw)
+    if not digits:
+        return None
+    try:
+        return float(digits.group(0).replace(",", ""))
+    except ValueError:
+        return None
+
+
+# Clause boundaries, ignoring initials and abbreviations ("T. Rowe", "Chase & Co.").
+_CLAUSE_SPLIT_RE = re.compile(r"(?<!\b[A-Z])(?<!\bInc)(?<!\bCo)(?<!\bCorp)(?<!\bLtd)(?<!\bSt)(?<!\bU\.S)\.\s|"
+                              r"[;:!?]\s|\s[-|]\s")
+
+
+def _is_hypothetical(text: str, start: int) -> bool:
+    """Modal/preview phrasing right before the event, or a yes/no question
+    ("Can X spark a rally?")."""
+    clause = _CLAUSE_SPLIT_RE.split(text[max(0, start - 60):start])[-1]
+    if _HYPOTHETICAL_RE.search(clause):
+        return True
+    sentence = _CLAUSE_SPLIT_RE.split(text[:start])[-1]
+    rest = text[start:]
+    end = re.search(r"[.!?]", rest)
+    return (bool(re.match(r"\s*(?:can|could|will|would|should|might|may)\b", sentence, re.IGNORECASE))
+            and end is not None and end.group(0) == "?")
+
+
+def _firm_near(text: str, start: int, end: int, allow_actor: bool = False) -> str | None:
+    """The brokerage acting in [start, end): inside it, just before it (same
+    clause) or right after it ("at/by/from Citi"). With `allow_actor`, an
+    unknown one-word actor opening the clause also counts ("Wood lifts price
+    target") — only safe for price-target phrasing, where the subject of
+    "raises price target" is always the broker."""
+    best: tuple[int, str] | None = None
+    for m in _FIRM_RE.finditer(text):
+        name = m.group(0)
+        if m.start() >= start and m.end() <= end:
+            return canonical_firm(name)
+        if m.end() <= start:
+            gap = text[m.end():start]
+            if len(gap) <= 90 and not re.search(r"[.;!?]\s|\s[-|]\s", gap):
+                dist = start - m.end()
+                if best is None or dist < best[0]:
+                    best = (dist, canonical_firm(name))
+        elif m.start() >= end:
+            gap = text[end:m.start()]
+            if len(gap) <= 50 and re.search(r"\b(?:by|at|from|with|via)\s+(?:\w+\s+){0,1}$", gap, re.IGNORECASE):
+                return canonical_firm(name)
+    if best:
+        return best[1]
+    if not allow_actor:
+        return None
+    m = re.search(r"(?:^|[:;]\s*|\b(?:as|after|amid|following|when|while)\s+)((?:[A-Z][\w.&'-]*\s){1,3})$",
+                  text[:start])
+    if m:
+        actor = m.group(1).strip()
+        brokerish = len(actor.split()) == 1 or re.search(
+            r"\b(?:Securities|Capital|Research|Partners|Markets|Advisors|Equities|Bank|& Co\.?)$", actor)
+        if brokerish and actor.lower() not in _GENERIC_ACTORS:
+            return canonical_firm(actor)
+    return None
+
+
+def _pt_values(text: str, end: int) -> tuple[float | None, float | None]:
+    """(new, old) price target from the text following a PT phrase."""
+    after = text[end:end + 90]
+    to_m = re.search(rf"\bto\s+({_MONEY})", after, re.IGNORECASE)
+    from_m = re.search(rf"\bfrom\s+({_MONEY})", after, re.IGNORECASE)
+    new = _num(to_m.group(1)) if to_m else None
+    old = _num(from_m.group(1)) if from_m else None
+    if to_m and old is None:  # marketscreener style: "to €67 (64)" / "to SEK 120 (115)"
+        paren = re.match(rf"\s*\((?:from\s+)?({_MONEY})\)", after[to_m.end():], re.IGNORECASE)
+        if paren:
+            old = _num(paren.group(1))
+    if new is None:
+        before = text[max(0, end - 40):end]
+        pre = re.search(rf"({_CUR_PRE}{_NUM})\s+(?:[\w.&'-]+\s+){{0,2}}?(?:price\s+)?targets?\s*$", before,
+                        re.IGNORECASE)
+        if pre:
+            new = _num(pre.group(1))
+    return new, old
+
+
+def _rating_after(text: str, pos: int) -> str | None:
+    m = re.search(rf"\b(?:to|at|with(?: an?)?|as)\s+(?:a\s+|an\s+)?['\"]?({_RATING})\b", text[pos:pos + 60],
+                  re.IGNORECASE)
+    return m.group(1).lower() if m else None
+
+
+def _analyst_events(text: str) -> list[_Hit]:
+    hits: list[_Hit] = []
+    # --- price targets ---------------------------------------------------- #
+    for regex in (_PT_ACTIVE_RE, _PT_PASSIVE_RE, _PT_NOUN_RE):
+        for m in regex.finditer(text):
+            if _is_hypothetical(text, m.start()):
+                continue
+            verb = (m.groupdict().get("verb") or m.groupdict().get("verb2") or "").lower()
+            if re.fullmatch(rf"(?:{_PT_UP}|{_PASSIVE_UP}|higher|raised|hikes?|raises?|increases?|boosts?)", verb,
+                            re.IGNORECASE):
+                direction = 1
+            elif re.fullmatch(rf"(?:{_PT_DOWN}|{_PASSIVE_DOWN}|lower|reduced|cuts?|reductions?)", verb,
+                              re.IGNORECASE):
+                direction = -1
+            else:
+                direction = 0
+            new, old = _pt_values(text, m.end())
+            if new is not None and old is not None and new != old:
+                direction = 1 if new > old else -1
+            if direction == 0:
+                continue
+            key = "pt_raise" if direction > 0 else "pt_cut"
+            span_end = min(len(text), m.end() + 40)
+            hits.append(_Hit(m.start(), key, "bull" if direction > 0 else "bear",
+                             firm=_firm_near(text, m.start(), m.end(), allow_actor=True), value=new,
+                             span=text[m.start():span_end].strip()))
+    # --- rating changes ----------------------------------------------------- #
+    rating_patterns = (
+        ("analyst_upgrade", re.compile(r"\b(?:double[- ])?upgrad(?:e[sd]?|ing)\b|\bturns? bullish\b|"
+                                       r"\b(?:raise[sd]?|lift(?:s|ed)?|move[sd]?|bump(?:s|ed)?)\s+(?:\w+\s+){0,3}?"
+                                       r"to\s+(?:strong[- ]buy|buy|outperform|overweight)\b", re.IGNORECASE)),
+        ("analyst_downgrade", re.compile(r"\b(?:double[- ])?downgrad(?:e[sd]?|ing)\b|\bturns? bearish\b|"
+                                         r"\b(?:cut[s]?|lower(?:s|ed)?|move[sd]?)\s+(?:\w+\s+){0,3}?"
+                                         r"to\s+(?:sell|underperform|underweight|strong[- ]sell|reduce)\b",
+                                         re.IGNORECASE)),
+        ("analyst_initiate", re.compile(r"\b(?:initiat(?:es|ed|ing|e)|starts?|started|launch(?:es|ed)|begins?|began|"
+                                        r"resumes?|resumed|assumes?|assumed|picks? up|reinstates?|reinstated)\s+"
+                                        r"(?:\w+\s+){0,2}?coverage\b|\binitiated\s+(?:at|with)\b|"
+                                        r"\binitiates?\s+(?:[\w.&'-]+\s+){1,4}?(?:at|with)\s+(?:an?\s+)?"
+                                        rf"['\"]?{_RATING}\b", re.IGNORECASE)),
+        ("analyst_top_pick", re.compile(r"\b(?:top|best|favou?rite)\s+(?:\w+\s+){0,2}?(?:pick|idea)\b(?!s)|"
+                                        r"\b(?:conviction|focus|top picks?) list\b", re.IGNORECASE)),
+    )
+    for key, regex in rating_patterns:
+        for m in regex.finditer(text):
+            if _is_hypothetical(text, m.start()):
+                continue
+            if key in {"analyst_upgrade", "analyst_downgrade"}:
+                window = text[max(0, m.start() - 60):m.end() + 60]
+                if _UPGRADE_NOISE_RE.search(window):
+                    continue
+                if not re.search(rf"{_RATING}|analyst|rating|stock|shares|\bpt\b|price target|coverage|"
+                                 r"\bto (?:buy|sell|hold)\b", window, re.IGNORECASE) and not _FIRM_RE.search(window):
+                    continue
+            firm = _firm_near(text, m.start(), m.end())
+            if key == "analyst_top_pick" and not (firm or re.search(r"\bnam(?:es|ed)|regains|back as|adds?\b",
+                                                                    text[max(0, m.start() - 50):m.start()],
+                                                                    re.IGNORECASE)):
+                continue
+            polarity = EVENT_POLARITY[key]
+            if key == "analyst_initiate":
+                rating = _rating_after(text, m.start())
+                if rating:
+                    polarity = "bull" if _BULL_RATING.search(rating) else "bear" if _BEAR_RATING.search(rating) \
+                        else "neutral"
+            hits.append(_Hit(m.start(), key, polarity, firm=firm,
+                             span=text[m.start():min(len(text), m.end() + 50)].strip()))
+    # One note usually comes from one broker: share a firm found by any analyst event.
+    known = next((h.firm for h in hits if h.firm), None)
+    for h in hits:
+        h.firm = h.firm or known
+    # Attach a stated target to rating events ("upgrades to Overweight, sets $191 price target").
+    stated = next((h.value for h in hits if h.value is not None), None)
+    if stated is None:
+        m = re.search(rf"({_CUR_PRE}{_NUM})\s+(?:price\s+)?(?:target|PT)\b|(?:price target|target price|PT)\s+"
+                      rf"(?:of\s+|to\s+|at\s+)?({_CUR_PRE}{_NUM})|{_RATING}(?:\s+rating)?\s+(?:at|with)\s+(?:an?\s+)?"
+                      rf"({_CUR_PRE}{_NUM})", text, re.IGNORECASE)
+        if m:
+            stated = _num(m.group(1) or m.group(2) or m.group(3))
+    for h in hits:
+        if h.value is None and h.key in {"analyst_upgrade", "analyst_downgrade", "analyst_initiate"}:
+            h.value = stated
+    return hits
+
+
+# --------------------------------------------------------------------------- #
+# Everything else: (key, pattern, hypothetical-guard)
+# --------------------------------------------------------------------------- #
+_EARN = (r"(?:earnings|eps|profits?|net income|revenues?|sales|results|top[- ]line|bottom[- ]line|quarter|"
+         r"quarterly (?:results|report|numbers)|q[1-4]|(?:first|second|third|fourth)[- ]quarter|fiscal q[1-4]|"
+         r"deliveries|comps|same-store sales|comparable sales|bookings|subscribers|margins?|numbers|report)")
+_EST = (r"(?:estimates?|expectations|forecasts?|consensus|views?|projections?|wall street|the street|"
+        r"(?:earnings|revenue|profit) targets?|analysts'? (?:estimates|expectations|forecasts?))")
+_GUIDE = r"(?:guidance|outlook|forecasts?|projections?|guide|view)"
+_GUIDE_MID = (r"(?:(?:its|their|the|annual|full[- ]year|fy\s?\d*|fiscal(?: year)?(?: \d{4})?|20\d\d|q[1-4]|quarterly|"
+              r"first[- ]half|second[- ]half|h[12]|revenue|sales|profit|earnings|eps|margin|production|delivery|"
+              r"growth|capex|spending|2026|2027)\s+){0,3}")
+_EXEC = (r"(?:ceo|cfo|coo|cto|cio|c\.e\.o\.|chief\s+\w+\s+officer|chief executive|chief financial officer|chairman|chairwoman|"
+         r"chair|president|founder|co-founder|executive|exec|director|svp|evp|vp|general counsel|head of \w+|"
+         r"board member|officer|insider)")
+_MOVE_UP = (r"jump(?:s|ed)?|soar(?:s|ed)?|surg(?:e|es|ed)|rall(?:y|ies|ied)|spik(?:e|es|ed)|skyrocket(?:s|ed)?|"
+            r"rocket(?:s|ed)?|pop(?:s|ped)?|leap(?:s|t|ed)?|climb(?:s|ed)?|gain(?:s|ed)?|ris(?:e|es)|rose|"
+            r"advance[sd]?|rebound(?:s|ed)?|zoom(?:s|ed)?|rip(?:s|ped)?|is up|are up|was up|edges? (?:up|higher)|"
+            r"inch(?:es)? (?:up|higher)|ticks? (?:up|higher)|surging|soaring|rising|climbing|jumping|rallying|"
+            r"gaining|trading higher|trade higher|move higher|moves higher|head higher|heads higher")
+_MOVE_DOWN = (r"fall(?:s)?|fell|drop(?:s|ped)?|sink(?:s)?|sank|slid(?:e|es)?|tumbl(?:e|es|ed)|plung(?:e|es|ed)|"
+              r"plummet(?:s|ed)?|crash(?:es|ed)?|slump(?:s|ed)?|shed(?:s)?|dip(?:s|ped)?|declin(?:e|es|ed)|"
+              r"retreat(?:s|ed)?|slip(?:s|ped)?|tank(?:s|ed)?|lose[s]?|lost|crater(?:s|ed)?|nosedive[sd]?|"
+              r"skid(?:s|ded)?|is down|are down|was down|edges? (?:down|lower)|ticks? (?:down|lower)|"
+              r"falling|dropping|sinking|sliding|tumbling|plunging|slumping|trading lower|trade lower|"
+              r"move lower|moves lower|head lower|heads lower")
+_FUNDAMENTAL = (r"(?:revenue|revenues|sales|profit|profits|earnings|eps|margin|margins|income|deliveries|orders|"
+                r"traffic|comps|yields?|rates?|inflation|prices|price of|unemployment|guidance|outlook|forecast|"
+                r"production|output|demand|volume|bookings|subscribers|users|spending|costs?|debt|cash|losses?|"
+                r"wealth|fortune|net worth|index|market|futures|bitcoin|oil|gold|dollar)")
+
+_PCT_AFTER = (rf"(?:\s+(?:by\s+|nearly\s+|almost\s+|over\s+|more than\s+|as much as\s+|about\s+|roughly\s+|"
+              rf"another\s+)?(?:{_NUM})\s?(?:%|percent\b|pct\b))")
+
+_RULES: tuple[tuple[str, re.Pattern[str], bool], ...] = tuple((k, re.compile(p, re.IGNORECASE), g) for k, p, g in (
+    ("earnings_beat", (
+     rf"\b(?:beat|beats|beating|tops?|topped|topping|exceed(?:s|ed|ing)?|surpass(?:es|ed|ing)?|crush(?:es|ed)?|"
+     rf"smash(?:es|ed)?|trounce[sd]?|outpace[sd]?|outstrip(?:s|ped)?|blows? past|blew past|sails? past|"
+     rf"(?:comes?|came) in above)\s+(?:[\w'$.-]+\s+){{0,4}}?{_EST}\b"
+     rf"|\b(?<!guidance )(?<!outlook )(?<!forecast ){_EARN}\s+(?:and\s+\w+\s+|[\w'$.-]+\s+){{0,3}}?"
+     r"(?:beat|beats|tops?|topped|exceed(?:s|ed)?|surpass(?:es|ed)?|crush(?:es|ed)?)\b(?!\s+(?:the\s+)?market)"
+     rf"|\b(?:{_EARN}|double|top-and-bottom-line)\s+beats?\b|\bbeat[- ]and[- ]raise\b|\bbeats? on (?:\w+\s+){{0,3}}?{_EARN}"
+     rf"|\b(?:better|stronger)[- ]than[- ]expected\s+(?:\w+\s+){{0,2}}?{_EARN}"
+     ), True),
+    ("earnings_miss", (
+     rf"\b(?:miss(?:es|ed)?|missing|falls? short of|fell short of|falling short of|lags?|lagged|trails?|trailed|"
+     rf"undershoot(?:s)?|undershot|(?:comes?|came) in below|disappoint(?:s|ed)?)\s+(?:[\w'$.-]+\s+){{0,4}}?{_EST}\b"
+     rf"|\b{_EARN}\s+(?:[\w'$.-]+\s+){{0,2}}?(?:miss(?:es|ed)?|falls? short|fell short|disappoints?|disappointed)\b"
+     rf"(?!\s+of\s+(?!(?:\w+\s+){{0,2}}?{_EST}))"
+     rf"|\b(?:wider|bigger|larger|deeper)[- ]than[- ]expected\s+(?:\w+\s+){{0,1}}?loss|\bloss\s+(?:widens|wider than)"
+     rf"|\b(?:weaker|worse|softer)[- ]than[- ]expected\s+(?:\w+\s+){{0,2}}?{_EARN}"
+     ), True),
+    ("guidance_raise", (
+     rf"\b(?:raise[sd]?|raising|lift(?:s|ed|ing)?|boost(?:s|ed|ing)?|hike[sd]?|up(?:s|ped)|increase[sd]?|"
+     rf"increasing|improve[sd]?|bump(?:s|ed)? up|ratchets? up)\s+{_GUIDE_MID}{_GUIDE}\b"
+     rf"|\b(?:upbeat|strong|stronger|robust|bullish|rosy|solid|above-consensus|better-than-expected|raised|"
+     rf"upside|blowout|higher|increased|improved|boosted|lifted)\s+(?:[\w-]+\s+){{0,2}}?"
+     rf"(?:guidance|outlook|forecast|guide)\b"
+     rf"|\b(?:guidance|outlook|forecast|guide)\s+(?:\w+\s+){{0,2}}?(?:tops?|beats?|above|exceeds?|ahead of)\s+"
+     rf"(?:\w+\s+){{0,2}}?{_EST}|\bguided? (?:above|ahead of)\b|\bbeat[- ]and[- ]raise\b"
+     ), True),
+    ("guidance_cut", (
+     rf"\b(?:cut[s]?|cutting|lower(?:s|ed|ing)?|slash(?:es|ed|ing)?|trim(?:s|med|ming)?|reduce[sd]?|reducing|"
+     rf"withdraw[sn]?|withdrew|pull(?:s|ed)|suspend(?:s|ed)?|scrap(?:s|ped)?|pare[sd]?|walks? back|"
+     rf"drops?|dropped|abandons?|abandoned|"
+     rf"temper(?:s|ed)?)\s+{_GUIDE_MID}{_GUIDE}\b"
+     rf"|\b(?:weak|weaker|soft|softer|disappointing|downbeat|gloomy|cautious|bleak|dismal|lowered|reduced|tepid|"
+     rf"lackluster|muted|grim)\s+(?:[\w-]+\s+){{0,2}}?(?:guidance|outlook|forecast|guide)\b"
+     rf"|\b(?:guidance|outlook|forecast|guide)\s+(?:\w+\s+){{0,2}}?(?:miss(?:es|ed)?|falls? short|below|"
+     rf"disappoints?|trails?|lags?)\b|\bprofit warning\b|\bwarns? (?:on|of) (?:\w+\s+){{0,2}}?(?:profit|revenue|"
+     rf"sales|earnings|results|demand)\b|\bforecasts? (?:\w+\s+){{0,2}}?(?:revenue|sales|profit|earnings) "
+     rf"(?:drop|decline|fall|slump)"
+     ), True),
+    ("record_results", (
+     r"\brecord (?:(?:quarterly|annual|first[- ]quarter|second[- ]quarter|third[- ]quarter|fourth[- ]quarter|"
+     r"q[1-4]|full[- ]year|fiscal|holiday[- ]quarter|monthly)\s+)*(?:revenues?|sales|profits?|earnings|results|"
+     r"quarter|deliveries|bookings|net income|eps|margins?|cash flow|orders|backlog)\b"
+     r"|\b(?:revenues?|sales|profits?|earnings|deliveries)\s+(?:hits?|reach(?:es)?|at|set)\s+(?:a\s+)?(?:new\s+)?record"
+     ), True),
+    ("buyback", (
+     r"\b(?:buybacks?|buy-backs?|share repurchases?|stock repurchases?|share-repurchase|repurchase (?:program|plan|"
+     r"authori[sz]ation)|repurchasing (?:its )?(?:own )?(?:shares|stock)|buy back (?:\$|up to|its|shares|stock|"
+     r"\d)|bought back)\b"
+     ), False),
+    ("dividend_raise", (
+     r"\b(?:raise[sd]?|raising|hike[sd]?|hiking|boost(?:s|ed|ing)?|increase[sd]?|increasing|lift(?:s|ed)?|"
+     r"up(?:s|ped)|bump(?:s|ed)? up)\s+(?:its\s+|the\s+)?(?:(?:quarterly|annual|monthly|semi-annual|interim|"
+     r"final|cash|common)\s+)*(?:dividend|payout|distribution)s?\b(?!\s+(?:tax|taxes|safety|questions|concerns|"
+     r"withholding|targets?))|\b(?:dividend|payout)\s+(?:hike|increase|raise|boost|bump)\b|\bspecial dividend\b|\binitiates? (?:a |its first )?(?:quarterly )?dividend\b|"
+     r"\bfirst[- ]ever dividend\b"
+     ), True),
+    ("dividend_cut", (
+     r"\b(?:cut[s]?|cutting|slash(?:es|ed|ing)?|suspend(?:s|ed|ing)?|eliminat(?:e|es|ed|ing)|halt(?:s|ed|ing)?|"
+     r"reduce[sd]?|reducing|scrap(?:s|ped)?|omit(?:s|ted)?|pause[sd]?|skips?|skipped)\s+(?:its\s+|the\s+)?"
+     r"(?:(?:quarterly|annual|monthly|interim|final|cash|common)\s+)*(?:dividend|payout|distribution)s?\b|"
+     r"\bdividend (?:cut|suspension|reduction|elimination)s?\b"
+     ), True),
+    ("layoffs", (
+     r"\blayoffs?\b|\blay(?:s|ing)? offs?\b|\blaid off\b|\bjob cuts?\b|\b(?:cut|cuts|cutting|slash(?:es|ing)?|"
+     r"eliminat(?:e|es|ing)|shed(?:s|ding)?|trims?|axe[sd]?|axing)\s+(?:about\s+|nearly\s+|some\s+|over\s+|"
+     r"more than\s+|another\s+)?(?:[\w,]+\s+){0,2}?(?:jobs|positions|roles|workers|employees|staff|headcount)\b|"
+     r"\bworkforce (?:reduction|cuts?)\b|\breduces? (?:its )?workforce\b|\bheadcount reduction\b|"
+     r"\bredundanc(?:y|ies)\b"
+     ), False),
+    ("lawsuit", (
+     r"\b(?:lawsuits?|sue[sd]?|suing|class[- ]actions?|litigation|(?:patent|antitrust|securities|copyright|"
+     r"trademark|wrongful|privacy|consumer|shareholder)\s+(?:suit|case|trial|claims?|complaint|infringement|"
+     r"verdict)|jury (?:verdict|says|orders|finds|awards?)|(?:jury|court|guilty|\$[\d.,]+\s?(?:million|billion|"
+     r"m|bn|b)?) verdict|verdict (?:against|over|in (?:the )?(?:case|trial|lawsuit))|lead plaintiff|plaintiffs?|"
+     r"files? (?:a )?(?:complaint|suit)|injunction|court (?:rules|ruling|orders|blocks)|ruled against|"
+     r"appeals court)\b|(?:\$[\d.,]+\s?(?:million|billion|m|bn|b)?\s+|faces? (?:a )?|filed (?:a )?)suit\b|"
+     r"\bsuit (?:over|against|from|alleging|claiming|filed)\b"
+     ), False),
+    ("investigation", (
+     r"\b(?:investigations?|investigat(?:es|ing|ed)|probes?|probing|probed|subpoena(?:s|ed)?|inquiry|inquiries|"
+     r"raid(?:ed|s)?|wells notice|under (?:federal )?review)\b"
+     ), False),
+    ("settlement", (
+     r"\b(?:settle[sd]?|settles|settling|settlements?)\b(?=.{0,60}\b(?:lawsuit|suit|case|claims?|charges?|probe|"
+     r"sec|ftc|doj|class action|litigation|dispute|allegations|investors|shareholders)\b)|"
+     r"\b(?:lawsuit|suit|case|claims?|charges?|probe|class action|litigation|dispute)\b.{0,40}\bsettle[sd]?\b|"
+     r"\bagree[sd]? to pay \$"
+     ), False),
+    ("m_and_a", (
+     r"\b(?:acquisitions?|mergers?|takeovers?|buyouts?|tender offer|all-(?:cash|stock) deal|go(?:es|ing)? private|"
+     r"take-private|spin-?offs?|spins? off|divest(?:s|ed|iture|itures|ing)?|carve-?out|merge (?:with|into)|"
+     r"merging with|(?:will|agrees? to|agreed to|in talks to|nears? (?:a )?deal to|offers? to|bids? to|plans? to|"
+     r"seeks? to|deal to|moves? to|looks? to|is set to|aims? to) (?:buy|acquire|purchase|merge with|take over)"
+     r"(?! back)|takes? (?:a )?(?:\d+%\s)?stake in|"
+     r"bid for|(?:acquires?|acquired|acquiring|buys|bought|snaps up|scoops up)\s+(?:(?-i:[A-Z])[\w&.'-]*|rival|"
+     r"startup|majority stake|minority stake|unit|division|maker|developer|operator|provider|business|assets))\b"
+     r"|(?<!reason )(?<!reasons )(?<!time )(?<!stock )(?<!stocks )(?<!you )\bto (?:buy|acquire|purchase)\s+"
+     r"(?!(?-i:(?:During|Now|Before|After|In|On|At|For|With|From|And|Or|The|This|These|Today|Ahead|Rating|More|"
+     r"Shares|Stock|Into|Back|Up|It|Them)\b))(?-i:[A-Z])[\w&.'-]+(?:\s+(?-i:[A-Z])[\w&.'-]+){0,3}"
+     r"(?!\s+(?:stock|shares)\b)(?=.*\b(?:deal|billion|million|bn|takeover|acquisition|\$\d))"
+     ), False),
+    ("partnership", (
+     r"\b(?:partner(?:s|ed|ing)? with|partnerships?|teams? up|teamed up|collaborat(?:es|ed|ing|ion)|alliance|"
+     r"joint venture|ties up|tie-up|strategic (?:agreement|investment|deal|pact)|signs? (?:a )?(?:deal|pact|"
+     r"agreement|mou) with|inks? (?:a )?(?:\w+\s+)?(?:deal|pact|agreement)|strikes? (?:a )?(?:\w+\s+)?(?:deal|pact|"
+     r"agreement)|struck (?:a )?deal|(?:supply|licensing|distribution|cloud|chip|ai) (?:deal|pact|agreement) with)\b"
+     ), False),
+    ("contract_win", (
+     r"\b(?:wins?|won|secures?|secured|lands?|landed|awarded|clinch(?:es|ed)?|bags?|bagged|nabs?|gets?|got|"
+     r"receives?|received)\s+(?:an?\s+)?(?:[\w$.,'\"-]+\s+){0,4}?(?:contracts?|orders?|award|tender)\b"
+     r"(?!\s+(?:extension|talks|negotiations|details|decision))"
+     ), False),
+    ("product_launch", (
+     r"\b(?:launch(?:es|ed|ing)?|unveil(?:s|ed|ing)?|introduc(?:es|ed|ing)|rolls? out|rolled out|rolling out|"
+     r"debut(?:s|ed|ing)|releas(?:es|ed) (?:new|its|the|a)|reveal(?:s|ed) (?:new|its)|goes on sale|"
+     r"announces? new|showcases?)\b"
+     ), False),
+    ("recall", (
+     r"\brecall(?:s|ed|ing)?\b"
+     ), False),
+    ("exec_departure", (
+     rf"\b{_EXEC}\s+(?:[\w.'-]+\s+){{0,3}}?(?:steps? down|stepping down|stepped down|resign(?:s|ed|ing)?|to resign|"
+     rf"quits?|exits?|depart(?:s|ed|ing)?|leaves|leaving|to leave|retir(?:e|es|ed|ing)|to retire|ousted|fired|"
+     rf"replaced|to step down|is out|out as)\b|\b(?:resignation|departure|exit|ouster|firing|retirement) of "
+     rf"(?:its |the )?(?:ceo|cfo|coo|chief|chairman|president|founder)"
+     ), False),
+    ("exec_hire", (
+     r"\b(?:appoints?|appointed|names?|named|hires?|hired|taps?|tapped|picks?|poach(?:es|ed)|recruits?|"
+     r"promotes?|elevat(?:es|ed)|selects?)\s+(?:[\w.'-]+\s+){0,5}?(?:as\s+)?(?:new\s+|interim\s+|its\s+)?"
+     r"(?:ceo|cfo|coo|cto|chief\s+\w+\s+officer|chief executive|chairman|president|head of)\b|"
+     r"\b(?:to join|joins?|to lead)\s+(?:[\w.'-]+\s+){0,3}?as\s+(?:its\s+|new\s+)?(?:ceo|cfo|coo|cto|chief|"
+     r"president|head)\b|\bnames? new (?:ceo|cfo|chief)"
+     ), False),
+    ("offering", (
+     r"\b(?:(?:public|secondary|stock|share|equity|common stock|registered direct|follow-on|at-the-market|atm|"
+     r"preferred stock|common share|convertible(?: senior)? notes?|convertible|debt|bond|notes) offering|"
+     r"prices? (?:\$[\d.,]+\s?\w+\s+)?(?:upsized\s+)?(?:offering|placement)|private placement|"
+     r"(?:raises?|raising) \$[\d.,]+\s?(?:million|billion|m|b|bn)\s+(?:in|through|via)\s+(?:a\s+)?(?:\w+\s+)?"
+     r"(?:stock|share|equity|convertible|notes)|convertible notes|dilution|dilutive|share sale|"
+     r"sells? \$[\d.,]+\s?(?:million|billion|m|bn|b) (?:of|in) (?:stock|shares))\b"
+     ), False),
+    ("bankruptcy", (
+     r"\b(?:bankrupt(?:cy|cies)?|chapter (?:11|7|15)|going[- ]concern|insolven(?:t|cy)|receivership|"
+     r"files? for (?:bankruptcy|creditor protection)|creditor protection|restructuring support agreement|"
+     r"default(?:s|ed)? on (?:its )?(?:debt|bonds?|loans?|notes|payments?))\b"
+     ), False),
+    ("delisting", (
+     r"\b(?:delist(?:ing|ed|s)?|(?:nasdaq|nyse) (?:deficiency |non-?compliance |delisting )?notice|"
+     r"non-?compliance with (?:nasdaq|nyse|listing)|minimum bid (?:price )?requirement|regain compliance)\b"
+     ), False),
+    ("short_report", (
+     r"\bshort[- ]sell(?:er|ers|ing)?(?:'s)?\s+(?:\w+\s+)?(?:report|attack|alleg\w+|bet|target|campaign|claims|"
+     r"dispute|warning|accus\w+|raises concerns|spotlights?|questions|scrutiny|targets)\b|\bshort report\b|\b(?:hindenburg|muddy waters|citron|blue orca|spruce point|grizzly|"
+     r"wolfpack|kerrisdale|fuzzy panda|culper|viceroy|gotham city|hunterbrook|glasshouse|iceberg|bleecker street|"
+     r"j capital|scorpion capital|morpheus|night market|jehoshaphat|snowcap|bear cave)(?:\s+(?:research|capital))?"
+     r"\s+(?:report|says|alleges|shorts?|takes?|bets?|targets?|is short|discloses|accuses|publishes)\b|"
+     r"\b(?:report|attack) (?:from|by) (?:hindenburg|muddy waters|citron|blue orca|spruce point|grizzly|wolfpack|"
+     r"kerrisdale|fuzzy panda|culper|viceroy|hunterbrook|glasshouse)"
+     ), False),
+    ("insider_buy", (
+     rf"\b{_EXEC}s?\s+(?:[\w.'-]+\s+){{0,4}}?(?:buys?|bought|purchas(?:es|ed)|acquir(?:es|ed)|adds?|scoops? up|"
+     rf"snaps? up|picks? up|loads? up on)\s+(?:\$[\d.,]+\w*|[\d.,]+\s?(?:million|k|m|thousand)?|more|shares|stock|"
+     rf"stake)|\binsider (?:buying|purchases?|buys?)\b"
+     ), False),
+    ("insider_sell", (
+     rf"\b{_EXEC}s?\s+(?:[\w.'-]+\s+){{0,4}}?(?:sells?|sold|unloads?|dumps?|offloads?|disposes? of|trims?|"
+     rf"cashes? out|proposes? (?:selling|to sell|a share sale))\b|\binsider (?:selling|sales?|sold)\b|"
+     rf"\bproposes? (?:selling|to sell) (?:[\d,]+ )?shares\b|\bform 144\b|\b10b5-1\b"
+     ), False),
+    ("all_time_high", (
+     r"\b(?:hits?|hit|reach(?:es|ed)?|sets?|notch(?:es|ed)?|touch(?:es|ed)?|marks?|soars? to|surges? to|jumps? to|"
+     r"climbs? to|rises? to|rall(?:y|ies) to|closes? at|trades? at|breaks? (?:to|out to)|at|to|new|fresh|first|"
+     r"heads? for|nears?)\s+(?:a\s+|an\s+|its\s+)?(?:new\s+|fresh\s+|first\s+)?(?:all[- ]time|record)\s+highs?\b|"
+     r"\b(?:hits?|reach(?:es|ed)?|sets?|notch(?:es|ed)?|at|first)\s+(?:a\s+)?(?:new\s+|fresh\s+|first\s+)?record\b"
+     r"(?!\s+(?:revenue|sales|profit|quarter|earnings|deliveries|low|loss|levels? of|number|amount))|"
+     r"\brecord highs?\b|\ball[- ]time highs?\b"
+     ), True),
+    ("low_52w", (
+     r"\b52[- ]week lows?\b|\b(?:multi-?year|decade|\d+-year|\d+-month|record|all[- ]time|lowest level in "
+     r"\d+ years?)[- ]lows?\b|\blowest (?:level|close) (?:in|since) (?:\d+|a decade|years)\b"
+     ), True),
+    ("stock_split", (
+     r"\b(?:stock|share) split\b|\b(?:\d+|two|three|four|five|ten|twenty)[- ](?:for|to)[- ](?:\d+|one) "
+     r"(?:stock |share |reverse )?split\b|\breverse split\b|\bsplits? (?:its )?(?:stock|shares)\b"
+     ), True),
+    ("regulatory_approval", (
+     r"\bfda (?:approv(?:es|ed|al)|clears?|cleared|clearance|grants?|nod|green[- ]lights?|accepts?)|"
+     r"\bapprov(?:al|ed) by (?:the )?(?:fda|ema|regulators)|\b(?:wins?|won|gets?|got|receives?|received|secures?|"
+     r"secured)\s+(?:\w+\s+){0,2}?(?:fda|ema|regulatory|antitrust|eu|chmp|ftc|fcc|doj) (?:approval|nod|clearance|"
+     r"green light)|\b(?:ema|chmp) (?:recommends|approves|backs)\b"
+     ), False),
+    ("regulatory_setback", (
+     r"\bcomplete response letter\b|\bfda (?:rejects?|rejected|declines?|declined|refuses?|delays?|delayed|"
+     r"issues? (?:a )?crl)|\b(?:rejected|declined) by (?:the )?fda|\bclinical hold\b|\bfda (?:panel|advisory "
+     r"committee) (?:votes? against|rejects)|\btrial (?:fails?|failed|failure|misses? (?:its )?(?:primary )?"
+     r"endpoint)|\b(?:missed|misses|fails? to meet) (?:the |its )?primary endpoint|\bfails? (?:a |its )?"
+     r"(?:phase \w+ |late-stage |pivotal )?(?:trial|study)\b"
+     ), False),
+    ("index_inclusion", (
+     r"\b(?:join(?:s|ing)?|added to|to join|set to join|inclusion in|enters?|will be added to|to be added to|"
+     r"joins?)\s+(?:the\s+)?(?:s&p 500|s&p 400|s&p 600|s&p midcap 400|s&p smallcap 600|nasdaq[- ]100|"
+     r"dow jones industrial average|dow|russell (?:1000|2000|3000)|ftse 100)\b|\b(?:s&p 500|nasdaq[- ]100) "
+     r"inclusion\b"
+     ), False),
+    ("data_breach", (
+     r"\b(?:data breach|cyber ?attacks?|cybersecurity incident|hacked|hackers|ransomware|security breach|"
+     r"(?:global|massive|major|widespread|nationwide) outage|outage hits|breach of (?:customer|user) data)\b"
+     ), False),
+    ("price_up", (
+     rf"\b(?:stock|shares|share price)\s+(?:\w+\s+){{0,2}}?(?:{_MOVE_UP})\b{_PCT_AFTER}?"
+     rf"|\b(?:{_MOVE_UP}){_PCT_AFTER}"
+     rf"|\b(?:stock|shares)\s+(?:is\s+|are\s+)?(?:{_MOVE_UP}|up|higher)\b(?!\s+(?:on|in|for|than|from)\b)"
+     rf"|\b(?:up|higher){_PCT_AFTER}"
+     ), True),
+    ("price_down", (
+     rf"\b(?:stock|shares|share price)\s+(?:\w+\s+){{0,2}}?(?:{_MOVE_DOWN})\b{_PCT_AFTER}?"
+     rf"|\b(?:{_MOVE_DOWN}){_PCT_AFTER}"
+     rf"|\b(?:stock|shares)\s+(?:is\s+|are\s+)?(?:{_MOVE_DOWN}|down|lower)\b(?!\s+(?:on|in|for|than|from)\b)"
+     rf"|\b(?:down|lower){_PCT_AFTER}"
+     ), True),
+))
+
+# Matches that must be ignored for a given key (checked on the text around the hit).
+_EXCLUDE: dict[str, re.Pattern[str]] = {
+    "earnings_miss": re.compile(r"\b(?:give|giving|gave)\s+(?:\w+\s+){0,3}?a miss\b|\bdon'?t miss\b|\bmiss out\b|"
+                                r"\bnear miss\b|\bhit or miss\b|\bcan'?t miss\b", re.IGNORECASE),
+    "guidance_raise": re.compile(r"\bmoody'?s\b|\bfitch\b|\bs&p global ratings\b|\brating agency\b|"
+                                 r"\boutlook to (?:positive|stable|negative)\b|\b(?:imf|world bank|oecd|ecb|"
+                                 r"central bank|economists?)\b", re.IGNORECASE),
+    "guidance_cut": re.compile(r"\bmoody'?s\b|\bfitch\b|\bs&p global ratings\b|\brating agency\b|"
+                               r"\boutlook to (?:positive|stable|negative)\b|\b(?:imf|world bank|oecd|ecb|"
+                               r"central bank|economists?)\b", re.IGNORECASE),
+    "m_and_a": re.compile(r"\b(?:stock|shares|stake|position|holdings?|\$[a-z]{1,6})\s+(?:\w+\s+){0,2}?(?:acquired|"
+                          r"bought|sold|purchased|cut|raised|lifted|trimmed|boosted|reduced|increased|decreased|"
+                          r"grown)\s+by\b|\b(?:customer|user|talent|data|land) acquisition\b|\bacquisition costs?\b|"
+                          r"\b(?:acquires?|buys|bought|purchases?|purchased|picks? up) (?:\d[\d,.]*%? (?:more )?)?"
+                          r"(?:more )?(?:shares|stock)\b|\b(?:buys|bought|acquires?)\s+(?:UK£|US\$|SEK|[$£€])|"
+                          r"\b(?:upgrades?|upgraded|downgrades?|downgraded|raises?|cuts?|moves?)\b.{0,40}\bto (?:buy|acquire)\b|"
+                          r"\b(?:buys|bought)\s+(?:put|call|puts|calls|options|bitcoin|ether|gold|the dip)\b|\bacquisition (?:corp|corporation|company|"
+                          r"holdings|co)\b|\b(?:tech|ai|hostile) takeover\b", re.IGNORECASE),
+    "offering": re.compile(r"\binitial public offering\b|\bipo\b", re.IGNORECASE),
+    "product_launch": re.compile(r"\b(?:launch(?:es|ed)?|unveil(?:s|ed)?|introduc(?:es|ed)|rolls? out|announces? new)\s+"
+                                 r"(?:an?\s+|its\s+|the\s+)?(?:\$[\d.,]+|(?:[\w$.-]+\s+){0,6}?(?:probe|investigation|inquiry|"
+                                 r"lawsuit|coverage|offering|ipo|buyback|repurchase|tender|bid|review|campaign "
+                                 r"against|attack|strike|missile|plan to cut|layoffs|restructuring|budget|tariffs?|"
+                                 r"dividend|guidance|results|earnings)\b)", re.IGNORECASE),
+    "all_time_high": re.compile(r"\b(?:from|below|off|under|shy of|short of|away from|beneath|since|of)\s+"
+                                r"(?:its|their|the|a)?\s*(?:\w+\s+)?(?:all[- ]time|record)\s+highs?\b|"
+                                r"\bshy of (?:a |its |the )?(?:first |new )?record\b|"
+                                r"\b(?:all[- ]time|record) highs? (?:could|may|might|is (?:next|in sight|within reach))\b|"
+                                r"\bshort interest\b", re.IGNORECASE),
+    "low_52w": re.compile(r"\b(?:from|off|above)\s+(?:its|their|the|a)?\s*(?:\w+\s+)?52[- ]week lows?\b|"
+                          r"\b(?:invested|investment)\b.{0,40}\b52[- ]week low|"
+                          r"low (?:valuation|multiple|p/e|unemployment|rates?)\b", re.IGNORECASE),
+    "lawsuit": re.compile(r"\bfollow(?:s|ed)? suit\b", re.IGNORECASE),
+    "recall": re.compile(r"\b(?:he|she|i|we|they|ceo|who|fans|founder|still|vividly|fondly|executives?)\s+"
+                         r"recall|\brecall(?:s|ed|ing)?\s+(?:how|when|that|the day|his|her|their|being|seeing|"
+                         r"meeting|growing|watching|working|a time|moments?)\b|\brecall (?:election|vote|"
+                         r"petition|campaign)\b|\btotal recall\b", re.IGNORECASE),
+    "investigation": re.compile(r"\b(?:police|homicide|shooting|murder|crash|fire|rape|assault|death)\b",
+                                re.IGNORECASE),
+}
+
+# Words that make a generic price-move verb refer to something else.
+_PRICE_SUBJECT_NOISE = re.compile(rf"\b{_FUNDAMENTAL}\s+(?:\w+\s+)?$", re.IGNORECASE)
+
+
+def _price_value(match_text: str, key: str) -> float | None:
+    pct = re.search(rf"({_NUM})\s?(?:%|percent\b|pct\b)", match_text, re.IGNORECASE)
+    if not pct:
+        return None
+    value = _num(pct.group(1))
+    if value is None:
+        return None
+    return value if key == "price_up" else -value
+
+
+def detect_events(text: str) -> list[DetectedEvent]:
+    """Events in `text`, in order of appearance; at most one per (key, firm)."""
+    if not text:
+        return []
+    t = fold(clean_text(text))
+    hits = _analyst_events(t)
+    for key, regex, guarded in _RULES:
+        exclude = _EXCLUDE.get(key)
+        for m in regex.finditer(t):
+            if guarded and _is_hypothetical(t, m.start()):
+                continue
+            if exclude:
+                window = t[max(0, m.start() - 50):m.end() + 50]
+                local = exclude.search(window)
+                if local and (key not in {"m_and_a", "product_launch", "all_time_high", "low_52w", "offering"}
+                              or (max(0, m.start() - 50) + local.start() <= m.end()
+                                  and max(0, m.start() - 50) + local.end() >= m.start())):
+                    continue
+            if key in {"price_up", "price_down"} and _PRICE_SUBJECT_NOISE.search(t[max(0, m.start() - 30):m.start()]):
+                continue
+            if key == "stock_split" and "?" in t and not re.search(
+                    r"\b(?:announc|approv|implement|effect|carr(?:y|ies) out|sets?|executes?|enacts?)", t, re.IGNORECASE):
+                continue  # "Is a Microsoft Stock Split Coming?" is speculation
+            if key == "all_time_high" and re.search(r"short interest\s+(?:\w+\s+){0,2}$", t[max(0, m.start() - 30):m.start()],
+                                                    re.IGNORECASE):
+                continue
+            if key in {"earnings_beat", "earnings_miss"} and re.search(
+                    r"\b(?:guidance|outlook|forecasts?|guide)\s+$", t[max(0, m.start() - 20):m.start()], re.IGNORECASE):
+                continue
+            polarity = EVENT_POLARITY[key]
+            value = None
+            if key in {"price_up", "price_down"}:
+                value = _price_value(m.group(0), key)
+            elif key == "buyback" and re.search(r"\b(?:suspend|halt|paus|scrap|cancel|end|slash|cut)\w*\s+"
+                                                r"(?:\w+\s+){0,2}$", t[max(0, m.start() - 30):m.start()],
+                                                re.IGNORECASE) or key == "stock_split" and "reverse" in m.group(0).lower():
+                polarity = "bear"
+            hits.append(_Hit(m.start(), key, polarity, value=value, span=m.group(0).strip()))
+
+    # A stock can't both jump and drop in one headline: keep the first move,
+    # unless the second is the one with a stated magnitude.
+    out: list[DetectedEvent] = []
+    seen: set[tuple[str, str | None]] = set()
+    for h in sorted(hits, key=lambda h: (h.start, h.key)):
+        ident = (h.key, h.firm)
+        if ident in seen:
+            continue
+        seen.add(ident)
+        out.append(DetectedEvent(key=h.key, polarity=h.polarity, firm=h.firm, value=h.value,  # type: ignore[arg-type]
+                                 span=(h.span or "")[:120] or None))
+    return _resolve_conflicts(out)
+
+
+def _resolve_conflicts(events: list[DetectedEvent]) -> list[DetectedEvent]:
+    """A headline rarely reports a stock both jumping and dropping; when both
+    fire (e.g. "Stocks slip …, but Nvidia stock is rising"), keep the move
+    with a stated magnitude, else the later one (the subject's own move tends
+    to come after the market context)."""
+    ups = [e for e in events if e.key == "price_up"]
+    downs = [e for e in events if e.key == "price_down"]
+    if not (ups and downs):
+        return events
+    up, down = ups[0], downs[0]
+    if (up.value is None) != (down.value is None):
+        loser = up if up.value is None else down
+    else:
+        loser = up if events.index(up) < events.index(down) else down
+    return [e for e in events if e is not loser]

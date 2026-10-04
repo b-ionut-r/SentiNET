@@ -1,0 +1,168 @@
+"""Public attention: daily English-Wikipedia pageviews of the company's article.
+
+Pageviews are a clean, free proxy for retail curiosity (they spike on earnings
+shocks, scandals and meme rallies before the crowd metrics catch up).
+
+One MediaWiki API request both finds the article (CirrusSearch, restricted to
+pages with a company infobox for equities) and returns up to 60 days of views
+(`prop=pageviews`). For longer windows we additionally try the Wikimedia REST
+pageviews API, which rate-limits shared cloud IPs aggressively — on refusal we
+keep the 60 days we already have. Both hosts require a descriptive User-Agent.
+"""
+from __future__ import annotations
+
+import logging
+import re
+import unicodedata
+from datetime import date, datetime, timedelta, timezone
+from typing import Any
+from urllib.parse import quote
+
+from app.config import settings
+from app.core.cache import cached
+from app.core.http import UpstreamError, fetch_json
+from app.core.ratelimit import HostLimiter
+from app.resolve.names import ascii_fold
+from app.sources.base import CompanyRef
+
+logger = logging.getLogger(__name__)
+
+WIKI_API = "https://en.wikipedia.org/w/api.php"
+REST_URL = ("https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/"
+            "all-access/user/{title}/daily/{start}/{end}")
+ACTION_API_MAX_DAYS = 60
+
+# en.wikipedia.org is not in the shared host table; be polite on our own.
+_limiter = HostLimiter({"en.wikipedia.org": 1.0, "wikimedia.org": 1.0})
+
+_COMPANY_WORDS = re.compile(
+    r"\b(company|corporation|conglomerate|multinational|manufacturer|retailer|chain|bank|"
+    r"airline|brand|holding|firm|maker|provider|developer|operator|producer|platform|"
+    r"insurer|insurance|semiconductor|automaker|pharmaceutical|biotechnology|software|"
+    r"technology|media|restaurant|cruise|railroad|utility|trust|reit|exchange)\b",
+    re.IGNORECASE,
+)
+_FUND_WORDS = re.compile(r"\b(index|fund|etf|exchange-traded|stock market|commodity|bond|metal)\b", re.IGNORECASE)
+_CRYPTO_WORDS = re.compile(r"\b(cryptocurrency|blockchain|token|coin|digital currency)\b", re.IGNORECASE)
+_LEGAL_TAIL = re.compile(r"\b(inc|incorporated|corp|corporation|company|co|ltd|limited|plc|group|holdings?|"
+                         r"n\.?v|s\.?a|ag|se)\b\.?", re.IGNORECASE)
+
+
+def _norm(text: str) -> str:
+    text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii").lower()
+    text = re.sub(r"\(.*?\)", " ", text)
+    text = _LEGAL_TAIL.sub(" ", text)
+    return re.sub(r"[^a-z0-9&]+", " ", text).strip()
+
+
+def search_query(company: CompanyRef) -> str:
+    """CirrusSearch query that lands on the right article for this asset type."""
+    if company.is_crypto:
+        return f"{company.short_name} cryptocurrency"
+    if company.quote_type == "EQUITY":
+        base = " ".join(re.sub(r"[,.]", " ", company.name or company.short_name).split())
+        return f'{base} hastemplate:"Infobox company"'
+    return company.short_name
+
+
+def pick_article(pages: list[dict[str, Any]], company: CompanyRef) -> dict[str, Any] | None:
+    """Pure: choose the article that is really about this company (or None)."""
+    wanted = {_norm(n) for n in [company.name, company.short_name, *company.aliases] if n}
+    wanted.discard("")
+    best: tuple[float, dict[str, Any]] | None = None
+    for page in pages:
+        title = str(page.get("title") or "")
+        desc = str(page.get("description") or "")
+        if not title or "disambiguation" in (title + desc).lower() or re.match(r"(list|history|timeline) of ", title, re.IGNORECASE):
+            continue
+        norm_title = _norm(title)
+        score = 0.0
+        if norm_title in wanted:
+            score += 3.0
+        elif any(norm_title.startswith(w) or w.startswith(norm_title) for w in wanted if w):
+            score += 1.0
+        kind_re = _CRYPTO_WORDS if company.is_crypto else (_COMPANY_WORDS if company.quote_type == "EQUITY" else _FUND_WORDS)
+        if kind_re.search(desc):
+            score += 1.0
+        index = int(page.get("index") or 10)
+        score += max(0.0, (5 - index) * 0.2)
+        if score >= 2.0 and (best is None or score > best[0]):
+            best = (score, page)
+    return best[1] if best else None
+
+
+def views_from_page(page: dict[str, Any]) -> list[tuple[date, float]]:
+    """Pure: MediaWiki `pageviews` map -> [(day, views)] oldest first, gaps dropped."""
+    out: list[tuple[date, float]] = []
+    for day, views in sorted((page.get("pageviews") or {}).items()):
+        if views is None:
+            continue  # not yet computed (today / yesterday)
+        try:
+            out.append((date.fromisoformat(day), float(views)))
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
+def views_from_rest(payload: Any) -> list[tuple[date, float]]:
+    """Pure: Wikimedia REST per-article payload -> [(day, views)]."""
+    out: list[tuple[date, float]] = []
+    for item in (payload or {}).get("items") or []:
+        ts = str(item.get("timestamp") or "")
+        try:
+            out.append((date(int(ts[:4]), int(ts[4:6]), int(ts[6:8])), float(item["views"])))
+        except (KeyError, TypeError, ValueError):
+            continue
+    return sorted(out)
+
+
+def _headers() -> dict[str, str]:
+    # Wikimedia requires a contact-bearing UA (same caveat as SEC: no URL needed).
+    return {"User-Agent": f"SentiNET/2.0 ({settings.contact_email})"}
+
+
+async def _wiki_json(url: str, params: dict[str, Any] | None = None) -> Any:
+    await _limiter(url.split("/")[2])
+    try:
+        return await fetch_json(url, params=params, headers=_headers(), timeout=10.0)
+    except UpstreamError:
+        raise
+    except Exception as exc:
+        status = getattr(getattr(exc, "response", None), "status_code", None)
+        raise UpstreamError(f"Wikipedia HTTP {status or type(exc).__name__}") from exc
+
+
+@cached(ttl=settings.history_cache_ttl, none_ttl=900)
+async def _pageviews(
+    ticker: str, name: str, short_name: str, aliases: tuple[str, ...], quote_type: str, days: int
+) -> list[tuple[date, float]] | None:
+    company = CompanyRef(ticker=ticker, name=name, short_name=short_name, aliases=list(aliases), quote_type=quote_type)
+    query = search_query(company)
+    data = await _wiki_json(WIKI_API, {
+        "action": "query", "format": "json", "formatversion": "2", "redirects": "1",
+        "generator": "search", "gsrsearch": query, "gsrlimit": "5", "gsrnamespace": "0",
+        "prop": "pageviews|description", "pvipdays": str(min(days, ACTION_API_MAX_DAYS)),
+    })
+    pages = ((data or {}).get("query") or {}).get("pages") or []
+    page = pick_article(pages, company)
+    if page is None:
+        return None
+    views = views_from_page(page)
+    if days > ACTION_API_MAX_DAYS:
+        end = datetime.now(timezone.utc).date() - timedelta(days=1)
+        start = end - timedelta(days=days - 1)
+        title = quote(str(page["title"]).replace(" ", "_"), safe="")
+        try:
+            rest = views_from_rest(await _wiki_json(REST_URL.format(title=title, start=f"{start:%Y%m%d}00", end=f"{end:%Y%m%d}00")))
+            if len(rest) > len(views):
+                views = rest
+        except UpstreamError as exc:
+            logger.info("Wikimedia REST pageviews unavailable (%s); using %d days", exc, len(views))
+    return views or None
+
+
+async def get_wiki_pageviews(company: CompanyRef, days: int = 90) -> list[tuple[date, float]] | None:
+    """Daily Wikipedia pageviews (oldest first) for the company's article, or None."""
+    aliases = tuple(dict.fromkeys(a for a in (*company.aliases, ascii_fold(company.short_name)) if a))
+    return await _pageviews(company.ticker, company.name, company.short_name, aliases,
+                            company.quote_type, max(7, min(int(days), 365)))

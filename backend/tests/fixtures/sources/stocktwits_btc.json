@@ -1,0 +1,1156 @@
+{
+ "symbol": {
+  "id": 11418,
+  "symbol": "BTC.X",
+  "symbol_mic": "BTC.X",
+  "symbol_display": "BTC",
+  "exchange": "CRYPTO",
+  "region": "X",
+  "logo_url": "https://logos.stocktwits-cdn.com/BTC.X.webp",
+  "title": "Bitcoin",
+  "aliases": [
+   "BTCUSD"
+  ],
+  "deeplink": "coins/bitcoin",
+  "external_id": "bitcoin",
+  "is_following": false,
+  "watchlist_count": 682851,
+  "has_pricing": true,
+  "instrument_class": "CRYPTO",
+  "live_event": false
+ },
+ "cursor": {
+  "more": true,
+  "since": 665726964,
+  "max": 665726675
+ },
+ "regions": [],
+ "filters": [],
+ "messages": [
+  {
+   "id": 665726964,
+   "body": "$BTC.X $MSTR",
+   "created_at": "2026-10-04T22:29:52Z",
+   "discussion": false,
+   "source": {
+    "id": 1149,
+    "title": "StockTwits for iOS",
+    "url": "http://www.stocktwits.com/mobile"
+   },
+   "reshare_message": {
+    "reshared_count": 1,
+    "reshared_deleted": false,
+    "reshared_user_deleted": false,
+    "parent_reshared_deleted": false,
+    "message": {
+     "id": 665401356,
+     "body": "$BTC.X \n\nIf bitcoin can\u2019t break $86 this EOW the bull runs over \ud83d\udcaf",
+     "tokenized_body": [
+      {
+       "type": "cashTag",
+       "data": {
+        "text": "$BTC",
+        "symbol": "BTC.X",
+        "symbol_display": "BTC",
+        "logo_url": "https://logos.stocktwits-cdn.com/BTC.X.webp",
+        "deeplink": "coins/bitcoin"
+       }
+      },
+      {
+       "type": "text",
+       "data": {
+        "text": " \n\nIf bitcoin can\u2019t break $86 this EOW the bull runs over \ud83d\udcaf"
+       }
+      }
+     ],
+     "created_at": "2026-09-30T04:13:49Z",
+     "discussion": false,
+     "user": {
+      "id": 10669184,
+      "username": "Themadogtrader",
+      "name": "jjv",
+      "avatar_url": "https://avatars.stocktwits.com/production/10669184/thumb-1762900777.png",
+      "avatar_url_ssl": "https://avatars.stocktwits.com/production/10669184/thumb-1762900777.png",
+      "join_date": "2025-11-11",
+      "official": false,
+      "identity": "User",
+      "classification": [],
+      "badges": [],
+      "home_country": "CA",
+      "search_regions": [],
+      "followers": 104,
+      "following": 64,
+      "ideas": 6024,
+      "watchlist_stocks_count": 14,
+      "like_count": 2900,
+      "plus_tier": "",
+      "premium_room": "",
+      "trade_app": false,
+      "trade_status": "PENDING_MFA",
+      "subscribers_count": 11,
+      "subscribed_to_count": 0,
+      "following_stocks": 0,
+      "location": null,
+      "bio": "Themadogtrader group: https://discord.gg/hc7PBdzQev",
+      "website_url": null,
+      "trading_strategy": {
+       "assets_frequently_traded": [],
+       "approach": "Momentum",
+       "approaches": [
+        "Momentum"
+       ],
+       "holding_period": "Day Trader",
+       "holding_periods": [
+        "Day"
+       ],
+       "experience": "Intermediate",
+       "interests": []
+      },
+      "trading_profile": {
+       "industry": [],
+       "trading_experience": [],
+       "approach": [
+        "Momentum"
+       ],
+       "risk_profile": [],
+       "holding_period": [
+        "Day"
+       ],
+       "capitalization_bias": [],
+       "long_short": [],
+       "asset_classes_traded": [],
+       "interests": []
+      }
+     },
+     "source": {
+      "id": 1149,
+      "title": "StockTwits for iOS",
+      "url": "http://www.stocktwits.com/mobile"
+     },
+     "symbols": [
+      {
+       "id": 11418,
+       "symbol": "BTC.X",
+       "symbol_mic": "BTC.X",
+       "symbol_display": "BTC",
+       "exchange": "CRYPTO",
+       "region": "X",
+       "logo_url": "https://logos.stocktwits-cdn.com/BTC.X.webp",
+       "title": "Bitcoin",
+       "aliases": [
+        "BTCUSD"
+       ],
+       "deeplink": "coins/bitcoin",
+       "external_id": "bitcoin",
+       "is_following": false,
+       "watchlist_count": 682851,
+       "has_pricing": true,
+       "instrument_class": "CRYPTO",
+       "live_event": false,
+       "sector": "Miscellaneous",
+       "industry": "InvestmentTrustsOrMutualFunds",
+       "trending": true,
+       "trending_score": 13.0397,
+       "trends": {
+        "all": 1,
+        "region": 1,
+        "exchange": 1,
+        "class_all": 1,
+        "class_equity": null,
+        "summary": "Bitcoins sharp rebound has sparked a debate over whether the move can break out or is a temporary rally. Bulls point to possible short covering and institutional demand, while skeptics warn of rejection and another pullback.",
+        "summary_at": "2026-10-04T22:17:46Z"
+       },
+       "features": {
+        "alerts_price": false,
+        "social_data": true,
+        "trending_messages": true,
+        "earnings": false
+       },
+       "cusip": null,
+       "isin": null,
+       "sentiment_change": 1.99,
+       "volume_change": -0.25,
+       "should_seo_index": true
+      }
+     ],
+     "prices": [
+      {
+       "id": 11418,
+       "symbol": "BTC.X",
+       "symbol_mic": "BTC.X",
+       "price": "83315.00"
+      }
+     ],
+     "conversation": {
+      "parent_message_id": 665401356,
+      "in_reply_to_message_id": null,
+      "parent": true,
+      "replies": 1
+     },
+     "likes": {
+      "total": 3,
+      "user_ids": [
+       11130645,
+       6724287,
+       811974
+      ]
+     },
+     "mentioned_users": [],
+     "entities": {
+      "media": [],
+      "sentiment": {
+       "basic": "Bullish"
+      },
+      "discussable": null
+     }
+    }
+   },
+   "mentioned_users": [],
+   "entities": {
+    "media": [
+     {
+      "id": 14906326,
+      "type": "gif",
+      "thumb": null,
+      "medium": null,
+      "large": null,
+      "original": null,
+      "url": null,
+      "height": 264,
+      "width": 350,
+      "ratio": 1.32576,
+      "provider": "giphy",
+      "provider_id": "V80llXf734WzK"
+     }
+    ],
+    "giphy": {
+     "id": "V80llXf734WzK"
+    },
+    "sentiment": {
+     "basic": "Bullish"
+    },
+    "discussable": null
+   },
+   "user": {
+    "id": 10669184,
+    "username": "Themadogtrader",
+    "name": "jjv",
+    "avatar_url": "https://avatars.stocktwits.com/production/10669184/thumb-1762900777.png",
+    "avatar_url_ssl": "https://avatars.stocktwits.com/production/10669184/thumb-1762900777.png",
+    "join_date": "2025-11-11",
+    "official": false,
+    "identity": "User",
+    "classification": [],
+    "badges": [],
+    "home_country": "CA",
+    "search_regions": [],
+    "followers": 104,
+    "following": 64,
+    "ideas": 6024,
+    "watchlist_stocks_count": 14,
+    "like_count": 2889,
+    "plus_tier": "",
+    "premium_room": "",
+    "trade_app": false,
+    "trade_status": "PENDING_MFA"
+   },
+   "symbols": [
+    {
+     "id": 11418,
+     "symbol": "BTC.X",
+     "symbol_mic": "BTC.X",
+     "symbol_display": "BTC",
+     "exchange": "CRYPTO",
+     "region": "X",
+     "logo_url": "https://logos.stocktwits-cdn.com/BTC.X.webp",
+     "title": "Bitcoin",
+     "aliases": [
+      "BTCUSD"
+     ],
+     "deeplink": "coins/bitcoin",
+     "external_id": "bitcoin",
+     "is_following": false,
+     "watchlist_count": 682851,
+     "has_pricing": true,
+     "instrument_class": "CRYPTO",
+     "live_event": false,
+     "sentiment_change": 1.99,
+     "volume_change": -0.25
+    },
+    {
+     "id": 2744,
+     "symbol": "MSTR",
+     "symbol_mic": "MSTR.XNAS",
+     "symbol_display": "MSTR",
+     "exchange": "NASDAQ",
+     "region": "US",
+     "logo_url": "https://logos.stocktwits-cdn.com/MSTR.png",
+     "title": "Strategy",
+     "aliases": [],
+     "deeplink": "symbol/MSTR",
+     "external_id": null,
+     "is_following": false,
+     "watchlist_count": 83433,
+     "has_pricing": true,
+     "instrument_class": "Stock",
+     "live_event": false,
+     "trade_status": "FRACTIONAL",
+     "sentiment_change": 0.47,
+     "volume_change": 1.94
+    }
+   ]
+  },
+  {
+   "id": 665726924,
+   "body": "$BTC.X $MSTR \n \n$86,837.00 next",
+   "created_at": "2026-10-04T22:28:27Z",
+   "discussion": false,
+   "source": {
+    "id": 2095,
+    "title": "StockTwits For Android ",
+    "url": "http://www.stocktwits.com/mobile"
+   },
+   "mentioned_users": [],
+   "entities": {
+    "media": [
+     {
+      "id": 14906316,
+      "type": "image",
+      "thumb": "https://media.stocktwits-cdn.com/api/3/media/14906316/thumb.webp",
+      "medium": "https://media.stocktwits-cdn.com/api/3/media/14906316/medium.webp",
+      "large": "https://media.stocktwits-cdn.com/api/3/media/14906316/large.webp",
+      "original": "https://media.stocktwits-cdn.com/api/3/media/14906316/original.png",
+      "url": "https://media.stocktwits-cdn.com/api/3/media/14906316/default.webp",
+      "height": 1920,
+      "width": 864,
+      "ratio": 0.45,
+      "provider": null,
+      "provider_id": null
+     }
+    ],
+    "chart": {
+     "id": 14906316,
+     "type": "image",
+     "thumb": "https://media.stocktwits-cdn.com/api/3/media/14906316/thumb.webp",
+     "medium": "https://media.stocktwits-cdn.com/api/3/media/14906316/medium.webp",
+     "large": "https://media.stocktwits-cdn.com/api/3/media/14906316/large.webp",
+     "original": "https://media.stocktwits-cdn.com/api/3/media/14906316/original.png",
+     "url": "https://media.stocktwits-cdn.com/api/3/media/14906316/default.webp",
+     "height": 1920,
+     "width": 864,
+     "ratio": 0.45
+    },
+    "sentiment": {
+     "basic": "Bullish"
+    },
+    "discussable": null
+   },
+   "user": {
+    "id": 5847338,
+    "username": "MAUdey_1",
+    "name": "Maude Frickert",
+    "avatar_url": "https://avatars.stocktwits.com/production/5847338/thumb-1630265571.png",
+    "avatar_url_ssl": "https://avatars.stocktwits.com/production/5847338/thumb-1630265571.png",
+    "join_date": "2021-08-29",
+    "official": false,
+    "identity": "User",
+    "classification": [],
+    "badges": [],
+    "home_country": "US",
+    "search_regions": [],
+    "followers": 111,
+    "following": 52,
+    "ideas": 8224,
+    "watchlist_stocks_count": 258,
+    "like_count": 14813,
+    "plus_tier": "",
+    "premium_room": "",
+    "trade_app": false,
+    "trade_status": "PENDING_MFA"
+   },
+   "symbols": [
+    {
+     "id": 11418,
+     "symbol": "BTC.X",
+     "symbol_mic": "BTC.X",
+     "symbol_display": "BTC",
+     "exchange": "CRYPTO",
+     "region": "X",
+     "logo_url": "https://logos.stocktwits-cdn.com/BTC.X.webp",
+     "title": "Bitcoin",
+     "aliases": [
+      "BTCUSD"
+     ],
+     "deeplink": "coins/bitcoin",
+     "external_id": "bitcoin",
+     "is_following": false,
+     "watchlist_count": 682851,
+     "has_pricing": true,
+     "instrument_class": "CRYPTO",
+     "live_event": false,
+     "sentiment_change": 1.99,
+     "volume_change": -0.25
+    },
+    {
+     "id": 2744,
+     "symbol": "MSTR",
+     "symbol_mic": "MSTR.XNAS",
+     "symbol_display": "MSTR",
+     "exchange": "NASDAQ",
+     "region": "US",
+     "logo_url": "https://logos.stocktwits-cdn.com/MSTR.png",
+     "title": "Strategy",
+     "aliases": [],
+     "deeplink": "symbol/MSTR",
+     "external_id": null,
+     "is_following": false,
+     "watchlist_count": 83433,
+     "has_pricing": true,
+     "instrument_class": "Stock",
+     "live_event": false,
+     "trade_status": "FRACTIONAL",
+     "sentiment_change": 0.47,
+     "volume_change": 1.94
+    }
+   ]
+  },
+  {
+   "id": 665726888,
+   "body": "$BTC.X bears zeroed out, free to catch at will..",
+   "created_at": "2026-10-04T22:26:54Z",
+   "discussion": false,
+   "source": {
+    "id": 1149,
+    "title": "StockTwits for iOS",
+    "url": "http://www.stocktwits.com/mobile"
+   },
+   "reshare_message": {
+    "reshared_count": 3,
+    "reshared_deleted": false,
+    "reshared_user_deleted": false,
+    "parent_reshared_deleted": false,
+    "parent_reshared_url": "/FerrariFr34k/message/665685755",
+    "parent_reshared_message_id": 665685755,
+    "message": {
+     "id": 665685999,
+     "body": "$BTC.X bears chased the equities doom close and will likely get ragdolled and zeroed out this weekend as price comes right back to where they started.\n\nBull market gospel. Fuck em.",
+     "tokenized_body": [
+      {
+       "type": "cashTag",
+       "data": {
+        "text": "$BTC",
+        "symbol": "BTC.X",
+        "symbol_display": "BTC",
+        "logo_url": "https://logos.stocktwits-cdn.com/BTC.X.webp",
+        "deeplink": "coins/bitcoin"
+       }
+      },
+      {
+       "type": "text",
+       "data": {
+        "text": " bears chased the equities doom close and will likely get ragdolled and zeroed out this weekend as price comes right back to where they started.\n\nBull market gospel. Fuck em."
+       }
+      }
+     ],
+     "created_at": "2026-10-03T00:25:33Z",
+     "discussion": false,
+     "user": {
+      "id": 8159801,
+      "username": "Tommojg",
+      "name": "Tom",
+      "avatar_url": "https://avatars.stocktwits.com/production/8159801/thumb-1712006602.png",
+      "avatar_url_ssl": "https://avatars.stocktwits.com/production/8159801/thumb-1712006602.png",
+      "join_date": "2023-08-06",
+      "official": false,
+      "identity": "User",
+      "classification": [],
+      "badges": [],
+      "home_country": "GB",
+      "search_regions": [],
+      "followers": 442,
+      "following": 32,
+      "ideas": 19921,
+      "watchlist_stocks_count": 7,
+      "like_count": 22609,
+      "plus_tier": "",
+      "premium_room": "",
+      "trade_app": false,
+      "trade_status": "PENDING_MFA",
+      "subscribers_count": 36,
+      "subscribed_to_count": 6,
+      "following_stocks": 0,
+      "location": "Lytham, United Kingdom",
+      "bio": null,
+      "website_url": null,
+      "trading_strategy": {
+       "assets_frequently_traded": [],
+       "approach": null,
+       "approaches": [],
+       "holding_period": null,
+       "holding_periods": [],
+       "experience": null,
+       "interests": []
+      },
+      "trading_profile": {
+       "industry": [],
+       "trading_experience": [],
+       "approach": [],
+       "risk_profile": [],
+       "holding_period": [],
+       "capitalization_bias": [],
+       "long_short": [],
+       "asset_classes_traded": [],
+       "interests": []
+      }
+     },
+     "source": {
+      "id": 1149,
+      "title": "StockTwits for iOS",
+      "url": "http://www.stocktwits.com/mobile"
+     },
+     "symbols": [
+      {
+       "id": 11418,
+       "symbol": "BTC.X",
+       "symbol_mic": "BTC.X",
+       "symbol_display": "BTC",
+       "exchange": "CRYPTO",
+       "region": "X",
+       "logo_url": "https://logos.stocktwits-cdn.com/BTC.X.webp",
+       "title": "Bitcoin",
+       "aliases": [
+        "BTCUSD"
+       ],
+       "deeplink": "coins/bitcoin",
+       "external_id": "bitcoin",
+       "is_following": false,
+       "watchlist_count": 682851,
+       "has_pricing": true,
+       "instrument_class": "CRYPTO",
+       "live_event": false,
+       "sector": "Miscellaneous",
+       "industry": "InvestmentTrustsOrMutualFunds",
+       "trending": true,
+       "trending_score": 12.4982,
+       "trends": {
+        "all": 1,
+        "region": 1,
+        "exchange": 1,
+        "class_all": 1,
+        "class_equity": null,
+        "summary": "Bitcoins sharp rebound has sparked a debate over whether the move can break out or is a temporary rally. Bulls point to possible short covering and institutional demand, while skeptics warn of rejection and another pullback.",
+        "summary_at": "2026-10-04T22:17:46Z"
+       },
+       "features": {
+        "alerts_price": false,
+        "social_data": true,
+        "trending_messages": true,
+        "earnings": false
+       },
+       "cusip": null,
+       "isin": null,
+       "sentiment_change": 1.99,
+       "volume_change": -0.25,
+       "should_seo_index": true
+      }
+     ],
+     "prices": [
+      {
+       "id": 11418,
+       "symbol": "BTC.X",
+       "symbol_mic": "BTC.X",
+       "price": "84524.00"
+      }
+     ],
+     "conversation": {
+      "parent_message_id": 665685999,
+      "in_reply_to_message_id": null,
+      "parent": true,
+      "replies": 2
+     },
+     "likes": {
+      "total": 4,
+      "user_ids": [
+       2888853,
+       336383,
+       6581855,
+       119179
+      ]
+     },
+     "mentioned_users": [],
+     "entities": {
+      "media": [],
+      "sentiment": {
+       "basic": "Bullish"
+      },
+      "discussable": null
+     }
+    }
+   },
+   "mentioned_users": [],
+   "entities": {
+    "media": [],
+    "sentiment": {
+     "basic": "Bullish"
+    },
+    "discussable": null
+   },
+   "user": {
+    "id": 8159801,
+    "username": "Tommojg",
+    "name": "Tom",
+    "avatar_url": "https://avatars.stocktwits.com/production/8159801/thumb-1712006602.png",
+    "avatar_url_ssl": "https://avatars.stocktwits.com/production/8159801/thumb-1712006602.png",
+    "join_date": "2023-08-06",
+    "official": false,
+    "identity": "User",
+    "classification": [],
+    "badges": [],
+    "home_country": "GB",
+    "search_regions": [],
+    "followers": 442,
+    "following": 32,
+    "ideas": 19921,
+    "watchlist_stocks_count": 7,
+    "like_count": 22607,
+    "plus_tier": "",
+    "premium_room": "",
+    "trade_app": false,
+    "trade_status": "PENDING_MFA"
+   },
+   "symbols": [
+    {
+     "id": 11418,
+     "symbol": "BTC.X",
+     "symbol_mic": "BTC.X",
+     "symbol_display": "BTC",
+     "exchange": "CRYPTO",
+     "region": "X",
+     "logo_url": "https://logos.stocktwits-cdn.com/BTC.X.webp",
+     "title": "Bitcoin",
+     "aliases": [
+      "BTCUSD"
+     ],
+     "deeplink": "coins/bitcoin",
+     "external_id": "bitcoin",
+     "is_following": false,
+     "watchlist_count": 682851,
+     "has_pricing": true,
+     "instrument_class": "CRYPTO",
+     "live_event": false,
+     "sentiment_change": 1.99,
+     "volume_change": -0.25
+    }
+   ]
+  },
+  {
+   "id": 665726870,
+   "body": "$BTC.X 90k",
+   "created_at": "2026-10-04T22:25:59Z",
+   "discussion": false,
+   "source": {
+    "id": 2095,
+    "title": "StockTwits For Android ",
+    "url": "http://www.stocktwits.com/mobile"
+   },
+   "mentioned_users": [],
+   "entities": {
+    "media": [],
+    "sentiment": {
+     "basic": "Bullish"
+    },
+    "discussable": null
+   },
+   "user": {
+    "id": 227890,
+    "username": "cloudforever",
+    "name": "Good Life",
+    "avatar_url": "https://avatars.stocktwits.com/production/227890/thumb-1382147206.png",
+    "avatar_url_ssl": "https://avatars.stocktwits.com/production/227890/thumb-1382147206.png",
+    "join_date": "2013-04-22",
+    "official": false,
+    "identity": "User",
+    "classification": [
+     "premium"
+    ],
+    "badges": [],
+    "home_country": "US",
+    "search_regions": [],
+    "followers": 568,
+    "following": 36,
+    "ideas": 61642,
+    "watchlist_stocks_count": 28,
+    "like_count": 17945,
+    "plus_tier": "",
+    "premium_room": "",
+    "trade_app": false,
+    "trade_status": "PENDING_MFA"
+   },
+   "likes": {
+    "total": 1,
+    "user_ids": [
+     1872742
+    ]
+   },
+   "symbols": [
+    {
+     "id": 11418,
+     "symbol": "BTC.X",
+     "symbol_mic": "BTC.X",
+     "symbol_display": "BTC",
+     "exchange": "CRYPTO",
+     "region": "X",
+     "logo_url": "https://logos.stocktwits-cdn.com/BTC.X.webp",
+     "title": "Bitcoin",
+     "aliases": [
+      "BTCUSD"
+     ],
+     "deeplink": "coins/bitcoin",
+     "external_id": "bitcoin",
+     "is_following": false,
+     "watchlist_count": 682851,
+     "has_pricing": true,
+     "instrument_class": "CRYPTO",
+     "live_event": false,
+     "sentiment_change": 1.99,
+     "volume_change": -0.25
+    }
+   ]
+  },
+  {
+   "id": 665726867,
+   "body": "$BTC.X overnight pump mean nothing..  If hold by market open then mean something.",
+   "created_at": "2026-10-04T22:25:55Z",
+   "discussion": false,
+   "source": {
+    "id": 2269,
+    "title": "StockTwits Web",
+    "url": "https://stocktwits.com"
+   },
+   "mentioned_users": [],
+   "entities": {
+    "media": [],
+    "sentiment": null,
+    "discussable": null
+   },
+   "user": {
+    "id": 368943,
+    "username": "Etrading",
+    "name": "Etrading",
+    "avatar_url": "https://avatars.stocktwits.com/production/368943/thumb-1729079765.png",
+    "avatar_url_ssl": "https://avatars.stocktwits.com/production/368943/thumb-1729079765.png",
+    "join_date": "2014-06-26",
+    "official": false,
+    "identity": "User",
+    "classification": [
+     "premium",
+     "premium_edge"
+    ],
+    "badges": [],
+    "home_country": "US",
+    "search_regions": [],
+    "followers": 8576,
+    "following": 18,
+    "ideas": 82301,
+    "watchlist_stocks_count": 14,
+    "like_count": 17159,
+    "plus_tier": "",
+    "premium_room": "",
+    "trade_app": false,
+    "trade_status": "PENDING_MFA"
+   },
+   "likes": {
+    "total": 4,
+    "user_ids": [
+     10891374,
+     3533799,
+     4649637,
+     3084291
+    ]
+   },
+   "symbols": [
+    {
+     "id": 11418,
+     "symbol": "BTC.X",
+     "symbol_mic": "BTC.X",
+     "symbol_display": "BTC",
+     "exchange": "CRYPTO",
+     "region": "X",
+     "logo_url": "https://logos.stocktwits-cdn.com/BTC.X.webp",
+     "title": "Bitcoin",
+     "aliases": [
+      "BTCUSD"
+     ],
+     "deeplink": "coins/bitcoin",
+     "external_id": "bitcoin",
+     "is_following": false,
+     "watchlist_count": 682851,
+     "has_pricing": true,
+     "instrument_class": "CRYPTO",
+     "live_event": false,
+     "sentiment_change": 1.99,
+     "volume_change": -0.25
+    }
+   ]
+  },
+  {
+   "id": 665726861,
+   "body": "$BTC.X we close weekly 86500 or above def breaking that 87700 wall to send to 90s \nBe cool we break it tonight",
+   "created_at": "2026-10-04T22:25:41Z",
+   "discussion": false,
+   "source": {
+    "id": 1149,
+    "title": "StockTwits for iOS",
+    "url": "http://www.stocktwits.com/mobile"
+   },
+   "mentioned_users": [],
+   "entities": {
+    "media": [],
+    "sentiment": {
+     "basic": "Bullish"
+    },
+    "discussable": null
+   },
+   "user": {
+    "id": 756459,
+    "username": "Ecafnaem",
+    "name": "James",
+    "avatar_url": "https://avatars.stocktwits.com/production/756459/thumb-1780101466.png",
+    "avatar_url_ssl": "https://avatars.stocktwits.com/production/756459/thumb-1780101466.png",
+    "join_date": "2016-05-19",
+    "official": false,
+    "identity": "User",
+    "classification": [],
+    "badges": [],
+    "home_country": "US",
+    "search_regions": [],
+    "followers": 122,
+    "following": 87,
+    "ideas": 6089,
+    "watchlist_stocks_count": 10,
+    "like_count": 2942,
+    "plus_tier": "",
+    "premium_room": "",
+    "trade_app": false,
+    "trade_status": "PENDING_MFA"
+   },
+   "symbols": [
+    {
+     "id": 11418,
+     "symbol": "BTC.X",
+     "symbol_mic": "BTC.X",
+     "symbol_display": "BTC",
+     "exchange": "CRYPTO",
+     "region": "X",
+     "logo_url": "https://logos.stocktwits-cdn.com/BTC.X.webp",
+     "title": "Bitcoin",
+     "aliases": [
+      "BTCUSD"
+     ],
+     "deeplink": "coins/bitcoin",
+     "external_id": "bitcoin",
+     "is_following": false,
+     "watchlist_count": 682851,
+     "has_pricing": true,
+     "instrument_class": "CRYPTO",
+     "live_event": false,
+     "sentiment_change": 1.99,
+     "volume_change": -0.25
+    }
+   ]
+  },
+  {
+   "id": 665726858,
+   "body": "$BTC.X straight getting it",
+   "created_at": "2026-10-04T22:25:37Z",
+   "discussion": false,
+   "source": {
+    "id": 1149,
+    "title": "StockTwits for iOS",
+    "url": "http://www.stocktwits.com/mobile"
+   },
+   "mentioned_users": [],
+   "entities": {
+    "media": [],
+    "sentiment": null,
+    "discussable": null
+   },
+   "user": {
+    "id": 4551593,
+    "username": "CrypticalEnvelopment",
+    "name": "CrypticalEnvelopment",
+    "avatar_url": "https://avatars.stocktwits.com/production/4551593/thumb-1748614544.png",
+    "avatar_url_ssl": "https://avatars.stocktwits.com/production/4551593/thumb-1748614544.png",
+    "join_date": "2021-01-09",
+    "official": false,
+    "identity": "User",
+    "classification": [],
+    "badges": [],
+    "search_regions": [],
+    "followers": 87,
+    "following": 61,
+    "ideas": 10512,
+    "watchlist_stocks_count": 299,
+    "like_count": 3594,
+    "plus_tier": "",
+    "premium_room": "",
+    "trade_app": false,
+    "trade_status": "PENDING_MFA"
+   },
+   "symbols": [
+    {
+     "id": 11418,
+     "symbol": "BTC.X",
+     "symbol_mic": "BTC.X",
+     "symbol_display": "BTC",
+     "exchange": "CRYPTO",
+     "region": "X",
+     "logo_url": "https://logos.stocktwits-cdn.com/BTC.X.webp",
+     "title": "Bitcoin",
+     "aliases": [
+      "BTCUSD"
+     ],
+     "deeplink": "coins/bitcoin",
+     "external_id": "bitcoin",
+     "is_following": false,
+     "watchlist_count": 682851,
+     "has_pricing": true,
+     "instrument_class": "CRYPTO",
+     "live_event": false,
+     "sentiment_change": 1.99,
+     "volume_change": -0.25
+    }
+   ]
+  },
+  {
+   "id": 665726843,
+   "body": "$BTC.X holy guacamole!",
+   "created_at": "2026-10-04T22:25:17Z",
+   "discussion": false,
+   "source": {
+    "id": 1149,
+    "title": "StockTwits for iOS",
+    "url": "http://www.stocktwits.com/mobile"
+   },
+   "mentioned_users": [],
+   "entities": {
+    "media": [],
+    "sentiment": {
+     "basic": "Bullish"
+    },
+    "discussable": null
+   },
+   "user": {
+    "id": 4371858,
+    "username": "Dpaulson123",
+    "name": "David Paulson",
+    "avatar_url": "https://avatars.stocktwits.com/production/4371858/thumb-1789683447.png",
+    "avatar_url_ssl": "https://avatars.stocktwits.com/production/4371858/thumb-1789683447.png",
+    "join_date": "2020-12-01",
+    "official": false,
+    "identity": "User",
+    "classification": [],
+    "badges": [],
+    "search_regions": [],
+    "followers": 1105,
+    "following": 1091,
+    "ideas": 55038,
+    "watchlist_stocks_count": 71,
+    "like_count": 36516,
+    "plus_tier": "",
+    "premium_room": "",
+    "trade_app": false,
+    "trade_status": "PENDING_MFA"
+   },
+   "likes": {
+    "total": 1,
+    "user_ids": [
+     4462940
+    ]
+   },
+   "symbols": [
+    {
+     "id": 11418,
+     "symbol": "BTC.X",
+     "symbol_mic": "BTC.X",
+     "symbol_display": "BTC",
+     "exchange": "CRYPTO",
+     "region": "X",
+     "logo_url": "https://logos.stocktwits-cdn.com/BTC.X.webp",
+     "title": "Bitcoin",
+     "aliases": [
+      "BTCUSD"
+     ],
+     "deeplink": "coins/bitcoin",
+     "external_id": "bitcoin",
+     "is_following": false,
+     "watchlist_count": 682851,
+     "has_pricing": true,
+     "instrument_class": "CRYPTO",
+     "live_event": false,
+     "sentiment_change": 1.99,
+     "volume_change": -0.25
+    }
+   ]
+  },
+  {
+   "id": 665726835,
+   "body": "$BTC.X \ud83d\ude02 It looks like it may do it tonight. Night night bears",
+   "created_at": "2026-10-04T22:24:55Z",
+   "discussion": false,
+   "source": {
+    "id": 1149,
+    "title": "StockTwits for iOS",
+    "url": "http://www.stocktwits.com/mobile"
+   },
+   "mentioned_users": [],
+   "entities": {
+    "media": [],
+    "sentiment": {
+     "basic": "Bullish"
+    },
+    "discussable": null
+   },
+   "user": {
+    "id": 10350956,
+    "username": "GJ98",
+    "name": "John Devo",
+    "avatar_url": "https://avatars.stocktwits.com/production/10350956/thumb-1761840434.png",
+    "avatar_url_ssl": "https://avatars.stocktwits.com/production/10350956/thumb-1761840434.png",
+    "join_date": "2025-07-29",
+    "official": false,
+    "identity": "User",
+    "classification": [],
+    "badges": [],
+    "home_country": "US",
+    "search_regions": [],
+    "followers": 22,
+    "following": 2,
+    "ideas": 443,
+    "watchlist_stocks_count": 5,
+    "like_count": 74,
+    "plus_tier": "",
+    "premium_room": "",
+    "trade_app": false,
+    "trade_status": "PENDING_MFA"
+   },
+   "symbols": [
+    {
+     "id": 11418,
+     "symbol": "BTC.X",
+     "symbol_mic": "BTC.X",
+     "symbol_display": "BTC",
+     "exchange": "CRYPTO",
+     "region": "X",
+     "logo_url": "https://logos.stocktwits-cdn.com/BTC.X.webp",
+     "title": "Bitcoin",
+     "aliases": [
+      "BTCUSD"
+     ],
+     "deeplink": "coins/bitcoin",
+     "external_id": "bitcoin",
+     "is_following": false,
+     "watchlist_count": 682851,
+     "has_pricing": true,
+     "instrument_class": "CRYPTO",
+     "live_event": false,
+     "sentiment_change": 1.99,
+     "volume_change": -0.25
+    }
+   ]
+  },
+  {
+   "id": 665726834,
+   "body": "$BTC.X \ud83d\udfe7",
+   "created_at": "2026-10-04T22:24:48Z",
+   "discussion": false,
+   "source": {
+    "id": 1149,
+    "title": "StockTwits for iOS",
+    "url": "http://www.stocktwits.com/mobile"
+   },
+   "mentioned_users": [],
+   "entities": {
+    "media": [
+     {
+      "id": 14906289,
+      "type": "gif",
+      "thumb": null,
+      "medium": null,
+      "large": null,
+      "original": null,
+      "url": null,
+      "height": 270,
+      "width": 480,
+      "ratio": 1.77778,
+      "provider": "giphy",
+      "provider_id": "huJmPXfeir5JlpPAx0"
+     }
+    ],
+    "giphy": {
+     "id": "huJmPXfeir5JlpPAx0"
+    },
+    "sentiment": {
+     "basic": "Bullish"
+    },
+    "discussable": null
+   },
+   "user": {
+    "id": 971791,
+    "username": "nermalneek1",
+    "name": "Nic Stalforn",
+    "avatar_url": "https://avatars.stocktwits.com/production/971791/thumb-1586349780.png",
+    "avatar_url_ssl": "https://avatars.stocktwits.com/production/971791/thumb-1586349780.png",
+    "join_date": "2017-02-26",
+    "official": false,
+    "identity": "User",
+    "classification": [],
+    "badges": [],
+    "home_country": "US",
+    "search_regions": [],
+    "followers": 9,
+    "following": 4,
+    "ideas": 408,
+    "watchlist_stocks_count": 82,
+    "like_count": 129,
+    "plus_tier": "",
+    "premium_room": "",
+    "trade_app": false,
+    "trade_status": "PENDING_MFA"
+   },
+   "likes": {
+    "total": 1,
+    "user_ids": [
+     5847338
+    ]
+   },
+   "symbols": [
+    {
+     "id": 11418,
+     "symbol": "BTC.X",
+     "symbol_mic": "BTC.X",
+     "symbol_display": "BTC",
+     "exchange": "CRYPTO",
+     "region": "X",
+     "logo_url": "https://logos.stocktwits-cdn.com/BTC.X.webp",
+     "title": "Bitcoin",
+     "aliases": [
+      "BTCUSD"
+     ],
+     "deeplink": "coins/bitcoin",
+     "external_id": "bitcoin",
+     "is_following": false,
+     "watchlist_count": 682851,
+     "has_pricing": true,
+     "instrument_class": "CRYPTO",
+     "live_event": false,
+     "sentiment_change": 1.99,
+     "volume_change": -0.25
+    }
+   ]
+  }
+ ],
+ "response": {
+  "status": 200
+ }
+}

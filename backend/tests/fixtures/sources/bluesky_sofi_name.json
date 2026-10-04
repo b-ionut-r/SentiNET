@@ -1,0 +1,1202 @@
+{
+ "posts": [
+  {
+   "uri": "at://did:plc:7s4g5qpo6vb6npf7xbhbs37q/app.bsky.feed.post/3mx3f4ndhhk2h",
+   "cid": "bafyreieizdmzmgfz46yf7jdtqrdwret3nrvhdgifhgfqzqstoo5jxavj7u",
+   "author": {
+    "did": "did:plc:7s4g5qpo6vb6npf7xbhbs37q",
+    "handle": "anarchy99.bsky.social",
+    "displayName": "Charlie g\u00fcey",
+    "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:7s4g5qpo6vb6npf7xbhbs37q/bafkreigwdkzeiadmlqprb5rpjb2zjfyutylr5f63g3gawu64fx4wepgi7a",
+    "associated": {
+     "chat": {
+      "allowIncoming": "all"
+     },
+     "activitySubscription": {
+      "allowSubscriptions": "followers"
+     }
+    },
+    "labels": [],
+    "createdAt": "2023-10-15T02:52:38.109Z"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "createdAt": "2026-10-04T21:51:39.886Z",
+    "embed": {
+     "$type": "app.bsky.embed.recordWithMedia",
+     "media": {
+      "$type": "app.bsky.embed.external",
+      "external": {
+       "description": "YouTube video by Alex Perzh (House of Music)",
+       "thumb": {
+        "$type": "blob",
+        "ref": {
+         "$link": "bafkreifvnotvv23v3ijfzxbul5rrssnxrhlcgrcjr4bqwjjj4rgibol2na"
+        },
+        "mimeType": "image/jpeg",
+        "size": 54865
+       },
+       "title": "Sofi Tukker - Feeling Good (music video)",
+       "uri": "https://youtu.be/fQWstynASjw?si=yaZbeP63l7SJIZis"
+      }
+     },
+     "record": {
+      "$type": "app.bsky.embed.record",
+      "record": {
+       "cid": "bafyreihz56ttqtob44qoexushpbajn6o6uwmm3d3fn3cbl6lez7qrtsvpi",
+       "uri": "at://did:plc:otzf5u27xdgm6ykgole4wofg/app.bsky.feed.post/3mx2qsibhoc2w"
+      }
+     }
+    },
+    "facets": [
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#tag",
+        "tag": "readandplay"
+       }
+      ],
+      "index": {
+       "byteEnd": 12,
+       "byteStart": 0
+      }
+     },
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#tag",
+        "tag": "MusicChallenge"
+       }
+      ],
+      "index": {
+       "byteEnd": 34,
+       "byteStart": 19
+      }
+     },
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#tag",
+        "tag": "MusicSky"
+       }
+      ],
+      "index": {
+       "byteEnd": 44,
+       "byteStart": 35
+      }
+     },
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#link",
+        "uri": "https://youtu.be/fQWstynASjw?si=yaZbeP63l7SJIZis"
+       }
+      ],
+      "index": {
+       "byteEnd": 70,
+       "byteStart": 46
+      }
+     }
+    ],
+    "langs": [
+     "en"
+    ],
+    "text": "#readandplay (819)\n#MusicChallenge\n#MusicSky\n\nyoutu.be/fQWstynASjw?...\nSofi Tukker - Feeling Good"
+   },
+   "embed": {
+    "media": {
+     "external": {
+      "uri": "https://youtu.be/fQWstynASjw?si=yaZbeP63l7SJIZis",
+      "title": "Sofi Tukker - Feeling Good (music video)",
+      "description": "YouTube video by Alex Perzh (House of Music)",
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:7s4g5qpo6vb6npf7xbhbs37q/bafkreifvnotvv23v3ijfzxbul5rrssnxrhlcgrcjr4bqwjjj4rgibol2na"
+     },
+     "$type": "app.bsky.embed.external#view"
+    },
+    "record": {
+     "record": {
+      "uri": "at://did:plc:otzf5u27xdgm6ykgole4wofg/app.bsky.feed.post/3mx2qsibhoc2w",
+      "cid": "bafyreihz56ttqtob44qoexushpbajn6o6uwmm3d3fn3cbl6lez7qrtsvpi",
+      "author": {
+       "did": "did:plc:otzf5u27xdgm6ykgole4wofg",
+       "handle": "savemeaseat.bsky.social",
+       "displayName": "SaveMeASeat",
+       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:otzf5u27xdgm6ykgole4wofg/bafkreid43qxhq33wydyecfg7umt547inchey76fl7jkppzzejgw5emcjw4",
+       "associated": {
+        "chat": {
+         "allowIncoming": "following"
+        },
+        "activitySubscription": {
+         "allowSubscriptions": "followers"
+        }
+       },
+       "labels": [],
+       "createdAt": "2023-09-26T16:28:22.770Z"
+      },
+      "value": {
+       "$type": "app.bsky.feed.post",
+       "createdAt": "2026-10-04T15:48:04.195Z",
+       "embed": {
+        "$type": "app.bsky.embed.images",
+        "images": [
+         {
+          "alt": "Penelope Cruz on Sunday family cleaning time",
+          "aspectRatio": {
+           "height": 400,
+           "width": 850
+          },
+          "image": {
+           "$type": "blob",
+           "ref": {
+            "$link": "bafkreiao6obt7k4mxeuzkgspryaggbpd6t7h5odqyvtm5bx4w4qnb7rdda"
+           },
+           "mimeType": "image/jpeg",
+           "size": 191635
+          }
+         }
+        ]
+       },
+       "facets": [
+        {
+         "features": [
+          {
+           "$type": "app.bsky.richtext.facet#tag",
+           "tag": "readandplay"
+          }
+         ],
+         "index": {
+          "byteEnd": 12,
+          "byteStart": 0
+         }
+        },
+        {
+         "features": [
+          {
+           "$type": "app.bsky.richtext.facet#tag",
+           "tag": "MusicChallenge"
+          }
+         ],
+         "index": {
+          "byteEnd": 34,
+          "byteStart": 19
+         }
+        },
+        {
+         "features": [
+          {
+           "$type": "app.bsky.richtext.facet#tag",
+           "tag": "MusicSky"
+          }
+         ],
+         "index": {
+          "byteEnd": 44,
+          "byteStart": 35
+         }
+        }
+       ],
+       "langs": [
+        "en"
+       ],
+       "text": "#readandplay (819)\n#MusicChallenge\n#MusicSky\n\n\u201cNo rules. The only limit is our imagination.\u201d \n\nRead \ud83d\udcda & Play\ud83c\udfb6"
+      },
+      "labels": [],
+      "likeCount": 15,
+      "replyCount": 0,
+      "repostCount": 1,
+      "quoteCount": 21,
+      "indexedAt": "2026-10-04T15:48:05.467Z",
+      "embeds": [
+       {
+        "images": [
+         {
+          "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:otzf5u27xdgm6ykgole4wofg/bafkreiao6obt7k4mxeuzkgspryaggbpd6t7h5odqyvtm5bx4w4qnb7rdda",
+          "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:otzf5u27xdgm6ykgole4wofg/bafkreiao6obt7k4mxeuzkgspryaggbpd6t7h5odqyvtm5bx4w4qnb7rdda",
+          "alt": "Penelope Cruz on Sunday family cleaning time",
+          "aspectRatio": {
+           "height": 400,
+           "width": 850
+          }
+         }
+        ],
+        "$type": "app.bsky.embed.images#view"
+       }
+      ],
+      "$type": "app.bsky.embed.record#viewRecord"
+     }
+    },
+    "$type": "app.bsky.embed.recordWithMedia#view"
+   },
+   "bookmarkCount": 0,
+   "replyCount": 0,
+   "repostCount": 2,
+   "likeCount": 3,
+   "quoteCount": 0,
+   "indexedAt": "2026-10-04T21:51:40.960Z",
+   "labels": []
+  },
+  {
+   "uri": "at://did:plc:56azt2iqsbfzdsjuqcpmdxbe/app.bsky.feed.post/3mx3et7kjy22g",
+   "cid": "bafyreigxxfju3axip57ft6d5x47gm626n2oqg4nvaqhvmr7wktubk7xk3u",
+   "author": {
+    "did": "did:plc:56azt2iqsbfzdsjuqcpmdxbe",
+    "handle": "heimytimes.bsky.social",
+    "displayName": "Michael Heiman",
+    "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:56azt2iqsbfzdsjuqcpmdxbe/bafkreiamhpncpw7k5lhc4esnlndlijz7jz3ay7seqwevpq2wfsjqyoq6ou",
+    "associated": {
+     "activitySubscription": {
+      "allowSubscriptions": "followers"
+     }
+    },
+    "labels": [],
+    "createdAt": "2024-11-16T04:01:28.874Z"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "createdAt": "2026-10-04T21:46:23.446Z",
+    "langs": [
+     "en"
+    ],
+    "text": "SoFi stadium is Star Trek and Allegiant is Star Wars and no I do not need to elaborate"
+   },
+   "bookmarkCount": 0,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "quoteCount": 0,
+   "indexedAt": "2026-10-04T21:46:24.161Z",
+   "labels": []
+  },
+  {
+   "uri": "at://did:plc:cisq55awhucx6jxrstztigks/app.bsky.feed.post/3mx3cgpasis27",
+   "cid": "bafyreiakphfzgszivz25zib3lrzvqzsi4se4aspx4gjmcnd5ynj3hjbuuu",
+   "author": {
+    "did": "did:plc:cisq55awhucx6jxrstztigks",
+    "handle": "vpgfam.bsky.social",
+    "displayName": "Victoria",
+    "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:cisq55awhucx6jxrstztigks/bafkreie662usosmxjsf3cswgtayilw4zt6gjkkpnzqzputxgzqh2ypvaqu",
+    "associated": {
+     "activitySubscription": {
+      "allowSubscriptions": "followers"
+     }
+    },
+    "labels": [
+     {
+      "src": "did:plc:cisq55awhucx6jxrstztigks",
+      "uri": "at://did:plc:cisq55awhucx6jxrstztigks/app.bsky.actor.profile/self",
+      "cid": "bafyreihxatw5lac36k44fzmbq4537omzdsk7xumnoiwi5bosneyjdbj4iu",
+      "val": "!no-unauthenticated",
+      "cts": "2024-11-16T16:53:08.959Z"
+     }
+    ],
+    "createdAt": "2024-11-16T16:53:10.571Z"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "createdAt": "2026-10-04T21:03:36.209Z",
+    "embed": {
+     "$type": "app.bsky.embed.external",
+     "external": {
+      "description": "YouTube video by AOB The B Side",
+      "thumb": {
+       "$type": "blob",
+       "ref": {
+        "$link": "bafkreia4mqkirjl3x33ozbrt7rv3i36ptnswzg7vavw2dsl6i4qcyxbp74"
+       },
+       "mimeType": "image/jpeg",
+       "size": 208546
+      },
+      "title": "THE B-SIDE | Reaction To SOFI TUKKER x ONEREPUBLIC | TSUNAMI",
+      "uri": "https://youtu.be/nDyj7fUfVvM?si=89FB3zRJHnTowiQq"
+     }
+    },
+    "facets": [
+     {
+      "$type": "app.bsky.richtext.facet",
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#mention",
+        "did": "did:plc:s6pb6mapgieeggk25f3dirnn"
+       }
+      ],
+      "index": {
+       "byteEnd": 60,
+       "byteStart": 39
+      }
+     },
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#link",
+        "uri": "https://youtu.be/nDyj7fUfVvM?si=89FB3zRJHnTowiQq"
+       }
+      ],
+      "index": {
+       "byteEnd": 87,
+       "byteStart": 63
+      }
+     }
+    ],
+    "langs": [
+     "en"
+    ],
+    "text": "Check out the latest B Side video from @redevent.bsky.social!\n\nyoutu.be/nDyj7fUfVvM?..."
+   },
+   "embed": {
+    "external": {
+     "uri": "https://youtu.be/nDyj7fUfVvM?si=89FB3zRJHnTowiQq",
+     "title": "THE B-SIDE | Reaction To SOFI TUKKER x ONEREPUBLIC | TSUNAMI",
+     "description": "YouTube video by AOB The B Side",
+     "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:cisq55awhucx6jxrstztigks/bafkreia4mqkirjl3x33ozbrt7rv3i36ptnswzg7vavw2dsl6i4qcyxbp74"
+    },
+    "$type": "app.bsky.embed.external#view"
+   },
+   "bookmarkCount": 0,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "quoteCount": 0,
+   "indexedAt": "2026-10-04T21:03:37.463Z",
+   "labels": []
+  },
+  {
+   "uri": "at://did:plc:pjoyybcfo67s6mnytrqhqdyu/app.bsky.feed.post/3mx36dpuylk2u",
+   "cid": "bafyreiguu6wbw2574cdaha7fhexohx5fod32st6ixqjlqww5dovrurzi4a",
+   "author": {
+    "did": "did:plc:pjoyybcfo67s6mnytrqhqdyu",
+    "handle": "95sports.bsky.social",
+    "displayName": "95Sports",
+    "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:pjoyybcfo67s6mnytrqhqdyu/bafkreicvpyazhslyrk6nef2c26ohezi7aspyz6cjrqpg5zsggpcyjpw2um",
+    "associated": {
+     "chat": {
+      "allowIncoming": "following"
+     },
+     "activitySubscription": {
+      "allowSubscriptions": "followers"
+     }
+    },
+    "labels": [],
+    "createdAt": "2023-07-03T03:54:34.062Z"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "createdAt": "2026-10-04T19:50:21.247Z",
+    "embed": {
+     "$type": "app.bsky.embed.record",
+     "record": {
+      "cid": "bafyreiakhencza56innjk7zvczmc7viro6ar6wumz4cmqupqzxzwpltdxu",
+      "uri": "at://did:plc:mkecoykqdpy2omacxkw7ifis/app.bsky.feed.post/3mx34m2cink2i"
+     }
+    },
+    "langs": [
+     "en"
+    ],
+    "text": "Build a sofi-style open air stadium with a glass roof."
+   },
+   "embed": {
+    "record": {
+     "uri": "at://did:plc:mkecoykqdpy2omacxkw7ifis/app.bsky.feed.post/3mx34m2cink2i",
+     "cid": "bafyreiakhencza56innjk7zvczmc7viro6ar6wumz4cmqupqzxzwpltdxu",
+     "author": {
+      "did": "did:plc:mkecoykqdpy2omacxkw7ifis",
+      "handle": "chellybreeze.bsky.social",
+      "displayName": "Chelly Green",
+      "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:mkecoykqdpy2omacxkw7ifis/bafkreigwwrobljejhhy3kgozk24hpd5hmjpk4xb7lwsjoyiaei5f4p4kvm",
+      "associated": {
+       "activitySubscription": {
+        "allowSubscriptions": "followers"
+       }
+      },
+      "labels": [],
+      "createdAt": "2024-01-25T23:10:11.734Z"
+     },
+     "value": {
+      "$type": "app.bsky.feed.post",
+      "createdAt": "2026-10-04T19:19:13.127Z",
+      "langs": [
+       "en"
+      ],
+      "text": "Lurie in the group chat: \"Dome\""
+     },
+     "labels": [],
+     "likeCount": 11,
+     "replyCount": 1,
+     "repostCount": 0,
+     "quoteCount": 1,
+     "indexedAt": "2026-10-04T19:19:12.758Z",
+     "embeds": [],
+     "$type": "app.bsky.embed.record#viewRecord"
+    },
+    "$type": "app.bsky.embed.record#view"
+   },
+   "bookmarkCount": 0,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 2,
+   "quoteCount": 0,
+   "indexedAt": "2026-10-04T19:50:20.865Z",
+   "labels": []
+  },
+  {
+   "uri": "at://did:plc:yvaukf3rveoai7k72inajzhv/app.bsky.feed.post/3mx2wbpn62k2s",
+   "cid": "bafyreibgmtewupa76cbucas355rlrcbrpya7m7jwynhgtqyvaoee5p46r4",
+   "author": {
+    "did": "did:plc:yvaukf3rveoai7k72inajzhv",
+    "handle": "choubacha.com",
+    "displayName": "Kevin BOObacha (he/him)",
+    "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:yvaukf3rveoai7k72inajzhv/bafkreibkmaoukwxytkbkkb7hl55vdox5qpyrqhucflfv4aat5l6eplpwwq",
+    "associated": {
+     "activitySubscription": {
+      "allowSubscriptions": "followers"
+     }
+    },
+    "labels": [
+     {
+      "src": "did:plc:yvaukf3rveoai7k72inajzhv",
+      "uri": "at://did:plc:yvaukf3rveoai7k72inajzhv/app.bsky.actor.profile/self",
+      "cid": "bafyreigdemxw2ffwqnv6cn6gdlbb7ab4zb5kmzk55c5tvnakkvyfwcz2zy",
+      "val": "!no-unauthenticated",
+      "cts": "2024-11-06T22:15:02.480Z"
+     }
+    ],
+    "createdAt": "2024-11-06T22:15:03.182Z"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "createdAt": "2026-10-04T17:26:03.947Z",
+    "langs": [
+     "en"
+    ],
+    "reply": {
+     "parent": {
+      "cid": "bafyreigtg4wmptlrztuqqlk4goz77d4zsmougka75tpugg4rmmsgi5kwbu",
+      "uri": "at://did:plc:yvaukf3rveoai7k72inajzhv/app.bsky.feed.post/3mx2wax74o22s"
+     },
+     "root": {
+      "cid": "bafyreiczdaeduei4g7azkkmrxfhssrchegy7rbwlzl3bccppwqo4korxzy",
+      "uri": "at://did:plc:rfrs2oho243s6ibjulq4pdpo/app.bsky.feed.post/3mx2waapwyk2j"
+     }
+    },
+    "text": "Unwritten bylaw of the NFL which is headquartered in Sofi stadium."
+   },
+   "bookmarkCount": 0,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 1,
+   "quoteCount": 0,
+   "indexedAt": "2026-10-04T17:26:04.970Z",
+   "labels": []
+  },
+  {
+   "uri": "at://did:plc:mddah5lloyrvp5rz5frfuqjq/app.bsky.feed.post/3mx2t7eg73c2r",
+   "cid": "bafyreih4mskjiasihlzezblmyky25i7nmzcvuvcjtvqyy2ekmd7f6d24uq",
+   "author": {
+    "did": "did:plc:mddah5lloyrvp5rz5frfuqjq",
+    "handle": "ceorys.bsky.social",
+    "displayName": "sofi \ud83c\udf3a",
+    "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:mddah5lloyrvp5rz5frfuqjq/bafkreifwb5ci5z3xzq7fjo7452phyxutdmenay77ggmketbpz2fxxbgyqe",
+    "associated": {
+     "activitySubscription": {
+      "allowSubscriptions": "followers"
+     }
+    },
+    "labels": [],
+    "createdAt": "2023-09-29T04:29:10.970Z"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "createdAt": "2026-10-04T16:31:03.850Z",
+    "embed": {
+     "$type": "app.bsky.embed.external",
+     "external": {
+      "description": "Become a supporter of Sofi today!",
+      "thumb": {
+       "$type": "blob",
+       "ref": {
+        "$link": "bafkreihgv655qg7q4cxmco4ldtzjfampop2i6a2dh6t534s34dbpt5fype"
+       },
+       "mimeType": "image/jpeg",
+       "size": 333319
+      },
+      "title": "Buy Sofi a Coffee",
+      "uri": "https://ko-fi.com/ceorys"
+     }
+    },
+    "langs": [
+     "en"
+    ],
+    "text": "I have now opened Ko-fi commissions \ud83d\ude17 thank you for your support!!"
+   },
+   "embed": {
+    "external": {
+     "uri": "https://ko-fi.com/ceorys",
+     "title": "Buy Sofi a Coffee",
+     "description": "Become a supporter of Sofi today!",
+     "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mddah5lloyrvp5rz5frfuqjq/bafkreihgv655qg7q4cxmco4ldtzjfampop2i6a2dh6t534s34dbpt5fype"
+    },
+    "$type": "app.bsky.embed.external#view"
+   },
+   "bookmarkCount": 0,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "quoteCount": 0,
+   "indexedAt": "2026-10-04T16:31:00.664Z",
+   "labels": []
+  },
+  {
+   "uri": "at://did:plc:upob7kbneys2qtp25kpeh4vs/app.bsky.feed.post/3mx2mmsghxc2w",
+   "cid": "bafyreibmwexazaalhqswqtk7zebgilwcdbysq4nkf5t2r4hvvnkzgtddci",
+   "author": {
+    "did": "did:plc:upob7kbneys2qtp25kpeh4vs",
+    "handle": "rockyscrazylife.bsky.social",
+    "displayName": "Rocky",
+    "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:upob7kbneys2qtp25kpeh4vs/bafkreihci75eylpirh3paoglysufhhbi3n4vpy766yjnt4g7nwzfz6wske",
+    "associated": {
+     "activitySubscription": {
+      "allowSubscriptions": "followers"
+     }
+    },
+    "labels": [],
+    "createdAt": "2024-11-12T00:30:37.010Z"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "createdAt": "2026-10-04T14:33:18.550Z",
+    "langs": [
+     "en"
+    ],
+    "reply": {
+     "parent": {
+      "cid": "bafyreifa5io5i22xa3k6u754i2g4nmgdugst2lhpjucuqiua4slodajmbe",
+      "uri": "at://did:plc:rbagthtgmudafxcfdm7yjsdy/app.bsky.feed.post/3mx2lkqsfn22d"
+     },
+     "root": {
+      "cid": "bafyreihtyyhdlvdmvxdmykhrxn3yrzbzjrryjr5dpfkemr52perwki35vu",
+      "uri": "at://did:plc:upob7kbneys2qtp25kpeh4vs/app.bsky.feed.post/3mx2h2ssvcs2p"
+     }
+    },
+    "text": "It was needed!! Hope y9u are well Sofi"
+   },
+   "bookmarkCount": 0,
+   "replyCount": 1,
+   "repostCount": 0,
+   "likeCount": 2,
+   "quoteCount": 0,
+   "indexedAt": "2026-10-04T14:33:19.063Z",
+   "labels": []
+  },
+  {
+   "uri": "at://did:plc:wgpi24qrsozllbklogj3ciip/app.bsky.feed.post/3mx2mklz5j22k",
+   "cid": "bafyreicncmydzq4mralihc3mavtews26cycxi6xtmqcgia54lz6jy767h4",
+   "author": {
+    "did": "did:plc:wgpi24qrsozllbklogj3ciip",
+    "handle": "the-wagnerian.com",
+    "displayName": "The Wagnerian \ud83c\udfbc",
+    "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:wgpi24qrsozllbklogj3ciip/bafkreiclosz4lcakixilylx4vgeybnxxvsunbqkwa4cte6baz2gnay2omq",
+    "associated": {
+     "activitySubscription": {
+      "allowSubscriptions": "followers"
+     }
+    },
+    "labels": [],
+    "createdAt": "2023-10-26T20:55:14.809Z"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "createdAt": "2026-10-04T14:32:04.715Z",
+    "embed": {
+     "$type": "app.bsky.embed.external",
+     "external": {
+      "description": "News and information about the German Composer Richard Wagner and his work",
+      "thumb": {
+       "$type": "blob",
+       "ref": {
+        "$link": "bafkreicaifynnzrfejlnlxuqfdguam4pdodnaw4xjsxsog5nktlnr5zzx4"
+       },
+       "mimeType": "image/jpeg",
+       "size": 310827
+      },
+      "title": "Sofia Up For An \"Opera Oscar\", Plus The Meistersinger Puccini Cut",
+      "uri": "https://www.the-wagnerian.com/2026/10/sofia-up-for-opera-oscar-plus.html"
+     }
+    },
+    "facets": [
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#link",
+        "uri": "https://www.the-wagnerian.com/2026/10/sofia-up-for-opera-oscar-plus.html"
+       }
+      ],
+      "index": {
+       "byteEnd": 37,
+       "byteStart": 0
+      }
+     }
+    ],
+    "langs": [
+     "en"
+    ],
+    "text": "www.the-wagnerian.com/2026/10/sofi..."
+   },
+   "embed": {
+    "external": {
+     "uri": "https://www.the-wagnerian.com/2026/10/sofia-up-for-opera-oscar-plus.html",
+     "title": "Sofia Up For An \"Opera Oscar\", Plus The Meistersinger Puccini Cut",
+     "description": "News and information about the German Composer Richard Wagner and his work",
+     "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:wgpi24qrsozllbklogj3ciip/bafkreicaifynnzrfejlnlxuqfdguam4pdodnaw4xjsxsog5nktlnr5zzx4"
+    },
+    "$type": "app.bsky.embed.external#view"
+   },
+   "bookmarkCount": 0,
+   "replyCount": 1,
+   "repostCount": 0,
+   "likeCount": 4,
+   "quoteCount": 0,
+   "indexedAt": "2026-10-04T14:32:06.361Z",
+   "labels": []
+  },
+  {
+   "uri": "at://did:plc:qpo7as4rvzwxzen7uggub42x/app.bsky.feed.post/3mx26zzceyc2l",
+   "cid": "bafyreid3yliqryflwzw5a2kd3rdttw7hrj57hjhc2tgma6gh6bgd2ownba",
+   "author": {
+    "did": "did:plc:qpo7as4rvzwxzen7uggub42x",
+    "handle": "courtingdisaster.bsky.social",
+    "displayName": "Bek",
+    "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:qpo7as4rvzwxzen7uggub42x/bafkreigtbc77hjemi6nmps3ehgenvzn6fprimfzvloogp6scrnvvt52lxu",
+    "associated": {
+     "chat": {
+      "allowIncoming": "none",
+      "allowGroupInvites": "none"
+     },
+     "activitySubscription": {
+      "allowSubscriptions": "followers"
+     }
+    },
+    "labels": [
+     {
+      "src": "did:plc:qpo7as4rvzwxzen7uggub42x",
+      "uri": "at://did:plc:qpo7as4rvzwxzen7uggub42x/app.bsky.actor.profile/self",
+      "cid": "bafyreiarsieybswib6d5g42onxb7fpgqsjn3sgs7tpkgaqkxyjbrkl52vu",
+      "val": "!no-unauthenticated",
+      "cts": "2024-11-19T05:51:48.736Z"
+     }
+    ],
+    "createdAt": "2024-11-19T05:51:49.504Z"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "createdAt": "2026-10-04T10:30:09.577Z",
+    "embed": {
+     "$type": "app.bsky.embed.record",
+     "record": {
+      "cid": "bafyreig4dk66mtnguj5fbrp3eswrbgvu5gghcnmdo2z7atynjg65auj5ri",
+      "uri": "at://did:plc:4eyfvdif7yqwcv7wpfayehgz/app.bsky.feed.post/3mwetfn2v3k24"
+     }
+    },
+    "langs": [
+     "en"
+    ],
+    "reply": {
+     "parent": {
+      "cid": "bafyreiabgzu3gh3du2e3jxqhz7moohimfb7j73xwbbunv47yq4qhpeaph4",
+      "uri": "at://did:plc:2cnoqiemgk7hewmfi6dtfuc5/app.bsky.feed.post/3mwzemq5muc2o"
+     },
+     "root": {
+      "cid": "bafyreib3y3pez4dbp6lenyxz5le75mdlidwwymwkvidruio2wausscgzxu",
+      "uri": "at://did:plc:2cnoqiemgk7hewmfi6dtfuc5/app.bsky.feed.post/3mwz6y7n4jc2m"
+     }
+    },
+    "text": "Adding this thread here as the next Super Bowl is 2/14 however it was announced on 12/13/23 that it would be at Sofi and there\u2019s a lot of compelling evidence that she might headline \ud83d\udc40"
+   },
+   "embed": {
+    "record": {
+     "uri": "at://did:plc:4eyfvdif7yqwcv7wpfayehgz/app.bsky.feed.post/3mwetfn2v3k24",
+     "cid": "bafyreig4dk66mtnguj5fbrp3eswrbgvu5gghcnmdo2z7atynjg65auj5ri",
+     "author": {
+      "did": "did:plc:4eyfvdif7yqwcv7wpfayehgz",
+      "handle": "freefromfairytales.bsky.social",
+      "displayName": "Anne\ud83e\uddda\ud83c\udffb\ud83c\udff0",
+      "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:4eyfvdif7yqwcv7wpfayehgz/bafkreifzvzyllxxdxw5x4kvy3gmpb7c2qmbhdk2tpfv45rtgb4347hiete",
+      "associated": {
+       "activitySubscription": {
+        "allowSubscriptions": "followers"
+       }
+      },
+      "labels": [],
+      "createdAt": "2024-11-13T01:06:35.515Z"
+     },
+     "value": {
+      "$type": "app.bsky.feed.post",
+      "createdAt": "2026-09-25T22:35:59.997Z",
+      "embed": {
+       "$type": "app.bsky.embed.record",
+       "record": {
+        "cid": "bafyreibs5xwwe5gmvfbzh4fvh3af32hkm3pud7jm3n2nbgkz6hfmvcucwm",
+        "uri": "at://did:plc:4eyfvdif7yqwcv7wpfayehgz/app.bsky.feed.post/3mweslz4swc24"
+       }
+      },
+      "langs": [
+       "en"
+      ],
+      "text": "Oh. The Super Bowl is on CBS this year. \n\nThe VMAs are on CBS on Sunday. \n\nAnd it\u2019s in SoFi stadium\u2026 is this the eras tour encore and the LA goodbye post we\u2019ve been waiting for?"
+     },
+     "labels": [],
+     "likeCount": 62,
+     "replyCount": 5,
+     "repostCount": 2,
+     "quoteCount": 1,
+     "indexedAt": "2026-09-25T22:36:00.360Z",
+     "embeds": [
+      {
+       "record": {
+        "uri": "at://did:plc:4eyfvdif7yqwcv7wpfayehgz/app.bsky.feed.post/3mweslz4swc24",
+        "cid": "bafyreibs5xwwe5gmvfbzh4fvh3af32hkm3pud7jm3n2nbgkz6hfmvcucwm",
+        "author": {
+         "did": "did:plc:4eyfvdif7yqwcv7wpfayehgz",
+         "handle": "freefromfairytales.bsky.social",
+         "displayName": "Anne\ud83e\uddda\ud83c\udffb\ud83c\udff0",
+         "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:4eyfvdif7yqwcv7wpfayehgz/bafkreifzvzyllxxdxw5x4kvy3gmpb7c2qmbhdk2tpfv45rtgb4347hiete",
+         "associated": {
+          "activitySubscription": {
+           "allowSubscriptions": "followers"
+          }
+         },
+         "labels": [],
+         "createdAt": "2024-11-13T01:06:35.515Z"
+        },
+        "value": {
+         "$type": "app.bsky.feed.post",
+         "createdAt": "2026-09-25T22:21:40.226Z",
+         "langs": [
+          "en"
+         ],
+         "reply": {
+          "parent": {
+           "cid": "bafyreies6akqq3obogsxsl2szrahcvdzycr3uu2vdc52b2o4ws2dtvze6i",
+           "uri": "at://did:plc:o7zemdiqxexofqsddam2hblt/app.bsky.feed.post/3mweseikl6c23"
+          },
+          "root": {
+           "cid": "bafyreictomxnitkyta7cce6ugu4jr7lhb3tdcksyp6gjtj5x63tnfewgpu",
+           "uri": "at://did:plc:4eyfvdif7yqwcv7wpfayehgz/app.bsky.feed.post/3mwesb5dyu22s"
+          }
+         },
+         "text": "And speaking of, we usually know who the halftime performer will be by now, or would be finding out around now."
+        },
+        "labels": [],
+        "likeCount": 8,
+        "replyCount": 1,
+        "repostCount": 0,
+        "quoteCount": 1,
+        "indexedAt": "2026-09-25T22:21:40.967Z",
+        "$type": "app.bsky.embed.record#viewRecord"
+       },
+       "$type": "app.bsky.embed.record#view"
+      }
+     ],
+     "$type": "app.bsky.embed.record#viewRecord"
+    },
+    "$type": "app.bsky.embed.record#view"
+   },
+   "bookmarkCount": 0,
+   "replyCount": 2,
+   "repostCount": 0,
+   "likeCount": 6,
+   "quoteCount": 1,
+   "indexedAt": "2026-10-04T10:30:10.759Z",
+   "labels": []
+  },
+  {
+   "uri": "at://did:plc:evtcx42codwh3hryt4ylirlz/app.bsky.feed.post/3mx263h7h2n2p",
+   "cid": "bafyreigsecx7rppr27rlguxqftqmlrvwekvol7gvnrr7kyqnggil2kspiq",
+   "author": {
+    "did": "did:plc:evtcx42codwh3hryt4ylirlz",
+    "handle": "nonstophitsbot.bsky.social",
+    "displayName": "Eurovision Non-Stop Hits! Bot",
+    "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:evtcx42codwh3hryt4ylirlz/bafkreieyifvzatdqxlyq54qwpjl7wdr6pkldolsp6zstzrvpilxfrjzve4",
+    "associated": {
+     "activitySubscription": {
+      "allowSubscriptions": "followers"
+     }
+    },
+    "labels": [
+     {
+      "src": "did:plc:evtcx42codwh3hryt4ylirlz",
+      "uri": "at://did:plc:evtcx42codwh3hryt4ylirlz/app.bsky.actor.profile/self",
+      "cid": "bafyreid7qvy3ei5kjonbv7bfszymzebxnfjwggbtzpkfybkw6ukhgcccua",
+      "val": "bot",
+      "cts": "2026-09-06T20:02:17.582Z"
+     }
+    ],
+    "createdAt": "2026-09-06T20:02:19.758Z"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "createdAt": "2026-10-04T10:13:02.624401+00:00",
+    "langs": [
+     "en"
+    ],
+    "text": "12:13 CEST\n\n\ud83c\udde7\ud83c\uddec Sofi Marinova\nLove Unlimited\n\nBulgaria \u00b7 Eurovision 2012"
+   },
+   "bookmarkCount": 0,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "quoteCount": 0,
+   "indexedAt": "2026-10-04T10:13:04.259Z",
+   "labels": []
+  },
+  {
+   "uri": "at://did:plc:irx5iiy5snxucw2iyc74vykj/app.bsky.feed.post/3mwzmqztlik2u",
+   "cid": "bafyreidxkrt4sf2kgjk3gq3fxv7b7rl445y22nldz4pmbhg4meojvhtzoy",
+   "author": {
+    "did": "did:plc:irx5iiy5snxucw2iyc74vykj",
+    "handle": "leebarrx.bsky.social",
+    "displayName": "",
+    "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:irx5iiy5snxucw2iyc74vykj/bafkreiaiheyslz5q74tjia2zyhf3v5kurhukeikvlmi5uuqzxhjb2upu5u",
+    "associated": {
+     "activitySubscription": {
+      "allowSubscriptions": "followers"
+     }
+    },
+    "labels": [],
+    "createdAt": "2025-01-09T00:32:19.343Z"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "createdAt": "2026-10-04T05:03:00.798Z",
+    "langs": [
+     "en"
+    ],
+    "reply": {
+     "parent": {
+      "cid": "bafyreibtkhsvr2imrndyrpodm3ll47ymayosnhbkcw3ymv67vd4ofhqafy",
+      "uri": "at://did:plc:hhleck4pj4cl2dpuuncpzlg7/app.bsky.feed.post/3mwzhixigbn25"
+     },
+     "root": {
+      "cid": "bafyreibtkhsvr2imrndyrpodm3ll47ymayosnhbkcw3ymv67vd4ofhqafy",
+      "uri": "at://did:plc:hhleck4pj4cl2dpuuncpzlg7/app.bsky.feed.post/3mwzhixigbn25"
+     }
+    },
+    "text": "Purple Hat- SOFI TUKKER"
+   },
+   "bookmarkCount": 0,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 1,
+   "quoteCount": 0,
+   "indexedAt": "2026-10-04T05:03:02.157Z",
+   "labels": []
+  },
+  {
+   "uri": "at://did:plc:6smdztjrq7bjjlojkrnpcnxm/app.bsky.feed.post/3mwyybeplyg2l",
+   "cid": "bafyreicenb6ljwkrngkx4f2pddvyehlkoerkysaadufyw32q6heu3ita6m",
+   "author": {
+    "did": "did:plc:6smdztjrq7bjjlojkrnpcnxm",
+    "handle": "worbler.bsky.social",
+    "displayName": "Worbler",
+    "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:6smdztjrq7bjjlojkrnpcnxm/bafkreifbhc6gpm5asg4svrsye7z4iaxpxvqinfdpsvg5v7dqjrbjrz43ve",
+    "associated": {
+     "chat": {
+      "allowIncoming": "none"
+     },
+     "activitySubscription": {
+      "allowSubscriptions": "followers"
+     }
+    },
+    "labels": [],
+    "createdAt": "2023-04-30T04:58:01.747Z"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "createdAt": "2026-10-03T22:56:20.398379+00:00",
+    "facets": [
+     {
+      "$type": "app.bsky.richtext.facet",
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#link",
+        "uri": "https://uncertain.fm"
+       }
+      ],
+      "index": {
+       "$type": "app.bsky.richtext.facet#byteSlice",
+       "byteEnd": 27,
+       "byteStart": 15
+      }
+     }
+    ],
+    "langs": [
+     "en"
+    ],
+    "text": "now playing on uncertain.fm \u00bb\u00a0Sofi Tukker & Mc Bola, \"Goddess In Disguise\""
+   },
+   "bookmarkCount": 0,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "quoteCount": 0,
+   "indexedAt": "2026-10-03T22:56:20.665Z",
+   "labels": []
+  },
+  {
+   "uri": "at://did:plc:owu2lfrumlvvpoputmlmcwpd/app.bsky.feed.post/3mwytjv22ws2w",
+   "cid": "bafyreiba74e37j4xs36o2voz2bktbtnp4geq4q445txp3xhmtp6l4likxm",
+   "author": {
+    "did": "did:plc:owu2lfrumlvvpoputmlmcwpd",
+    "handle": "financiernews.bsky.social",
+    "displayName": "Financier.News",
+    "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:owu2lfrumlvvpoputmlmcwpd/bafkreie36hzblz4mun2lfq2olxocn7scbmxi4wf3pbuahlmzjrjn6zycca",
+    "associated": {
+     "activitySubscription": {
+      "allowSubscriptions": "followers"
+     }
+    },
+    "labels": [],
+    "createdAt": "2026-09-20T08:01:32.160Z"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "createdAt": "2026-10-03T21:31:37.256Z",
+    "embed": {
+     "$type": "app.bsky.embed.external",
+     "external": {
+      "description": "SoFi Stock: Why the Opportunity May Be Too Good to Ignore",
+      "thumb": {
+       "$type": "blob",
+       "ref": {
+        "$link": "bafkreih2c3yscqktaakqr62wfbgqua6ygywnits5fjaxkip2ueduoeebbm"
+       },
+       "mimeType": "image/png",
+       "size": 22259
+      },
+      "title": "SoFi Stock: Why the Opportunity May Be Too Good to Ignore",
+      "uri": "https://financier.news/sofi-stock-why-the-opportunity-may-be-too-good-toignore-sofi/"
+     }
+    },
+    "facets": [
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#tag",
+        "tag": "SOFI"
+       }
+      ],
+      "index": {
+       "byteEnd": 64,
+       "byteStart": 59
+      }
+     },
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#tag",
+        "tag": "Equities"
+       }
+      ],
+      "index": {
+       "byteEnd": 74,
+       "byteStart": 65
+      }
+     },
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#tag",
+        "tag": "MarketNews"
+       }
+      ],
+      "index": {
+       "byteEnd": 86,
+       "byteStart": 75
+      }
+     },
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#link",
+        "uri": "https://financier.news/sofi-stock-why-the-opportunity-may-be-too-good-toignore-sofi/"
+       }
+      ],
+      "index": {
+       "byteEnd": 171,
+       "byteStart": 87
+      }
+     }
+    ],
+    "langs": [
+     "en"
+    ],
+    "text": "SoFi Stock: Why the Opportunity May Be Too Good to Ignore\n\n#SOFI #Equities #MarketNews https://financier.news/sofi-stock-why-the-opportunity-may-be-too-good-toignore-sofi/"
+   },
+   "embed": {
+    "external": {
+     "uri": "https://financier.news/sofi-stock-why-the-opportunity-may-be-too-good-toignore-sofi/",
+     "title": "SoFi Stock: Why the Opportunity May Be Too Good to Ignore",
+     "description": "SoFi Stock: Why the Opportunity May Be Too Good to Ignore",
+     "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:owu2lfrumlvvpoputmlmcwpd/bafkreih2c3yscqktaakqr62wfbgqua6ygywnits5fjaxkip2ueduoeebbm"
+    },
+    "$type": "app.bsky.embed.external#view"
+   },
+   "bookmarkCount": 0,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "quoteCount": 0,
+   "indexedAt": "2026-10-03T21:31:38.059Z",
+   "labels": []
+  },
+  {
+   "uri": "at://did:plc:aqdfz5xx4zskg62isdtoe7cb/app.bsky.feed.post/3mwy5g63tdk2l",
+   "cid": "bafyreiaqsmpjtq3wlq3u6au43lvmevn3wqn7o74qkv4465zwywpfxobaz4",
+   "author": {
+    "did": "did:plc:aqdfz5xx4zskg62isdtoe7cb",
+    "handle": "daveclarkin.bsky.social",
+    "displayName": "Dave Clarkin",
+    "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:aqdfz5xx4zskg62isdtoe7cb/bafkreig6dwhopqlzildwxeh3lrcwpjn522nwq4gzfmkgbw3kph6gep3bze",
+    "associated": {
+     "chat": {
+      "allowIncoming": "none",
+      "allowGroupInvites": "none"
+     },
+     "activitySubscription": {
+      "allowSubscriptions": "followers"
+     }
+    },
+    "labels": [],
+    "createdAt": "2024-02-19T18:18:11.318Z"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "createdAt": "2026-10-03T14:55:50.302Z",
+    "langs": [
+     "en"
+    ],
+    "reply": {
+     "parent": {
+      "cid": "bafyreiaxx4tzypxu6osk2ltum76lge3kmx7zkut3ycedyhg425co5bwzla",
+      "uri": "at://did:plc:akcl6oy3mjbskuni6smf7uiw/app.bsky.feed.post/3mwy4mnlzik2p"
+     },
+     "root": {
+      "cid": "bafyreibazoxcvddncc2nwfpfy4kbh7wky62mmeiqmkyaqvrpqhnlp6ljbe",
+      "uri": "at://did:plc:aqdfz5xx4zskg62isdtoe7cb/app.bsky.feed.post/3mwy3d33jas2l"
+     }
+    },
+    "text": "SoFi Stadium is the biggest naming deal, $31M annual.\n\nFinanciers are naturally risk-averse, and will take the elimination of $1 fixed cost over the possibility of $2 in revenue every day.\n\nIt\u2019s how Zell and Reinsdorf became billionaires. 1/2"
+   },
+   "bookmarkCount": 0,
+   "replyCount": 1,
+   "repostCount": 0,
+   "likeCount": 0,
+   "quoteCount": 0,
+   "indexedAt": "2026-10-03T14:55:51.762Z",
+   "labels": []
+  },
+  {
+   "uri": "at://did:plc:m7xwawreml5y65bowvfmhtz2/app.bsky.feed.post/3mwy4kbepus2p",
+   "cid": "bafyreidbn43kxdut7u2s5wcs2ue7htpruxh7sn4dj3etplcb44mksl4i3q",
+   "author": {
+    "did": "did:plc:m7xwawreml5y65bowvfmhtz2",
+    "handle": "shinyhappypdx.bsky.social",
+    "displayName": "CannabiKyle\ud83d\udc9a\ud83c\udff3\ufe0f\u200d\ud83c\udf08\ud83c\uddfa\ud83c\uddf8\ud83d\udd7a\ud83c\udf0a",
+    "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:m7xwawreml5y65bowvfmhtz2/bafkreibdo2rkimqdjm5tdoteun7cqsc2djp5tmxi7nn6eh6y7agxm3sqv4",
+    "associated": {
+     "activitySubscription": {
+      "allowSubscriptions": "followers"
+     }
+    },
+    "labels": [],
+    "createdAt": "2024-11-12T20:16:17.018Z"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "createdAt": "2026-10-03T14:40:14.215Z",
+    "embed": {
+     "$type": "app.bsky.embed.external",
+     "external": {
+      "description": "YouTube video by Ultra Records",
+      "thumb": {
+       "$type": "blob",
+       "ref": {
+        "$link": "bafkreie5be24l2gpdhkqrinx6if7lvbqotwcmrgygc5y4ldft2q7sdtb7m"
+       },
+       "mimeType": "image/jpeg",
+       "size": 75276
+      },
+      "title": "SOFI TUKKER - Original Sin (Official Video) [Ultra Records]",
+      "uri": "https://youtu.be/1xqwnD3BdT4?is=lJGPeEs846-epQAE"
+     }
+    },
+    "facets": [
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#tag",
+        "tag": "BreakingKindSongs"
+       }
+      ],
+      "index": {
+       "byteEnd": 18,
+       "byteStart": 0
+      }
+     },
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#tag",
+        "tag": "MusicChallenge"
+       }
+      ],
+      "index": {
+       "byteEnd": 35,
+       "byteStart": 20
+      }
+     },
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#link",
+        "uri": "https://youtu.be/1xqwnD3BdT4?is=lJGPeEs846-epQAE"
+       }
+      ],
+      "index": {
+       "byteEnd": 98,
+       "byteStart": 74
+      }
+     }
+    ],
+    "langs": [
+     "en"
+    ],
+    "reply": {
+     "parent": {
+      "cid": "bafyreig5pwjeozht37bzq7ztqcrzbupjyriulg7ndrys4zipd4m4wcpcea",
+      "uri": "at://did:plc:s4r7pzjghinon4ijer4ephus/app.bsky.feed.post/3mwxvettbos2d"
+     },
+     "root": {
+      "cid": "bafyreig5pwjeozht37bzq7ztqcrzbupjyriulg7ndrys4zipd4m4wcpcea",
+      "uri": "at://did:plc:s4r7pzjghinon4ijer4ephus/app.bsky.feed.post/3mwxvettbos2d"
+     }
+    },
+    "text": "#BreakingKindSongs \n#MusicChallenge \n\nO\n\nSofi Tukker ~ Original Sin \ud83c\udfb6\n\nyoutu.be/1xqwnD3BdT4?..."
+   },
+   "embed": {
+    "external": {
+     "uri": "https://youtu.be/1xqwnD3BdT4?is=lJGPeEs846-epQAE",
+     "title": "SOFI TUKKER - Original Sin (Official Video) [Ultra Records]",
+     "description": "YouTube video by Ultra Records",
+     "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:m7xwawreml5y65bowvfmhtz2/bafkreie5be24l2gpdhkqrinx6if7lvbqotwcmrgygc5y4ldft2q7sdtb7m"
+    },
+    "$type": "app.bsky.embed.external#view"
+   },
+   "bookmarkCount": 0,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 14,
+   "quoteCount": 0,
+   "indexedAt": "2026-10-03T14:40:16.076Z",
+   "labels": []
+  }
+ ],
+ "hitsTotal": 10000
+}

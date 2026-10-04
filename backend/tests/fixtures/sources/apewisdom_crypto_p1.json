@@ -1,0 +1,79 @@
+{
+ "count": 138,
+ "pages": 2,
+ "current_page": 1,
+ "results": [
+  {
+   "rank": 1,
+   "ticker": "BTC.X",
+   "name": "Bitcoin",
+   "mentions": 91,
+   "upvotes": 249,
+   "rank_24h_ago": 1,
+   "mentions_24h_ago": 114
+  },
+  {
+   "rank": 2,
+   "ticker": "ETH.X",
+   "name": "Ethereum",
+   "mentions": 19,
+   "upvotes": 55,
+   "rank_24h_ago": 2,
+   "mentions_24h_ago": 12
+  },
+  {
+   "rank": 3,
+   "ticker": "ID.X",
+   "name": "Everest",
+   "mentions": 6,
+   "upvotes": 14,
+   "rank_24h_ago": 6,
+   "mentions_24h_ago": 4
+  },
+  {
+   "rank": 4,
+   "ticker": "TOS.X",
+   "name": "ThingsOperatingSystem",
+   "mentions": 4,
+   "upvotes": 95,
+   "rank_24h_ago": 0,
+   "mentions_24h_ago": null
+  },
+  {
+   "rank": 5,
+   "ticker": "YOU.X",
+   "name": "YOU COIN",
+   "mentions": 3,
+   "upvotes": 3,
+   "rank_24h_ago": 59,
+   "mentions_24h_ago": 1
+  },
+  {
+   "rank": 6,
+   "ticker": "USDC.X",
+   "name": "USD Coin",
+   "mentions": 2,
+   "upvotes": 1,
+   "rank_24h_ago": 4,
+   "mentions_24h_ago": 4
+  },
+  {
+   "rank": 7,
+   "ticker": "EOS.X",
+   "name": "EOS",
+   "mentions": 2,
+   "upvotes": 46,
+   "rank_24h_ago": 0,
+   "mentions_24h_ago": null
+  },
+  {
+   "rank": 8,
+   "ticker": "IQ.X",
+   "name": "Everipedia",
+   "mentions": 2,
+   "upvotes": 14,
+   "rank_24h_ago": 7,
+   "mentions_24h_ago": 2
+  }
+ ]
+}

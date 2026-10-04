@@ -1,0 +1,1184 @@
+{
+ "posts": [
+  {
+   "uri": "at://did:plc:owu2lfrumlvvpoputmlmcwpd/app.bsky.feed.post/3mx3dj4txvz2r",
+   "cid": "bafyreie3eomlink2rfrwcufikwbkbqpdmpmwmfxpyspkemyzttckupwhza",
+   "author": {
+    "did": "did:plc:owu2lfrumlvvpoputmlmcwpd",
+    "handle": "financiernews.bsky.social",
+    "displayName": "Financier.News",
+    "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:owu2lfrumlvvpoputmlmcwpd/bafkreie36hzblz4mun2lfq2olxocn7scbmxi4wf3pbuahlmzjrjn6zycca",
+    "associated": {
+     "activitySubscription": {
+      "allowSubscriptions": "followers"
+     }
+    },
+    "labels": [],
+    "createdAt": "2026-09-20T08:01:32.160Z"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "createdAt": "2026-10-04T21:22:51.245Z",
+    "embed": {
+     "$type": "app.bsky.embed.images",
+     "images": [
+      {
+       "alt": "Nvidia Hit With $1.05 Billion Lawsuit Over 9,375 Options From 1993 Advisor as Shares Soar",
+       "image": {
+        "$type": "blob",
+        "ref": {
+         "$link": "bafkreiag3fwot5p53jw2w7phgzulgchkyxvcyqtcmx5nzrzkgmsdx65doe"
+        },
+        "mimeType": "image/png",
+        "size": 40795
+       }
+      }
+     ]
+    },
+    "facets": [
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#tag",
+        "tag": "Nvidia"
+       }
+      ],
+      "index": {
+       "byteEnd": 248,
+       "byteStart": 241
+      }
+     },
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#tag",
+        "tag": "Nvda"
+       }
+      ],
+      "index": {
+       "byteEnd": 254,
+       "byteStart": 249
+      }
+     },
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#link",
+        "uri": "https://financier.news/"
+       }
+      ],
+      "index": {
+       "byteEnd": 279,
+       "byteStart": 256
+      }
+     }
+    ],
+    "langs": [
+     "en"
+    ],
+    "text": "\ud83d\udee1 Nvidia Faces $1.05B Option Suit From 1993 Advisor Over 9,375 Shares\n\nNvidia is fighting a claim that it shorted an early advisor 9,375 of the 25,000 options granted in 1993 \u2014 a slice worth about $1.05 billion at today's price.\n\n$NVDA #Nvidia #Nvda\n\nhttps://financier.news/"
+   },
+   "embed": {
+    "images": [
+     {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:owu2lfrumlvvpoputmlmcwpd/bafkreiag3fwot5p53jw2w7phgzulgchkyxvcyqtcmx5nzrzkgmsdx65doe",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:owu2lfrumlvvpoputmlmcwpd/bafkreiag3fwot5p53jw2w7phgzulgchkyxvcyqtcmx5nzrzkgmsdx65doe",
+      "alt": "Nvidia Hit With $1.05 Billion Lawsuit Over 9,375 Options From 1993 Advisor as Shares Soar"
+     }
+    ],
+    "$type": "app.bsky.embed.images#view"
+   },
+   "bookmarkCount": 0,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "quoteCount": 0,
+   "indexedAt": "2026-10-04T21:22:51.964Z",
+   "labels": []
+  },
+  {
+   "uri": "at://did:plc:vo7tbj7e6pzsvjf2ghihkjun/app.bsky.feed.post/3mx3bj5drui2t",
+   "cid": "bafyreif7glhenrii75uj46odws2oyscfachitl4lzcil2ipkwhhzqmard4",
+   "author": {
+    "did": "did:plc:vo7tbj7e6pzsvjf2ghihkjun",
+    "handle": "insiderfinance.com",
+    "displayName": "InsiderFinance",
+    "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:vo7tbj7e6pzsvjf2ghihkjun/bafkreibehfwslwbzungv3fasxsp624cxddzggo6l6uayuza6j3ic7qegry",
+    "associated": {
+     "chat": {
+      "allowIncoming": "following"
+     },
+     "activitySubscription": {
+      "allowSubscriptions": "followers"
+     }
+    },
+    "labels": [],
+    "createdAt": "2023-12-26T17:09:00.760Z"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "createdAt": "2026-10-04T20:47:04.343Z",
+    "embed": {
+     "$type": "app.bsky.embed.images",
+     "images": [
+      {
+       "alt": "#CRWV and #MU were the week\u2019s clearest unusual-premium magnets.\n\u2197\ufe0f Unusual premium: CRWV $30.6M vs $",
+       "image": {
+        "$type": "blob",
+        "ref": {
+         "$link": "bafkreigzk2s3iqj3l22npid3kymyvjphrmpyrl6chou5exkgyvwjntbjs4"
+        },
+        "mimeType": "image/png",
+        "size": 58965
+       }
+      }
+     ]
+    },
+    "facets": [
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#tag",
+        "tag": "CRWV"
+       }
+      ],
+      "index": {
+       "byteEnd": 5,
+       "byteStart": 0
+      }
+     },
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#tag",
+        "tag": "MU"
+       }
+      ],
+      "index": {
+       "byteEnd": 13,
+       "byteStart": 10
+      }
+     }
+    ],
+    "langs": [
+     "en-US"
+    ],
+    "text": "#CRWV and #MU were the week\u2019s clearest unusual-premium magnets.\n\u2197\ufe0f Unusual premium: CRWV $30.6M vs $51.8M total premium\n\u2197\ufe0f Unusual premium: MU $24.5M vs $163.6M total premium\n\u2198\ufe0f Unusual premium: TSLA $2.3M; NVDA $1.6M"
+   },
+   "embed": {
+    "images": [
+     {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:vo7tbj7e6pzsvjf2ghihkjun/bafkreigzk2s3iqj3l22npid3kymyvjphrmpyrl6chou5exkgyvwjntbjs4",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:vo7tbj7e6pzsvjf2ghihkjun/bafkreigzk2s3iqj3l22npid3kymyvjphrmpyrl6chou5exkgyvwjntbjs4",
+      "alt": "#CRWV and #MU were the week\u2019s clearest unusual-premium magnets.\n\u2197\ufe0f Unusual premium: CRWV $30.6M vs $"
+     }
+    ],
+    "$type": "app.bsky.embed.images#view"
+   },
+   "bookmarkCount": 0,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "quoteCount": 0,
+   "indexedAt": "2026-10-04T20:47:05.860Z",
+   "labels": []
+  },
+  {
+   "uri": "at://did:plc:owu2lfrumlvvpoputmlmcwpd/app.bsky.feed.post/3mx372rd2oc2w",
+   "cid": "bafyreieadmfokvdgjzxrgnkquz352tyvu3pqzvk3y74xi3mysi4k4gpbdq",
+   "author": {
+    "did": "did:plc:owu2lfrumlvvpoputmlmcwpd",
+    "handle": "financiernews.bsky.social",
+    "displayName": "Financier.News",
+    "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:owu2lfrumlvvpoputmlmcwpd/bafkreie36hzblz4mun2lfq2olxocn7scbmxi4wf3pbuahlmzjrjn6zycca",
+    "associated": {
+     "activitySubscription": {
+      "allowSubscriptions": "followers"
+     }
+    },
+    "labels": [],
+    "createdAt": "2026-09-20T08:01:32.160Z"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "createdAt": "2026-10-04T20:03:14.422Z",
+    "embed": {
+     "$type": "app.bsky.embed.images",
+     "images": [
+      {
+       "alt": "Nvidia AI Optics Catalyst Sends Lumentum Shares Soaring to 233.95 as Next-Gen Data Center Demand Accelerates",
+       "image": {
+        "$type": "blob",
+        "ref": {
+         "$link": "bafkreihk5nqz4u4pvmfvuca3gjzhy3prow2zwtsmre72hgrsm7xf6cdk2m"
+        },
+        "mimeType": "image/png",
+        "size": 40788
+       }
+      }
+     ]
+    },
+    "facets": [
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#tag",
+        "tag": "Nvidia"
+       }
+      ],
+      "index": {
+       "byteEnd": 191,
+       "byteStart": 184
+      }
+     },
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#tag",
+        "tag": "AI"
+       }
+      ],
+      "index": {
+       "byteEnd": 195,
+       "byteStart": 192
+      }
+     },
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#tag",
+        "tag": "Nvda"
+       }
+      ],
+      "index": {
+       "byteEnd": 201,
+       "byteStart": 196
+      }
+     },
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#link",
+        "uri": "https://financier.news/"
+       }
+      ],
+      "index": {
+       "byteEnd": 226,
+       "byteStart": 203
+      }
+     }
+    ],
+    "langs": [
+     "en"
+    ],
+    "text": "\ud83d\udef0 Nvidia Lifts Lumentum on New AI Optics Catalyst as Hits 233.95\n\nNvidia handed Lumentum a fresh AI catalyst, tying its optical components to next-gen data-center buildouts.\n\n$NVDA #Nvidia #AI #Nvda\n\nhttps://financier.news/"
+   },
+   "embed": {
+    "images": [
+     {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:owu2lfrumlvvpoputmlmcwpd/bafkreihk5nqz4u4pvmfvuca3gjzhy3prow2zwtsmre72hgrsm7xf6cdk2m",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:owu2lfrumlvvpoputmlmcwpd/bafkreihk5nqz4u4pvmfvuca3gjzhy3prow2zwtsmre72hgrsm7xf6cdk2m",
+      "alt": "Nvidia AI Optics Catalyst Sends Lumentum Shares Soaring to 233.95 as Next-Gen Data Center Demand Accelerates"
+     }
+    ],
+    "$type": "app.bsky.embed.images#view"
+   },
+   "bookmarkCount": 0,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "quoteCount": 0,
+   "indexedAt": "2026-10-04T20:03:15.363Z",
+   "labels": []
+  },
+  {
+   "uri": "at://did:plc:owu2lfrumlvvpoputmlmcwpd/app.bsky.feed.post/3mx34t4fplp2o",
+   "cid": "bafyreiddchilstd5aysjgzvaz5osbjcicbj5zoxs4uoay7xnbxxbahnqpi",
+   "author": {
+    "did": "did:plc:owu2lfrumlvvpoputmlmcwpd",
+    "handle": "financiernews.bsky.social",
+    "displayName": "Financier.News",
+    "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:owu2lfrumlvvpoputmlmcwpd/bafkreie36hzblz4mun2lfq2olxocn7scbmxi4wf3pbuahlmzjrjn6zycca",
+    "associated": {
+     "activitySubscription": {
+      "allowSubscriptions": "followers"
+     }
+    },
+    "labels": [],
+    "createdAt": "2026-09-20T08:01:32.160Z"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "createdAt": "2026-10-04T19:23:10.121Z",
+    "embed": {
+     "$type": "app.bsky.embed.images",
+     "images": [
+      {
+       "alt": "Nvidia Stock Hits Record $233.95 Close, Up 1.34%, as $6 Trillion Market Cap Milestone Looms on October 2",
+       "image": {
+        "$type": "blob",
+        "ref": {
+         "$link": "bafkreidahcrfb4nnew4ucuzebcrw26hm7vbhlesukhy7637pyt6foxslee"
+        },
+        "mimeType": "image/png",
+        "size": 40790
+       }
+      }
+     ]
+    },
+    "facets": [
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#tag",
+        "tag": "NVDA"
+       }
+      ],
+      "index": {
+       "byteEnd": 235,
+       "byteStart": 230
+      }
+     },
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#tag",
+        "tag": "Nvidia"
+       }
+      ],
+      "index": {
+       "byteEnd": 243,
+       "byteStart": 236
+      }
+     },
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#tag",
+        "tag": "Markets"
+       }
+      ],
+      "index": {
+       "byteEnd": 252,
+       "byteStart": 244
+      }
+     },
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#link",
+        "uri": "https://financier.news/"
+       }
+      ],
+      "index": {
+       "byteEnd": 277,
+       "byteStart": 254
+      }
+     }
+    ],
+    "langs": [
+     "en"
+    ],
+    "text": "\ud83d\udda5 Nvidia Hits Record High at $233.95 as $6T Market Cap Nears\n\nNvidia shares closed at $233.95, up 1.34% today, after touching an all-time high for the first time since June 2 and nearing a $6 trillion market cap on October 2.\n\n#NVDA #Nvidia #Markets\n\nhttps://financier.news/"
+   },
+   "embed": {
+    "images": [
+     {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:owu2lfrumlvvpoputmlmcwpd/bafkreidahcrfb4nnew4ucuzebcrw26hm7vbhlesukhy7637pyt6foxslee",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:owu2lfrumlvvpoputmlmcwpd/bafkreidahcrfb4nnew4ucuzebcrw26hm7vbhlesukhy7637pyt6foxslee",
+      "alt": "Nvidia Stock Hits Record $233.95 Close, Up 1.34%, as $6 Trillion Market Cap Milestone Looms on October 2"
+     }
+    ],
+    "$type": "app.bsky.embed.images#view"
+   },
+   "bookmarkCount": 0,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 1,
+   "quoteCount": 0,
+   "indexedAt": "2026-10-04T19:23:10.967Z",
+   "labels": []
+  },
+  {
+   "uri": "at://did:plc:7lueeglwmok6fmza7rfsnwpw/app.bsky.feed.post/3mx33mpxn5c2b",
+   "cid": "bafyreif44mcqvs4wfhiuisby3ncdipze2jerlhbkppyjf3p2ocxwvsauyy",
+   "author": {
+    "did": "did:plc:7lueeglwmok6fmza7rfsnwpw",
+    "handle": "jennyyeremiy.bsky.social",
+    "displayName": "Jenny Yeremiy, P. Geoph \ud83e\udeb6\ud83c\udf3f\ud83c\uddf5\ud83c\uddf8\ud83c\uddf3\ud83c\uddec\ud83c\uddf1\ud83c\udde7\ud83c\udde8\ud83c\udde6",
+    "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:7lueeglwmok6fmza7rfsnwpw/bafkreihjbynfwtiwyz5lwvo6jnnjf2rdyrsu4ap6kiqvhy5vwj5tw56sxi",
+    "associated": {
+     "chat": {
+      "allowIncoming": "all"
+     },
+     "activitySubscription": {
+      "allowSubscriptions": "followers"
+     }
+    },
+    "labels": [],
+    "createdAt": "2024-08-04T15:24:19.674Z"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "createdAt": "2026-10-04T19:01:42.090Z",
+    "embed": {
+     "$type": "app.bsky.embed.external",
+     "external": {
+      "description": "Michael Burry warns the AI boom props up the US economy and says Trump can\u2019t let it slip.",
+      "thumb": {
+       "$type": "blob",
+       "ref": {
+        "$link": "bafkreihutzcbf27kmge6ubyensqiqg7s56c7stbufuibmdf4jm5uzyrcqm"
+       },
+       "mimeType": "image/jpeg",
+       "size": 260003
+      },
+      "title": "Michael Burry: Trump 'cannot afford' to let AI boom fail (MSFT:NASDAQ)",
+      "uri": "https://seekingalpha.com/news/4647429-michael-burry-trump-cannot-afford-to-let-ai-boom-fail"
+     }
+    },
+    "facets": [
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#link",
+        "uri": "https://seekingalpha.com/news/4647429-michael-burry-trump-cannot-afford-to-let-ai-boom-fail"
+       }
+      ],
+      "index": {
+       "byteEnd": 309,
+       "byteStart": 277
+      }
+     }
+    ],
+    "langs": [
+     "en"
+    ],
+    "text": "\u201cBurry recently shorted Nvidia (NVDA), Oracle (ORCL), Palantir (PLTR), Nebius (NBIS), Micron (MU), CoreWeave (CRWV), & has repeatedly challenged the AI investment narrative\u2026 enormous capital spending might not necessarily translate into durable returns.\u201d Ha, might \ud83d\ude06 \nseekingalpha.com/news/4647429..."
+   },
+   "embed": {
+    "external": {
+     "uri": "https://seekingalpha.com/news/4647429-michael-burry-trump-cannot-afford-to-let-ai-boom-fail",
+     "title": "Michael Burry: Trump 'cannot afford' to let AI boom fail (MSFT:NASDAQ)",
+     "description": "Michael Burry warns the AI boom props up the US economy and says Trump can\u2019t let it slip.",
+     "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:7lueeglwmok6fmza7rfsnwpw/bafkreihutzcbf27kmge6ubyensqiqg7s56c7stbufuibmdf4jm5uzyrcqm"
+    },
+    "$type": "app.bsky.embed.external#view"
+   },
+   "bookmarkCount": 0,
+   "replyCount": 0,
+   "repostCount": 1,
+   "likeCount": 2,
+   "quoteCount": 0,
+   "indexedAt": "2026-10-04T19:01:43.963Z",
+   "labels": []
+  },
+  {
+   "uri": "at://did:plc:x5ymi4c4jxqqg6nbkmpbthho/app.bsky.feed.post/3mx2xui26n225",
+   "cid": "bafyreifyqaxgo6fencnt4e5yc6khhsahlnpqnlpoe2c4fwcjubu47burdu",
+   "author": {
+    "did": "did:plc:x5ymi4c4jxqqg6nbkmpbthho",
+    "handle": "aistockwire.bsky.social",
+    "displayName": "AIStockWire.com",
+    "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:x5ymi4c4jxqqg6nbkmpbthho/bafkreiczoapanrhu25sufrjsecbsf2oe7nzjslm2rkwjz52vvt6aijkqbe",
+    "associated": {
+     "activitySubscription": {
+      "allowSubscriptions": "followers"
+     }
+    },
+    "labels": [],
+    "createdAt": "2026-06-26T20:53:25.360Z"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "createdAt": "2026-10-04T17:54:27.260Z",
+    "embed": {
+     "$type": "app.bsky.embed.external",
+     "external": {
+      "description": "Chip stocks doubled in the first half, then software beat them by 28 points. A Goldman specialist calls AI a stock picker's market as the earnings boost fades.",
+      "thumb": {
+       "$type": "blob",
+       "ref": {
+        "$link": "bafkreifrpx77zrd6loh4ltqw3ftpraimlyg7apcdditmlllkblbbkqix6a"
+       },
+       "mimeType": "image/jpeg",
+       "size": 149481
+      },
+      "title": "AI is a stock picker's market now, Goldman specialist says",
+      "uri": "https://aistockwire.com/blog/ai-trade-stock-pickers-market-goldman-chips-software-october-2026"
+     }
+    },
+    "facets": [
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#tag",
+        "tag": "$NOW"
+       }
+      ],
+      "index": {
+       "byteEnd": 108,
+       "byteStart": 104
+      }
+     },
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#tag",
+        "tag": "$MU"
+       }
+      ],
+      "index": {
+       "byteEnd": 112,
+       "byteStart": 109
+      }
+     },
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#tag",
+        "tag": "$NVDA"
+       }
+      ],
+      "index": {
+       "byteEnd": 118,
+       "byteStart": 113
+      }
+     }
+    ],
+    "langs": [
+     "en"
+    ],
+    "text": "Software has beaten chips in the AI trade since June. I think earnings could send buyers back to chips. $NOW $MU $NVDA"
+   },
+   "embed": {
+    "external": {
+     "uri": "https://aistockwire.com/blog/ai-trade-stock-pickers-market-goldman-chips-software-october-2026",
+     "title": "AI is a stock picker's market now, Goldman specialist says",
+     "description": "Chip stocks doubled in the first half, then software beat them by 28 points. A Goldman specialist calls AI a stock picker's market as the earnings boost fades.",
+     "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:x5ymi4c4jxqqg6nbkmpbthho/bafkreifrpx77zrd6loh4ltqw3ftpraimlyg7apcdditmlllkblbbkqix6a"
+    },
+    "$type": "app.bsky.embed.external#view"
+   },
+   "bookmarkCount": 0,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "quoteCount": 0,
+   "indexedAt": "2026-10-04T17:54:28.968Z",
+   "labels": []
+  },
+  {
+   "uri": "at://did:plc:x5ymi4c4jxqqg6nbkmpbthho/app.bsky.feed.post/3mx2vkhmyq225",
+   "cid": "bafyreib4dxzswcf2wkwnnlxaxz7wbzgnmeusk3qzgomyvj7d7t74y6cwte",
+   "author": {
+    "did": "did:plc:x5ymi4c4jxqqg6nbkmpbthho",
+    "handle": "aistockwire.bsky.social",
+    "displayName": "AIStockWire.com",
+    "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:x5ymi4c4jxqqg6nbkmpbthho/bafkreiczoapanrhu25sufrjsecbsf2oe7nzjslm2rkwjz52vvt6aijkqbe",
+    "associated": {
+     "activitySubscription": {
+      "allowSubscriptions": "followers"
+     }
+    },
+    "labels": [],
+    "createdAt": "2026-06-26T20:53:25.360Z"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "createdAt": "2026-10-04T17:13:03.801Z",
+    "embed": {
+     "$type": "app.bsky.embed.external",
+     "external": {
+      "description": "Cerebras turns a whole silicon wafer into one AI chip, about 58 times the area of one Nvidia B200 die. How that speeds up AI, and where the design falls short.",
+      "thumb": {
+       "$type": "blob",
+       "ref": {
+        "$link": "bafkreidypgtrvx27czfv7rjz7alnrafwmtmharia3ng5d44t4zj5jfb3p4"
+       },
+       "mimeType": "image/jpeg",
+       "size": 239358
+      },
+      "title": "Cerebras bets its giant AI chip can outrun Nvidia GPUs",
+      "uri": "https://aistockwire.com/blog/cerebras-cbrs-wafer-scale-chip-58-times-nvidia-b200-why-so-big-october-2026"
+     }
+    },
+    "facets": [
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#tag",
+        "tag": "Cerebras"
+       }
+      ],
+      "index": {
+       "byteEnd": 9,
+       "byteStart": 0
+      }
+     },
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#tag",
+        "tag": "$CBRS"
+       }
+      ],
+      "index": {
+       "byteEnd": 16,
+       "byteStart": 11
+      }
+     },
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#tag",
+        "tag": "Nvidia"
+       }
+      ],
+      "index": {
+       "byteEnd": 59,
+       "byteStart": 52
+      }
+     },
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#tag",
+        "tag": "$NVDA"
+       }
+      ],
+      "index": {
+       "byteEnd": 66,
+       "byteStart": 61
+      }
+     }
+    ],
+    "langs": [
+     "en"
+    ],
+    "text": "#Cerebras ($CBRS) bets its giant AI chip can outrun #Nvidia ($NVDA) GPUs"
+   },
+   "embed": {
+    "external": {
+     "uri": "https://aistockwire.com/blog/cerebras-cbrs-wafer-scale-chip-58-times-nvidia-b200-why-so-big-october-2026",
+     "title": "Cerebras bets its giant AI chip can outrun Nvidia GPUs",
+     "description": "Cerebras turns a whole silicon wafer into one AI chip, about 58 times the area of one Nvidia B200 die. How that speeds up AI, and where the design falls short.",
+     "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:x5ymi4c4jxqqg6nbkmpbthho/bafkreidypgtrvx27czfv7rjz7alnrafwmtmharia3ng5d44t4zj5jfb3p4"
+    },
+    "$type": "app.bsky.embed.external#view"
+   },
+   "bookmarkCount": 0,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "quoteCount": 0,
+   "indexedAt": "2026-10-04T17:13:05.661Z",
+   "labels": []
+  },
+  {
+   "uri": "at://did:plc:h2gw2tiximbwqpeatsz6rqim/app.bsky.feed.post/3mx2uxlumovk2",
+   "cid": "bafyreig4mubznnj66lea4yf5qh3dypr7mxq3mznohpzfcblj5o2cqakdka",
+   "author": {
+    "did": "did:plc:h2gw2tiximbwqpeatsz6rqim",
+    "handle": "charliebilello.zpravobot.news.ap.brid.gy",
+    "displayName": "Charlie Bilello :bot:",
+    "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:h2gw2tiximbwqpeatsz6rqim/bafkreidb4zkqvckqlgqg3uxxn3mg3mozpah37ns56hyclqo6zqxtmlxmdy",
+    "associated": {
+     "chat": {
+      "allowIncoming": "none"
+     },
+     "activitySubscription": {
+      "allowSubscriptions": "followers"
+     }
+    },
+    "labels": [
+     {
+      "src": "did:plc:h2gw2tiximbwqpeatsz6rqim",
+      "uri": "at://did:plc:h2gw2tiximbwqpeatsz6rqim/app.bsky.actor.profile/self",
+      "cid": "bafyreibdozbh3zjbrnscznmfiat26psp4kkxusma35rc2tntgwkq73yzb4",
+      "val": "bot",
+      "cts": "1970-01-01T00:00:00.000Z"
+     },
+     {
+      "src": "did:plc:h2gw2tiximbwqpeatsz6rqim",
+      "uri": "at://did:plc:h2gw2tiximbwqpeatsz6rqim/app.bsky.actor.profile/self",
+      "cid": "bafyreibdozbh3zjbrnscznmfiat26psp4kkxusma35rc2tntgwkq73yzb4",
+      "val": "bridged-from-bridgy-fed-activitypub",
+      "cts": "1970-01-01T00:00:00.000Z"
+     }
+    ],
+    "createdAt": "2025-09-08T14:11:03.501Z"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "bridgyOriginalText": "<p>Charlie Bilello \ud835\udd4f\ud83d\udd01 sv\u016fj post:</p><p>Last 10 Years\u2026<br />NVIDIA $NVDA: +13,817%<br />Bitcoin $BTC: +13,793%<br />$AMD: +9,074%<br />Tesla $TSLA: +2,625%<br />Apple $AAPL: +1,191%<br />Microsoft $MSFT: +912%<br />Google $GOOGL: +763%<br />Amazon $AMZN: +502%<br />Meta $META: +473%<br />S&amp;P $SPY: +317%<br />Gold $GLD: +203%<br />US Inflation: +39%<br />US Bonds $BND: +12%</p><p><a href=\"https://x.com/charliebilello/status/2106788885326102541\" target=\"_blank\" rel=\"nofollow noopener\" translate=\"no\"><span class=\"invisible\">https://</span><span class=\"ellipsis\">x.com/charliebilello/status/21</span><span class=\"invisible\">06788885326102541</span></a></p>",
+    "bridgyOriginalUrl": "https://zpravobot.news/@charliebilello/117383714848137637",
+    "createdAt": "2026-10-04T17:02:24.000Z",
+    "embed": {
+     "$type": "app.bsky.embed.images",
+     "images": [
+      {
+       "$type": "app.bsky.embed.images#image",
+       "alt": "",
+       "aspectRatio": {
+        "height": 1,
+        "width": 1280
+       },
+       "image": {
+        "$type": "blob",
+        "ref": {
+         "$link": "bafkreia7qpjod5vuahk6kbtnj33syoet472kjr7fnxriykjitpvz4ecc24"
+        },
+        "mimeType": "image/png",
+        "size": 289
+       }
+      }
+     ]
+    },
+    "facets": [
+     {
+      "$type": "app.bsky.richtext.facet",
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#link",
+        "uri": "https://zpravobot.news/@charliebilello/117383714848137637"
+       }
+      ],
+      "index": {
+       "byteEnd": 306,
+       "byteStart": 271
+      }
+     }
+    ],
+    "langs": [
+     "en"
+    ],
+    "text": "Charlie Bilello \ud835\udd4f\ud83d\udd01 sv\u016fj post:\n\nLast 10 Years\u2026\nNVIDIA $NVDA: +13,817%\nBitcoin $BTC: +13,793%\n$AMD: +9,074%\nTesla $TSLA: +2,625%\nApple $AAPL: +1,191%\nMicrosoft $MSFT: +912%\nGoogle $GOOGL: +763%\nAmazon $AMZN: +502%\nMeta $META: +473%\nS&P $SPY: +317%\nGold $GLD [\u2026] \n\n[Original post on zpravobot.news]"
+   },
+   "embed": {
+    "images": [
+     {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:h2gw2tiximbwqpeatsz6rqim/bafkreia7qpjod5vuahk6kbtnj33syoet472kjr7fnxriykjitpvz4ecc24",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:h2gw2tiximbwqpeatsz6rqim/bafkreia7qpjod5vuahk6kbtnj33syoet472kjr7fnxriykjitpvz4ecc24",
+      "alt": "",
+      "aspectRatio": {
+       "height": 1,
+       "width": 1280
+      }
+     }
+    ],
+    "$type": "app.bsky.embed.images#view"
+   },
+   "bookmarkCount": 0,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "quoteCount": 0,
+   "indexedAt": "2026-10-04T17:03:40.366Z",
+   "labels": []
+  },
+  {
+   "uri": "at://did:plc:iz7nhspvmhhlxxrtl4k3nv6w/app.bsky.feed.post/3mx2rxzqzws23",
+   "cid": "bafyreihs2ph5o2qrgvo7uc52k242rybnplu7j7xqeipaspy73sea3x3ktq",
+   "author": {
+    "did": "did:plc:iz7nhspvmhhlxxrtl4k3nv6w",
+    "handle": "djecchi.bandcamp.com",
+    "displayName": "Anchor Rite",
+    "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:iz7nhspvmhhlxxrtl4k3nv6w/bafkreigqsh6gzfcaut3jysbi7bjj4ppwsugbkgkfbq5vwcd44zdkgufowq",
+    "associated": {
+     "activitySubscription": {
+      "allowSubscriptions": "followers"
+     }
+    },
+    "labels": [],
+    "createdAt": "2024-11-14T17:31:09.630Z"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "createdAt": "2026-10-04T16:09:04.046Z",
+    "embed": {
+     "$type": "app.bsky.embed.record",
+     "record": {
+      "cid": "bafyreihq56vgunh7qql5dl2cq37jue5sbjtnfbpryhdr7cuecz4kijd3hi",
+      "uri": "at://did:plc:wkzjtd4gogevarp2qsr4z47m/app.bsky.feed.post/3mwzzxz6d3k2f"
+     }
+    },
+    "langs": [
+     "en"
+    ],
+    "text": "I hear the basilisk boom, NVDA to the moon."
+   },
+   "embed": {
+    "record": {
+     "uri": "at://did:plc:wkzjtd4gogevarp2qsr4z47m/app.bsky.feed.post/3mwzzxz6d3k2f",
+     "cid": "bafyreihq56vgunh7qql5dl2cq37jue5sbjtnfbpryhdr7cuecz4kijd3hi",
+     "author": {
+      "did": "did:plc:wkzjtd4gogevarp2qsr4z47m",
+      "handle": "bruces.bsky.social",
+      "displayName": "#BruceSterling",
+      "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:wkzjtd4gogevarp2qsr4z47m/bafkreic2a5fhuk5boriirn5jfderxjtkhltpqbfpxvu7dygqulc3rspdqu",
+      "associated": {
+       "chat": {
+        "allowIncoming": "none"
+       },
+       "activitySubscription": {
+        "allowSubscriptions": "followers"
+       }
+      },
+      "labels": [],
+      "createdAt": "2023-08-04T16:59:54.554Z",
+      "verification": {
+       "verifications": [
+        {
+         "issuer": "did:plc:z72i7hdynmk6r22z27h6tvur",
+         "issuerDisplayName": "Bluesky",
+         "issuerHandle": "bsky.app",
+         "uri": "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.graph.verification/3mv3u5hplym26",
+         "isValid": true,
+         "createdAt": "2026-09-09T15:30:10.191Z"
+        }
+       ],
+       "verifiedStatus": "valid",
+       "trustedVerifierStatus": "none"
+      }
+     },
+     "value": {
+      "$type": "app.bsky.feed.post",
+      "createdAt": "2026-10-04T08:59:33.579Z",
+      "embed": {
+       "$type": "app.bsky.embed.images",
+       "images": [
+        {
+         "alt": "",
+         "aspectRatio": {
+          "height": 1536,
+          "width": 1024
+         },
+         "image": {
+          "$type": "blob",
+          "ref": {
+           "$link": "bafkreiamuc67xqurq7ptm6u4jubz6cfdk26fiqcmlu2vy56rit4ekk5pwq"
+          },
+          "mimeType": "image/jpeg",
+          "size": 1265598
+         }
+        }
+       ]
+      },
+      "langs": [
+       "en"
+      ],
+      "text": ""
+     },
+     "labels": [],
+     "likeCount": 35,
+     "replyCount": 3,
+     "repostCount": 4,
+     "quoteCount": 1,
+     "indexedAt": "2026-10-04T08:56:24.766Z",
+     "embeds": [
+      {
+       "images": [
+        {
+         "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:wkzjtd4gogevarp2qsr4z47m/bafkreiamuc67xqurq7ptm6u4jubz6cfdk26fiqcmlu2vy56rit4ekk5pwq",
+         "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:wkzjtd4gogevarp2qsr4z47m/bafkreiamuc67xqurq7ptm6u4jubz6cfdk26fiqcmlu2vy56rit4ekk5pwq",
+         "alt": "",
+         "aspectRatio": {
+          "height": 1536,
+          "width": 1024
+         }
+        }
+       ],
+       "$type": "app.bsky.embed.images#view"
+      }
+     ],
+     "$type": "app.bsky.embed.record#viewRecord"
+    },
+    "$type": "app.bsky.embed.record#view"
+   },
+   "bookmarkCount": 0,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "quoteCount": 0,
+   "indexedAt": "2026-10-04T16:09:03.064Z",
+   "labels": []
+  },
+  {
+   "uri": "at://did:plc:oljskneqvj4okbcnszkk2d2r/app.bsky.feed.post/3mx2kfk5zps2a",
+   "cid": "bafyreighavzubgof42bsjgp3ydp4z7tfxwmowui6njlwdeky5t7iv3em5q",
+   "author": {
+    "did": "did:plc:oljskneqvj4okbcnszkk2d2r",
+    "handle": "tickerade.bsky.social",
+    "displayName": "tickerade",
+    "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:oljskneqvj4okbcnszkk2d2r/bafkreiarmkfuzhzdwe43pqm66mt2vblscb2wh2yzjkfgtmmlw7tu4ba54q",
+    "associated": {
+     "chat": {
+      "allowIncoming": "none"
+     },
+     "activitySubscription": {
+      "allowSubscriptions": "followers"
+     }
+    },
+    "labels": [],
+    "createdAt": "2025-11-04T16:28:19.950Z"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "createdAt": "2026-10-04T13:53:27.524Z",
+    "embed": {
+     "$type": "app.bsky.embed.images",
+     "images": [
+      {
+       "alt": "",
+       "aspectRatio": {
+        "height": 874,
+        "width": 542
+       },
+       "image": {
+        "$type": "blob",
+        "ref": {
+         "$link": "bafkreiffns7gdqunxwe75h2axbu3r4unwkooagimlliqcjknfmnm5x5x7e"
+        },
+        "mimeType": "image/jpeg",
+        "size": 145821
+       }
+      }
+     ]
+    },
+    "facets": [
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#tag",
+        "tag": "$SPY"
+       }
+      ],
+      "index": {
+       "byteEnd": 54,
+       "byteStart": 50
+      }
+     },
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#tag",
+        "tag": "$SDEV"
+       }
+      ],
+      "index": {
+       "byteEnd": 61,
+       "byteStart": 56
+      }
+     },
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#tag",
+        "tag": "$NVDA"
+       }
+      ],
+      "index": {
+       "byteEnd": 68,
+       "byteStart": 63
+      }
+     },
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#tag",
+        "tag": "$MU"
+       }
+      ],
+      "index": {
+       "byteEnd": 77,
+       "byteStart": 74
+      }
+     },
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#link",
+        "uri": "https://www.tickerade.com"
+       }
+      ],
+      "index": {
+       "byteEnd": 257,
+       "byteStart": 240
+      }
+     },
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#tag",
+        "tag": "trading"
+       }
+      ],
+      "index": {
+       "byteEnd": 305,
+       "byteStart": 297
+      }
+     },
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#tag",
+        "tag": "investing"
+       }
+      ],
+      "index": {
+       "byteEnd": 316,
+       "byteStart": 306
+      }
+     }
+    ],
+    "langs": [
+     "en"
+    ],
+    "text": "Sunday\u2019s Tickerade trending list is live. \ud83d\udd25\n\n$SPY, $SDEV, $NVDA, and $MU are leading the conversation today. A few posts said \u201clive\u201d event, and the server read LIVE as a ticker. My bad! \ud83d\ude43\n\nFull list, AI takes, and live updates: www.tickerade.com, sign up before Monday\u2019s open. \ud83d\udcc8\n\n#trading #investing"
+   },
+   "embed": {
+    "images": [
+     {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:oljskneqvj4okbcnszkk2d2r/bafkreiffns7gdqunxwe75h2axbu3r4unwkooagimlliqcjknfmnm5x5x7e",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:oljskneqvj4okbcnszkk2d2r/bafkreiffns7gdqunxwe75h2axbu3r4unwkooagimlliqcjknfmnm5x5x7e",
+      "alt": "",
+      "aspectRatio": {
+       "height": 874,
+       "width": 542
+      }
+     }
+    ],
+    "$type": "app.bsky.embed.images#view"
+   },
+   "bookmarkCount": 0,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "quoteCount": 0,
+   "indexedAt": "2026-10-04T13:53:33.062Z",
+   "labels": []
+  },
+  {
+   "uri": "at://did:plc:vo7tbj7e6pzsvjf2ghihkjun/app.bsky.feed.post/3mx2jwvqknm2s",
+   "cid": "bafyreifqgfii72n77n6h4jq6yj2thoga3jbnnhocrqhvygi62rxnoide3e",
+   "author": {
+    "did": "did:plc:vo7tbj7e6pzsvjf2ghihkjun",
+    "handle": "insiderfinance.com",
+    "displayName": "InsiderFinance",
+    "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:vo7tbj7e6pzsvjf2ghihkjun/bafkreibehfwslwbzungv3fasxsp624cxddzggo6l6uayuza6j3ic7qegry",
+    "associated": {
+     "chat": {
+      "allowIncoming": "following"
+     },
+     "activitySubscription": {
+      "allowSubscriptions": "followers"
+     }
+    },
+    "labels": [],
+    "createdAt": "2023-12-26T17:09:00.760Z"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "createdAt": "2026-10-04T13:45:16.330Z",
+    "embed": {
+     "$type": "app.bsky.embed.images",
+     "images": [
+      {
+       "alt": "$270.7M net call premium closed the week green, but #NVDA carried the cleanest accumulation.\n\u2197\ufe0f Opti",
+       "image": {
+        "$type": "blob",
+        "ref": {
+         "$link": "bafkreifwxgc6drjmkqwmxkg633i7eje4fv47smvbweirtoshnrqinouub4"
+        },
+        "mimeType": "image/png",
+        "size": 97724
+       }
+      }
+     ]
+    },
+    "facets": [
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#tag",
+        "tag": "NVDA"
+       }
+      ],
+      "index": {
+       "byteEnd": 57,
+       "byteStart": 52
+      }
+     }
+    ],
+    "langs": [
+     "en-US"
+    ],
+    "text": "$270.7M net call premium closed the week green, but #NVDA carried the cleanest accumulation.\n\u2197\ufe0f Options: $5.47B calls vs $5.20B puts\n\u2197\ufe0f NVDA: $300.7M premium, 25% put flow\n\u27a1\ufe0f SPX: 7,725 sat inside 7,620-7,755"
+   },
+   "embed": {
+    "images": [
+     {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:vo7tbj7e6pzsvjf2ghihkjun/bafkreifwxgc6drjmkqwmxkg633i7eje4fv47smvbweirtoshnrqinouub4",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:vo7tbj7e6pzsvjf2ghihkjun/bafkreifwxgc6drjmkqwmxkg633i7eje4fv47smvbweirtoshnrqinouub4",
+      "alt": "$270.7M net call premium closed the week green, but #NVDA carried the cleanest accumulation.\n\u2197\ufe0f Opti"
+     }
+    ],
+    "$type": "app.bsky.embed.images#view"
+   },
+   "bookmarkCount": 0,
+   "replyCount": 1,
+   "repostCount": 0,
+   "likeCount": 0,
+   "quoteCount": 0,
+   "indexedAt": "2026-10-04T13:45:16.557Z",
+   "labels": []
+  },
+  {
+   "uri": "at://did:plc:63huihqbqwcv56wsao65dlsr/app.bsky.feed.post/3mx2cj64sgs2v",
+   "cid": "bafyreiht4zirfnrcft2lbq23uethms5n7vyzrww2jllpngut6o4tcqop5y",
+   "author": {
+    "did": "did:plc:63huihqbqwcv56wsao65dlsr",
+    "handle": "thoughtsnprayers.bsky.social",
+    "displayName": "",
+    "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:63huihqbqwcv56wsao65dlsr/bafkreih5v7y76ga5qslmvub5cpsrqvmqvcea3vdjyt5mj4fss5lsjxuvhu",
+    "associated": {
+     "chat": {
+      "allowIncoming": "all"
+     },
+     "activitySubscription": {
+      "allowSubscriptions": "followers"
+     }
+    },
+    "labels": [],
+    "createdAt": "2024-11-13T02:01:54.959Z"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "createdAt": "2026-10-04T11:32:19.183Z",
+    "langs": [
+     "en"
+    ],
+    "reply": {
+     "parent": {
+      "cid": "bafyreibzvnc2w5g3p7zf6rzlc4qzaru5mcxbwe4m6q675jla6pgdnopbtq",
+      "uri": "at://did:plc:gftip5r3dmyojn5lat333pp5/app.bsky.feed.post/3mx2al4am4f2m"
+     },
+     "root": {
+      "cid": "bafyreibzvnc2w5g3p7zf6rzlc4qzaru5mcxbwe4m6q675jla6pgdnopbtq",
+      "uri": "at://did:plc:gftip5r3dmyojn5lat333pp5/app.bsky.feed.post/3mx2al4am4f2m"
+     }
+    },
+    "text": "NVDA isn't just a stock anymore. It's your 401(k), the AI capex boom, and a big chunk of GDP growth, all riding on one company and one factory in Taiwan. That's not strength. That's a single point of failure\u2026"
+   },
+   "bookmarkCount": 0,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "quoteCount": 0,
+   "indexedAt": "2026-10-04T11:32:19.660Z",
+   "labels": []
+  }
+ ],
+ "hitsTotal": 10000
+}

@@ -1,0 +1,74 @@
+[
+ {
+  "ticker": "AI",
+  "sentiment": "Bearish",
+  "sentiment_score": -0.019,
+  "no_of_comments": 138
+ },
+ {
+  "ticker": "LULU",
+  "sentiment": "Bearish",
+  "sentiment_score": -0.208,
+  "no_of_comments": 42
+ },
+ {
+  "ticker": "MU",
+  "sentiment": "Bullish",
+  "sentiment_score": 0.525,
+  "no_of_comments": 35
+ },
+ {
+  "ticker": "SPY",
+  "sentiment": "Bearish",
+  "sentiment_score": -0.165,
+  "no_of_comments": 34
+ },
+ {
+  "ticker": "NVDA",
+  "sentiment": "Bullish",
+  "sentiment_score": 0.011,
+  "no_of_comments": 32
+ },
+ {
+  "ticker": "FICO",
+  "sentiment": "Bullish",
+  "sentiment_score": 0.067,
+  "no_of_comments": 20
+ },
+ {
+  "ticker": "TSLA",
+  "sentiment": "Bearish",
+  "sentiment_score": -0.292,
+  "no_of_comments": 20
+ },
+ {
+  "ticker": "SNDK",
+  "sentiment": "Bearish",
+  "sentiment_score": 0.0,
+  "no_of_comments": 19
+ },
+ {
+  "ticker": "AMC",
+  "sentiment": "Bearish",
+  "sentiment_score": -0.667,
+  "no_of_comments": 13
+ },
+ {
+  "ticker": "AMD",
+  "sentiment": "Bullish",
+  "sentiment_score": 0.312,
+  "no_of_comments": 12
+ },
+ {
+  "ticker": "ASTS",
+  "sentiment": "Bearish",
+  "sentiment_score": 0.0,
+  "no_of_comments": 12
+ },
+ {
+  "ticker": "UUUU",
+  "sentiment": "Bullish",
+  "sentiment_score": 0.305,
+  "no_of_comments": 12
+ }
+]

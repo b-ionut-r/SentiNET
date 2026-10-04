@@ -1,0 +1,595 @@
+{
+ "items": "50",
+ "sentiment_score_definition": "x <= -0.35: Bearish; -0.35 < x <= -0.15: Somewhat-Bearish; -0.15 < x < 0.15: Neutral; 0.15 <= x < 0.35: Somewhat_Bullish; x >= 0.35: Bullish",
+ "relevance_score_definition": "0 < x <= 1, with a higher score indicating higher relevance.",
+ "feed": [
+  {
+   "title": "MercadoLibre vs. Uber Technologies: Which Stock Is a Better Buy in 2026?",
+   "url": "https://finance.yahoo.com/markets/stocks/articles/mercadolibre-vs-uber-technologies-stock-151108119.html",
+   "time_published": "20261004T151215",
+   "authors": [
+    "Sara Appino"
+   ],
+   "summary": "This article compares MercadoLibre and Uber Technologies to determine which stock is a better investment in 2026. It analyzes their business models, financial performance for fiscal year 2025, risk profiles, and valuation metrics. The author ultimately favors Uber due to its diversification across multiple profitable platforms and substantial free cash flow, while acknowledging MercadoLibre's growth potential in Latin America.",
+   "source": "Yahoo Finance",
+   "category_within_source": "General",
+   "source_domain": "Yahoo Finance",
+   "topics": [
+    {
+     "topic": "financial_markets",
+     "relevance_score": "0.920524"
+    },
+    {
+     "topic": "earnings",
+     "relevance_score": "0.822650"
+    },
+    {
+     "topic": "retail_wholesale",
+     "relevance_score": "0.731406"
+    },
+    {
+     "topic": "technology",
+     "relevance_score": "0.707915"
+    },
+    {
+     "topic": "economy_macro",
+     "relevance_score": "0.601646"
+    }
+   ],
+   "overall_sentiment_score": 0.102655,
+   "overall_sentiment_label": "Neutral",
+   "ticker_sentiment": [
+    {
+     "ticker": "UBER",
+     "relevance_score": "1.000000",
+     "ticker_sentiment_score": "0.308532",
+     "ticker_sentiment_label": "Somewhat-Bullish"
+    },
+    {
+     "ticker": "GOOGL",
+     "relevance_score": "0.612055",
+     "ticker_sentiment_score": "0.117611",
+     "ticker_sentiment_label": "Neutral"
+    },
+    {
+     "ticker": "AAPL",
+     "relevance_score": "0.628366",
+     "ticker_sentiment_score": "0.147106",
+     "ticker_sentiment_label": "Neutral"
+    },
+    {
+     "ticker": "DASH",
+     "relevance_score": "0.567379",
+     "ticker_sentiment_score": "-0.128119",
+     "ticker_sentiment_label": "Neutral"
+    }
+   ]
+  },
+  {
+   "title": "Apple, Meta And Jim Cramer Set the Tone for AI, iPhone and Vision Pro Moves: This Week in Apple",
+   "url": "https://www.tradingview.com/news/benzinga:cfe505f81094b:0-apple-meta-and-jim-cramer-set-the-tone-for-ai-iphone-and-vision-pro-moves-this-week-in-apple/",
+   "time_published": "20261004T112143",
+   "authors": [],
+   "summary": "This article covers Apple's latest moves in AI, iPhone demand, and wearable tech, alongside market commentary from Jim Cramer. Apple is focusing on AI privacy and an organizational restructure to accelerate product launches, while facing competition in the VR headset market from Meta. Strong demand for the iPhone 18 Pro in China signals potential revenue upside for the company.",
+   "source": "TradingView",
+   "category_within_source": "General",
+   "source_domain": "TradingView",
+   "topics": [
+    {
+     "topic": "technology",
+     "relevance_score": "0.909492"
+    },
+    {
+     "topic": "financial_markets",
+     "relevance_score": "0.801222"
+    },
+    {
+     "topic": "earnings",
+     "relevance_score": "0.643706"
+    }
+   ],
+   "overall_sentiment_score": 0.189036,
+   "overall_sentiment_label": "Somewhat-Bullish",
+   "ticker_sentiment": [
+    {
+     "ticker": "AAPL",
+     "relevance_score": "1.000000",
+     "ticker_sentiment_score": "0.259639",
+     "ticker_sentiment_label": "Somewhat-Bullish"
+    },
+    {
+     "ticker": "META",
+     "relevance_score": "0.809265",
+     "ticker_sentiment_score": "0.127251",
+     "ticker_sentiment_label": "Neutral"
+    }
+   ]
+  },
+  {
+   "title": "Apple Weekly Roundup: AI Privacy, iPhone Demand, Wearables And Restructuring - Apple (NASDAQ:AAPL)",
+   "url": "https://www.benzinga.com/markets/tech/26/10/62152341/apple-weekly-tech-headlines-ai-iphone",
+   "time_published": "20261004T112113",
+   "authors": [
+    "Mohd Haider"
+   ],
+   "summary": "This article summarizes Apple's significant developments from the past week, focusing on AI privacy, strong iPhone demand, and internal restructuring. Key topics include Apple's efforts to enhance AI privacy for Mac users, Jim Cramer's endorsement of Apple stock based on iPhone performance, robust sales of the iPhone 18 Pro in China, the company's past decision to scrap a lighter Vision Pro concept, and an organizational overhaul aimed at accelerating product launches.",
+   "source": "Benzinga",
+   "category_within_source": "General",
+   "source_domain": "Benzinga",
+   "topics": [
+    {
+     "topic": "technology",
+     "relevance_score": "0.946076"
+    },
+    {
+     "topic": "financial_markets",
+     "relevance_score": "0.715582"
+    }
+   ],
+   "overall_sentiment_score": 0.187683,
+   "overall_sentiment_label": "Somewhat-Bullish",
+   "ticker_sentiment": [
+    {
+     "ticker": "AAPL",
+     "relevance_score": "1.000000",
+     "ticker_sentiment_score": "0.272906",
+     "ticker_sentiment_label": "Somewhat-Bullish"
+    },
+    {
+     "ticker": "META",
+     "relevance_score": "0.611684",
+     "ticker_sentiment_score": "0.084113",
+     "ticker_sentiment_label": "Neutral"
+    }
+   ]
+  },
+  {
+   "title": "1,844 Apple Inc. $AAPL Shares Acquired by Briaud Financial Planning Inc",
+   "url": "https://www.marketbeat.com/instant-alerts/filing-1844-apple-inc-aapl-shares-acquired-by-briaud-financial-planning-inc-2026-10-04/",
+   "time_published": "20261004T071736",
+   "authors": [
+    "MarketBeat"
+   ],
+   "summary": "Briaud Financial Planning Inc. increased its stake in Apple Inc. by 18.9%, acquiring 1,844 additional shares, bringing its total to 11,605 shares valued at $3.36 million. This makes Apple the 7th largest holding for Briaud Financial Planning Inc. Institutional investors collectively own 67.73% of Apple, and analysts generally maintain a \"Moderate Buy\" rating for the stock with an average price target of $340.02.",
+   "source": "MarketBeat",
+   "category_within_source": "General",
+   "source_domain": "MarketBeat",
+   "topics": [
+    {
+     "topic": "financial_markets",
+     "relevance_score": "0.909841"
+    },
+    {
+     "topic": "earnings",
+     "relevance_score": "0.840349"
+    },
+    {
+     "topic": "technology",
+     "relevance_score": "0.717756"
+    }
+   ],
+   "overall_sentiment_score": -0.177965,
+   "overall_sentiment_label": "Somewhat-Bearish",
+   "ticker_sentiment": [
+    {
+     "ticker": "AAPL",
+     "relevance_score": "1.000000",
+     "ticker_sentiment_score": "0.046073",
+     "ticker_sentiment_label": "Neutral"
+    },
+    {
+     "ticker": "META",
+     "relevance_score": "0.630653",
+     "ticker_sentiment_score": "-0.309945",
+     "ticker_sentiment_label": "Somewhat-Bearish"
+    }
+   ]
+  },
+  {
+   "title": "Apple Inc. $AAPL Holdings Trimmed by Birch Capital Management LLC",
+   "url": "https://www.marketbeat.com/instant-alerts/filing-apple-inc-aapl-holdings-trimmed-by-birch-capital-management-llc-2026-10-04/",
+   "time_published": "20261004T071720",
+   "authors": [
+    "MarketBeat"
+   ],
+   "summary": "Birch Capital Management LLC reduced its stake in Apple Inc. by 2.9% in the second quarter, selling 1,862 shares but still retaining 61,917 shares valued at $17.9 million, making Apple its second-largest holding. Despite this reduction and some negative sentiment regarding component costs, a patent verdict, and AI competition, analysts maintain a \"Moderate Buy\" rating with a $340.02 average price target. Other institutional investors, such as Summit Wealth Partners, significantly increased their positions in Apple during the first quarter.",
+   "source": "MarketBeat",
+   "category_within_source": "General",
+   "source_domain": "MarketBeat",
+   "topics": [
+    {
+     "topic": "earnings",
+     "relevance_score": "0.942133"
+    },
+    {
+     "topic": "financial_markets",
+     "relevance_score": "0.819216"
+    },
+    {
+     "topic": "technology",
+     "relevance_score": "0.835687"
+    }
+   ],
+   "overall_sentiment_score": -0.084016,
+   "overall_sentiment_label": "Neutral",
+   "ticker_sentiment": [
+    {
+     "ticker": "AAPL",
+     "relevance_score": "1.000000",
+     "ticker_sentiment_score": "0.012873",
+     "ticker_sentiment_label": "Neutral"
+    },
+    {
+     "ticker": "MSFT",
+     "relevance_score": "0.610006",
+     "ticker_sentiment_score": "-0.141886",
+     "ticker_sentiment_label": "Neutral"
+    },
+    {
+     "ticker": "META",
+     "relevance_score": "0.614606",
+     "ticker_sentiment_score": "-0.164673",
+     "ticker_sentiment_label": "Somewhat-Bearish"
+    }
+   ]
+  },
+  {
+   "title": "Laidlaw Wealth Management LLC Sells 5,635 Shares of Apple Inc. $AAPL",
+   "url": "https://www.marketbeat.com/instant-alerts/filing-laidlaw-wealth-management-llc-sells-5635-shares-of-apple-inc-aapl-2026-10-04/",
+   "time_published": "20261004T071536",
+   "authors": [
+    "MarketBeat"
+   ],
+   "summary": "Laidlaw Wealth Management LLC significantly reduced its stake in Apple Inc. by 42.6% in the second quarter, selling 5,635 shares but still holding 7,597 shares valued at $2.2 million, making Apple its largest holding. Despite this sale and recent insider selling, analysts maintain a \"Moderate Buy\" rating for Apple with an average price target of $340.02. The company faces both positive developments, like new AI safeguards and product launches, and negative risks, such as a $5.7 billion patent verdict and potential pressure on its services business from competing AI agents.",
+   "source": "MarketBeat",
+   "category_within_source": "General",
+   "source_domain": "MarketBeat",
+   "topics": [
+    {
+     "topic": "earnings",
+     "relevance_score": "0.912003"
+    },
+    {
+     "topic": "financial_markets",
+     "relevance_score": "0.916841"
+    },
+    {
+     "topic": "technology",
+     "relevance_score": "0.830616"
+    }
+   ],
+   "overall_sentiment_score": 0.078903,
+   "overall_sentiment_label": "Neutral",
+   "ticker_sentiment": [
+    {
+     "ticker": "AAPL",
+     "relevance_score": "0.954364",
+     "ticker_sentiment_score": "-0.076715",
+     "ticker_sentiment_label": "Neutral"
+    },
+    {
+     "ticker": "BAC",
+     "relevance_score": "0.589392",
+     "ticker_sentiment_score": "0.122475",
+     "ticker_sentiment_label": "Neutral"
+    },
+    {
+     "ticker": "NFLX",
+     "relevance_score": "0.569212",
+     "ticker_sentiment_score": "0.062467",
+     "ticker_sentiment_label": "Neutral"
+    }
+   ]
+  },
+  {
+   "title": "Live Oak Private Wealth LLC Sells 4,270 Shares of Apple Inc. $AAPL",
+   "url": "https://www.marketbeat.com/instant-alerts/filing-live-oak-private-wealth-llc-sells-4270-shares-of-apple-inc-aapl-2026-10-04/",
+   "time_published": "20261004T065059",
+   "authors": [
+    "MarketBeat"
+   ],
+   "summary": "Live Oak Private Wealth LLC reduced its stake in Apple Inc. by 5.6% during the second quarter, selling 4,270 shares but still retaining 72,557 shares valued at $21.0 million. Apple remains a significant holding for the firm, comprising 2.7% of its portfolio. This comes amidst other institutional investor activity, insider selling by SVP Jennifer Newstead, and a \"Moderate Buy\" consensus rating from analysts with an average price target of $340.02.",
+   "source": "MarketBeat",
+   "category_within_source": "General",
+   "source_domain": "MarketBeat",
+   "topics": [
+    {
+     "topic": "earnings",
+     "relevance_score": "0.939346"
+    },
+    {
+     "topic": "financial_markets",
+     "relevance_score": "0.844971"
+    },
+    {
+     "topic": "finance",
+     "relevance_score": "0.734240"
+    },
+    {
+     "topic": "technology",
+     "relevance_score": "0.644312"
+    }
+   ],
+   "overall_sentiment_score": 0.037204,
+   "overall_sentiment_label": "Neutral",
+   "ticker_sentiment": [
+    {
+     "ticker": "AAPL",
+     "relevance_score": "0.336909",
+     "ticker_sentiment_score": "0.025154",
+     "ticker_sentiment_label": "Neutral"
+    }
+   ]
+  },
+  {
+   "title": "XEY Stock Price, Quote & News",
+   "url": "https://www.syfe.com/stocks/us/xey",
+   "time_published": "20261003T222607",
+   "authors": [],
+   "summary": "This article provides details on the XEY stock, GraniteShares ETF Trust GraniteShares YieldBOOST Ether ETF, including its current trading price of US$20.14, a 0.92% decrease today as of Oct 2, 16:00 EDT. It highlights key statistics such as its 52-week range (US$19.62 \u2013 US$25.44) and a dividend yield of 7.56%. The platform Syfe offers commission-free trading for this stock.",
+   "source": "Syfe",
+   "category_within_source": "General",
+   "source_domain": "Syfe",
+   "topics": [
+    {
+     "topic": "financial_markets",
+     "relevance_score": "0.934594"
+    },
+    {
+     "topic": "blockchain",
+     "relevance_score": "0.811398"
+    },
+    {
+     "topic": "finance",
+     "relevance_score": "0.600388"
+    }
+   ],
+   "overall_sentiment_score": 0.086651,
+   "overall_sentiment_label": "Neutral",
+   "ticker_sentiment": [
+    {
+     "ticker": "XEY",
+     "relevance_score": "1.000000",
+     "ticker_sentiment_score": "-0.050072",
+     "ticker_sentiment_label": "Neutral"
+    },
+    {
+     "ticker": "NVDA",
+     "relevance_score": "0.636524",
+     "ticker_sentiment_score": "0.163841",
+     "ticker_sentiment_label": "Somewhat-Bullish"
+    },
+    {
+     "ticker": "MU",
+     "relevance_score": "0.639224",
+     "ticker_sentiment_score": "-0.203644",
+     "ticker_sentiment_label": "Somewhat-Bearish"
+    },
+    {
+     "ticker": "AAPL",
+     "relevance_score": "0.605606",
+     "ticker_sentiment_score": "0.166265",
+     "ticker_sentiment_label": "Somewhat-Bullish"
+    },
+    {
+     "ticker": "MSFT",
+     "relevance_score": "0.643609",
+     "ticker_sentiment_score": "0.166303",
+     "ticker_sentiment_label": "Somewhat-Bullish"
+    }
+   ]
+  },
+  {
+   "title": "Adobe Inc. Research & Ratings | ADBE",
+   "url": "https://www.barrons.com/market-data/stocks/adbe/research-ratings",
+   "time_published": "20261003T184349",
+   "authors": [],
+   "summary": "This article provides detailed research and ratings for Adobe Inc. (ADBE), including its stock performance data, analyst ratings, price targets, and earnings estimates. It offers a comprehensive overview of Adobe's financial health, market position, and future outlook based on various financial metrics and expert analyses.",
+   "source": "Barron's",
+   "category_within_source": "General",
+   "source_domain": "Barron's",
+   "topics": [
+    {
+     "topic": "earnings",
+     "relevance_score": "0.918070"
+    },
+    {
+     "topic": "financial_markets",
+     "relevance_score": "0.808578"
+    },
+    {
+     "topic": "technology",
+     "relevance_score": "0.713760"
+    },
+    {
+     "topic": "finance",
+     "relevance_score": "0.631406"
+    }
+   ],
+   "overall_sentiment_score": 0.17191,
+   "overall_sentiment_label": "Somewhat-Bullish",
+   "ticker_sentiment": [
+    {
+     "ticker": "ADBE",
+     "relevance_score": "1.000000",
+     "ticker_sentiment_score": "0.076889",
+     "ticker_sentiment_label": "Neutral"
+    },
+    {
+     "ticker": "AAPL",
+     "relevance_score": "0.642373",
+     "ticker_sentiment_score": "0.160605",
+     "ticker_sentiment_label": "Somewhat-Bullish"
+    },
+    {
+     "ticker": "MSFT",
+     "relevance_score": "0.607711",
+     "ticker_sentiment_score": "0.150802",
+     "ticker_sentiment_label": "Somewhat-Bullish"
+    },
+    {
+     "ticker": "GOOGL",
+     "relevance_score": "0.632414",
+     "ticker_sentiment_score": "0.172521",
+     "ticker_sentiment_label": "Somewhat-Bullish"
+    },
+    {
+     "ticker": "ORCL",
+     "relevance_score": "0.647608",
+     "ticker_sentiment_score": "0.274942",
+     "ticker_sentiment_label": "Somewhat-Bullish"
+    }
+   ]
+  },
+  {
+   "title": "Apple Says iPhone 18 Pro Max Units That Lost AT&T Service Need Replacement, Not a Fix",
+   "url": "https://finance.biggo.com/news/a63c842c-9d0f-4f2c-9e1e-1580cedbc997",
+   "time_published": "20261003T181227",
+   "authors": [],
+   "summary": "Apple has confirmed that a cellular connectivity issue affecting some iPhone 18 Pro Max devices on AT&T's network requires unit replacement rather than a software fix for already-affected phones. While iOS 27.0.1 and a carrier settings update act as preventive measures, they cannot restore service on devices already in SOS mode. The cause of the fault, which primarily impacts the US iPhone 18 Pro Max model using a Qualcomm modem, has not been disclosed, and Apple states only a \"small number\" of users are affected despite thousands of complaints.",
+   "source": "BigGo Finance",
+   "category_within_source": "General",
+   "source_domain": "BigGo Finance",
+   "topics": [
+    {
+     "topic": "technology",
+     "relevance_score": "1.000000"
+    }
+   ],
+   "overall_sentiment_score": 0.048256,
+   "overall_sentiment_label": "Neutral",
+   "ticker_sentiment": [
+    {
+     "ticker": "T",
+     "relevance_score": "0.947460",
+     "ticker_sentiment_score": "0.227668",
+     "ticker_sentiment_label": "Somewhat-Bullish"
+    },
+    {
+     "ticker": "AAPL",
+     "relevance_score": "0.915970",
+     "ticker_sentiment_score": "-0.310886",
+     "ticker_sentiment_label": "Somewhat-Bearish"
+    },
+    {
+     "ticker": "QCOM",
+     "relevance_score": "0.643971",
+     "ticker_sentiment_score": "0.140687",
+     "ticker_sentiment_label": "Neutral"
+    }
+   ]
+  },
+  {
+   "title": "Adobe Forecasts 130% Surge in AI-Driven Retail Traffic During US Holiday Season",
+   "url": "https://finance.yahoo.com/technology/ai/articles/adobe-forecasts-130-surge-ai-134100443.html",
+   "time_published": "20261003T134100",
+   "authors": [
+    "Fiona Craig"
+   ],
+   "summary": "Adobe predicts a significant 130% increase in AI-driven retail traffic to US websites this holiday season, outperforming growth from paid search and social media. This surge is attributed to consumers using AI for product research, which boosts purchase confidence and reduces returns. Overall, US online holiday sales are expected to reach $275.1 billion, with Cyber Monday remaining the biggest shopping day.",
+   "source": "Yahoo Finance",
+   "category_within_source": "General",
+   "source_domain": "Yahoo Finance",
+   "topics": [
+    {
+     "topic": "retail_wholesale",
+     "relevance_score": "0.901957"
+    },
+    {
+     "topic": "technology",
+     "relevance_score": "0.816798"
+    },
+    {
+     "topic": "economy_macro",
+     "relevance_score": "0.705774"
+    },
+    {
+     "topic": "finance",
+     "relevance_score": "0.619065"
+    }
+   ],
+   "overall_sentiment_score": 0.298201,
+   "overall_sentiment_label": "Somewhat-Bullish",
+   "ticker_sentiment": [
+    {
+     "ticker": "ADBE",
+     "relevance_score": "1.000000",
+     "ticker_sentiment_score": "0.409809",
+     "ticker_sentiment_label": "Bullish"
+    },
+    {
+     "ticker": "AMZN",
+     "relevance_score": "0.703116",
+     "ticker_sentiment_score": "0.330998",
+     "ticker_sentiment_label": "Somewhat-Bullish"
+    },
+    {
+     "ticker": "AAPL",
+     "relevance_score": "0.649768",
+     "ticker_sentiment_score": "0.210941",
+     "ticker_sentiment_label": "Somewhat-Bullish"
+    },
+    {
+     "ticker": "META",
+     "relevance_score": "0.611186",
+     "ticker_sentiment_score": "0.207766",
+     "ticker_sentiment_label": "Somewhat-Bullish"
+    }
+   ]
+  },
+  {
+   "title": "AI Retail Referrals Set to Rise 130% as Adobe Forecasts $275.1 Billion Holiday Season",
+   "url": "https://uk.finance.yahoo.com/news/ai-retail-referrals-set-rise-134100989.html",
+   "time_published": "20261003T131513",
+   "authors": [
+    "Fiona Craig"
+   ],
+   "summary": "Adobe predicts a significant increase in AI-driven retail referrals for the upcoming holiday shopping season, with a 130% year-over-year rise. The company forecasts total US online spending to reach $275.1 billion, driven by categories like electronics, apparel, and groceries, and expects \"Buy Now, Pay Later\" transactions to account for $21.3 billion. Mobile devices are also anticipated to play a dominant role in holiday e-commerce, contributing 63% of online spending on Thanksgiving and 57.4% of overall holiday spending.",
+   "source": "Yahoo Finance UK",
+   "category_within_source": "General",
+   "source_domain": "Yahoo Finance UK",
+   "topics": [
+    {
+     "topic": "retail_wholesale",
+     "relevance_score": "0.903648"
+    },
+    {
+     "topic": "technology",
+     "relevance_score": "0.804171"
+    },
+    {
+     "topic": "economy_macro",
+     "relevance_score": "0.737122"
+    }
+   ],
+   "overall_sentiment_score": 0.321087,
+   "overall_sentiment_label": "Somewhat-Bullish",
+   "ticker_sentiment": [
+    {
+     "ticker": "ADBE",
+     "relevance_score": "1.000000",
+     "ticker_sentiment_score": "0.439536",
+     "ticker_sentiment_label": "Bullish"
+    },
+    {
+     "ticker": "AMZN",
+     "relevance_score": "0.744412",
+     "ticker_sentiment_score": "0.337695",
+     "ticker_sentiment_label": "Somewhat-Bullish"
+    },
+    {
+     "ticker": "AAPL",
+     "relevance_score": "0.601625",
+     "ticker_sentiment_score": "0.318659",
+     "ticker_sentiment_label": "Somewhat-Bullish"
+    },
+    {
+     "ticker": "META",
+     "relevance_score": "0.608510",
+     "ticker_sentiment_score": "0.213482",
+     "ticker_sentiment_label": "Somewhat-Bullish"
+    }
+   ]
+  }
+ ]
+}

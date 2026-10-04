@@ -1,0 +1,97 @@
+{
+ "count": 696,
+ "pages": 7,
+ "current_page": 1,
+ "results": [
+  {
+   "rank": 1,
+   "ticker": "SPY",
+   "name": "SPDR S&amp;P 500 ETF Trust",
+   "mentions": 39,
+   "upvotes": 82,
+   "rank_24h_ago": 1,
+   "mentions_24h_ago": 46
+  },
+  {
+   "rank": 25,
+   "ticker": "NVDA",
+   "name": "NVIDIA",
+   "mentions": 6,
+   "upvotes": 12,
+   "rank_24h_ago": 4,
+   "mentions_24h_ago": 23
+  },
+  {
+   "rank": 49,
+   "ticker": "TSLA",
+   "name": "Tesla",
+   "mentions": 3,
+   "upvotes": 6,
+   "rank_24h_ago": 13,
+   "mentions_24h_ago": 7
+  },
+  {
+   "rank": 2,
+   "ticker": "MU",
+   "name": "Micron Technology",
+   "mentions": 28,
+   "upvotes": 73,
+   "rank_24h_ago": 2,
+   "mentions_24h_ago": 31
+  },
+  {
+   "rank": 3,
+   "ticker": "QQQ",
+   "name": "Invesco QQQ ETF",
+   "mentions": 21,
+   "upvotes": 39,
+   "rank_24h_ago": 3,
+   "mentions_24h_ago": 39
+  },
+  {
+   "rank": 4,
+   "ticker": "DTE",
+   "name": "DTE Energy",
+   "mentions": 17,
+   "upvotes": 34,
+   "rank_24h_ago": 5,
+   "mentions_24h_ago": 27
+  },
+  {
+   "rank": 5,
+   "ticker": "AMD",
+   "name": "AMD",
+   "mentions": 13,
+   "upvotes": 27,
+   "rank_24h_ago": 11,
+   "mentions_24h_ago": 14
+  },
+  {
+   "rank": 6,
+   "ticker": "META",
+   "name": "Meta Platforms (Facebook)",
+   "mentions": 12,
+   "upvotes": 13,
+   "rank_24h_ago": 35,
+   "mentions_24h_ago": 2
+  },
+  {
+   "rank": 7,
+   "ticker": "TLT",
+   "name": "BlackRock Institutional Trust Company N.A. - BTC iShares 20+ Year Trea",
+   "mentions": 11,
+   "upvotes": 13,
+   "rank_24h_ago": 17,
+   "mentions_24h_ago": 10
+  },
+  {
+   "rank": 8,
+   "ticker": "VOO",
+   "name": "Vanguard S&amp;P 500 ETF",
+   "mentions": 10,
+   "upvotes": 10,
+   "rank_24h_ago": 16,
+   "mentions_24h_ago": 10
+  }
+ ]
+}

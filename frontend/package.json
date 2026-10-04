@@ -1,27 +1,34 @@
 {
-  "name": "sentiment-platform-frontend",
+  "name": "sentinet-frontend",
   "private": true,
-  "version": "1.0.0",
+  "version": "2.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "typecheck": "tsc -b",
+    "preview": "vite preview",
+    "screens": "node e2e/screens.mjs"
   },
   "dependencies": {
-    "@tanstack/react-query": "^5.59.16",
+    "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "@tanstack/react-query": "^5.104.1",
+    "lightweight-charts": "~4.2.3",
+    "lucide-react": "^1.52.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "recharts": "^2.13.3"
+    "react-router-dom": "^6.30.6"
   },
   "devDependencies": {
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
-    "@vitejs/plugin-react": "^4.3.3",
+    "@vitejs/plugin-react": "^4.7.0",
     "autoprefixer": "^10.4.20",
+    "playwright": "1.56.1",
     "postcss": "^8.4.49",
-    "tailwindcss": "^3.4.15",
-    "typescript": "^5.6.3",
-    "vite": "^5.4.11"
+    "tailwindcss": "^3.4.19",
+    "typescript": "~5.9.3",
+    "vite": "^5.4.21"
   }
 }

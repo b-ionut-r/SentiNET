@@ -1,0 +1,299 @@
+"""Pure Yahoo transforms, tested on real recorded yfinance payloads."""
+from __future__ import annotations
+
+import math
+from datetime import date, datetime, timezone
+
+import pandas as pd
+import pytest
+
+from app.intel import transforms as tx
+from tests.intel import helpers as fx
+
+NOW = datetime(2026, 10, 4, 22, 0, tzinfo=timezone.utc)  # fixtures were captured on Sunday 2026-10-04
+TODAY = NOW.date()
+
+
+# --------------------------------------------------------------------------- #
+# helpers
+# --------------------------------------------------------------------------- #
+def test_coercions() -> None:
+    assert tx.num("1.5") == 1.5 and tx.num(float("nan")) is None and tx.num(None) is None and tx.num(True) is None
+    assert tx.pos(0) is None and tx.pos(-1) is None and tx.pos(3) == 3.0
+    assert tx.to_date(1790812800) == date(2026, 10, 1)
+    assert tx.to_date("2026-11-17") == date(2026, 11, 17)
+    assert tx.to_date(pd.Timestamp("2026-11-17 15:00", tz="America/New_York")) == date(2026, 11, 17)
+    assert tx.to_date(pd.NaT) is None and tx.to_date("") is None and tx.to_date(None) is None
+    assert tx.to_utc("2026-10-01 10:34:36").tzinfo is not None
+    assert tx.date_noon_utc(date(2026, 10, 6)).hour == 12
+    assert tx.pct(110, 100) == 10.0 and tx.pct(1, 0) is None and tx.pct(None, 1) is None
+
+
+# --------------------------------------------------------------------------- #
+# quote / profile / candles
+# --------------------------------------------------------------------------- #
+def test_quote_from_info_nvda() -> None:
+    q = tx.quote_from_info(fx.info("NVDA"))
+    assert q is not None
+    assert q.price == 233.95 and q.previous_close == 230.86
+    assert q.change_pct == pytest.approx(1.338, abs=1e-3)
+    assert q.currency == "USD" and q.market_cap and q.market_cap > 1e12
+    assert q.as_of is not None and q.as_of.tzinfo is not None
+    assert q.year_high and q.year_low and q.year_low < q.price <= q.year_high * 1.01
+
+
+def test_quote_from_info_crypto_and_missing() -> None:
+    q = tx.quote_from_info(fx.info("BTC-USD"))
+    assert q is not None and q.price and q.price > 1000
+    assert tx.quote_from_info({}) is None
+    assert tx.quote_from_info({"regularMarketPrice": 0}) is None
+
+
+def test_quote_from_history_fallback() -> None:
+    q = tx.quote_from_history(fx.bars("NVDA"), "USD")
+    df = fx.bars("NVDA")
+    assert q is not None and q.price == pytest.approx(df["Close"].iloc[-1])
+    assert q.change_pct == pytest.approx((df["Close"].iloc[-1] / df["Close"].iloc[-2] - 1) * 100, abs=0.01)
+
+
+def test_profile_from_info_trims_summary() -> None:
+    p = tx.profile_from_info(fx.info("AAPL"), symbol="AAPL", name="Apple Inc.", short_name="Apple",
+                             quote_type="EQUITY", exchange="NASDAQ", cik="0000320193", logo_url=None)
+    assert p.sector == "Technology" and p.employees and p.employees > 100_000
+    assert p.summary and len(p.summary) <= 901 and p.summary.endswith(".")
+
+
+def test_candles_intraday_and_crypto() -> None:
+    candles = tx.candles_from_history(fx.bars("NVDA", "5m"))
+    assert len(candles) >= 70
+    assert all(c.t.tzinfo == timezone.utc for c in candles)
+    assert all(c.l <= min(c.o, c.c) + 1e-6 and c.h >= max(c.o, c.c) - 1e-6 for c in candles)
+    assert [c.t for c in candles] == sorted(c.t for c in candles)
+    assert tx.candles_from_history(None) == [] and tx.candles_from_history(pd.DataFrame()) == []
+
+
+def test_closes_use_exchange_session_dates() -> None:
+    closes = tx.closes_from_history(fx.bars("NVDA"))
+    assert closes[-1][0] == date(2026, 10, 2)  # NY session date, not the UTC timestamp's date
+    assert all(a[0] < b[0] for a, b in zip(closes, closes[1:], strict=False))
+
+
+# --------------------------------------------------------------------------- #
+# technicals
+# --------------------------------------------------------------------------- #
+def test_wilder_rsi_reference_series() -> None:
+    # StockCharts' published RSI example: first 14-period RSI ≈ 70.5
+    closes = [44.34, 44.09, 44.15, 43.61, 44.33, 44.83, 45.10, 45.42, 45.84, 46.08, 45.89, 46.03, 45.61, 46.28, 46.28]
+    assert tx.wilder_rsi(closes) == pytest.approx(70.5, abs=0.3)
+    assert tx.wilder_rsi([1.0] * 5) is None
+    assert tx.wilder_rsi([float(i) for i in range(30)]) == 100.0
+
+
+def test_technicals_match_independent_pandas_math() -> None:
+    df = fx.bars("NVDA")
+    t = tx.technicals_from_history(df, now=NOW)
+    assert t is not None
+    close = df["Close"]
+    last = close.iloc[-1]
+    assert t.return_1d == pytest.approx((last / close.iloc[-2] - 1) * 100, abs=0.01)
+    assert t.return_5d == pytest.approx((last / close.iloc[-6] - 1) * 100, abs=0.01)
+    assert t.vs_50dma_pct == pytest.approx((last / close.iloc[-50:].mean() - 1) * 100, abs=0.01)
+    assert t.vs_200dma_pct == pytest.approx((last / close.iloc[-200:].mean() - 1) * 100, abs=0.01)
+    rets = (close.iloc[-31:] / close.iloc[-31:].shift(1)).dropna().map(math.log)
+    assert t.volatility_30d == pytest.approx(rets.std() * math.sqrt(252) * 100, abs=0.1)
+    high = df["High"][df.index > df.index[-1] - pd.DateOffset(years=1)].max()
+    assert t.pct_from_52w_high == pytest.approx((last / high - 1) * 100, abs=0.01)
+    prior = close[[ts.year < 2026 for ts in close.index]].iloc[-1]
+    assert t.return_ytd == pytest.approx((last / prior - 1) * 100, abs=0.01)
+    vol = df["Volume"]
+    assert t.volume_ratio == pytest.approx(vol.iloc[-1] / vol.iloc[-64:-1].mean(), abs=0.01)
+    assert 0 <= (t.rsi_14 or -1) <= 100
+    assert t.trend in {"uptrend", "downtrend", "sideways"}
+
+
+def test_technicals_skip_partial_session_volume() -> None:
+    df = fx.bars("NVDA")
+    during = datetime(2026, 10, 2, 18, 0, tzinfo=timezone.utc)  # Fri 14:00 New York, market open
+    t = tx.technicals_from_history(df, now=during)
+    vol = df["Volume"]
+    assert t is not None and t.volume_ratio == pytest.approx(vol.iloc[-2] / vol.iloc[-65:-2].mean(), abs=0.01)
+
+
+def test_technicals_crypto_annualizes_with_365_days() -> None:
+    df = fx.bars("BTC-USD")
+    t_crypto = tx.technicals_from_history(df, now=NOW, is_crypto=True)
+    t_equity = tx.technicals_from_history(df, now=NOW, is_crypto=False)
+    assert t_crypto and t_equity and t_crypto.volatility_30d and t_equity.volatility_30d
+    assert t_crypto.volatility_30d / t_equity.volatility_30d == pytest.approx(math.sqrt(365 / 252), rel=0.01)
+
+
+def test_technicals_short_history() -> None:
+    df = fx.bars("NVDA").tail(30)
+    t = tx.technicals_from_history(df, now=NOW)
+    assert t is not None and t.vs_200dma_pct is None and t.vs_50dma_pct is None and t.trend is None
+    assert t.return_1d is not None and t.return_1m is not None
+    assert tx.technicals_from_history(df.tail(1), now=NOW) is None
+
+
+# --------------------------------------------------------------------------- #
+# analysts
+# --------------------------------------------------------------------------- #
+def test_analysts_nvda() -> None:
+    view = tx.analysts_from_frames(fx.info("NVDA"), fx.recommendations("NVDA"), fx.upgrades("NVDA"),
+                                   price=233.95, now=NOW)
+    assert view is not None
+    assert view.consensus == "strong_buy" and view.mean_rating == pytest.approx(1.3, abs=0.01)
+    assert view.counts and view.counts.period == "0m"
+    assert view.total == view.counts.strong_buy + view.counts.buy + view.counts.hold + view.counts.sell + view.counts.strong_sell
+    assert view.target_mean == 327.7 and view.upside_pct == pytest.approx(40.07, abs=0.01)
+    assert view.target_low <= view.target_median <= view.target_high
+    assert 0 < len(view.actions) <= 25
+    assert [a.date for a in view.actions] == sorted((a.date for a in view.actions), reverse=True)
+    assert [rc.period for rc in view.trend] == ["0m", "-1m", "-2m", "-3m"]
+    init = next(a for a in view.actions if a.action == "init")
+    assert init.prior_target is None and init.from_grade is None
+
+
+def test_analyst_revision_counting_windows() -> None:
+    frame = pd.DataFrame(
+        {
+            "Firm": ["A", "B", "C", "D", "E", "F", "F"],
+            "ToGrade": ["Buy", "Sell", "Buy", "Buy", "Hold", "Buy", "Buy"],
+            "FromGrade": ["Hold", "Hold", "Buy", "Buy", "Buy", "", ""],
+            "Action": ["up", "down", "main", "main", "down", "init", "init"],
+            "priceTargetAction": ["Raises", "Lowers", "Raises", "", "Lowers", "Announces", "Announces"],
+            "currentPriceTarget": [120.0, 80.0, 130.0, 95.0, 70.0, 100.0, 100.0],
+            "priorPriceTarget": [100.0, 90.0, 110.0, 100.0, 90.0, 0.0, 0.0],
+        },
+        index=pd.DatetimeIndex(pd.to_datetime([
+            "2026-10-01 12:00", "2026-09-20 12:00", "2026-09-15 12:00", "2026-09-10 12:00",
+            "2026-07-10 12:00", "2026-09-30 12:00", "2026-09-30 12:00",  # last row: exact duplicate
+        ]), name="GradeDate"),
+    )
+    view = tx.analysts_from_frames({"targetMeanPrice": 110.0}, None, frame, price=100.0, now=NOW)
+    assert view is not None
+    assert view.upgrades_90d == 1 and view.downgrades_90d == 2  # Jul 10 is within 90 days of Oct 4
+    assert view.pt_raises_30d == 2  # A (label), C (label)
+    assert view.pt_cuts_30d == 2  # B (label), D (numbers: 100 -> 95, no label)
+    assert len(view.actions) == 6  # duplicate init collapsed
+    assert view.upside_pct == 10.0 and view.consensus is None
+
+
+def test_analysts_none_without_coverage() -> None:
+    assert tx.analysts_from_frames({}, None, None, price=10.0, now=NOW) is None
+    assert tx.consensus_for(1.2) == "strong_buy" and tx.consensus_for(2.6) == "hold" and tx.consensus_for(4.8) == "strong_sell"
+
+
+# --------------------------------------------------------------------------- #
+# earnings & dividends
+# --------------------------------------------------------------------------- #
+def test_earnings_nvda() -> None:
+    view = tx.earnings_from_frames(fx.calendar("NVDA"), fx.earnings_dates("NVDA"), fx.info("NVDA"), today=TODAY)
+    assert view is not None
+    assert view.next_date == date(2026, 11, 17) and view.days_until == 44
+    assert view.eps_low <= view.eps_estimate <= view.eps_high
+    assert view.revenue_estimate and view.revenue_estimate > 1e10
+    assert len(view.history) == 8 and view.history[0].date > view.history[-1].date
+    assert all(e.eps_actual is not None for e in view.history)
+    beats = sum(e.eps_actual > e.eps_estimate for e in view.history)
+    assert view.beat_rate == pytest.approx(beats / 8, abs=1e-3)
+
+
+def test_earnings_sofi_beat_rate_and_no_stale_next_date() -> None:
+    view = tx.earnings_from_frames(fx.calendar("SOFI"), fx.earnings_dates("SOFI"), fx.info("SOFI"), today=TODAY)
+    assert view is not None and view.next_date and view.next_date >= TODAY
+    later = tx.earnings_from_frames(fx.calendar("SOFI"), fx.earnings_dates("SOFI"), {}, today=date(2027, 6, 1))
+    assert later is not None and later.next_date is None and later.eps_estimate is None  # past date never shown as "next"
+
+
+def test_earnings_history_fallback_table() -> None:
+    hist = pd.DataFrame(
+        {"epsActual": [1.30, 1.62], "epsEstimate": [1.2565, 1.6381], "surprisePercent": [0.0346, -0.011]},
+        index=pd.DatetimeIndex(["2025-10-31", "2026-01-31"], name="quarter"),
+    )
+    view = tx.earnings_from_frames({}, None, {}, today=TODAY, earnings_history=hist)
+    assert view is not None and view.beat_rate == 0.5 and view.history[0].surprise_pct == pytest.approx(-1.1)
+
+
+def test_dividend_catalysts() -> None:
+    jpm = tx.dividend_catalysts(fx.calendar("JPM"), fx.info("JPM"), today=TODAY)
+    assert jpm and jpm[0].kind == "dividend" and jpm[0].upcoming
+    assert jpm[0].date.date() >= TODAY and "Ex-dividend" in jpm[0].title
+    assert "yield" in (jpm[0].detail or "")
+    nvda = tx.dividend_catalysts(fx.calendar("NVDA"), fx.info("NVDA"), today=TODAY)
+    assert all(c.date.date() >= TODAY for c in nvda)  # past ex-date (Sep 10) never reported as upcoming
+    assert tx.dividend_catalysts({}, {}, today=TODAY) == []
+
+
+# --------------------------------------------------------------------------- #
+# insiders
+# --------------------------------------------------------------------------- #
+@pytest.mark.parametrize(
+    ("text", "kind"),
+    [
+        ("Purchase at price 18.06 per share.", "buy"),
+        ("Sale at price 222.19 - 223.75 per share.", "sell"),
+        ("Stock Award(Grant) at price 0.00 per share.", "award"),
+        ("Conversion of Exercise of derivative security at price 3.50 per share.", "exercise"),
+        ("Stock Gift at price 0.00 per share.", "gift"),
+        ("", "other"),
+    ],
+)
+def test_classify_insider(text: str, kind: str) -> None:
+    assert tx.classify_insider(text) == kind
+
+
+@pytest.mark.parametrize(
+    ("raw", "pretty"),
+    [
+        ("TETER TIMOTHY S", "Timothy S. Teter"),
+        ("NOTO ANTHONY J.", "Anthony J. Noto"),
+        ("O'BRIEN DEIRDRE", "Deirdre O'Brien"),
+        ("KEOUGH KELLI ALLEN", "Kelli Allen Keough"),
+        ("SMITH JOHN JR", "John Smith Jr."),
+        ("NORA JOHNSON SUZANNE M", "Nora Johnson Suzanne M."),  # ambiguous: order kept
+        ("BERKSHIRE HATHAWAY INC", "Berkshire Hathaway Inc"),
+        ("Jensen Huang", "Jensen Huang"),
+    ],
+)
+def test_pretty_insider_name(raw: str, pretty: str) -> None:
+    assert tx.pretty_insider_name(raw) == pretty
+
+
+def test_insiders_sofi_ceo_buying() -> None:
+    df = fx.insiders("SOFI")
+    view = tx.insiders_from_frame(df, now=NOW)
+    assert view is not None
+    since = pd.Timestamp(NOW.date()) - pd.Timedelta(days=180)
+    recent = df[df["Start Date"] >= since]
+    buys = recent[recent["Text"].str.startswith("Purchase")]
+    sells = recent[recent["Text"].str.startswith("Sale")]
+    assert view.buys == len(buys) and view.buy_value == pytest.approx(buys["Value"].sum())
+    assert view.sells == len(sells) and view.sell_value == pytest.approx(sells["Value"].sum())
+    assert view.ratio == pytest.approx((view.buy_value - view.sell_value) / (view.buy_value + view.sell_value), abs=1e-3)
+    assert view.buys >= 1 and any(t.kind == "buy" and "Noto" in t.insider for t in view.transactions)
+    assert len(view.transactions) <= 25
+    assert [t.date for t in view.transactions] == sorted((t.date for t in view.transactions), reverse=True)
+    trades = [t for t in view.transactions if t.kind in {"buy", "sell"} and t.date >= since.date()]
+    assert len(trades) == view.buys + view.sells or len(view.transactions) == 25  # trades never crowded out
+
+
+def test_insiders_nvda_values_and_indirect_flag() -> None:
+    view = tx.insiders_from_frame(fx.insiders("NVDA"), now=NOW)
+    assert view is not None and view.sells > 0 and view.buys == 0 and view.ratio == -1.0
+    assert any("(indirect)" in (t.text or "") for t in view.transactions)
+    assert all(t.value is None for t in view.transactions if t.kind in {"award", "gift"})
+    assert tx.insiders_from_frame(pd.DataFrame(), now=NOW) is None
+
+
+# --------------------------------------------------------------------------- #
+# indices
+# --------------------------------------------------------------------------- #
+def test_indices_from_download() -> None:
+    names = {"SPY": "S&P 500", "^VIX": "VIX", "BTC-USD": "Bitcoin", "NOPE": "Missing"}
+    quotes = {q.symbol: q for q in tx.indices_from_download(fx.indices(), names)}
+    spy = quotes["SPY"]
+    assert spy.price and spy.change_pct is not None and 15 <= len(spy.spark) <= 22
+    assert spy.spark[-1] == spy.price
+    assert quotes["BTC-USD"].price and quotes["^VIX"].price
+    assert quotes["NOPE"].price is None and quotes["NOPE"].spark == []

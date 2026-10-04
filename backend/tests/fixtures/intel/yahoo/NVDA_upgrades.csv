@@ -1,0 +1,81 @@
+GradeDate,Firm,ToGrade,FromGrade,Action,priceTargetAction,currentPriceTarget,priorPriceTarget
+2026-10-01 10:34:36,Cantor Fitzgerald,Overweight,Overweight,reit,Maintains,350.0,350.0
+2026-09-29 12:14:23,Rosenblatt,Buy,Buy,main,Maintains,390.0,390.0
+2026-09-10 14:02:40,Piper Sandler,Overweight,,init,Announces,300.0,0.0
+2026-09-04 11:38:09,Rosenblatt,Buy,Buy,main,Maintains,390.0,390.0
+2026-09-04 11:04:59,Needham,Buy,Buy,reit,Maintains,300.0,300.0
+2026-08-27 19:31:05,Citigroup,Buy,Buy,main,Raises,315.0,300.0
+2026-08-27 18:33:14,Mizuho,Outperform,Outperform,main,Raises,315.0,300.0
+2026-08-27 18:08:30,JP Morgan,Overweight,Overweight,main,Raises,320.0,280.0
+2026-08-27 14:59:52,Bernstein,Outperform,Outperform,main,Raises,400.0,315.0
+2026-08-27 14:34:54,RBC Capital,Outperform,Outperform,main,Raises,330.0,300.0
+2026-08-27 14:32:00,UBS,Buy,Buy,main,Raises,300.0,280.0
+2026-08-27 14:05:01,Oppenheimer,Outperform,Outperform,main,Raises,315.0,265.0
+2026-08-27 13:26:29,Rosenblatt,Buy,Buy,main,Raises,390.0,325.0
+2026-08-27 13:19:53,Morgan Stanley,Overweight,Overweight,main,Raises,300.0,288.0
+2026-08-27 13:11:34,Wedbush,Outperform,Outperform,main,Raises,345.0,330.0
+2026-08-27 13:10:47,DA Davidson,Buy,Buy,main,Maintains,300.0,300.0
+2026-08-27 13:00:17,Benchmark,Buy,Buy,reit,Maintains,335.0,335.0
+2026-08-27 12:57:45,Truist Securities,Buy,Buy,main,Raises,346.0,307.0
+2026-08-27 12:39:10,Evercore ISI Group,Outperform,Outperform,main,Raises,465.0,413.0
+2026-08-27 12:37:27,Keybanc,Overweight,Overweight,reit,Maintains,330.0,330.0
+2026-08-27 11:55:18,Cantor Fitzgerald,Overweight,Overweight,reit,Maintains,350.0,350.0
+2026-08-27 11:49:27,Needham,Buy,Buy,main,Raises,300.0,270.0
+2026-08-27 11:46:13,Raymond James,Strong Buy,Strong Buy,main,Raises,515.0,352.0
+2026-08-25 10:01:49,Raymond James,Strong Buy,Strong Buy,main,Raises,352.0,330.0
+2026-08-24 12:53:52,Rosenblatt,Buy,Buy,main,Maintains,325.0,325.0
+2026-08-24 12:37:09,Keybanc,Overweight,Overweight,reit,Maintains,330.0,330.0
+2026-08-24 10:35:02,Cantor Fitzgerald,Overweight,Overweight,reit,Maintains,350.0,350.0
+2026-08-21 10:55:03,BMO Capital,Outperform,Outperform,init,Announces,340.0,0.0
+2026-08-20 13:31:36,RBC Capital,Outperform,Outperform,reit,Maintains,300.0,300.0
+2026-08-11 11:03:13,Wells Fargo,Overweight,Overweight,reit,Maintains,315.0,315.0
+2026-07-14 11:17:59,Keybanc,Overweight,Overweight,main,Raises,330.0,310.0
+2026-06-05 15:32:35,China Renaissance,Buy,,init,Announces,319.0,0.0
+2026-06-02 16:40:48,Needham,Buy,Buy,reit,Maintains,270.0,270.0
+2026-06-01 17:39:58,DA Davidson,Buy,Buy,main,Maintains,300.0,300.0
+2026-05-27 14:57:01,Tigress Financial,Strong Buy,Strong Buy,main,Raises,425.0,360.0
+2026-05-21 18:52:04,UBS,Buy,Buy,main,Raises,280.0,275.0
+2026-05-21 17:52:22,Evercore ISI Group,Outperform,Outperform,main,Raises,413.0,352.0
+2026-05-21 16:43:01,DA Davidson,Buy,Buy,main,Maintains,300.0,300.0
+2026-05-21 16:42:36,Truist Securities,Buy,Buy,reit,Raises,307.0,287.0
+2026-05-21 15:55:29,RBC Capital,Outperform,Outperform,main,Raises,270.0,250.0
+2026-05-21 15:12:23,Cantor Fitzgerald,Overweight,Overweight,reit,Maintains,350.0,350.0
+2026-05-21 15:03:33,Wedbush,Outperform,Outperform,main,Raises,330.0,300.0
+2026-05-21 14:56:09,Stifel,Buy,Buy,main,Raises,282.0,250.0
+2026-05-21 14:32:35,JP Morgan,Overweight,Overweight,main,Raises,280.0,265.0
+2026-05-21 14:11:36,Jefferies,Buy,Buy,main,Raises,300.0,275.0
+2026-05-21 12:46:53,Morgan Stanley,Overweight,Overweight,main,Raises,288.0,285.0
+2026-05-21 12:33:01,Rosenblatt,Buy,Buy,main,Maintains,325.0,325.0
+2026-05-21 11:39:16,Keybanc,Overweight,Overweight,main,Raises,310.0,300.0
+2026-05-21 11:14:05,Benchmark,Buy,Buy,main,Raises,335.0,250.0
+2026-05-21 11:07:36,B of A Securities,Buy,Buy,main,Raises,350.0,320.0
+2026-05-21 11:02:33,Baird,Outperform,Outperform,main,Raises,500.0,300.0
+2026-05-21 10:03:01,Needham,Buy,Buy,main,Raises,270.0,240.0
+2026-05-19 14:06:35,HSBC,Buy,Buy,main,Raises,325.0,295.0
+2026-05-18 15:18:45,DA Davidson,Buy,Buy,main,Raises,300.0,250.0
+2026-05-18 12:39:06,Morgan Stanley,Overweight,Overweight,main,Raises,285.0,260.0
+2026-05-18 12:22:58,Wedbush,Outperform,Outperform,reit,Maintains,300.0,300.0
+2026-05-18 11:28:06,Keybanc,Overweight,Overweight,main,Raises,300.0,275.0
+2026-05-15 16:52:31,TD Cowen,Buy,Buy,main,Raises,275.0,235.0
+2026-05-14 20:55:49,UBS,Buy,Buy,main,Raises,275.0,245.0
+2026-05-14 16:22:25,RBC Capital,Outperform,Outperform,reit,Maintains,250.0,250.0
+2026-05-14 12:38:36,Cantor Fitzgerald,Overweight,Overweight,main,Raises,350.0,300.0
+2026-05-12 13:35:32,Wells Fargo,Overweight,Overweight,main,Raises,315.0,265.0
+2026-03-31 05:55:57,Benchmark,Buy,Buy,reit,Maintains,250.0,250.0
+2026-03-23 14:28:45,Rosenblatt,Buy,Buy,main,Maintains,325.0,325.0
+2026-03-23 12:47:43,Cantor Fitzgerald,Overweight,Overweight,reit,Maintains,300.0,300.0
+2026-03-19 09:51:56,Raymond James,Strong Buy,Strong Buy,main,Raises,323.0,291.0
+2026-03-18 16:26:28,Truist Securities,Buy,Buy,main,Raises,287.0,283.0
+2026-03-18 12:06:41,Rosenblatt,Buy,Buy,main,Raises,325.0,300.0
+2026-03-18 10:43:31,Needham,Buy,Buy,reit,Maintains,240.0,240.0
+2026-03-17 14:40:29,TD Cowen,Buy,Buy,reit,Maintains,235.0,235.0
+2026-03-17 13:53:33,RBC Capital,Outperform,Outperform,reit,Maintains,250.0,250.0
+2026-03-17 13:33:34,Keybanc,Overweight,Overweight,reit,Maintains,275.0,275.0
+2026-03-17 12:56:28,Rosenblatt,Buy,Buy,main,Maintains,300.0,300.0
+2026-03-17 12:46:23,Cantor Fitzgerald,Overweight,Overweight,reit,Maintains,300.0,300.0
+2026-03-17 11:03:58,Benchmark,Buy,Buy,reit,Maintains,250.0,250.0
+2026-03-12 14:49:12,Cantor Fitzgerald,Overweight,Overweight,reit,Maintains,300.0,300.0
+2026-03-05 21:32:43,Tigress Financial,Strong Buy,Strong Buy,main,Raises,360.0,350.0
+2026-03-03 14:55:46,Wedbush,Outperform,Outperform,main,Raises,300.0,230.0
+2026-02-26 21:30:21,JP Morgan,Overweight,Overweight,main,Raises,265.0,250.0
+2026-02-26 20:03:34,Citigroup,Buy,Buy,main,Raises,300.0,270.0

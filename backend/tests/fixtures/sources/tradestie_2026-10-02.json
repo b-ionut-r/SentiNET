@@ -1,0 +1,74 @@
+[
+ {
+  "ticker": "AI",
+  "sentiment": "Bearish",
+  "sentiment_score": -0.019,
+  "no_of_comments": 112
+ },
+ {
+  "ticker": "MU",
+  "sentiment": "Bullish",
+  "sentiment_score": 0.525,
+  "no_of_comments": 44
+ },
+ {
+  "ticker": "NKE",
+  "sentiment": "Bullish",
+  "sentiment_score": 0.106,
+  "no_of_comments": 43
+ },
+ {
+  "ticker": "SPY",
+  "sentiment": "Bearish",
+  "sentiment_score": -0.165,
+  "no_of_comments": 40
+ },
+ {
+  "ticker": "WDC",
+  "sentiment": "Bullish",
+  "sentiment_score": 0.421,
+  "no_of_comments": 24
+ },
+ {
+  "ticker": "NVDA",
+  "sentiment": "Bullish",
+  "sentiment_score": 0.011,
+  "no_of_comments": 24
+ },
+ {
+  "ticker": "QQQ",
+  "sentiment": "Bullish",
+  "sentiment_score": 0.254,
+  "no_of_comments": 17
+ },
+ {
+  "ticker": "APP",
+  "sentiment": "Bullish",
+  "sentiment_score": 0.421,
+  "no_of_comments": 10
+ },
+ {
+  "ticker": "SI",
+  "sentiment": "Bullish",
+  "sentiment_score": 0.358,
+  "no_of_comments": 9
+ },
+ {
+  "ticker": "EU",
+  "sentiment": "Bullish",
+  "sentiment_score": 0.725,
+  "no_of_comments": 9
+ },
+ {
+  "ticker": "SPCX",
+  "sentiment": "Bearish",
+  "sentiment_score": 0.0,
+  "no_of_comments": 9
+ },
+ {
+  "ticker": "ASTS",
+  "sentiment": "Bearish",
+  "sentiment_score": 0.0,
+  "no_of_comments": 9
+ }
+]

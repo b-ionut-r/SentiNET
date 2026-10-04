@@ -1,0 +1,46 @@
+[
+ {
+  "category": "company",
+  "datetime": 1791140000,
+  "headline": "Example: Apple shares rise after example upgrade",
+  "id": 1001,
+  "image": "",
+  "related": "AAPL",
+  "source": "Example Wire",
+  "summary": "Synthetic summary used by SentiNET tests.",
+  "url": "https://example.com/finnhub/1"
+ },
+ {
+  "category": "company",
+  "datetime": 1791130000,
+  "headline": "AAPL261023P00215000 Interactive Stock Chart",
+  "id": 1002,
+  "image": "",
+  "related": "AAPL",
+  "source": "Example Quotes",
+  "summary": "",
+  "url": "https://example.com/finnhub/2"
+ },
+ {
+  "category": "company",
+  "datetime": 1791150000,
+  "headline": "Example: Apple faces example lawsuit &amp; probe",
+  "id": 1003,
+  "image": "",
+  "related": "AAPL",
+  "source": "Example Daily",
+  "summary": "<p>Synthetic <b>HTML</b> summary.</p>",
+  "url": "https://example.com/finnhub/3"
+ },
+ {
+  "category": "company",
+  "datetime": 1791120000,
+  "headline": "",
+  "id": 1004,
+  "image": "",
+  "related": "AAPL",
+  "source": "Example",
+  "summary": "",
+  "url": "https://example.com/finnhub/4"
+ }
+]
