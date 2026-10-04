@@ -9,15 +9,22 @@ and a 7-day one for context — and merge them.
 Query design (see `app.sources.query`): the asset's name(s) must appear in the
 headline (`intitle:`), anchored by finance context words in the article text;
 everyday-word names ("Target") are anchored on the ticker/legal name instead
-(avoids "price target" floods); ETFs search their underlying theme ("S&P 500").
+(avoids "price target" floods); funds/indices search their underlying theme
+("S&P 500"); word-like coins ("Avalanche") need crypto words. The ticker is a
+*separate*, name-anchored query (`intitle:TGT Target`): OR-ing `intitle:TGT`
+into the name query let in "TGT 147800" commodity calls and teacher-exam posts.
+Known quote/option-chain page phrases are excluded server-side, so they don't
+eat the 100-result cap (GME: ~60 of 100 raw results were option pages).
 Docs: https://news.google.com (RSS search endpoint, unofficial but stable).
 """
 from __future__ import annotations
 
+import re
+
 from app.core import http
 from app.schemas import SignalKind
 from app.sources.base import CompanyRef, RawSignal, SourceBatch
-from app.sources.query import SearchTerms, clean_name, or_group, search_terms
+from app.sources.query import THEME_TYPES, Mentions, SearchTerms, clean_name, or_group, search_terms
 from app.sources.util import (
     clean_text,
     dedupe,
@@ -31,17 +38,40 @@ from app.sources.util import (
 
 URL = "https://news.google.com/rss/search"
 MAX_ITEMS = 100
+SEARCHABLE_TYPES = {"EQUITY", "CRYPTOCURRENCY", *THEME_TYPES}
+
+
+# Server-side exclusion of quote/listing pages (the client-side filter catches the rest).
+EXCLUDE = '-"quote & history" -"quote and history" -"interactive stock chart" -"historical prices" -"options chain"'
 
 
 def _intitle(term: str) -> str:
     return f'intitle:"{term}"' if not term.isalnum() else f"intitle:{term}"
 
 
-def build_query(terms: SearchTerms, company: CompanyRef) -> str:
-    """The window-free part of the query (callers append `when:1d` / `when:7d`)."""
-    heads = [_intitle(n) for n in terms.names]
-    if terms.symbol_searchable:
-        heads.append(_intitle(terms.symbol))
+def _quoted(term: str) -> str:
+    return term if term.isalnum() else f'"{term}"'
+
+
+def headline_names(terms: SearchTerms) -> list[str]:
+    """Names usable in `intitle:`. Google returns nothing for an OR of near-identical phrases
+    ("Nasdaq 100" OR "Nasdaq-100": 0 results vs 100) and little with long fund names in the
+    group (7 words: 68 -> 7), so hyphen/plural variants collapse and names over 4 words are
+    left to the other sources."""
+    seen: set[str] = set()
+    out: list[str] = []
+    for name in terms.names:
+        key = " ".join(word.rstrip("s") for word in re.split(r"[\s-]+", name.lower()))
+        if key not in seen and len(name.split()) <= 4:
+            seen.add(key)
+            out.append(name)
+    return out or [terms.primary]
+
+
+def name_query(terms: SearchTerms, company: CompanyRef) -> str:
+    """Headline names the asset + context; window-free (callers add `when:`)."""
+    names = headline_names(terms)
+    heads = [_intitle(n) for n in names]
     subject = heads[0] if len(heads) == 1 else "(" + " OR ".join(heads) + ")"
     if terms.asset == "equity" and terms.ambiguous:
         anchors = [terms.symbol] if terms.symbol.lower() != terms.primary.lower() else []
@@ -50,10 +80,30 @@ def build_query(terms: SearchTerms, company: CompanyRef) -> str:
             anchors.append(legal)
         elif company.name.strip(" .").lower() != terms.primary.lower():
             anchors.append(company.name.strip(" ."))  # "Snap Inc." -> "Snap Inc"
-        return f"{subject} {or_group(anchors)}" if anchors else f"{subject} {or_group(terms.context)}"
+        anchors += [f"{terms.primary} stock", f"{terms.primary} shares"]  # exact phrases: TGT 48 -> 71 on-topic
+        return f"{subject} {or_group(anchors)}"
     if terms.asset == "crypto" and not terms.ambiguous:
         return subject
+    if terms.asset == "etf" and set(names) <= set(terms.self_evident):  # "S&P 500", "REITs": 68 -> 100 kept
+        return subject
     return f"{subject} {or_group(terms.context)}"
+
+
+def symbol_query(terms: SearchTerms) -> str | None:
+    """`intitle:NVDA Nvidia`: ticker in the headline, name in the text (no nesting: Google drops it)."""
+    if not terms.symbol_searchable:
+        return None
+    return f"intitle:{terms.symbol} {_quoted(terms.primary)}"
+
+
+def build_queries(terms: SearchTerms, company: CompanyRef) -> list[str]:
+    """Fresh (24 h) + weekly name queries, plus the weekly ticker query when the ticker is safe."""
+    base = name_query(terms, company)
+    queries = [f"{base} when:1d", f"{base} when:7d"]
+    symbol = symbol_query(terms)
+    if symbol:
+        queries.append(f"{symbol} when:7d")
+    return [f"{q} {EXCLUDE}" for q in queries]
 
 
 def parse_feed(content: bytes) -> list[RawSignal]:
@@ -88,14 +138,14 @@ class GoogleNewsSource:
     kind: SignalKind = "news"
     weight = 1.2
     requires_key = False
-    description = "Headline search across thousands of outlets (24 h + 7 d windows, headline must name the asset)."
+    description = "Headline search across thousands of outlets (24 h + 7 d windows; headline must name the asset or ticker)."
     docs_url: str | None = "https://news.google.com"
 
     def configured(self) -> bool:
         return True
 
     def supports(self, company: CompanyRef) -> bool:
-        return company.quote_type in {"EQUITY", "ETF", "CRYPTOCURRENCY", "MUTUALFUND", "INDEX"}
+        return company.quote_type in SEARCHABLE_TYPES
 
     async def _search(self, query: str) -> list[RawSignal]:
         params = {"q": query, "hl": "en-US", "gl": "US", "ceid": "US:en"}
@@ -103,7 +153,9 @@ class GoogleNewsSource:
         return parse_feed(resp.content)
 
     async def fetch(self, company: CompanyRef) -> SourceBatch:
-        base = build_query(search_terms(company), company)
-        fresh, week = await gather_partial(self._search(f"{base} when:1d"), self._search(f"{base} when:7d"))
-        signals = dedupe([*(fresh or []), *(week or [])])
+        terms = search_terms(company)
+        results = await gather_partial(*(self._search(q) for q in build_queries(terms, company)))
+        # Google matches `intitle:Target` case-insensitively: drop "target stock price of 73,000 won".
+        homonym = Mentions(terms).homonym_only
+        signals = dedupe(s for batch in results for s in (batch or []) if not homonym(s.title))
         return SourceBatch(signals=newest_first(signals)[:MAX_ITEMS])

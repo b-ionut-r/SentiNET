@@ -1,9 +1,12 @@
 """Keyword chips: the terms people are actually talking about, with tone.
 
 `extract_keywords(texts, scores, company)` -> [(term, count, mean_score)].
-Counts are document frequencies (a headline mentioning "buyback" twice
-counts once). Meaningful bigrams ("price target", "data center", "Morgan
-Stanley") are preferred over their parts; the company's own names/ticker,
+Counts are document frequencies over *distinct* headlines: syndicated copies
+("... By Investing.com", wire re-posts) count once, so a story repeated by
+ten aggregators doesn't drown out everything else, and a headline mentioning
+"buyback" twice counts once. Meaningful bigrams ("price target", "data
+center", "Morgan Stanley") are preferred over their parts and chips never
+repeat a word ("Musk" + "Elon Musk"); the company's own names/ticker,
 publisher names, stopwords, generic finance filler ("stock", "shares",
 "investors") and price-move verbs ("jumps", "falls") are excluded — the
 chips should say *what* is discussed, not that the stock moved.
@@ -13,9 +16,11 @@ from __future__ import annotations
 import re
 from collections import Counter, defaultdict
 from collections.abc import Sequence
+from dataclasses import dataclass
 from itertools import pairwise
 
 from app.nlp.events import canonical_firm, is_known_firm
+from app.nlp.narratives import find_duplicates
 from app.nlp.relevance import company_terms
 from app.nlp.text import (
     CALENDAR_WORDS,
@@ -48,13 +53,19 @@ _PHRASES: tuple[tuple[re.Pattern[str], str], ...] = tuple((re.compile(p, re.IGNO
     (r"\bearnings (?:call|report)s?\b", " earnings-report "),
     (r"\b(?:cut|cuts|cutting|slash(?:es|ed|ing)?|lower(?:s|ed|ing)?)(?: \w+)? prices?\b|\bprice cuts?\b", " price-cuts "),
     (r"\b(?:raise[sd]?|raising|hike[sd]?|hiking)(?: \w+)? prices?\b|\bprice (?:hikes?|increases?)\b", " price-hikes "),
+    (r"\b(?:analysts'? )?(?:expectations|consensus(?: estimates?)?|estimates?)\b", " estimates "),
+    (r"\b(?:first|1st)[- ]quarter\b", " q1 "), (r"\b(?:second|2nd)[- ]quarter\b", " q2 "),
+    (r"\b(?:third|3rd)[- ]quarter\b", " q3 "), (r"\b(?:fourth|4th)[- ]quarter\b", " q4 "),
 ))
 _LABELS = {
     "buyback": "buyback", "record-high": "record high", "price-target": "price target", "market-cap": "market cap",
     "data-center": "data centers", "layoffs": "layoffs", "lawsuit": "lawsuit", "short-seller": "short seller",
     "smart-home": "smart home", "top-pick": "top pick", "earnings-report": "earnings report",
-    "price-cuts": "price cuts", "price-hikes": "price hikes",
+    "price-cuts": "price cuts", "price-hikes": "price hikes", "q1": "Q1", "q2": "Q2", "q3": "Q3", "q4": "Q4",
 }
+# Inside a bigram the concept reads in its singular/attributive form.
+_PART_LABELS = {**_LABELS, "data-center": "data center", "layoffs": "layoff", "price-target": "price target",
+                "record-high": "record-high", "lawsuit": "lawsuit"}
 # Extra filler that makes poor chips even when frequent.
 _FILLER = wordset("""
 says said report reports reported according update updates news today week weekly daily year years month quarter
@@ -64,7 +75,8 @@ largest increase increases increased focus historic implies imply fair upside do
 absolutely happen happens ideas idea future break breaks reason reasons case right left long short best better
 worse worst good great strong weak little much many more most less least next last first second third
 potential possible likely another other others still just also even only really very well back near
-llc lp inc co corp ltd plc sa ag nv com www
+llc lp inc co corp ltd plc sa ag nv com www usd eur gbp jpy cad aud chf sek nok dkk inr cny hkd
+sign signs signed signing pay pays paid paying mean means meaning highlight highlights trend trends play plays
 sells sell sold selling buys bought buying raises raise raised lowers lower lowered cuts cut reiterates reiterate
 maintains maintain keeps keep kept initiates initiate says say sees warns warn hits gets got makes made takes
 corp inc ltd plc group holdings firm firms investor investors trader traders analyst analysts market markets
@@ -89,43 +101,94 @@ def _swap_if_misordered(scores: object, company: object) -> tuple[Sequence[float
     return scores, company  # type: ignore[return-value]
 
 
-def _surface_votes(texts: list[str]) -> tuple[dict[str, Counter[str]], set[str]]:
-    """Surface spellings per lower-case word, and the names in this batch:
-    words written capitalized in some sentence-case headline and never
-    lower-case mid-sentence ("Morgan Stanley" keeps its capitals; "shift",
-    seen only in Title Case headlines, does not)."""
-    votes: dict[str, Counter[str]] = defaultdict(Counter)
-    capital: set[str] = set()
-    lower: set[str] = set()
+# Everyday headline words that Title Case headlines capitalize ("Stock Pays $0
+# In Dividends"); when a batch shows no lower-case use, these still read as
+# common words, while unknown capitalized words ("Synopsys") read as names.
+_COMMON_WORDS = wordset("""
+pay pays paid shift shifts mean means bear bears bull bulls consensus demand result results dividend dividends
+platform platforms agent agents agentic bank banks deal growth chip chips data cloud revenue profit profits margin
+margins debt cash sales sale market product products business model models power energy home hub tech technology
+plan plans move war fear fears risk risks bet bets run rally crash bubble boom rebound recovery turnaround
+strategy narrative catalyst catalysts outlook guidance forecast estimates expectations report reports filing
+filings trial trials drug drugs vaccine approval deal deals merger acquisition partnership contract order orders
+launch launches event events device devices phone phones app apps software hardware service services
+subscription subscribers users customers consumers shoppers stores store retail retailer prices pricing
+supply chain factory production capacity shortage inventory tariff tariffs tax taxes rate rates yield yields
+inflation economy jobs workers union strike layoffs hiring leadership board chief executive founder director
+officer insider insiders investors analyst analysts rating ratings target targets upgrade downgrade upside
+downside valuation premium discount bargain value cheap expensive dip dips record highs lows peak bottom
+quarter quarterly annual earnings beat miss loss losses income sell buy hold short squeeze options calls puts
+volume flows fund funds etf etfs portfolio wealth fortune richer billionaire billionaires opinion analysis
+question questions answer warning warnings alert threat threats challenge competition rival rivals win wins
+loss deal-making return returns gain gains drop drops jump jumps surge surges slide slides crash purchase purchases
+purchased stake stakes holdings position positions
+""")
+
+
+@dataclass
+class _Case:
+    """Capitalization evidence gathered from one batch of headlines."""
+
+    votes: dict[str, Counter[str]]  # lower-case word -> surface spellings
+    proper: set[str]  # capitalized mid-sentence in a sentence-case headline ("Desai")
+    common: set[str]  # written lower-case somewhere ("chips", "holiday")
+    phrases: set[tuple[str, str]]  # adjacent capitalized pairs mid-sentence ("World Labs")
+
+
+def _case_evidence(texts: list[str]) -> _Case:
+    """Words seen only in Title Case or sentence-initially are neither proper
+    nor common; _display resolves them."""
+    case = _Case(defaultdict(Counter), set(), set(), set())
     for text in texts:
         sentence_case = not is_title_case(text)
-        for k, word in enumerate(_WORD_RE.findall(text)):
-            word = word.removesuffix("'s")
-            low = word.lower()
-            votes[low][word] += 1
-            if sentence_case:
-                if word[0].isupper():
-                    capital.add(low)
-                elif k > 0:
-                    lower.add(low)
-    return votes, capital - lower
+        for sentence in re.split(r"[:;.!?]\s+|\s[-|]\s", text):
+            words = [w.removesuffix("'s") for w in _WORD_RE.findall(sentence)]
+            for k, word in enumerate(words):
+                low = word.lower()
+                case.votes[low][word] += 1
+                if not word[0].isupper():
+                    case.common.add(low)
+                elif sentence_case and k > 0:
+                    case.proper.add(low)
+                    if words[k - 1][0].isupper() and k > 1:
+                        case.phrases.add((words[k - 1].lower(), low))
+    case.proper -= case.common
+    return case
 
 
-def _display(term: str, votes: dict[str, Counter[str]], names: set[str]) -> str:
+def _display(term: str, case: _Case) -> str:
+    """Readable chip text: acronyms/CamelCase as written, names capitalized,
+    common words lower-case. A Title-Case-only word reads as a name unless
+    it is an everyday headline word; name phrases seen mid-sentence keep
+    their capitals ("World Labs" even though "world model" is lower-case)."""
     if term in _LABELS:
         return _LABELS[term]
     if is_known_firm(term):
         return canonical_firm(term)
+    parts = term.split()
+    phrase = len(parts) == 2 and (parts[0], parts[1]) in case.phrases
+
+    def ambiguous(part: str) -> bool:
+        return part not in case.proper and part not in case.common and part not in _COMMON_WORDS
+
+    def is_name(part: str) -> bool:
+        if phrase or part in case.proper:
+            return True
+        if not ambiguous(part) or part in _LABELS:
+            return False
+        others = [o for o in parts if o != part]
+        return not others or any(o in case.proper or ambiguous(o) for o in others)
+
     words = []
-    for part in term.split():
+    for part in parts:
         if part in _LABELS:
-            words.append(_LABELS[part])
+            words.append(_LABELS[part] if len(parts) == 1 else _PART_LABELS[part])
             continue
-        surfaces = votes.get(part)
+        surfaces = case.votes.get(part)
         best = surfaces.most_common(1)[0][0] if surfaces else part
         if _ACRONYM_RE.match(best) or any(c.isupper() for c in best[1:]):
             words.append(best)  # AI, GPU, OpenAI, iPhone
-        elif part in names:
+        elif is_name(part):
             words.append(best[0].upper() + best[1:])
         else:
             words.append(part)
@@ -141,9 +204,11 @@ def extract_keywords(texts: list[str], scores: Sequence[float] | None = None, co
     if not texts:
         return []
     own = company_terms(company)
-    cleaned = [fold(clean_text(t or "")) for t in texts]
-    votes, names = _surface_votes(cleaned)
-    values = list(scores) if scores is not None else [0.0] * len(texts)
+    raw_values = list(scores) if scores is not None else []
+    copies = find_duplicates([t or "" for t in texts])  # syndicated copies count once
+    cleaned = [fold(clean_text(texts[g[0]] or "")) for g in copies]
+    values = [sum(float(raw_values[i]) if i < len(raw_values) else 0.0 for i in g) / len(g) for g in copies]
+    case = _case_evidence(cleaned)
 
     df: Counter[str] = Counter()
     score_sum: dict[str, float] = defaultdict(float)
@@ -171,7 +236,7 @@ def extract_keywords(texts: list[str], scores: Sequence[float] | None = None, co
             df[term] += 1
             score_sum[term] += float(values[i]) if i < len(values) else 0.0
 
-    min_count = 2 if len(texts) >= 8 else 1
+    min_count = 2 if len(cleaned) >= 8 else 1
     candidates = {t: c for t, c in df.items() if c >= min_count}
     ranked: list[tuple[float, str]] = []
     for term, count in candidates.items():
@@ -188,17 +253,23 @@ def extract_keywords(texts: list[str], scores: Sequence[float] | None = None, co
 
     out: list[tuple[str, int, float]] = []
     used_parts: set[str] = set()
+    used_plain: set[str] = set()  # plain words already shown
+    used_pieces: set[str] = set()  # words inside shown concepts ("price-target" -> price, target)
     for _w, term in ranked:
         parts = term.split()
-        if len(parts) > 1 and set(parts) <= used_parts:
-            continue
+        plain = {p for p in parts if p not in _LABELS}
+        pieces = {piece for p in parts if p in _LABELS for piece in p.split("-")}
+        if set(parts) & used_parts or plain & used_pieces or pieces & used_plain:
+            continue  # never repeat a word across chips ("Musk" / "Elon Musk", "target" / "price target")
         words = [surfaces[p].most_common(1)[0][0] if surfaces.get(p) else p for p in parts]
-        label = _display(" ".join(words), votes, names)
+        label = _display(" ".join(words), case)
         if any(label.lower() == existing.lower() for existing, _c, _s in out):
             continue
         count = df[term]
         out.append((label, count, round(score_sum[term] / count, 3)))
         used_parts |= set(parts)
+        used_plain |= plain
+        used_pieces |= pieces
         if len(out) >= top_n:
             break
     return out

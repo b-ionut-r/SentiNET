@@ -7,17 +7,22 @@ Every public coroutine runs its blocking work in a worker thread
 
 Timestamps are stored as fixed-format UTC ISO-8601 strings, which sort
 lexicographically in time order.
+
+Snapshot `extra` keeps what alert rules compare against, distinguishing
+*unavailable* (provider failed: `None`) from *empty* (answered, nothing there),
+so a degraded run never makes old facts look new on the next run.
 """
 from __future__ import annotations
 
 import asyncio
 import json
 import logging
+import math
 import sqlite3
 import threading
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, TypeVar
 
@@ -36,8 +41,11 @@ logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 SNAPSHOT_NARRATIVES = 12  # narrative headlines kept per snapshot (for "is new?" checks)
+STORY_IDS = 25  # member signal ids kept per narrative (story identity across runs)
+STORY_RETENTION = timedelta(days=7)  # member ids are pruned from older snapshots
+CLAIM_STALE = timedelta(minutes=5)  # an in-flight webhook claim older than this is abandoned
 SPARK_POINTS = 30
 SPARK_WINDOW = timedelta(days=30)
 WATCH_BASELINE_GAP = timedelta(hours=12)
@@ -85,24 +93,33 @@ CREATE TABLE IF NOT EXISTS alert_events (
     at         TEXT    NOT NULL,
     title      TEXT    NOT NULL,
     detail     TEXT    NOT NULL,
-    delivered  INTEGER NOT NULL DEFAULT 0
+    delivered  INTEGER NOT NULL DEFAULT 0,  -- 0 pending · 1 delivered · 2 claimed (POST in flight)
+    claimed_at TEXT
 );
 CREATE INDEX IF NOT EXISTS ix_alert_events_at ON alert_events (at);
 """
+
+# Incremental migrations: target version -> statements.
+_MIGRATIONS: dict[int, tuple[str, ...]] = {
+    2: ("ALTER TABLE alert_events ADD COLUMN claimed_at TEXT",),
+}
+
+# Webhook delivery states (alert_events.delivered).
+PENDING, DELIVERED, CLAIMED = 0, 1, 2
 
 
 # --------------------------------------------------------------------------- #
 # Time helpers
 # --------------------------------------------------------------------------- #
 def utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def to_db_time(dt: datetime) -> str:
     """Fixed-width UTC ISO string (naive datetimes are taken to be UTC)."""
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc).isoformat(timespec="microseconds")
+        dt = dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC).isoformat(timespec="microseconds")
 
 
 def from_db_time(value: str | None) -> datetime | None:
@@ -113,14 +130,31 @@ def from_db_time(value: str | None) -> datetime | None:
 # Records
 # --------------------------------------------------------------------------- #
 @dataclass(frozen=True)
+class StoryRef:
+    """What identifies a narrative across runs: its headline, member ids and tone."""
+
+    headline: str
+    ids: tuple[str, ...] = ()
+    score: float = 0.0
+
+
+@dataclass(frozen=True)
 class SnapshotRecord:
-    """A stored snapshot plus the extra state alert rules compare against."""
+    """A stored snapshot plus the extra state alert rules compare against.
+
+    `analyst_keys` is None when analyst data was unavailable for that run (as
+    opposed to an empty tuple: "no recent actions"); `news_ok` is False when no
+    news source answered (so an empty narrative list says nothing) and None for
+    rows written before it was recorded.
+    """
 
     id: int
     snapshot: Snapshot
     attention_heat: int | None = None
-    analyst_keys: tuple[str, ...] = ()
+    analyst_keys: tuple[str, ...] | None = None
     verdict: Verdict | None = None
+    stories: tuple[StoryRef, ...] = ()
+    news_ok: bool | None = None
 
     @property
     def at(self) -> datetime:
@@ -136,6 +170,26 @@ def analyst_action_key(date: datetime, firm: str, action: str, to_grade: str | N
     """Stable identity of an analyst action, used to spot new ones between snapshots."""
     pt = f"{price_target:.2f}" if price_target is not None else ""
     return f"{date.date().isoformat()}|{firm.strip().lower()}|{action}|{(to_grade or '').lower()}|{pt}"
+
+
+def _finite(value: float | None, default: float | None = None) -> float | None:
+    """`value` as a float, or `default` when missing / NaN / infinite (SQLite would store NULL)."""
+    if value is None:
+        return default
+    try:
+        f = float(value)
+    except (TypeError, ValueError):
+        return default
+    return f if math.isfinite(f) else default
+
+
+def _stories(raw: Any) -> tuple[StoryRef, ...]:
+    out = []
+    for item in raw if isinstance(raw, list) else ():
+        if isinstance(item, dict) and isinstance(item.get("h"), str):
+            out.append(StoryRef(headline=item["h"], ids=tuple(str(i) for i in item.get("ids") or ()),
+                                score=_finite(item.get("s"), 0.0) or 0.0))
+    return tuple(out)
 
 
 def _row_to_record(row: sqlite3.Row) -> SnapshotRecord:
@@ -158,12 +212,17 @@ def _row_to_record(row: sqlite3.Row) -> SnapshotRecord:
         social_score=row["social_score"],
         narratives=json.loads(row["narratives"] or "[]"),
     )
+    keys = extra.get("analyst_keys")
+    headlines = snap.narratives
+    stories = _stories(extra.get("stories")) or tuple(StoryRef(headline=h) for h in headlines)
     return SnapshotRecord(
         id=row["id"],
         snapshot=snap,
         attention_heat=row["attention_heat"],
-        analyst_keys=tuple(extra.get("analyst_keys", ())),
+        analyst_keys=tuple(keys) if isinstance(keys, list) else None,
         verdict=verdict,
+        stories=stories,
+        news_ok=extra.get("news_ok") if isinstance(extra.get("news_ok"), bool) else None,
     )
 
 
@@ -189,10 +248,16 @@ class Database:
 
     def _migrate(self) -> None:
         version = self._conn.execute("PRAGMA user_version").fetchone()[0]
-        if version < SCHEMA_VERSION:
-            with self._conn:
+        if version >= SCHEMA_VERSION:
+            return
+        with self._conn:
+            if version == 0:  # fresh database: the current schema in one go
                 self._conn.executescript(_SCHEMA)
-                self._conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+            else:
+                for target in range(version + 1, SCHEMA_VERSION + 1):
+                    for stmt in _MIGRATIONS.get(target, ()):
+                        self._conn.execute(stmt)
+            self._conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
 
     def call(self, fn: Callable[..., T], *args: Any) -> T:
         """Run `fn(conn, *args)` under the lock (blocking)."""
@@ -243,13 +308,23 @@ async def _run(fn: Callable[..., T], *args: Any) -> T:
 # --------------------------------------------------------------------------- #
 # Snapshots
 # --------------------------------------------------------------------------- #
-def _insert_snapshot(conn: sqlite3.Connection, analysis: Analysis) -> SnapshotRecord:
-    verdict = analysis.verdict
-    narratives = [n.headline for n in analysis.narratives[:SNAPSHOT_NARRATIVES]]
-    keys = []
+def _snapshot_extra(analysis: Analysis) -> dict[str, Any]:
+    """Alert-rule state: analyst action keys, narrative identities, news availability."""
+    keys = None  # analysts unavailable this run: not "no actions"
     if analysis.analysts is not None:
         keys = [analyst_action_key(a.date, a.firm, a.action, a.to_grade, a.price_target)
                 for a in analysis.analysts.actions]
+    stories = [
+        {"h": n.headline, "ids": n.signal_ids[:STORY_IDS], "s": round(_finite(n.score, 0.0) or 0.0, 3)}
+        for n in analysis.narratives[:SNAPSHOT_NARRATIVES]
+    ]
+    news_ok = any(s.kind in ("news", "analysis") and s.status in ("ok", "empty") for s in analysis.sources)
+    return {"analyst_keys": keys, "stories": stories, "news_ok": news_ok}
+
+
+def _insert_snapshot(conn: sqlite3.Connection, analysis: Analysis) -> SnapshotRecord:
+    verdict = analysis.verdict
+    narratives = [n.headline for n in analysis.narratives[:SNAPSHOT_NARRATIVES]]
     at = analysis.generated_at
     with conn:
         cur = conn.execute(
@@ -260,16 +335,16 @@ def _insert_snapshot(conn: sqlite3.Connection, analysis: Analysis) -> SnapshotRe
                 analysis.ticker,
                 to_db_time(at),
                 int(verdict.score),
-                float(analysis.sentiment.score),
+                _finite(analysis.sentiment.score, 0.0),  # NOT NULL: a NaN must not sink the snapshot
                 verdict.stance,
                 int(analysis.sentiment.n),
-                analysis.quote.price if analysis.quote else None,
-                analysis.news.score if analysis.news.n else None,
-                analysis.social.score if analysis.social.n else None,
+                _finite(analysis.quote.price) if analysis.quote else None,
+                _finite(analysis.news.score) if analysis.news.n else None,
+                _finite(analysis.social.score) if analysis.social.n else None,
                 analysis.attention.heat if analysis.attention else None,
                 json.dumps(narratives),
                 verdict.model_dump_json(),
-                json.dumps({"analyst_keys": keys}),
+                json.dumps(_snapshot_extra(analysis)),
             ),
         )
     row = conn.execute("SELECT * FROM snapshots WHERE id = ?", (cur.lastrowid,)).fetchone()
@@ -298,6 +373,15 @@ def _oldest_record_since(conn: sqlite3.Connection, ticker: str, since: datetime,
     return _row_to_record(row) if row else None
 
 
+def _records_before(conn: sqlite3.Connection, ticker: str, before_id: int, since: datetime,
+                    limit: int) -> list[SnapshotRecord]:
+    rows = conn.execute(
+        "SELECT * FROM snapshots WHERE ticker = ? AND id < ? AND at >= ? ORDER BY at DESC, id DESC LIMIT ?",
+        (ticker, before_id, to_db_time(since), limit),
+    ).fetchall()
+    return [_row_to_record(r) for r in rows]
+
+
 def _list_snapshots(conn: sqlite3.Connection, ticker: str, limit: int,
                     since: datetime | None) -> list[Snapshot]:
     sql, args = "SELECT * FROM snapshots WHERE ticker = ?", [ticker]
@@ -309,9 +393,15 @@ def _list_snapshots(conn: sqlite3.Connection, ticker: str, limit: int,
     return [_row_to_record(r).snapshot for r in conn.execute(sql, args).fetchall()]
 
 
-def _prune_snapshots(conn: sqlite3.Connection, older_than: datetime) -> int:
+def _prune_snapshots(conn: sqlite3.Connection, older_than: datetime, stories_before: datetime) -> int:
+    """Delete snapshots older than `older_than`; drop bulky story ids from those before `stories_before`."""
     with conn:
         cur = conn.execute("DELETE FROM snapshots WHERE at < ?", (to_db_time(older_than),))
+        conn.execute(
+            "UPDATE snapshots SET extra = json_remove(extra, '$.stories') "
+            "WHERE at < ? AND json_extract(extra, '$.stories') IS NOT NULL",
+            (to_db_time(stories_before),),
+        )
     return cur.rowcount
 
 
@@ -336,13 +426,19 @@ async def oldest_record_since(ticker: str, since: datetime,
     return await _run(_oldest_record_since, ticker, since, exclude_id)
 
 
+async def records_before(ticker: str, before_id: int, since: datetime, limit: int = 100) -> list[SnapshotRecord]:
+    """Snapshots of `ticker` older than row `before_id` and taken at/after `since`, newest first."""
+    return await _run(_records_before, ticker, before_id, since, limit)
+
+
 async def list_snapshots(ticker: str, limit: int = 50, since: datetime | None = None) -> list[Snapshot]:
     """Newest first."""
     return await _run(_list_snapshots, ticker, limit, since)
 
 
 async def prune_snapshots(keep_days: int = 400) -> int:
-    return await _run(_prune_snapshots, utcnow() - timedelta(days=keep_days))
+    now = utcnow()
+    return await _run(_prune_snapshots, now - timedelta(days=keep_days), now - STORY_RETENTION)
 
 
 # --------------------------------------------------------------------------- #
@@ -457,7 +553,7 @@ def _event(row: sqlite3.Row) -> AlertEvent:
         at=from_db_time(row["at"]),
         title=row["title"],
         detail=row["detail"],
-        delivered=bool(row["delivered"]),
+        delivered=row["delivered"] == DELIVERED,
     )
 
 
@@ -515,17 +611,50 @@ def _list_events(conn: sqlite3.Connection, limit: int, ticker: str | None) -> li
     return [_event(r) for r in conn.execute(sql, args).fetchall()]
 
 
-def _undelivered(conn: sqlite3.Connection, since: datetime) -> list[AlertEvent]:
+_CLAIMABLE = f"(delivered = {PENDING} OR (delivered = {CLAIMED} AND claimed_at < ?))"
+
+
+def _undelivered(conn: sqlite3.Connection, since: datetime, stale_before: datetime) -> list[AlertEvent]:
     rows = conn.execute(
-        "SELECT * FROM alert_events WHERE delivered = 0 AND at >= ? ORDER BY at ASC, id ASC",
-        (to_db_time(since),),
+        f"SELECT * FROM alert_events WHERE at >= ? AND {_CLAIMABLE} ORDER BY at ASC, id ASC",
+        (to_db_time(since), to_db_time(stale_before)),
     ).fetchall()
     return [_event(r) for r in rows]
 
 
+def _claim_events(conn: sqlite3.Connection, event_ids: list[int], now: datetime) -> list[int]:
+    """Atomically mark pending (or abandoned) events as in flight; returns the ids actually claimed.
+
+    The conditional UPDATE runs under SQLite's write lock, so two deliverers
+    (the post-analysis task and the monitor's retry, or two processes) can
+    never both claim — and therefore never both POST — the same event.
+    """
+    claimed = []
+    stale_before = to_db_time(now - CLAIM_STALE)
+    with conn:
+        for event_id in event_ids:
+            cur = conn.execute(
+                f"UPDATE alert_events SET delivered = {CLAIMED}, claimed_at = ? WHERE id = ? AND {_CLAIMABLE}",
+                (to_db_time(now), event_id, stale_before),
+            )
+            if cur.rowcount:
+                claimed.append(event_id)
+    return claimed
+
+
+def _release_events(conn: sqlite3.Connection, event_ids: list[int], delivered: bool) -> None:
+    state = DELIVERED if delivered else PENDING
+    with conn:
+        conn.executemany(
+            f"UPDATE alert_events SET delivered = {state}, claimed_at = NULL WHERE id = ? AND delivered = {CLAIMED}",
+            [(i,) for i in event_ids],
+        )
+
+
 def _mark_delivered(conn: sqlite3.Connection, event_ids: list[int]) -> None:
     with conn:
-        conn.executemany("UPDATE alert_events SET delivered = 1 WHERE id = ?", [(i,) for i in event_ids])
+        conn.executemany(f"UPDATE alert_events SET delivered = {DELIVERED}, claimed_at = NULL WHERE id = ?",
+                         [(i,) for i in event_ids])
 
 
 async def create_rule(rule: AlertRuleIn) -> AlertRule:
@@ -559,7 +688,19 @@ async def list_alert_events(limit: int = 50, ticker: str | None = None) -> list[
 
 
 async def undelivered_events(since: datetime) -> list[AlertEvent]:
-    return await _run(_undelivered, since)
+    """Events since `since` not delivered and not currently being delivered (oldest first)."""
+    return await _run(_undelivered, since, utcnow() - CLAIM_STALE)
+
+
+async def claim_events(event_ids: list[int]) -> list[int]:
+    """Claim events for webhook delivery; only claimed ids may be sent (see `_claim_events`)."""
+    return await _run(_claim_events, event_ids, utcnow()) if event_ids else []
+
+
+async def release_events(event_ids: list[int], delivered: bool) -> None:
+    """End a claim: mark delivered, or return to pending for a later retry."""
+    if event_ids:
+        await _run(_release_events, event_ids, delivered)
 
 
 async def mark_delivered(event_ids: list[int]) -> None:

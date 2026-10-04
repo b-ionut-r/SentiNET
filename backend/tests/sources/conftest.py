@@ -12,7 +12,7 @@ Fixture provenance (tests/fixtures/sources/):
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -22,7 +22,7 @@ from app.core.ratelimit import limiter
 from app.sources.base import CompanyRef
 
 # Fixed "now" close to the capture time so recency filters are deterministic.
-CAPTURE_NOW = datetime(2026, 10, 4, 22, 30, tzinfo=timezone.utc)
+CAPTURE_NOW = datetime(2026, 10, 4, 22, 30, tzinfo=UTC)
 
 
 def company(ticker: str) -> CompanyRef:
@@ -41,6 +41,19 @@ def company(ticker: str) -> CompanyRef:
         ),
         "BTC-USD": CompanyRef(ticker="BTC-USD", name="Bitcoin USD", short_name="Bitcoin", quote_type="CRYPTOCURRENCY"),
         "SHOP.TO": CompanyRef(ticker="SHOP.TO", name="Shopify Inc.", short_name="Shopify"),
+        # As `resolve_company` returned them live on 2026-10-04:
+        "ICE": CompanyRef(ticker="ICE", name="Intercontinental Exchange, Inc.", short_name="Intercontinental Exchange"),
+        "MAR": CompanyRef(ticker="MAR", name="Marriott International, Inc.", short_name="Marriott"),
+        "T": CompanyRef(ticker="T", name="AT&T Inc.", short_name="AT&T"),
+        "UPS": CompanyRef(ticker="UPS", name="United Parcel Service, Inc.", short_name="UPS"),
+        "MU": CompanyRef(ticker="MU", name="Micron Technology, Inc.", short_name="Micron", aliases=["Micron Technology"]),
+        "GLD": CompanyRef(
+            ticker="GLD", name="SPDR Gold Shares", short_name="Gold", aliases=["gold prices"], quote_type="ETF"
+        ),
+        "XLV": CompanyRef(
+            ticker="XLV", name="State Street Health Care Select Sector SPDR ETF", short_name="Health Care", quote_type="ETF"
+        ),
+        "TRUMP-USD": CompanyRef(ticker="TRUMP-USD", name="TRUMP", short_name="TRUMP", quote_type="CRYPTOCURRENCY"),
         "^GSPC": CompanyRef(ticker="^GSPC", name="S&P 500", short_name="S&P 500", quote_type="INDEX"),
     }
     return refs[ticker]

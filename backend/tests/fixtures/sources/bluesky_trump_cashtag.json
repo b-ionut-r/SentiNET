@@ -1,0 +1,668 @@
+{
+ "posts": [
+  {
+   "uri": "at://did:plc:xzinb6jermnsn26c2melbwtq/app.bsky.feed.post/3mx3krmc7sc2t",
+   "cid": "bafyreigbqrj6yccn5enoi4ofjw6nsdha66iq72quy5mcuq762qj3n27bae",
+   "author": {
+    "did": "did:plc:xzinb6jermnsn26c2melbwtq",
+    "handle": "photoframd.bsky.social",
+    "displayName": "𝗽𝗵𝗼𝘁𝗼𝗳𝗿𝗮𝗺𝗱"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "Three-Time Trump Voters Deliver Brutal Reality Check to MAGA #BlueWaveIn30Days\nwww.thedailybeast.com/three-time-t...  via @thedailybeast",
+    "createdAt": "2026-10-04T23:32:52.147Z",
+    "facets": [
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#tag",
+        "tag": "BlueWaveIn30Days"
+       }
+      ],
+      "index": {
+       "byteEnd": 78,
+       "byteStart": 61
+      }
+     },
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#link",
+        "uri": "https://www.thedailybeast.com/three-time-trump-voters-deliver-brutal-reality-check-to-maga/?via=mobile&source=twitter"
+       }
+      ],
+      "index": {
+       "byteEnd": 116,
+       "byteStart": 79
+      }
+     }
+    ],
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": {
+    "external": {
+     "uri": "https://www.thedailybeast.com/three-time-trump-voters-deliver-brutal-reality-check-to-maga/?via=mobile&source=twitter",
+     "title": "Three-Time Trump Voters Deliver Brutal Reality Check to MAGA",
+     "description": "“He’s just lying,” one Trump voter said of the president."
+    }
+   },
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "indexedAt": "2026-10-04T23:32:53.764Z"
+  },
+  {
+   "uri": "at://did:plc:6kv5inxd5x4tuydxlob27f36/app.bsky.feed.post/3mx3krmipsk2q",
+   "cid": "bafyreich4llzavqjrj24cy3kjiqstzibnna5are7yzshq6l5hvyyw4n76m",
+   "author": {
+    "did": "did:plc:6kv5inxd5x4tuydxlob27f36",
+    "handle": "angrydonkeynews.bsky.social",
+    "displayName": "Angry Donkey News"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "Trump: \"We had our country that was a joke, that was laughed at. And now we have a country that's emulated. Everybody is looking at us. Europe wants to copy us. Everybody wants to copy us.\"\n\nx.com/atrupar/stat...",
+    "createdAt": "2026-10-04T23:32:52.300Z",
+    "facets": [
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#link",
+        "uri": "https://x.com/atrupar/status/2106538529060720712"
+       }
+      ],
+      "index": {
+       "byteEnd": 212,
+       "byteStart": 191
+      }
+     }
+    ],
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": {
+    "external": {
+     "uri": "https://x.com/atrupar/status/2106538529060720712",
+     "title": "",
+     "description": ""
+    }
+   },
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "indexedAt": "2026-10-04T23:32:52.762Z"
+  },
+  {
+   "uri": "at://did:plc:ljncv7qlepp7irh2qbww4rgk/app.bsky.feed.post/3mx3krlhajc2h",
+   "cid": "bafyreigsyhpxmxkncsvynw37wpbu2uzo52ud5kvjui7wucqf4zcw6p6rka",
+   "author": {
+    "did": "did:plc:ljncv7qlepp7irh2qbww4rgk",
+    "handle": "hdgregg.bsky.social",
+    "displayName": "H.D. Gregg"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "No doubt he wants Democrats to concentrate on genocide and privatizing public resources.\n\nwww.foxnews.com/politics/rah...",
+    "createdAt": "2026-10-04T23:32:51.266Z",
+    "facets": [
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#link",
+        "uri": "https://www.foxnews.com/politics/rahm-emanuel-urges-dems-not-impeach-trump-win-house"
+       }
+      ],
+      "index": {
+       "byteEnd": 121,
+       "byteStart": 90
+      }
+     }
+    ],
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": {
+    "external": {
+     "uri": "https://www.foxnews.com/politics/rahm-emanuel-urges-dems-not-impeach-trump-win-house",
+     "title": "Rahm Emanuel urges Dems not to impeach Trump if they win the House",
+     "description": "Rahm Emanuel warns Democrats against impeaching Trump if they win the House, pushing for a comprehensive ethics package instead of a \"food fight.\""
+    }
+   },
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "indexedAt": "2026-10-04T23:32:52.664Z"
+  },
+  {
+   "uri": "at://did:plc:yuivergruucagaxwjxwlmeqg/app.bsky.feed.post/3mx3kri5qk22q",
+   "cid": "bafyreib35nh7g6vuurfuvlwckjc65whrym3fdc5izxmt7oyq4ssemqdepe",
+   "author": {
+    "did": "did:plc:yuivergruucagaxwjxwlmeqg",
+    "handle": "elbahi58.bsky.social",
+    "displayName": ""
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "aaronparnas.substack.com/p/major-deep...",
+    "createdAt": "2026-10-04T23:32:47.807Z",
+    "facets": [
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#link",
+        "uri": "https://aaronparnas.substack.com/p/major-deep-dive-trump-is-defying?utm_source=share&utm_medium=android&r=1nbaj4"
+       }
+      ],
+      "index": {
+       "byteEnd": 40,
+       "byteStart": 0
+      }
+     }
+    ],
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": {
+    "external": {
+     "uri": "https://aaronparnas.substack.com/p/major-deep-dive-trump-is-defying?utm_source=share&utm_medium=android&r=1nbaj4",
+     "title": "Major Deep Dive: Trump Is Defying Congress' Power of the Purse. Here’s a Roadmap for Investigating His Misuse of Taxpayer Funds",
+     "description": "He was once forced to pay $2 million for misusing his own charity's money for politics. Now it's the federal Treasury. Here's the roadmap Congress needs."
+    }
+   },
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "indexedAt": "2026-10-04T23:32:50.360Z"
+  },
+  {
+   "uri": "at://did:plc:t57zckxuo4v6t53fjp7j7mcv/app.bsky.feed.post/3mx3krhbo422a",
+   "cid": "bafyreifezpx2xlgysveztyjmb46vkfypbz5hxkljm4rlo6adgga3cfvzdu",
+   "author": {
+    "did": "did:plc:t57zckxuo4v6t53fjp7j7mcv",
+    "handle": "dworkin.bsky.social",
+    "displayName": "Scott Dworkin"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "How to replace a U.S. attorney, per Judge Stanley Bastian:\n\nNominate someone.\nGet the Senate to confirm them.\nThere's no step 3 where you fire him by email.\nTrump went straight to step 3.",
+    "createdAt": "2026-10-04T23:32:46.888Z",
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": {
+    "external": {
+     "uri": "https://www.dworkinsubstack.com/p/great-news-for-us-thats-absolutely",
+     "title": "Great News For Us That’s Absolutely Horrible For Trump",
+     "description": "A prosecutor, an Olympian, a $10 billion lawsuit, and your power bill. Four stories, all inside."
+    }
+   },
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "indexedAt": "2026-10-04T23:32:48.162Z"
+  },
+  {
+   "uri": "at://did:plc:xzdaclmn72jx5jbsrhygikeh/app.bsky.feed.post/3mx3krfda2k2i",
+   "cid": "bafyreiatqyghmfy7owswblocmhdla4tdxgl47ck377uf4avrikj3wzbswe",
+   "author": {
+    "did": "did:plc:xzdaclmn72jx5jbsrhygikeh",
+    "handle": "lilliad2541.bsky.social",
+    "displayName": ""
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "youtube.com/shorts/90BQb...",
+    "createdAt": "2026-10-04T23:32:44.842Z",
+    "facets": [
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#link",
+        "uri": "https://youtube.com/shorts/90BQbRLO9Hw?is=06CxPjm7ZipcRO7S"
+       }
+      ],
+      "index": {
+       "byteEnd": 27,
+       "byteStart": 0
+      }
+     }
+    ],
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": {
+    "external": {
+     "uri": "https://youtube.com/shorts/90BQbRLO9Hw?is=06CxPjm7ZipcRO7S",
+     "title": "Jack Smith Drops Bombshell: Trump Used Jan 6 Riot in Criminal Conspiracy",
+     "description": "YouTube video by Hook Global"
+    }
+   },
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "indexedAt": "2026-10-04T23:32:47.064Z"
+  },
+  {
+   "uri": "at://did:plc:6mhklynp4wb26fqx3ffqzvfh/app.bsky.feed.post/3mx3kr45dr22x",
+   "cid": "bafyreibpbjk5c6bqff6gxe74gvkb6tekr5xhag3obiuiwl32c3xfrchbdq",
+   "author": {
+    "did": "did:plc:6mhklynp4wb26fqx3ffqzvfh",
+    "handle": "roserose-wallace.bsky.social",
+    "displayName": "🇺🇸 RoseRose 🌹🌹💙 🏞 ☮️"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "Trump is the fattest president of the last 100 years, & in the top 3 in US history.",
+    "createdAt": "2026-10-04T23:32:35.208Z",
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": null,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "indexedAt": "2026-10-04T23:32:48.365Z"
+  },
+  {
+   "uri": "at://did:plc:hqp4sby2esq5iaz54ddid2gj/app.bsky.feed.post/3mx3kr2qqys2z",
+   "cid": "bafyreihijnz7kw2jjmeg7ox7uhko55cw5qkvvvyrqrxaplzio5v55gtqaa",
+   "author": {
+    "did": "did:plc:hqp4sby2esq5iaz54ddid2gj",
+    "handle": "michaeledward.bsky.social",
+    "displayName": "michaeledward"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "The only thing for Trump left to do on the dementia checklist is pass away.",
+    "createdAt": "2026-10-04T23:32:33.751Z",
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": null,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "indexedAt": "2026-10-04T23:32:34.162Z"
+  },
+  {
+   "uri": "at://did:plc:m7qfgttfpog7yqci2ba2y5yb/app.bsky.feed.post/3mx3kqysnp22q",
+   "cid": "bafyreicqdzl5uph6k25ogcysj7lv4zloqergava2sgqkvu6gltdkwvhkkm",
+   "author": {
+    "did": "did:plc:m7qfgttfpog7yqci2ba2y5yb",
+    "handle": "railrider-66.bsky.social",
+    "displayName": ""
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "Except the election results were accepted in Hungary..won't happen with Trump",
+    "createdAt": "2026-10-04T23:32:31.713Z",
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": null,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "indexedAt": "2026-10-04T23:32:31.961Z"
+  },
+  {
+   "uri": "at://did:plc:zfdisefgc2phz2xgwq2jdvwe/app.bsky.feed.post/3mx3kqwd3sc2d",
+   "cid": "bafyreibvpt3vuzefw3lygogu5wdqjfjdka5wok6lrnxoillgtcp3axud6i",
+   "author": {
+    "did": "did:plc:zfdisefgc2phz2xgwq2jdvwe",
+    "handle": "sande0724.bsky.social",
+    "displayName": "Sande"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "NOT ONE THING. \n\nBecause Trump MAGA Republicans.\n\nStop the nightmare.\n\nVOTE. \n\nVOTE. THEM. OUT.",
+    "createdAt": "2026-10-04T23:32:29.107Z",
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": null,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "indexedAt": "2026-10-04T23:32:30.463Z"
+  },
+  {
+   "uri": "at://did:plc:76jndadw4ex2kfdf2oq7xvl2/app.bsky.feed.post/3mx3kqv33jk27",
+   "cid": "bafyreicpk4q4mz675v43wjkonh4mzf7ocorhobmq7qnu7vok6mctsutg74",
+   "author": {
+    "did": "did:plc:76jndadw4ex2kfdf2oq7xvl2",
+    "handle": "edpb.bsky.social",
+    "displayName": ""
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "apnews.com/article/trum... replica Oval Office near the White House just got a new Trump makeover. Gold flourishes abound.     Fuck Trump and hie damn gold. This is all being paid for by tax payers. And once this SOB is gone, it will be put back as it was.",
+    "createdAt": "2026-10-04T23:32:27.793Z",
+    "facets": [
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#link",
+        "uri": "https://apnews.com/article/trump-peoples-house-gold-oval-office-replica-f20fbcd0c51483a6d12ce361b690ea80?utm_source=bluesky&utm_medium=share&nbsp;<br>A"
+       }
+      ],
+      "index": {
+       "byteEnd": 26,
+       "byteStart": 0
+      }
+     }
+    ],
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": {
+    "external": {
+     "uri": "https://apnews.com/article/trump-peoples-house-gold-oval-office-replica-f20fbcd0c51483a6d12ce361b690ea80?utm_source=bluesky&utm_medium=share&nbsp;<br>A",
+     "title": "A replica Oval Office near the White House just got a new Trump makeover. Gold flourishes abound",
+     "description": "The People's House museum exhibit in Washington has updated its replica Oval Office to match Donald Trump’s flashier and more golden design choices from his second term."
+    }
+   },
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "indexedAt": "2026-10-04T23:32:29.659Z"
+  },
+  {
+   "uri": "at://did:plc:qdobpv5cehfbwqfsptbprigu/app.bsky.feed.post/3mx3kqtorkk2h",
+   "cid": "bafyreiazw2g7qwurzstf3qrdi55iloirivo6fuww5ptkp3x4i36deqzoyi",
+   "author": {
+    "did": "did:plc:qdobpv5cehfbwqfsptbprigu",
+    "handle": "melevanie.bsky.social",
+    "displayName": "Mel in the mountains"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "Does Trump put labels on all the buildings because he forgets where he is??",
+    "createdAt": "2026-10-04T23:32:26.347Z",
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": null,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "indexedAt": "2026-10-04T23:32:26.058Z"
+  },
+  {
+   "uri": "at://did:plc:ic4gxvr22el2tw7np7azi6rb/app.bsky.feed.post/3mx3kqtadnc25",
+   "cid": "bafyreiblt5uuxp6tbrr4piojt5pvegsbulvlo4jabrkoufifhfht4o7gvu",
+   "author": {
+    "did": "did:plc:ic4gxvr22el2tw7np7azi6rb",
+    "handle": "antonio5591.bsky.social",
+    "displayName": ""
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "For a country that’s been wiped out by the U.S.,according to trump,they are sure making us squirm from fear of their attacks.",
+    "createdAt": "2026-10-04T23:32:25.873Z",
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": null,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "indexedAt": "2026-10-04T23:32:27.065Z"
+  },
+  {
+   "uri": "at://did:plc:e4z5vj4anr5q5vfdt2hi2mug/app.bsky.feed.post/3mx3kqsve3c2b",
+   "cid": "bafyreibel2a3pa6pf2z2yjdqv6s27wyibaw2vfmn7gii6i3zmaluaulbaq",
+   "author": {
+    "did": "did:plc:e4z5vj4anr5q5vfdt2hi2mug",
+    "handle": "jimdigs.bsky.social",
+    "displayName": "Jim of Pennsyltucky"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "The entire United States military is surrounded by the Trump Administration and headed for defeat.",
+    "createdAt": "2026-10-04T23:32:25.513Z",
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": null,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "indexedAt": "2026-10-04T23:32:27.870Z"
+  },
+  {
+   "uri": "at://did:plc:tdocorhefshr5wnmt4gk7ka2/app.bsky.feed.post/3mx3kqomaf22i",
+   "cid": "bafyreihjdyl3h55i73qhnb47xpjwxhcxbhh5zeog7wpumu6vga42rqyuha",
+   "author": {
+    "did": "did:plc:tdocorhefshr5wnmt4gk7ka2",
+    "handle": "iamlumina.bsky.social",
+    "displayName": "Paula. 🇳🇬☘️"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "E pior, vão ser 4 anos de merda acabando com tudo e falando ele é herança do Lula, que tá uma merda pq o Lula não sei o que não sei oq lá, enquanto entrega o Brasil pro trump",
+    "createdAt": "2026-10-04T23:32:21.021Z",
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": null,
+   "replyCount": 0,
+   "repostCount": 1,
+   "likeCount": 0,
+   "indexedAt": "2026-10-04T23:32:21.667Z"
+  },
+  {
+   "uri": "at://did:plc:s4is4wtunnhhufrrgtmi3zj5/app.bsky.feed.post/3mx3kqj55ts2e",
+   "cid": "bafyreiac2iqvmptltycfs4opp6pv3eapyioru3zpyunjjbii64ovvecrwu",
+   "author": {
+    "did": "did:plc:s4is4wtunnhhufrrgtmi3zj5",
+    "handle": "atchill.bsky.social",
+    "displayName": "A. Chill"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "Trump Is Being Accused of Interfering in Brazil's Election. Here's Why share.google/u6ca3ba1DMGW...",
+    "createdAt": "2026-10-04T23:32:15.281Z",
+    "facets": [
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#link",
+        "uri": "https://share.google/u6ca3ba1DMGWTfheZ"
+       }
+      ],
+      "index": {
+       "byteEnd": 99,
+       "byteStart": 71
+      }
+     }
+    ],
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": null,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 1,
+   "indexedAt": "2026-10-04T23:32:16.262Z"
+  },
+  {
+   "uri": "at://did:plc:r2wew37repqtwhf63wysczrn/app.bsky.feed.post/3mx3kqbq5uc2x",
+   "cid": "bafyreideqor66e3hlb6nrwcnesdmqfvn2xbphnpg7igx42l2vmv7gfdmea",
+   "author": {
+    "did": "did:plc:r2wew37repqtwhf63wysczrn",
+    "handle": "beshearstan.bsky.social",
+    "displayName": "BeshearStan"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "Of course this useless hack would make this about himself",
+    "createdAt": "2026-10-04T23:32:07.506Z",
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": null,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 2,
+   "indexedAt": "2026-10-04T23:32:10.461Z"
+  },
+  {
+   "uri": "at://did:plc:r2otjc5o7zdpwwiepysvg5qr/app.bsky.feed.post/3mx3kqbhmgc2t",
+   "cid": "bafyreic4aiqx5rwg3psgdmak7pws4rukwaq6dzz33bgtdlr7j3dvudvtly",
+   "author": {
+    "did": "did:plc:r2otjc5o7zdpwwiepysvg5qr",
+    "handle": "itseasybeinggreen.bsky.social",
+    "displayName": "ItsEasyBeingGreen"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "I still think that Trump getting more votes made things worse.",
+    "createdAt": "2026-10-04T23:32:07.230Z",
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": null,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "indexedAt": "2026-10-04T23:32:05.662Z"
+  },
+  {
+   "uri": "at://did:plc:qanwkopcqpjla2i4hc7knhjz/app.bsky.feed.post/3mx3kqbpkdc2y",
+   "cid": "bafyreif3vvufrsuk66lz2og65oa2h6y7v5nb4vt5zuaq4szxxqg52a2yay",
+   "author": {
+    "did": "did:plc:qanwkopcqpjla2i4hc7knhjz",
+    "handle": "mrskladybug.bsky.social",
+    "displayName": "Karen 🐞 Ladybug"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "🎶 Anticipation is making me wait 🎶",
+    "createdAt": "2026-10-04T23:32:07.498Z",
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": {
+    "external": {
+     "uri": "https://static.klipy.com/ii/925f17378dd1893b674a723c07535afe/02/b5/KCjyqydA.gif?hh=480&ww=472&mp4=hyMamXaR&webm=hfiaGXbRSldkMyL",
+     "title": "Donald Trump: This Is Not Going To End Well",
+     "description": "ALT: Donald Trump: This Is Not Going To End Well"
+    }
+   },
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "indexedAt": "2026-10-04T23:32:09.363Z"
+  },
+  {
+   "uri": "at://did:plc:udalmd72jxytyawl3kjlqhqo/app.bsky.feed.post/3mx3kpyt4rc2g",
+   "cid": "bafyreif7sg35w5poc3dko7d5hucbwmzxz2mexvailuoqdzj3mogfyzuk4u",
+   "author": {
+    "did": "did:plc:udalmd72jxytyawl3kjlqhqo",
+    "handle": "45-47iq.bsky.social",
+    "displayName": "BIG-BEAUTIFUL"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "Let's talk about Nixon, did he have a best pedophile friend and was he married several times and did his wife fall down the steps? So Trump might be correct that maybe Nixon was an angel 😇 compared to  douchbag Donald?",
+    "createdAt": "2026-10-04T23:31:58.177Z",
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": null,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "indexedAt": "2026-10-04T23:31:58.661Z"
+  },
+  {
+   "uri": "at://did:plc:7ommks7vp7zezq3chlk3gzpr/app.bsky.feed.post/3mx3kpxazas2t",
+   "cid": "bafyreif2fenq36juz6qgc2mhgq7m7h3dctvwwaqgf77l3v7bybqdjgf4l4",
+   "author": {
+    "did": "did:plc:7ommks7vp7zezq3chlk3gzpr",
+    "handle": "ccpeters.bsky.social",
+    "displayName": null
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "Blue dot Okie here(running for state office too). His uneducated MAGAts are in the FO mode. I've talked with lots of them & they've \"woke\" up. We never see trump hats or flags anymore, too embarrassed to publicly display their ignorance & get laughed/cussed at for fn all of us.",
+    "createdAt": "2026-10-04T23:31:56.535Z",
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": null,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "indexedAt": "2026-10-04T23:31:57.663Z"
+  },
+  {
+   "uri": "at://did:plc:xmzjrxuzd656yvacs2pnafpf/app.bsky.feed.post/3mx3kpwp2zs2i",
+   "cid": "bafyreidgsrsanqrjjvd7xueumtvcykvhuywxkjgnm3ysjbaabogbr3lztu",
+   "author": {
+    "did": "did:plc:xmzjrxuzd656yvacs2pnafpf",
+    "handle": "somewhattolerable.com",
+    "displayName": "Rich Burroughs"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "He’s not only endorsed by Trump but also by Netanyahu. JFC.",
+    "createdAt": "2026-10-04T23:31:55.948Z",
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": null,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 1,
+   "indexedAt": "2026-10-04T23:31:56.260Z"
+  },
+  {
+   "uri": "at://did:plc:rjyhnfmae2qov3yhlksee3ao/app.bsky.feed.post/3mx3kpvnooc23",
+   "cid": "bafyreiaphmu4zocd5zvncvunpdba3gfmvml7f2gbkk7f6qm3fabzibrtme",
+   "author": {
+    "did": "did:plc:rjyhnfmae2qov3yhlksee3ao",
+    "handle": "blarina.bsky.social",
+    "displayName": "Limana"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "If you wear a suit, only those having wide-leg, tapered, pleated pants and jackets with 3-inch thick shoulder pads going 2 inches past your shoulder width. Think Trump. No gay guy would be caught  dead in that outfit.",
+    "createdAt": "2026-10-04T23:31:54.854Z",
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": null,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 1,
+   "indexedAt": "2026-10-04T23:31:56.056Z"
+  }
+ ]
+}

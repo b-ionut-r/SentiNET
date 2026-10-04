@@ -61,7 +61,7 @@ class FakeSource:
 
     def __init__(self, key: str, kind: str = "news", *, signals: int = 3, metrics: dict[str, Any] | None = None,
                  delay: float = 0.0, error: BaseException | None = None, requires_key: bool = False,
-                 configured: bool = True) -> None:
+                 configured: bool = True, ticker_specific: bool = True) -> None:
         self.key = key
         self.label = key.replace("_", " ").title()
         self.kind = kind
@@ -72,6 +72,7 @@ class FakeSource:
         self.metrics = metrics or {}
         self.delay = delay
         self.error = error
+        self.ticker_specific = ticker_specific  # False: a keyword search (matches any string)
         self.calls = 0
 
     def configured(self) -> bool:
@@ -88,7 +89,7 @@ class FakeSource:
             raise self.error
         signals = [
             RawSignal(title=f"{company.short_name} headline {i} from {self.key}", url=f"https://news.example/{self.key}/{i}",
-                      publisher="Reuters", timestamp=NOW - timedelta(hours=i), ticker_specific=True)
+                      publisher="Reuters", timestamp=NOW - timedelta(hours=i), ticker_specific=self.ticker_specific)
             for i in range(self.n_signals)
         ]
         return SourceBatch(signals=signals, metrics=dict(self.metrics))

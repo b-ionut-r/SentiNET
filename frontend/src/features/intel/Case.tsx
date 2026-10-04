@@ -1,4 +1,4 @@
-/** Bull case vs. bear case (from the brief) and the "watch next" timeline. */
+/** Bull case vs. bear case (from the brief) and the "watch next" catalyst timeline. */
 import { Briefcase, CalendarClock, Coins, ExternalLink, FileText, Newspaper, UserRound } from "lucide-react";
 
 import type { Analysis, Catalyst } from "../../api/types";
@@ -17,19 +17,17 @@ const KIND_ICON: Record<Catalyst["kind"], typeof Coins> = {
   news: Newspaper,
 };
 
-export function CaseAndCatalysts({ a }: { a: Analysis }) {
+/** The brief: one numbers-backed paragraph, then the bull and bear evidence side by side. */
+export function CasePanel({ a, className }: { a: Analysis; className?: string }) {
   const b = a.brief;
   return (
-    <div id="case" className="grid scroll-mt-28 gap-4 lg:grid-cols-12">
-      <Panel title="Bull case vs. bear case" subtitle="Deterministic brief — every point is backed by a number" className="lg:col-span-8" bodyClassName="flex flex-col">
-        {b.summary && <p className="mb-4 max-w-[78ch] text-sm leading-[22px] text-ink-2">{b.summary}</p>}
-        <div className="grid flex-1 gap-4 sm:grid-cols-2">
-          <CaseColumn title="Bull case" p="bull" points={b.bull_points} empty="No bullish evidence cleared the bar." />
-          <CaseColumn title="Bear case" p="bear" points={b.bear_points} empty="No bearish evidence cleared the bar." />
-        </div>
-      </Panel>
-      <WatchNext a={a} className="lg:col-span-4" />
-    </div>
+    <Panel id="case" title="Bull case vs. bear case" subtitle="Deterministic brief — every point is backed by a number" className={className} bodyClassName="flex flex-col">
+      {b.summary && <p className="mb-4 max-w-[78ch] text-sm leading-[22px] text-ink-2">{b.summary}</p>}
+      <div className="grid flex-1 gap-4 sm:grid-cols-2">
+        <CaseColumn title="Bull case" p="bull" points={b.bull_points} empty="No bullish evidence cleared the bar." />
+        <CaseColumn title="Bear case" p="bear" points={b.bear_points} empty="No bearish evidence cleared the bar." />
+      </div>
+    </Panel>
   );
 }
 
@@ -57,7 +55,7 @@ function CaseColumn({ title, p, points, empty }: { title: string; p: "bull" | "b
   );
 }
 
-function WatchNext({ a, className }: { a: Analysis; className?: string }) {
+export function WatchNext({ a, className }: { a: Analysis; className?: string }) {
   const upcoming = a.catalysts.filter((c) => c.upcoming).sort((x, y) => x.date.localeCompare(y.date));
   const recent = a.catalysts.filter((c) => !c.upcoming).sort((x, y) => y.date.localeCompare(x.date)).slice(0, 5);
   const e = a.earnings;

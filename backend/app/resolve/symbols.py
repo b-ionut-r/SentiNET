@@ -21,7 +21,7 @@ from urllib.parse import urlsplit
 
 from app.core.cache import cached
 from app.core.sync import run_yahoo
-from app.resolve.names import BARE_CRYPTO, CRYPTO_NAMES, derive_names, fix_case
+from app.resolve.names import BARE_CRYPTO, CRYPTO_NAMES, derive_names, registry_display_name
 from app.schemas import SymbolMatch
 from app.sources.base import CompanyRef
 
@@ -165,8 +165,8 @@ def build_company_ref(
     if quote_type == "CRYPTOCURRENCY":
         official = names.short_name
     else:
-        official = long_name or short_yahoo or (fix_case(sec_title) if sec_title else None) or ticker
-    return CompanyRef(
+        official = long_name or short_yahoo or (registry_display_name(sec_title) if sec_title else None) or ticker
+    ref = CompanyRef(
         ticker=ticker,
         name=str(official),
         short_name=names.short_name,
@@ -178,6 +178,29 @@ def build_company_ref(
         industry=info.get("industry") or None,
         website=info.get("website") or None,
     )
+    if quote_type in {"ETF", "MUTUALFUND", "INDEX"}:
+        ref.aliases = _with_fund_theme(ref)
+    return ref
+
+
+def _with_fund_theme(ref: CompanyRef) -> list[str]:
+    """Aliases plus what a fund's news is about ("S&P 500" for SPY, "regional banks" for KRE).
+
+    Headlines name the index or sector, never the wrapper, so the theme is what
+    relevance scoring must recognize. The theme table lives with the search sources
+    (`app.sources.query.etf_theme`) so search and relevance agree.
+    """
+    try:
+        from app.sources.query import etf_theme
+    except ImportError:  # sources package mid-edit: themes are an enhancement only
+        return list(ref.aliases)
+    seen = {ref.short_name.lower(), *(a.lower() for a in ref.aliases)}
+    out = list(ref.aliases)
+    for theme in etf_theme(ref):
+        if theme and theme.lower() not in seen and theme.upper() != ref.base_symbol:
+            seen.add(theme.lower())
+            out.append(theme)
+    return out
 
 
 @cached(ttl=86400, none_ttl=60)
@@ -240,6 +263,8 @@ def matches_from_yahoo(quotes: list[dict[str, Any]], q: str, limit: int) -> list
         qtype = str(item.get("quoteType") or "").upper()
         if not sym or sym in seen or qtype not in _SEARCH_TYPES:
             continue
+        if qtype == "CRYPTOCURRENCY" and re.search(r"\d{3,}", sym.split("-")[0]):
+            continue  # Yahoo's collision-numbered tokens ("USDE29470-USD"): never what was meant
         seen.add(sym)
         name = str(item.get("longname") or item.get("shortname") or sym)
         if any(m.name == name and sym.startswith(m.symbol) for m in out):
@@ -276,7 +301,7 @@ def matches_from_sec(cik_map: dict[str, tuple[str, str]], q: str, limit: int) ->
         scored.append((rank, len(sym), sym))
     scored.sort()
     return [
-        SymbolMatch(symbol=sym, name=fix_case(cik_map[sym][1]), exchange=None, type="EQUITY",
+        SymbolMatch(symbol=sym, name=registry_display_name(cik_map[sym][1]), exchange=None, type="EQUITY",
                     logo_url=logo_url_for(sym))
         for _, _, sym in scored[:limit]
     ]

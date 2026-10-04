@@ -6,19 +6,22 @@ market-wide items that merely *tag* the symbol (an S&P earnings preview tags 14
 tickers), item links point at the symbol page (we rebuild the real article URL
 from the GUID), ~30 items reaching back weeks for quiet names.
 
-`ticker_specific` is honest: True only when SA tags *this symbol alone*
-(ignoring its own Canadian cross-listing aliases like "NVDA:CA"); crypto feeds
-tag BTC-USD on general crypto items, so crypto is never marked specific.
+`ticker_specific` is honest: True only when SA tags *this issuer alone* — the
+symbol and its share-class siblings (Alphabet stories are tagged GOOG+GOOGL),
+ignoring SA's Canadian cross-listing aliases like "NVDA:CA"; crypto feeds tag
+BTC-USD on general crypto items, so crypto is never marked specific.
 Docs: https://seekingalpha.com/api/sa/combined/{SYMBOL}.xml (public RSS).
 """
 from __future__ import annotations
+
+from collections.abc import Collection
 
 import httpx
 
 from app.core import http
 from app.schemas import SignalKind
 from app.sources.base import CompanyRef, RawSignal, SourceBatch
-from app.sources.query import us_symbol
+from app.sources.query import issuer_symbols, us_symbol
 from app.sources.util import (
     clean_text,
     is_recent,
@@ -47,7 +50,11 @@ def article_url(guid: str | None, fallback: str | None) -> str | None:
     return fallback
 
 
-def parse_feed(content: bytes, symbol: str, crypto: bool = False) -> list[RawSignal]:
+def parse_feed(
+    content: bytes, symbol: str, crypto: bool = False, issuer: Collection[str] | None = None
+) -> list[RawSignal]:
+    """`issuer`: every symbol of the same company (defaults to `symbol` alone)."""
+    own = set(issuer or ()) | {symbol}
     root = parse_xml(content, "seeking_alpha")
     out: list[RawSignal] = []
     for item in root.iterfind("./channel/item"):
@@ -64,7 +71,7 @@ def parse_feed(content: bytes, symbol: str, crypto: bool = False) -> list[RawSig
                 author=clean_text(item.findtext("sa:author_name", namespaces=NS)) or None,
                 publisher="Seeking Alpha",
                 timestamp=parse_rfc822(item.findtext("pubDate")),
-                ticker_specific=not crypto and primary_tags == {symbol},
+                ticker_specific=not crypto and bool(primary_tags) and primary_tags <= own,
                 extra={
                     "symbols": len(primary_tags),
                     "type": "analysis" if "Article:" in (guid or "") else "news",
@@ -99,5 +106,6 @@ class SeekingAlphaSource:
             if exc.response.status_code == 404:  # SA doesn't cover this symbol
                 return SourceBatch()
             raise
-        signals = [s for s in parse_feed(resp.content, symbol, company.is_crypto) if is_recent(s.timestamp)]
+        parsed = parse_feed(resp.content, symbol, company.is_crypto, issuer_symbols(company))
+        signals = [s for s in parsed if is_recent(s.timestamp)]
         return SourceBatch(signals=newest_first(signals))

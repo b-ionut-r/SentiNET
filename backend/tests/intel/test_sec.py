@@ -16,6 +16,7 @@ from app.intel.sec import (
     parse_form4,
     sec_headers,
 )
+from app.schemas import Filing
 from app.sources.base import CompanyRef
 from tests.intel.helpers import load_json, load_text
 
@@ -184,6 +185,22 @@ def test_summarize_8k_skips_pointer_only_items() -> None:
     assert sec.summarize_8k(load_text("sec/8k_nvda_101.htm"), ["7.01", "9.01"]) is None
     partnership = sec.summarize_8k(load_text("sec/8k_nvda_101.htm"), ["1.01", "2.03", "7.01"])
     assert partnership and partnership.startswith("NVIDIA Corporation announced a multi-year partnership with SB Energy")
+
+
+def test_listing_deficiency_is_a_red_flag() -> None:
+    """Real Beyond Meat 8-K (Item 8.01): a Nasdaq deficiency letter must surface as high/bear."""
+    excerpt = sec.summarize_8k(load_text("sec/8k_bynd_801_deficiency.htm"), ["8.01"])
+    assert excerpt and excerpt.startswith("Beyond Meat, Inc. received a deficiency letter from the Nasdaq")
+    base = Filing(form="8-K", date=date(2026, 9, 1), title="Other material event", items=["8.01"])
+    flagged = sec.reassess_8k(base, excerpt)
+    assert flagged.importance == "high" and flagged.polarity == "bear"
+
+
+def test_excerpt_drops_previously_reported_preamble() -> None:
+    """"As previously reported … on August 6, 2025, John Boken was appointed…" -> the news itself."""
+    excerpt = sec.summarize_8k(load_text("sec/8k_bynd_502.htm"), ["5.02"])
+    assert excerpt and excerpt.startswith("John Boken was appointed")
+    assert "previously reported" not in excerpt.lower()
 
 
 def test_reassess_8k_from_excerpt() -> None:

@@ -12,12 +12,14 @@ import { DivergingBar } from "../../components/charts/Bars";
 import { Dial, FEAR_GREED_DIAL } from "../../components/charts/Dial";
 import { LineChart } from "../../components/charts/LineChart";
 import { Sparkline } from "../../components/charts/Sparkline";
+import { useCommands } from "../../components/layout/commands";
 import { Delta, Mark, ScoreChip } from "../../components/ui/Badges";
 import { CountUp, Empty, ErrorState, Segmented, Skeleton, TickerLogo } from "../../components/ui/Misc";
 import { Panel, SubHead } from "../../components/ui/Panel";
 import { cx } from "../../lib/cx";
 import { dayTime, int, pct, plural, price, timeAgo } from "../../lib/format";
 import { fearGreedBand, polarityOf, polarityOf100, textTone, toneVar } from "../../lib/sentiment";
+import { getRecent } from "../../lib/storage";
 
 export default function MarketPage() {
   const q = useMarket();
@@ -30,6 +32,7 @@ export default function MarketPage() {
     return (
       <div className="space-y-4">
         <ErrorState title="Market overview unavailable" message={q.error?.message} onRetry={() => void q.refetch()} />
+        <QuickStart />
         <WatchSummary />
       </div>
     );
@@ -58,6 +61,26 @@ export default function MarketPage() {
           .join(" · ")}
       </p>
     </div>
+  );
+}
+
+/** Keeps the page useful when the overview can't be built: jump straight to a ticker. */
+function QuickStart() {
+  const { setPaletteOpen } = useCommands();
+  const recent = getRecent();
+  return (
+    <Panel title="Jump to a ticker" subtitle="Ticker analysis runs independently of the market overview">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <button className="btn" onClick={() => setPaletteOpen(true)}>
+          Search tickers <kbd className="kbd">/</kbd>
+        </button>
+        {recent.map((t) => (
+          <Link key={t} to={`/t/${encodeURIComponent(t)}`} className="btn h-8 font-mono text-xs">
+            {t}
+          </Link>
+        ))}
+      </div>
+    </Panel>
   );
 }
 

@@ -2,11 +2,11 @@
  * Watchlist (stored SentiNET scores with change and history) plus alert rules
  * CRUD and the recent alert feed from the background monitor.
  */
-import { Bell, BellRing, Plus, Star, Trash } from "lucide-react";
+import { Bell, BellRing, CircleCheck, CircleMinus, Plus, Star, Trash } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
-import { useAlertCreate, useAlertDelete, useAlertEvents, useAlerts, useWatchlist, useWatchToggle } from "../../api/hooks";
+import { useAlertCreate, useAlertDelete, useAlertEvents, useAlerts, useHealth, useWatchlist, useWatchToggle } from "../../api/hooks";
 import type { AlertKind, AlertRule, WatchItem } from "../../api/types";
 import { Sparkline } from "../../components/charts/Sparkline";
 import { Delta, Mark } from "../../components/ui/Badges";
@@ -35,13 +35,33 @@ export default function WatchlistPage() {
         <h1 className="flex items-center gap-2 text-[22px] font-semibold tracking-[-0.01em] text-ink">
           <Star className="size-5 text-muted" /> Watchlist & alerts
         </h1>
-        <p className="mt-0.5 text-sm text-muted">Scores are stored on every analysis and refreshed by the background monitor; alerts fire on its schedule.</p>
+        <p className="mt-0.5 text-sm text-muted">Every analysis stores a SentiNET snapshot; the background monitor refreshes watched tickers and evaluates alert rules.</p>
+        <MonitorStatus />
       </div>
       <WatchTable />
       <div className="grid gap-4 lg:grid-cols-12">
         <Rules className="lg:col-span-7" />
         <Events className="lg:col-span-5" />
       </div>
+    </div>
+  );
+}
+
+/** What will actually happen in the background, read from /api/health — never assumed. */
+function MonitorStatus() {
+  const h = useHealth();
+  const f = h.data?.features;
+  if (!f) return null;
+  return (
+    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+      <span className="inline-flex items-center gap-1.5 text-ink-2">
+        {f.monitor ? <CircleCheck className="size-3.5 text-good" aria-hidden /> : <CircleMinus className="size-3.5 text-muted" aria-hidden />}
+        {f.monitor ? "Monitor on — refreshes watched tickers on a schedule" : "Monitor off — scores update only when you open a ticker, and rules don't fire"}
+      </span>
+      <span className="inline-flex items-center gap-1.5 text-ink-2">
+        {f.alert_webhook ? <CircleCheck className="size-3.5 text-good" aria-hidden /> : <CircleMinus className="size-3.5 text-muted" aria-hidden />}
+        {f.alert_webhook ? "Webhook delivery on" : "No webhook — alerts appear here only (set ALERT_WEBHOOK_URL)"}
+      </span>
     </div>
   );
 }

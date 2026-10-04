@@ -246,6 +246,37 @@ def test_alerts_crud_and_events(client: TestClient, world: FakeWorld):
     assert missing.status_code == 404 and "does not exist" in missing.json()["detail"]
 
 
+def test_unknown_symbols_cannot_be_watched_or_alerted(client: TestClient, world: FakeWorld):
+    """Typos / delisted tickers would otherwise be re-analyzed by the monitor forever."""
+    from app.sources.base import CompanyRef
+
+    world.resolve = CompanyRef(ticker="ZZZZ9", name="ZZZZ9", short_name="ZZZZ9")
+    world.intel["quote"] = None
+    r = client.post("/api/watchlist", json={"ticker": "ZZZZ9"})
+    assert r.status_code == 404 and "mistyped or delisted" in r.json()["detail"]
+    assert client.get("/api/watchlist").json() == []
+    r = client.post("/api/alerts", json={"ticker": "ZZZZ9", "kind": "score_above"})
+    assert r.status_code == 404 and client.get("/api/alerts").json() == []
+    bad = client.post("/api/alerts", json={"ticker": "NVDA", "kind": "new_narrative", "threshold": 2.7})
+    assert bad.status_code == 400 and "whole number" in bad.json()["detail"]
+
+
+def test_monitor_status_endpoint(client: TestClient, world: FakeWorld):
+    from datetime import UTC, datetime
+
+    from app.services.monitor import TickerFailure
+
+    body = client.get("/api/monitor").json()
+    assert body["enabled"] is False and body["running"] is False and body["failing"] == []
+    mon = client.app.state.monitor
+    now = datetime.now(UTC)
+    mon.status.failing["TWTR"] = TickerFailure(failures=1, last_attempt=now, retry_at=now, error="No market data",
+                                               unknown=True)
+    (fail,) = client.get("/api/monitor").json()["failing"]
+    assert fail["ticker"] == "TWTR" and fail["unknown"] is True and fail["failures"] == 1
+    assert client.get("/api/health").json()["features"]["monitor_all_healthy"] is False
+
+
 # ---- export -------------------------------------------------------------------------------- #
 def test_export_csv_and_json(client: TestClient, world: FakeWorld):
     world.narratives = [Narrative(id="n1", headline="x", count=2)]

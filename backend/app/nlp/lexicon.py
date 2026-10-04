@@ -28,7 +28,7 @@ from typing import NamedTuple
 # --------------------------------------------------------------------------- #
 # Inflection helpers (keep the tables readable: list a verb once)
 # --------------------------------------------------------------------------- #
-def _forms(base: str, *, double: bool = False, extra: tuple[str, ...] = ()) -> tuple[str, ...]:
+def verb_forms(base: str, *, double: bool = False, extra: tuple[str, ...] = ()) -> tuple[str, ...]:
     """Regular English verb forms: base, 3rd person, past, gerund (+ irregulars)."""
     if base.endswith(("s", "sh", "ch", "x", "z", "o")):
         third = base + "es"
@@ -54,7 +54,7 @@ def _verbs(table: dict[str, float], **flags: tuple[str, ...]) -> dict[str, float
     doubled = set(flags.get("double", ()))
     out: dict[str, float] = {}
     for base, value in table.items():
-        for form in _forms(base, double=base in doubled):
+        for form in verb_forms(base, double=base in doubled):
             out.setdefault(form, value)
     return out
 
@@ -81,8 +81,8 @@ POSITIVE: dict[str, float] = {
     "buying opportunity": 0.8, "worth buying": 0.7, "bullish": 1.1, "more bullish": 1.2, "bull case": 0.6,
     "bull market": 0.6, "bull run": 0.9, "upside": 0.7, "upside potential": 0.8, "undervalued": 0.8,
     "underpriced": 0.7, "underappreciated": 0.6, "bargain": 0.6, "cheap": 0.3, "attractive": 0.5,
-    "compelling": 0.6, "favorable": 0.6, "favourable": 0.6, "crazy about": 0.6, "warming up to": 0.6,
-    "likes": 0.3, "loving": 0.4, "love": 0.3, "loves": 0.3, "upbeat": 0.9, "optimistic": 0.8, "confident": 0.6, "constructive": 0.5,
+    "compelling": 0.6, "favorable": 0.6, "favourable": 0.6, "crazy about": 0.9, "warming up to": 0.6,
+    "likes": 0.5, "loving": 0.4, "love": 0.3, "loves": 0.3, "upbeat": 0.9, "optimistic": 0.8, "confident": 0.6, "constructive": 0.5,
     "raises the bar": 0.6, "well positioned": 0.6, "on track": 0.4, "ahead of schedule": 0.6,
     "ahead of plan": 0.5, "positive surprise": 0.9, "upside surprise": 0.9,
     # results quality
@@ -112,7 +112,7 @@ POSITIVE: dict[str, float] = {
     # business wins
     "win": 0.5, "wins": 0.5, "won": 0.45, "winner": 0.4, "winners": 0.35, "winning": 0.35, "awarded": 0.5,
     "secures": 0.6, "secured": 0.5, "clinches": 0.7, "clinched": 0.7, "lands": 0.3, "landed": 0.3,
-    "approval": 0.7, "approvals": 0.6, "approved": 0.6, "approves": 0.6, "approve": 0.4,
+    "approval": 0.5, "approvals": 0.5, "approved": 0.4, "approves": 0.4, "approve": 0.3,
     "clearance": 0.6, "cleared": 0.5, "green light": 0.6, "greenlight": 0.6, "greenlights": 0.6,
     "fda approval": 1.1, "wins approval": 1.0, "receives approval": 0.9, "gets approval": 0.9,
     "gains approval": 0.9, "fast track": 0.6, "breakthrough designation": 0.8,
@@ -151,6 +151,16 @@ POSITIVE: dict[str, float] = {
     "weather the storm": 0.5, "double upgrade": 1.4, "breaks through": 0.6, "broke through": 0.6, "buy back": 0.7, "buys back": 0.7,
     "bought back": 0.7, "buying back": 0.7, "up day": 0.6, "reprieve": 0.4, "good investment": 0.6,
     "live up to": 0.4, "lives up to": 0.5, "lived up to": 0.5, "maintained as buy": 0.6,
+    "phenomenal": 0.9, "spectacular": 0.9, "exceptional": 0.8, "remarkable": 0.6, "blockbuster": 0.8,
+    "stunning": 0.6, "fantastic": 0.7, "amazing": 0.6, "incredible": 0.6, "monster quarter": 1.0,
+    **_verbs({"regain": 0.5}), "reasons to buy": 0.6, "accepted for review": 0.5, "accepts application": 0.5,
+    "worst is behind": 0.9, "worst is over": 0.9, "worst may be over": 0.7, "worst could be over": 0.7,
+    "worst is behind us": 0.9, "oks": 0.6, "draws praise": 0.6, "praise": 0.4, "breaking out": 0.7, "steadies": 0.4, "steadied": 0.4, "gains ground": 0.6, "gained ground": 0.6, "gaining ground": 0.5, "gains traction": 0.6,
+    "gained traction": 0.6, "gaining traction": 0.5, "fda acceptance": 0.5, "surprise profit": 1.0, "unexpected profit": 0.9, "gains a bull": 0.7,
+    "new bull": 0.5, "turns positive": 0.9, "turned positive": 0.9, "turning positive": 0.8, "ok'd": 0.7, "okayed": 0.7, "okays": 0.6, "taking flight": 0.8, "takes flight": 0.8,
+    "take flight": 0.7, "best is yet to come": 0.8, "build a position": 0.5, "building a position": 0.5,
+    "initiate a position": 0.5, "sigh of relief": 0.6, "relief rally": 0.8, "breathe easier": 0.5,
+    "full steam ahead": 0.7, "room to run": 0.6, "last laugh": 0.5, "relief": 0.3,
     # legal relief
     "acquitted": 0.8, "acquittal": 0.8, "exonerated": 0.8, "vindicated": 0.7, "wins lawsuit": 0.8,
     "wins case": 0.7, "lawsuit dismissed": 0.7, "case dismissed": 0.6, "charges dropped": 0.7,
@@ -192,11 +202,11 @@ NEGATIVE: dict[str, float] = {
               "jeopardize": -0.8, "undermine": -0.7, "derail": -0.8, "plague": -0.7, "haunt": -0.6},
              double=("drag",)),
     "hurts": -0.7, "hit by": -0.7, "hit hard": -0.8, "hard hit": -0.8, "weigh on": -0.7, "weighs on": -0.7,
-    "weighed on": -0.7, "weighing on": -0.7, "weighed down": -0.8, "drag on": -0.6, "threat": -0.6,
-    "threats": -0.6, "warning": -0.8, "warnings": -0.8, "profit warning": -1.3, "red flag": -0.9,
-    "red flags": -0.9, "alarm": -0.6, "alarming": -0.7, "worried": -0.6, "worrying": -0.6,
+    "weighed on": -0.7, "weighing on": -0.7, "weighed down": -0.8, "drag on": -0.6, "threat": -0.5,
+    "threats": -0.5, "warning": -0.8, "warnings": -0.8, "profit warning": -1.3, "red flag": -0.9,
+    "red flags": -0.9, "alarm": -0.6, "alarming": -0.7, "worried": -0.6, "worrying": -0.6, "concerned": -0.4,
     "fearful": -0.6, "panic": -1.0, "panicked": -0.9, "jitters": -0.7, "jittery": -0.7, "nervous": -0.5,
-    "anxiety": -0.6, "anxious": -0.5, "turmoil": -0.9, "chaos": -0.9, "crisis": -1.0, "meltdown": -1.3,
+    "anxiety": -0.6, "anxious": -0.5, "turmoil": -0.9, "chaos": -0.7, "crisis": -1.0, "meltdown": -1.3,
     "bloodbath": -1.3, "carnage": -1.2, "rout": -1.2, "selloff": -1.0, "sell off": -1.0, "sell offs": -0.9,
     "capitulation": -0.9, "correction": -0.6, "correction territory": -0.8, "bear territory": -0.9,
     "freefall": -1.3, "free fall": -1.3, "downward spiral": -1.1, "spiral": -0.5, "vicious": -0.5,
@@ -214,7 +224,17 @@ NEGATIVE: dict[str, float] = {
     "fizzle": -0.7, "fizzles": -0.7, "fizzled": -0.7, "unusual puts": -0.6, "put buying": -0.5,
     "put buyers": -0.4, "bearish options": -0.6, "bearish bets": -0.7, "bearish bet": -0.6,
     **_verbs({"criticize": -0.5, "criticise": -0.5, "suffer": -0.6, "admonish": -0.6, "accuse": -0.6,
-              "hinder": -0.6, "hamper": -0.6, "slash": -0.4}),
+              "hinder": -0.6, "hamper": -0.6, "slash": -0.4, "devastate": -1.0, "cripple": -0.9,
+              "ravage": -0.9, "torpedo": -0.9, "sour": -0.6}),
+    "turned sour": -0.7, "hits the skids": -0.8, "hit the skids": -0.8, "on the skids": -0.7, "virus hit": -0.6,
+    "short term hit": -0.5, "license loss": -0.8, "licence loss": -0.8, "whacked": -0.9, "not sustainable": -0.8, "go up in smoke": -1.0,
+    "goes up in smoke": -1.0, "went up in smoke": -1.0, "going up in smoke": -1.0, "wont last": -0.6,
+    "will not last": -0.6, "gains a bear": -0.6, "uneven": -0.5, "horrific": -1.0, "aftershock": -0.4,
+    "on edge": -0.6, "surprise loss": -1.0, "unexpected loss": -1.0, "loses a bull": -0.7, "new bear": -0.5,
+    "turns negative": -0.9, "turned negative": -0.9, "turning negative": -0.8, "hit with": -0.7,
+    "slapped with": -0.8, **_verbs({"underwhelm": -0.7}), "underwhelming": -0.8, "catastrophic": -1.1, "disastrous": -1.1, "abysmal": -1.1, "atrocious": -1.0,
+    "horrendous": -1.0, "dreadful": -1.0, "stripped of": -0.9, "reasons to sell": -0.7, "dont buy": -0.6,
+    "do not buy": -0.6, "scale back": -0.5, "scales back": -0.5, "scaled back": -0.5, "scaling back": -0.5,
     "obliterated": -1.2, "hammered": -1.0, "pummeled": -1.0, "pummelled": -1.0, "battered": -0.9,
     "clobbered": -1.0, "routed": -1.0, "decimated": -1.2, "makes no sense": -0.5, "should not buy": -0.6,
     "shouldnt buy": -0.6, "avoid the stock": -0.6, "time to sell": -0.6, "sell signal": -0.7,
@@ -234,9 +254,9 @@ NEGATIVE: dict[str, float] = {
     "black swan": -0.8, "headache": -0.5, "headaches": -0.5,
     # macro
     "recession": -0.9, "recessions": -0.8, "depression": -1.0, "stagflation": -0.9, "downturn": -0.9,
-    "deflation": -0.5, "hyperinflation": -0.8, "hawkish": -0.6, "rate hike": -0.5, "rate hikes": -0.5,
+    "deflation": -0.5, "hyperinflation": -0.8, "hawkish": -0.6, "rate hike": -0.7, "rate hikes": -0.7,
     "tightening": -0.4, "hard landing": -0.8, "yield curve inversion": -0.7, "inverted yield curve": -0.7,
-    "trade war": -0.9, "trade tensions": -0.7, "tensions": -0.5, "tariff": -0.4, "war": -0.6,
+    "trade war": -0.6, "trade tensions": -0.7, "tensions": -0.5, "tariff": -0.4, "war": -0.4,
     "conflict": -0.5, "attack": -0.6, "attacks": -0.6, "pandemic": -0.4, "outbreak": -0.6,
     "lockdown": -0.6, "lockdowns": -0.6, "shortage": -0.6, "shortages": -0.6, "glut": -0.6,
     "oversupply": -0.6, "price war": -0.7, "stall": -0.6, "stalls": -0.6, "stalled": -0.6,
@@ -253,15 +273,15 @@ NEGATIVE: dict[str, float] = {
     "delisting notice": -1.3, "deficiency notice": -1.0, "noncompliance": -0.8, "non compliance": -0.8,
     "dilution": -0.8, "dilutive": -0.8, "dilute": -0.6, "reverse split": -0.7, "reverse stock split": -0.7,
     "writedown": -0.8, "writedowns": -0.8, "write down": -0.8, "write downs": -0.8, "write off": -0.8,
-    "write offs": -0.8, "writeoff": -0.8, "restatement": -1.0, "restate": -0.9, "restates": -0.9,
+    "write offs": -0.8, "writeoff": -0.8, "writeoffs": -0.8, "restatement": -1.0, "restate": -0.9, "restates": -0.9,
     "accounting irregularities": -1.3, "irregularities": -0.9, "material weakness": -1.0,
     "non reliance": -1.0, "overleveraged": -0.8, "debt laden": -0.7, "distressed": -0.9,
-    "distress": -0.9, "bailout": -0.7, "cash burn": -0.7, "burning cash": -0.8,
+    "distress": -0.9, "bailout": -0.7, "burning cash": -0.8,
     "running out of cash": -1.2, "liquidity crunch": -1.0, "credit crunch": -1.0, "cash crunch": -1.0,
     "shortfall": -0.8, "overhang": -0.5,
     # labor
     "layoff": -0.9, "layoffs": -0.9, "lay off": -0.9, "lays off": -0.9, "laid off": -0.9,
-    "laying off": -0.9, "job cuts": -0.9, "job losses": -0.9, "furlough": -0.8, "furloughs": -0.8,
+    "laying off": -0.9, "job cuts": -0.9, "job losses": -0.9, "job loss": -0.9, "furlough": -0.8, "furloughs": -0.8,
     "furloughed": -0.8, "redundancies": -0.8, "restructuring": -0.3, "on strike": -0.7,
     "walkout": -0.6, "work stoppage": -0.7, "labor trouble": -0.8, "strike": -0.3, "strikes": -0.3,
     # operations
@@ -281,7 +301,7 @@ NEGATIVE: dict[str, float] = {
     "ransomware": -0.9, "outage": -0.8, "outages": -0.8, "glitch": -0.6, "disruption": -0.6,
     "disruptions": -0.6, "under fire": -0.8, "fire sale": -0.7, "backlash": -0.8, "boycott": -0.8,
     "controversy": -0.6, "controversial": -0.4, "criticism": -0.5, "criticized": -0.5,
-    "slammed": -0.8, "slams": -0.6, "scrutiny": -0.5, "crackdown": -0.8, "crack down": -0.8,
+    "slammed": -0.8, "slams": -0.6, "scrutiny": -0.5, "crackdown": -0.6, "crack down": -0.6,
     "exodus": -0.8, "flee": -0.7, "fleeing": -0.7, "jeopardy": -0.8, "vanish": -0.8, "vanishes": -0.8,
     "vanished": -0.8, "evaporate": -0.8, "evaporated": -0.8, "steps down": -0.4, "step down": -0.4,
     "resigns": -0.5, "resigned": -0.5, "resignation": -0.5, "ousted": -0.8, "ouster": -0.7, "fired": -0.3,
@@ -396,7 +416,7 @@ def _dir_verbs(sign: int, strength: float, *bases: str, fixed: bool = False, def
                double: tuple[str, ...] = (), extra: tuple[str, ...] = ()) -> dict[str, Direction]:
     out: dict[str, Direction] = {}
     for base in bases:
-        for form in _forms(base, double=base in double):
+        for form in verb_forms(base, double=base in double):
             out[form] = Direction(sign, strength, "v", fixed, default)
     for form in extra:
         out[form] = Direction(sign, strength, "v", fixed, default)
@@ -408,7 +428,7 @@ def _phrasal(sign: int, verbs: tuple[str, ...], particles: tuple[str, ...], stre
     """"edges higher", "ticked up", "pulling back" ... (every verb form x particle)."""
     out: dict[str, Direction] = {}
     for base in verbs:
-        for form in _forms(base, double=base in ("slip", "drop", "step", "trim", "dip")):
+        for form in verb_forms(base, double=base in ("slip", "drop", "step", "trim", "dip")):
             for part in particles:
                 out[f"{form} {part}"] = Direction(sign, strength, "v", False, default)
     return out
@@ -416,8 +436,8 @@ def _phrasal(sign: int, verbs: tuple[str, ...], particles: tuple[str, ...], stre
 
 # Physical footprint verbs: only "opens 500 stores" / "shuts 34 stores", never "closes deal".
 FOOTPRINT_VERBS: dict[str, int] = {
-    **{f: -1 for f in _forms("close") + _forms("shut", double=True)},
-    **{f: 1 for f in _forms("open")},
+    **{f: -1 for f in verb_forms("close") + verb_forms("shut", double=True)},
+    **{f: 1 for f in verb_forms("open")},
 }
 FOOTPRINT_METRICS: frozenset[str] = frozenset({
     "stores", "store", "restaurants", "plants", "plant", "factories", "factory", "locations", "branches",
@@ -431,10 +451,13 @@ _VERB_DIRECTIONS: dict[str, Direction] = {
                  extra=("grew", "grown"), default=0.6),
     **_dir_verbs(1, 0.6, "add", double=("add",), default=0.3),
     **_dir_verbs(1, 0.6, "extend", default=0.0),  # only with a trend noun: "extends gains"
-    **_dir_verbs(1, 0.6, "raise", "hike", "boost", "lift", "up", "bump", "accelerate", "swell",
-                 double=("up", "bump"), default=0.5),
+    **_dir_verbs(1, 0.6, "raise", "hike", "boost", "lift", "up", "bump", "accelerate", "swell", "propel",
+                 double=("up", "bump", "propel"), default=0.5),
     **_dir_verbs(1, 0.6, "create", "hire", "slap", "impose", "build", "spur", "fuel", default=0.0,
                  extra=("built",)),
+    **_dir_verbs(1, 0.5, "persist", "linger", default=0.0),
+    **_dir_verbs(-1, 0.8, "stall", default=0.0),  # "rally stalls" (-); bare "stalls" keeps its lexicon value
+    **_phrasal(-1, ("dry",), ("up",), 0.9, 0.6), **_phrasal(-1, ("edge", "inch"), ("back",), 0.5, 1.2),  # "inflation persists" (-), "rally persists" (+)
     **_dir_verbs(1, 0.8, "climb", "gain", "rally"),
     **_dir_verbs(1, 0.8, "advance", default=0.6),
     **_dir_verbs(1, 1.0, "jump", "pop", "leap", "spike", "balloon", "zoom", "double", double=("pop",),
@@ -447,7 +470,9 @@ _VERB_DIRECTIONS: dict[str, Direction] = {
     # ---- down: neutral-ish movement verbs ----
     **_dir_verbs(-1, 0.8, "fall", "drop", "decline", "slide", "retreat", "sag", "shed", "lose",
                  double=("drop", "sag"), extra=("fell", "fallen", "slid", "lost")),
-    **_dir_verbs(-1, 0.6, "dip", "slip", "ease", double=("dip", "slip"), default=1.0),  # price moves
+    **_dir_verbs(-1, 0.6, "dip", "slip", double=("dip", "slip"), default=1.0),  # price moves
+    # "stocks ease" is a move, but bare "ease" is mostly policy ("Fed to ease", "ease conditions")
+    **_dir_verbs(-1, 0.6, "ease", default=0.0),
     **_dir_verbs(-1, 0.6, "decrease", "reduce", "lower", "cut", "trim", "shrink", "narrow",
                  "cool", "soften", "slow", "decelerate", "moderate", "halve",
                  "subside", "fade", "omit", "diminish", "dwindle", double=("cut", "trim", "omit"),
@@ -455,13 +480,16 @@ _VERB_DIRECTIONS: dict[str, Direction] = {
     **_dir_verbs(-1, 0.6, "shorten", "erase", "dash", "remove", "eliminate", default=0.3),
     # only meaningful with an object/subject metric: "allays fears", "knocks shares", "rally halted",
     # "suspends dividend" / "suspends tariffs", "pares gains", "limits buybacks"
-    **_dir_verbs(-1, 0.8, "allay", "assuage", "calm", "soothe", "offset", "outweigh", "knock", "halt",
+    **_dir_verbs(-1, 0.8, "offset", "outweigh", "knock", "halt",
                  "squeeze", "contain", "stem", "dent", "pare", "stop", "idle", "suspend", "scrap", "cancel",
                  "delay", "postpone", "withdraw", "abandon", "kill", "limit", "cap", "axe", "dim", "wane",
                  "recede", "pause", "reverse", "erase", "unwind",
                  double=("knock", "stop", "scrap", "dim", "cap"), extra=("withdrew", "withdrawn", "ax", "axed",
                                                                         "axes", "axing"), default=0.0),
-    **_phrasal(-1, ("back", "pull"), ("off",)), **_phrasal(-1, ("give",), ("back", "up"), 0.9, 0.0),
+    # soothing is good whatever is soothed: "allays fears", "calms markets", "soothes funding squeeze"
+    **_dir_verbs(1, 0.8, "allay", "assuage", "calm", "soothe", fixed=True, default=0.0),
+    **_phrasal(-1, ("back", "pull"), ("off",), 0.65, 1.2), **_phrasal(-1, ("give",), ("back", "up"), 0.9, 0.0),
+    **{f"{v} {p}": Direction(-1, 0.9, "v", False, 0.0) for v in ("gave", "given") for p in ("back", "up")},
     **_phrasal(1, ("bounce", "spring", "snap", "come", "roar"), ("back",), 0.9, 1.0),
     **_dir_verbs(-1, 1.0, "sink", "tumble", "slump", "skid", "dive", "slash", "wipe",
                  double=("skid",), extra=("sank", "sunk", "dove")),
@@ -476,6 +504,12 @@ _VERB_DIRECTIONS: dict[str, Direction] = {
     **{f: Direction(s, 0.8, "v", False, 0.0) for f, s in FOOTPRINT_VERBS.items()},
     # ---- need a quantity: "industrial production contracts 3.8%" (not "wins contracts") ----
     **{f: Direction(-1, 0.6, "q", False, 0.6) for f in ("contracts", "contract", "contracted", "contracting")},
+    # crossing a level, only before an amount: "market value tops $1 trillion", "debt tops $30 trillion"
+    **{f: Direction(1, 0.8, "q", False, 0.6) for f in (
+        "tops", "topped", "crosses", "crossed", "surpasses", "surpassed", "eclipses", "eclipsed", "passes",
+        "passed", "exceeds", "exceeded", "breaches", "breached")},
+    # only right before a percent: "Euro off 0.1%", "shares ahead 5%" (not "kicks off", "ahead of")
+    "off": Direction(-1, 0.7, "o", False, 1.0), "ahead": Direction(1, 0.7, "o", False, 1.0),
 }
 
 _NOUN_DIRECTIONS: dict[str, Direction] = {
@@ -495,14 +529,21 @@ _NOUN_DIRECTIONS: dict[str, Direction] = {
     **_dir(-1, 0.8, "n", "decline", "declines", "drop", "drops", "slide", "dip", "slump", "plunge",
            "tumble", "pullback", "retreat", "selloff", "sell off", "selloffs"),
     "reversal": Direction(-1, 0.8, "n", False, 0.0),  # "rally reversal" (-) / "reversal of losses" (+)
+    **_dir(-1, 1.2, "n", "nosedive", "crash", "collapse"), "dive": Direction(-1, 1.0, "n"),
 }
 
 _ADJ_DIRECTIONS: dict[str, Direction] = {
     **_dir(1, 0.6, "a", "higher", default=0.6),
-    **_dir(1, 0.6, "a", "bigger", "larger", "wider", "greater", "faster", "more", default=0.0),
+    **_dir(1, 0.6, "a", "bigger", "larger", "wider", "greater", "faster", "more", "elevated", "heightened",
+           default=0.0),
     **_dir(1, 0.9, "a", "higher than expected", "bigger than expected", "larger than expected",
            "wider than expected", "faster than expected", "greater than expected", "more than expected",
            "higher than anticipated", "higher than forecast", default=0.7),
+    # metric-relative surprises: "sales stronger than expected" (+) / "inflation hotter than expected" (-)
+    **{f"{a} than {e}": Direction(sign, 0.9, "a", False, 0.7)
+       for a, sign in (("stronger", 1), ("hotter", 1), ("firmer", 1), ("heavier", 1), ("weaker", -1),
+                       ("softer", -1), ("cooler", -1), ("lighter", -1))
+       for e in ("expected", "anticipated", "forecast", "estimated")},
     **_dir(1, 0.9, "a", "record", "records", "doubled", "tripled"),
     **_dir(1, 0.9, "a", "soaring", "surging", "rising", "growing", "increasing", "climbing", "jumping",
            default=0.5),
@@ -519,7 +560,7 @@ _ADJ_DIRECTIONS: dict[str, Direction] = {
 }
 
 DIRECTIONS: dict[str, Direction] = {
-    **_VERB_DIRECTIONS,
+    **{k: v for k, v in _VERB_DIRECTIONS.items() if k != "limited"},  # "limited gains" = small gains
     **_NOUN_DIRECTIONS,
     **_ADJ_DIRECTIONS,
     # particles and levels
@@ -529,13 +570,15 @@ DIRECTIONS: dict[str, Direction] = {
     "new high": Direction(1, 1.0, "l"), "new highs": Direction(1, 1.0, "l"),
     "low": Direction(-1, 0.5, "l"), "lows": Direction(-1, 0.8, "l"), "lowest": Direction(-1, 0.8, "l"),
     "new low": Direction(-1, 1.0, "l"), "new lows": Direction(-1, 1.0, "l"),
+    "peak": Direction(1, 0.5, "l"), "peaks": Direction(1, 0.5, "l"),  # only qualified: "3-week peak"
+    **_dir_verbs(1, 0.5, "firm", default=0.0, extra=()),
     # phrasal movements
-    **_phrasal(1, ("tick", "edge", "inch", "creep", "drift"), ("up", "higher"), 0.45, 1.6),
+    **_phrasal(1, ("tick", "edge", "inch", "creep", "drift"), ("up", "higher"), 0.6, 1.2),
     **_phrasal(1, ("move", "go", "head", "point", "trade", "open", "close", "end", "settle", "finish", "push",
                    "break", "climb", "trend"), ("up", "higher"), 0.7, 1.0),
     **_phrasal(1, ("pick", "ramp", "speed", "heat", "perk", "firm"), ("up",)),
     "went up": Direction(1, 0.5, "v", False, 1.6), "went higher": Direction(1, 0.5, "v", False, 1.6),
-    **_phrasal(-1, ("tick", "edge", "inch", "drift"), ("down", "lower"), 0.45, 1.6),
+    **_phrasal(-1, ("tick", "edge", "inch", "drift"), ("down", "lower"), 0.6, 1.2),
     **_phrasal(-1, ("move", "go", "head", "point", "trade", "open", "close", "end", "settle", "finish", "push",
                     "trend", "skid", "slip", "sink", "dip"), ("down", "lower"), 0.7, 1.0),
     **_phrasal(-1, ("slow", "pull"), ("down", "back")),
@@ -561,17 +604,17 @@ TRANSITIVE: frozenset[str] = frozenset(
     f for base in ("increase", "grow", "expand", "add", "widen", "raise", "hike", "boost", "lift", "up",
                    "bump", "accelerate", "extend", "double", "triple", "decrease", "reduce", "lower", "cut",
                    "trim", "shrink", "narrow", "halve", "slash", "shed", "lose", "erase", "dash", "remove",
-                   "eliminate", "improve", "strengthen", "weaken", "erode", "wipe", "shorten", "omit", "create",
+                   "eliminate", "improve", "strengthen", "weaken", "erode", "wipe", "shorten", "omit", "create", "propel",
                    "hire", "slap", "impose", "build", "spur", "fuel", "allay", "assuage", "calm", "soothe",
                    "offset", "outweigh", "knock", "halt", "squeeze", "contain", "stem", "dent", "hinder", "pare",
                    "stop", "idle", "ease",
                    "hamper", "crimp", "impair", "jeopardize", "threaten", "undermine", "diminish")
-    for f in _forms(base, double=base in ("up", "bump", "cut", "trim", "add", "omit", "knock", "stop"))
+    for f in verb_forms(base, double=base in ("up", "bump", "cut", "trim", "add", "omit", "knock", "stop", "propel"))
 ) | {"lost", "cuts", "shrank", "built", "give", "gives", "gave", "giving", "given", "ax", "axe", "axes", "axed",
      "axing", "withdrew", "withdrawn"} | frozenset(k for k, d in _VERB_DIRECTIONS.items() if d.default == 0.0)
 
 # Verbs that only make sense with a *trend* object ("extends gains", "extends losses").
-TREND_ONLY: frozenset[str] = frozenset(_forms("extend"))
+TREND_ONLY: frozenset[str] = frozenset(verb_forms("extend"))
 TREND_METRICS: frozenset[str] = frozenset({
     "gains", "gain", "rally", "losses", "loss", "decline", "declines", "slide", "slump", "selloff", "rebound",
     "recovery", "advance", "winning streak", "losing streak", "lead", "momentum", "growth", "shutdown",
@@ -615,7 +658,7 @@ METRICS: dict[str, Metric] = {
                "wages", "gdp", "growth", "economy", "consumer confidence", "confidence", "sentiment",
                "consumer sentiment", "pmi", "retail sales", "industrial production", "manufacturing",
                "exports", "housing starts", "home sales", "investment", "investments", "capacity",
-               "efficiency", "productivity", "returns", "return", "performance", "result", "results",
+               "efficiency", "productivity", "returns", "performance", "result", "results",
                "operating result", "net result", "cash", "reserves", "index", "indexes", "indices", "dow",
                "nasdaq", "s&p", "s&p 500", "futures", "market", "markets", "wall street", "ftse", "dax",
                "nikkei", "stoxx", "hang seng", "sensex", "russell", "tsx", "asx", "kospi", "cac", "bitcoin",
@@ -645,7 +688,7 @@ METRICS: dict[str, Metric] = {
                "jobless rate", "initial claims", "layoffs", "job cuts", "inflation", "interest rates",
                "rates", "yields", "bond yields", "mortgage rates", "short interest", "impairment", "impairments", "writedowns", "charges", "provisions",
                "bad loans", "non performing loans", "npls", "delinquencies", "defaults", "default rate",
-               "churn", "cash burn", "burn rate", "volatility", "vix", "tariffs", "taxes", "headwinds",
+               "churn", "burn rate", "volatility", "vix", "tariffs", "taxes", "headwinds",
                "dilution", "leverage", "spreads", "credit spreads", "outflows", "net outflows",
                "short positions", "supply", "stockpiles", "competition", "prices paid", "unit labor costs",
                "borrowing costs", "risk premium", "claims", "complaints", "stress index", "fear index",
@@ -659,8 +702,16 @@ METRICS: dict[str, Metric] = {
     **_metrics(-1.0, "pressure", "pressures", intrinsic=-0.4),
     **_metrics(-1.0, "concerns", "concern", "fears", "fear", "worries", "worry", "pessimism", "anxiety",
                intrinsic=-0.6),
+    **_metrics(-1.0, "doubts", "doubt", intrinsic=-0.5),
+    **_metrics(-1.0, "funding squeeze", "liquidity squeeze", "credit squeeze", "margin squeeze", "cash crunch",
+               "liquidity crunch", "credit crunch", intrinsic=-0.8), **_metrics(-1.0, "cash burn", intrinsic=-0.2),
+    # evaluative nouns that can also be moved: "risk caps upside" (-), "limits downside" (+)
+    **_metrics(1.0, "upside", intrinsic=0.7), **_metrics(-1.0, "downside", intrinsic=-0.6),
     **_metrics(-1.0, "recession", "crisis", "tensions", "pandemic", "outbreak", "virus", "shortage",
-               "shortages", "glut", "turmoil", "recession risk", "recession odds", "recession probability",
+               "shortages", "glut", "turmoil", "stockpile", "stock build", "inventory build", "crude supply",
+               "crude stocks", "crude inventories", "crude stockpiles", "oil inventories", "oil stockpiles",
+               "gasoline inventories", "gasoline stocks", "distillate stocks", "problem loans", "borrowing",
+               "borrowings", "recession risk", "recession odds", "recession probability",
                "default risk", "recession fears", "inflation fears"),
     **_metrics(-1.0, "probability of a recession", "probability of recession", "odds of a recession",
                "odds of recession", "chance of a recession", "risk of a recession", "risk of recession",
@@ -699,7 +750,7 @@ NEGATORS: frozenset[str] = frozenset({
     "no longer", "stave off", "staves off", "staved off", "ward off", "wards off", "free of",
     "no sign of", "no signs of", "far from", "shrug off", "shrugs off", "shrugged off", "shrugging off",
     "end to", "to weather", "weathered", "weathering", "weathers", "walks away from", "walk away from",
-    "walked away from", "brushes off", "brushed off", "brush off", "isnt", "wasnt", "dont", "doesnt", "didnt", "wont", "cant",
+    "walked away from", "declines to", "declined to", "refuses to", "refused to", "refuse to", "brushes off", "brushed off", "brush off", "isnt", "wasnt", "dont", "doesnt", "didnt", "wont", "cant",
     "couldnt", "wouldnt", "shouldnt", "arent", "werent", "hasnt", "havent", "hadnt", "aint",
 })
 # "not only", "no doubt", "never been this bullish" ... are not negations.
@@ -768,7 +819,7 @@ NEUTRALIZERS: frozenset[str] = frozenset({
     "in line", "inline", "in line with", "line with", "little changed", "mixed", "unchanged", "flat",
     "record date", "on record", "track record", "for the record", "high yield", "high school", "high court",
     "high end", "low end", "high speed", "low carbon", "low income", "high frequency", "high tech",
-    "high profile", "low key", "lower house", "high street", "low cost", "high quality", "higher education",
+    "high profile", "high priced", "high powered", "high ranking", "low priced", "low lying", "low key", "lower house", "high street", "low cost", "high quality", "higher education",
     "highly anticipated", "high net worth", "high growth", "short term", "long term", "near term",
     "medium term", "short sale", "short sales", "short form", "long form", "strike price", "fair value",
     "price range", "price data", "market cap", "market value", "price action", "upside down",
@@ -792,6 +843,10 @@ NEUTRALIZERS: frozenset[str] = frozenset({
     "kidney failure", "liver failure", "organ failure", "respiratory failure",
     "canopy growth", "eagle growth", "growth and income", "pare down", "jobless benefits",
     "unemployment benefits", "employee benefits", "health benefits", "social security benefits",
+    "without warning", "without notice", "highest rated", "top rated", "best rated", "highly rated",
+    "highest paid", "highest paying", "highest yielding", "highest dividend", "return on equity",
+    "return on assets", "return on capital", "return on investment", "isnt done", "arent done", "not done", "not finished",
+    "supply deal", "supply deals", "supply agreement", "supply contract", "debt relief", "tax relief", "relief efforts", "disaster relief",
     *NEGATION_EXCEPTIONS,
 })
 
@@ -819,9 +874,6 @@ VADER_NEUTRALIZE: frozenset[str] = frozenset({
     "fell", "rise", "rises", "rose", "great", "grand", "special", "big", "huge", "giant", "bull",
     "bear", "bears", "bulls", "dead", "split", "splits", "fair", "value", "values",
 })
-
-# Words / emoji the tokenizer should keep as one token even with hyphens.
-CASHTAG_PREFIXES: tuple[str, ...] = ("$",)
 
 
 def phrase_keys(table: dict[str, object] | frozenset[str]) -> list[str]:

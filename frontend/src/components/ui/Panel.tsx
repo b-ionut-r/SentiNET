@@ -19,7 +19,7 @@ interface PanelProps {
 /** The standard card: hairline ring, quiet header, optional actions and footer. */
 export function Panel({ title, subtitle, icon, actions, footer, id, className, bodyClassName, flush, children }: PanelProps) {
   return (
-    <section id={id} className={cx("panel flex flex-col min-w-0 scroll-mt-28", className)}>
+    <section id={id} className={cx("panel flex flex-col min-w-0 scroll-mt-36 md:scroll-mt-28", className)}>
       {(title || actions) && (
         <header className="flex flex-wrap items-start gap-x-3 gap-y-2 px-4 pt-3.5 pb-2.5">
           <div className="min-w-[min(100%,200px)] flex-1">

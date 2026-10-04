@@ -6,15 +6,21 @@ Limits: 15 items; heavy on listicles and market wraps that tag 30+ tickers
 (left to the relevance filter); unknown symbols silently fall back to the
 site-wide "Latest Article Feed", which we detect and discard.
 
-`ticker_specific` is True only when the article is tagged with this symbol
-alone. Docs: https://www.nasdaq.com/feed/rssoutbound?symbol={SYMBOL}
+`ticker_specific` is True when the article is tagged with this issuer alone
+(symbol or share-class sibling), or when Nasdaq's primary-symbol convention
+(first tag repeated: "NVDA,NVDA,MU") names the issuer *and* the headline names
+the company. The convention alone is not enough: "NVDA,NVDA,IONQ" was a
+two-stock quantum-computing listicle that never mentions Nvidia.
+Docs: https://www.nasdaq.com/feed/rssoutbound?symbol={SYMBOL}
 """
 from __future__ import annotations
+
+from collections.abc import Collection
 
 from app.core import http
 from app.schemas import SignalKind
 from app.sources.base import CompanyRef, RawSignal, SourceBatch
-from app.sources.query import us_symbol
+from app.sources.query import Mentions, issuer_symbols, search_terms, us_symbol
 from app.sources.util import (
     clean_text,
     is_recent,
@@ -27,7 +33,19 @@ URL = "https://www.nasdaq.com/feed/rssoutbound"
 NS = {"nasdaq": "http://nasdaq.com/reference/feeds/1.0", "dc": "http://purl.org/dc/elements/1.1/"}
 
 
-def parse_feed(content: bytes, symbol: str) -> list[RawSignal]:
+def is_specific(tickers: list[str], issuer: set[str], title_names_it: bool) -> bool:
+    tagged = {t for t in tickers if t}
+    if tagged and tagged <= issuer:
+        return True
+    primary = len(tickers) >= 2 and tickers[0] == tickers[1] and tickers[0] in issuer
+    return primary and title_names_it
+
+
+def parse_feed(
+    content: bytes, symbol: str, issuer: Collection[str] | None = None, mentions: Mentions | None = None
+) -> list[RawSignal]:
+    """`issuer`: the company's symbols (default: `symbol`); `mentions`: headline check for the primary-tag rule."""
+    own = set(issuer or ()) | {symbol.upper()}
     root = parse_xml(content, "nasdaq")
     channel_title = (root.findtext("./channel/title") or "").upper()
     if symbol.upper() not in channel_title.split():  # generic fallback feed, not this symbol's
@@ -39,6 +57,7 @@ def parse_feed(content: bytes, symbol: str) -> list[RawSignal]:
             continue
         tickers = [t.strip().upper() for t in (item.findtext("nasdaq:tickers", namespaces=NS) or "").split(",")]
         tagged = {t for t in tickers if t}
+        named = mentions is not None and mentions.about(title)
         out.append(
             RawSignal(
                 title=title,
@@ -46,7 +65,7 @@ def parse_feed(content: bytes, symbol: str) -> list[RawSignal]:
                 url=item.findtext("link"),
                 publisher=clean_text(item.findtext("dc:creator", namespaces=NS)) or "Nasdaq",
                 timestamp=parse_rfc822(item.findtext("pubDate")),
-                ticker_specific=tagged == {symbol.upper()},
+                ticker_specific=is_specific(tickers, own, named),
                 extra={"symbols": len(tagged)},
             )
         )
@@ -73,5 +92,6 @@ class NasdaqSource:
         if symbol is None:
             return SourceBatch()
         resp = await http.fetch(URL, params={"symbol": symbol})
-        signals = [s for s in parse_feed(resp.content, symbol) if is_recent(s.timestamp)]
+        parsed = parse_feed(resp.content, symbol, issuer_symbols(company), Mentions(search_terms(company)))
+        signals = [s for s in parsed if is_recent(s.timestamp)]
         return SourceBatch(signals=newest_first(signals))

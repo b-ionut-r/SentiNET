@@ -12,7 +12,6 @@ import asyncio
 import logging
 import sys
 from collections.abc import Sequence
-from datetime import UTC, datetime
 
 from rich import box
 from rich.console import Console, Group
@@ -76,19 +75,6 @@ def bar(score: float | None, width: int = 20) -> Text:
     t.append("│", style=MUTED)
     t.append(("█" * n if score > 50 else "").ljust(half), style=BULL)
     return t
-
-
-def ago(dt: datetime | None) -> str:
-    if dt is None:
-        return "—"
-    secs = (datetime.now(UTC) - dt).total_seconds()
-    if secs < 0:
-        days = int(-secs // 86400)
-        return f"in {days}d" if days else "today"
-    for unit, size in (("d", 86400), ("h", 3600), ("m", 60)):
-        if secs >= size:
-            return f"{int(secs // size)}{unit} ago"
-    return "just now"
 
 
 # --------------------------------------------------------------------------- #
@@ -377,7 +363,7 @@ class _Scan:
 
 async def _cmd_analyze(ticker: str, as_json: bool, refresh: bool, quiet: bool) -> int:
     from app.core.http import close_client
-    from app.services import analyzer
+    from app.services import alerts, analyzer
     from app.services.errors import ServiceError
     from app.storage import db
 
@@ -394,6 +380,7 @@ async def _cmd_analyze(ticker: str, as_json: bool, refresh: bool, quiet: bool) -
         err.print(Text(f"✕ {exc}", style=BEAR))
         return 2 if exc.status_code < 500 else 1
     finally:
+        await alerts.drain()  # alert webhooks of this run go out before the HTTP client closes
         await analyzer.shutdown()
         await close_client()
         db.close_db()

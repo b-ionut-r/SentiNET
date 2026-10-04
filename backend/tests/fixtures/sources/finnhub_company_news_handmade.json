@@ -42,5 +42,16 @@
   "source": "Example",
   "summary": "",
   "url": "https://example.com/finnhub/4"
+ },
+ {
+  "category": "company",
+  "datetime": 1791135000,
+  "headline": "Example: Stocks settle higher as example rate worries ease",
+  "id": 1005,
+  "image": "",
+  "related": "AAPL",
+  "source": "Example Markets",
+  "summary": "Synthetic market wrap that names no company.",
+  "url": "https://example.com/finnhub/5"
  }
 ]

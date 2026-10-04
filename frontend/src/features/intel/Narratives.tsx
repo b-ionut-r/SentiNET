@@ -32,7 +32,11 @@ export function Narratives({ a, membersOf, className }: { a: Analysis; membersOf
       flush
     >
       {a.narratives.length === 0 ? (
-        <Empty title="No story clusters">Not enough related coverage to form narratives — see individual signals below.</Empty>
+        a.signals.length > 0 ? (
+          <Empty title="No story clusters">Not enough related coverage to form narratives — see individual signals below.</Empty>
+        ) : (
+          <Empty title="No coverage collected">No news or social items survived this run — check Source health below for what failed.</Empty>
+        )
       ) : (
         <>
           <CoverageMix narratives={a.narratives} />
@@ -128,7 +132,7 @@ function NarrativeRow({ n, rank, members, defaultOpen }: { n: Narrative; rank: n
   const outlets = n.publishers.slice(0, 3).join(", ") + (n.publishers.length > 3 ? ` +${n.publishers.length - 3}` : "");
   const sorted = [...members].sort((x, y) => (y.timestamp ?? "").localeCompare(x.timestamp ?? ""));
   return (
-    <li ref={ref} id={`narr-${n.id}`} className={cx("scroll-mt-32 transition-colors duration-700", flash && "bg-accent/8")}>
+    <li ref={ref} id={`narr-${n.id}`} className={cx("scroll-mt-40 md:scroll-mt-32 transition-colors duration-700", flash && "bg-accent/8")}>
       <button className="group flex w-full gap-3 px-4 py-3 text-left" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
         <span className="mt-0.5 w-5 shrink-0 font-mono text-xs text-faint num">{String(rank).padStart(2, "0")}</span>
         <div className="min-w-0 flex-1">

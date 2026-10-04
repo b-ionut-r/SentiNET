@@ -24,12 +24,10 @@ MAX_WATCHLIST = 50
 MAX_RULES = 200
 
 
-async def _display_name(symbol: str) -> str | None:
-    """Company name for a new watchlist row: from a recent analysis, else a quick resolve."""
-    recent = analyzer.latest_analysis(symbol)
-    if recent is not None and recent.profile is not None:
-        return recent.profile.name
-    company = await analyzer.resolve_or_bare(symbol, timeout=6.0)
+async def _known_name(symbol: str) -> str | None:
+    """Display name of a symbol that exists; 404 for typos / delisted symbols (which would
+    otherwise be re-analyzed by the monitor forever)."""
+    company = await analyzer.ensure_known(symbol)
     return company.name if company.name and company.name != symbol else None
 
 
@@ -48,7 +46,7 @@ async def add_to_watchlist(body: WatchAdd) -> list[WatchItem]:
     if symbol not in current:
         if len(current) >= MAX_WATCHLIST:
             raise InvalidInput(f"Watchlist is full ({MAX_WATCHLIST} tickers). Remove one first.")
-        await db.add_watch(symbol, await _display_name(symbol))
+        await db.add_watch(symbol, await _known_name(symbol))
     return await db.watch_items()
 
 
@@ -76,8 +74,9 @@ async def list_alert_rules() -> list[AlertRule]:
 @router.post("/alerts", response_model=AlertRule, status_code=status.HTTP_201_CREATED)
 async def create_alert_rule(body: AlertRuleIn) -> AlertRule:
     """Create a rule. `threshold` per kind: score_above/score_below → SentiNET level (default 70/30);
-    score_change → points vs ~24h ago (10); attention_spike → heat (75); new_narrative → min items (3);
-    analyst_action → ignored. The ticker is refreshed by the monitor even if not on the watchlist."""
+    score_change → points vs ~24h ago (10); attention_spike → heat (75); new_narrative → min items, a
+    whole number (3); analyst_action → ignored. The ticker is refreshed by the monitor even if not on
+    the watchlist. Unknown / delisted symbols → 404."""
     symbol = analyzer.normalize(body.ticker)
     try:
         rule = alerts.normalize_rule(body.model_copy(update={"ticker": symbol}))
@@ -85,6 +84,8 @@ async def create_alert_rule(body: AlertRuleIn) -> AlertRule:
         raise InvalidInput(str(exc)) from exc
     if len(await db.list_rules()) >= MAX_RULES:
         raise InvalidInput(f"Too many alert rules (max {MAX_RULES}). Delete some first.")
+    if symbol not in await db.alert_tickers() and symbol not in await db.watch_tickers():
+        await analyzer.ensure_known(symbol)
     return await db.create_rule(rule)
 
 

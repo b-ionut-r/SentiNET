@@ -9,7 +9,10 @@ Pipeline (per analysis):
    outlet), keeping the copies' outlets/times as coverage evidence;
 4. score representatives with the sentiment engine (+ themes, events);
 5. weight = source weight × outlet trust × recency × engagement × relevance
-   × (0.5 + 0.5·confidence) × (1 + 0.15·ln(1 + copies)).
+   × (0.5 + 0.5·confidence) × (1 + 0.15·ln(1 + copies)), then
+   × min(1, √(4 / items from the same outlet — or, for social posts, author)) so
+   one prolific outlet or account (auto-generated 13F stories, spam bots)
+   cannot dominate the aggregate.
 """
 from __future__ import annotations
 
@@ -42,6 +45,7 @@ RECENCY_FLOOR = 0.15
 UNDATED_RECENCY = 0.5
 MAX_BODY = 600
 MAX_DRIVERS = 5
+DIVERSITY_FREE = 4  # items an outlet/author contributes before its items are down-weighted
 
 
 @dataclass
@@ -172,6 +176,7 @@ def prepare(company: CompanyRef | None, runs: list[SourceRun], now: datetime) ->
     out.engine_error = _score(items)
     for it in items:
         it.weight = item_weight(it, now)
+    _diversify(items)
     items.sort(key=lambda it: (-it.weight, it.id))
     _unique_ids(items)
     out.items = items
@@ -309,6 +314,21 @@ def item_weight(it: Item, now: datetime) -> float:
     syndication = 1.0 + 0.15 * math.log1p(it.duplicates)
     w = it.source_weight * it.trust * recency(it, now) * engagement * it.relevance * confidence * syndication
     return round(max(w, 0.0), 6)
+
+
+def voice(it: Item) -> str:
+    """Who is speaking: the outlet for media, the account for social posts."""
+    if it.group == "social":
+        return f"author:{it.source}:{it.author}" if it.author else f"item:{it.id}"
+    return f"outlet:{it.publisher}" if it.publisher else f"item:{it.id}"
+
+
+def _diversify(items: list[Item]) -> None:
+    counts = Counter(voice(it) for it in items)
+    for it in items:
+        n = counts[voice(it)]
+        if n > DIVERSITY_FREE:
+            it.weight = round(it.weight * math.sqrt(DIVERSITY_FREE / n), 6)
 
 
 def _unique_ids(items: list[Item]) -> None:

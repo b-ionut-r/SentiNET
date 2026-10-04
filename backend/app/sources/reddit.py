@@ -19,9 +19,9 @@ from app.core import http
 from app.core.cache import cached
 from app.schemas import SignalKind
 from app.sources.base import CompanyRef, RawSignal, SourceBatch
-from app.sources.query import SearchTerms, search_terms
+from app.sources.query import Mentions, SearchTerms, search_terms
 from app.sources.util import (
-    clean_text,
+    clean_plain,
     from_epoch,
     int_or_zero,
     newest_first,
@@ -60,20 +60,24 @@ def build_query(terms: SearchTerms) -> str:
     return " OR ".join(parts)
 
 
-def parse_listing(payload: Any) -> list[RawSignal]:
+def parse_listing(payload: Any, mentions: Mentions | None = None) -> list[RawSignal]:
+    """Posts (no NSFW/stickied); with `mentions`, only those that name the asset ("price target" != Target)."""
     data = payload.get("data") if isinstance(payload, dict) else None
     children = (data or {}).get("children") or []
     out: list[RawSignal] = []
     for child in children:
         post = child.get("data") or {}
-        title = clean_text(post.get("title"))
+        title = clean_plain(post.get("title"))
         if not title or post.get("over_18") or post.get("stickied"):
+            continue
+        body = clean_plain(post.get("selftext"), limit=600) or None
+        if mentions is not None and not mentions.about(f"{title} {body or ''}"):
             continue
         permalink = post.get("permalink")
         out.append(
             RawSignal(
                 title=title,
-                body=clean_text(post.get("selftext"), limit=600) or None,
+                body=body,
                 url=f"https://www.reddit.com{permalink}" if permalink else post.get("url"),
                 author=post.get("author"),
                 publisher=f"r/{post.get('subreddit')}" if post.get("subreddit") else "Reddit",
@@ -104,8 +108,9 @@ class RedditSource:
         if not self.configured():
             return SourceBatch()
         subs = CRYPTO_SUBS if company.is_crypto else STOCK_SUBS
+        terms = search_terms(company)
         params = {
-            "q": build_query(search_terms(company)),
+            "q": build_query(terms),
             "restrict_sr": "1",
             "sort": "new",
             "t": "week",
@@ -120,4 +125,4 @@ class RedditSource:
             payload = await http.fetch_json(SEARCH_URL.format(subs=subs), params=params, headers=headers, api_ua=True)
         except (httpx.HTTPError, http.UpstreamError) as exc:
             raise sanitized_error(exc, "reddit") from None
-        return SourceBatch(signals=newest_first(parse_listing(payload)))
+        return SourceBatch(signals=newest_first(parse_listing(payload, Mentions(terms))))

@@ -148,7 +148,7 @@ class FinBertApiEngine(_EnsembleEngine):
         """POST one batch; returns the decoded JSON (separate so tests can stub the network)."""
         if self._client is None:
             self._client = httpx.Client(timeout=self._timeout)
-        resp = self._client.post(HF_API_URL, json={"inputs": list(batch)},
+        resp = self._client.post(HF_API_URL, json={"inputs": list(batch), "parameters": {"top_k": 3}},
                                  headers={"Authorization": f"Bearer {self._token}"})
         resp.raise_for_status()
         return resp.json()

@@ -1,16 +1,17 @@
-"""Wikipedia pageviews: article choice, parsing, REST fallback and failure modes."""
+"""Wikipedia pageviews: article choice, parsing, REST extension and failure modes."""
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import date
+from typing import Any
 
-import httpx
 import pytest
-import respx
 
 from app.core.http import UpstreamError
 from app.core.ratelimit import HostLimiter
 from app.intel import attention
 from app.intel.attention import (
+    candidate_titles,
     pick_article,
     search_query,
     views_from_page,
@@ -21,22 +22,63 @@ from tests.intel.helpers import load_json
 
 TARGET = CompanyRef(ticker="TGT", name="Target Corporation", short_name="Target",
                     aliases=["Target Corp", "Target Corporation"])
+APPLE = CompanyRef(ticker="AAPL", name="Apple Inc.", short_name="Apple", aliases=["Apple Inc"])
+
+Handler = Callable[[str, dict[str, Any] | None], tuple[int, Any]]
 
 
-@pytest.fixture(autouse=True)
-def _no_wait(monkeypatch: pytest.MonkeyPatch) -> None:
-    from app.core import http
+@pytest.fixture
+def wiki(monkeypatch: pytest.MonkeyPatch) -> Callable[[Handler], list[tuple[str, dict[str, Any]]]]:
+    """Route Wikimedia requests to a handler: (url, params) -> (status, json-or-text)."""
+    import json
 
     monkeypatch.setattr(attention, "_limiter", HostLimiter({}))
-    attention._LAST_GOOD.clear()
-    monkeypatch.setattr(http, "_retry_delay", lambda resp, attempt: 0.0)
+    calls: list[tuple[str, dict[str, Any]]] = []
+
+    def install(handler: Handler) -> list[tuple[str, dict[str, Any]]]:
+        async def fake(url: str, params: dict[str, Any] | None) -> tuple[int, str]:
+            calls.append((url, dict(params or {})))
+            status, body = handler(url, params)
+            return status, body if isinstance(body, str) else json.dumps(body)
+
+        monkeypatch.setattr(attention, "_http_get", fake)
+        return calls
+
+    return install
 
 
-def test_search_query_by_asset_type() -> None:
+def _titles_payload(*pages: dict[str, Any]) -> dict[str, Any]:
+    return {"batchcomplete": True, "query": {"pages": list(pages)}}
+
+
+def _is_search(params: dict[str, Any] | None) -> bool:
+    return bool(params and params.get("generator") == "search")
+
+
+# --------------------------------------------------------------------------- #
+# Article choice
+# --------------------------------------------------------------------------- #
+def test_candidate_titles_and_search_query_by_asset_type() -> None:
+    assert candidate_titles(APPLE)[:3] == ["Apple Inc.", "Apple", "Apple (company)"]
+    btc = CompanyRef(ticker="BTC-USD", name="Bitcoin", short_name="Bitcoin", quote_type="CRYPTOCURRENCY")
+    assert candidate_titles(btc) == ["Bitcoin", "Bitcoin (cryptocurrency)"]
     assert search_query(TARGET) == 'Target Corporation hastemplate:"Infobox company"'
-    assert search_query(CompanyRef(ticker="BTC-USD", name="Bitcoin", short_name="Bitcoin",
-                                   quote_type="CRYPTOCURRENCY")) == "Bitcoin cryptocurrency"
-    assert search_query(CompanyRef(ticker="SPY", name="SPDR", short_name="S&P 500", quote_type="ETF")) == "S&P 500"
+    assert search_query(btc) == "Bitcoin cryptocurrency"
+    spy = CompanyRef(ticker="SPY", name="SPDR S&P 500 ETF Trust", short_name="S&P 500", quote_type="ETF")
+    assert search_query(spy) == "S&P 500" and candidate_titles(spy)[0] == "S&P 500"
+
+
+def test_title_lookup_never_takes_the_namesake() -> None:
+    """Real answer for titles=Apple Inc.|Apple|Apple (company)|Apple Inc: the fruit must lose."""
+    pages = load_json("wiki/apple_titles.json")["query"]["pages"]
+    assert {p["title"] for p in pages} == {"Apple Inc.", "Apple"}
+    best = pick_article(pages, APPLE, require_kind=True)
+    assert best is not None and best["title"] == "Apple Inc." and len(views_from_page(best)) >= 55
+    fruit = [p for p in pages if p["title"] == "Apple"]
+    assert pick_article(fruit, APPLE, require_kind=True) is None
+    disamb = [{"title": "Target", "description": "Topics referred to by the same term",
+               "pageprops": {"disambiguation": ""}}]
+    assert pick_article(disamb, TARGET) is None
 
 
 def test_pick_article_prefers_the_company_not_its_namesakes() -> None:
@@ -52,8 +94,7 @@ def test_pick_article_rejects_unrelated_hits() -> None:
         {"title": "List of apple cultivars", "index": 2, "description": ""},
         {"title": "Malus", "index": 3, "description": "Genus of plants"},
     ]
-    company = CompanyRef(ticker="AAPL", name="Apple Inc.", short_name="Apple")
-    assert pick_article(pages, company) is None
+    assert pick_article(pages, APPLE) is None
 
 
 def test_views_parsing() -> None:
@@ -66,44 +107,83 @@ def test_views_parsing() -> None:
     assert rest == [(date(2026, 8, 31), 7.0), (date(2026, 9, 1), 10.0)]
 
 
-async def test_get_wiki_pageviews_60_days_without_rest() -> None:
-    payload = load_json("wiki/target_search.json")
-    with respx.mock as mock:
-        mock.get(attention.WIKI_API).mock(return_value=httpx.Response(200, json=payload))
-        views = await attention.get_wiki_pageviews(TARGET, days=60)
+# --------------------------------------------------------------------------- #
+# Fetching
+# --------------------------------------------------------------------------- #
+def _target_page() -> dict[str, Any]:
+    return next(p for p in load_json("wiki/target_search.json")["query"]["pages"] if p["title"] == "Target Corporation")
+
+
+async def test_title_lookup_needs_one_request(wiki) -> None:
+    calls = wiki(lambda url, params: (200, _titles_payload(_target_page())))
+    views = await attention.get_wiki_pageviews(TARGET, days=60)
     assert views and len(views) >= 55
+    assert len(calls) == 1 and not _is_search(calls[0][1]) and "Target Corporation" in calls[0][1]["titles"]
 
 
-async def test_get_wiki_pageviews_rest_refused_keeps_60_days() -> None:
-    payload = load_json("wiki/target_search.json")
-    with respx.mock as mock:
-        mock.get(attention.WIKI_API).mock(return_value=httpx.Response(200, json=payload))
-        rest = mock.get(url__startswith="https://wikimedia.org/api/rest_v1/").mock(
-            return_value=httpx.Response(429, text="You are making too many requests"))
-        views = await attention.get_wiki_pageviews(TARGET, days=90)
-        assert rest.called
+async def test_search_is_the_fallback(wiki) -> None:
+    search = load_json("wiki/target_search.json")
+
+    def handler(url: str, params: dict[str, Any] | None) -> tuple[int, Any]:
+        if _is_search(params):
+            return 200, search
+        return 200, _titles_payload({"title": "Target", "description": "Topics referred to by the same term",
+                                     "pageprops": {"disambiguation": ""}})
+
+    calls = wiki(handler)
+    views = await attention.get_wiki_pageviews(TARGET, days=60)
+    assert views and len(views) >= 55 and len(calls) == 2 and _is_search(calls[1][1])
+
+
+async def test_long_windows_extend_with_rest(wiki) -> None:
+    rest_items = {"items": [{"timestamp": f"2026{m:02d}{d:02d}00", "views": 100 + d}
+                            for m in (7, 8, 9) for d in range(1, 29)]}
+
+    def handler(url: str, params: dict[str, Any] | None) -> tuple[int, Any]:
+        if url.startswith("https://wikimedia.org/"):
+            assert "/Target_Corporation/daily/" in url
+            return 200, rest_items
+        return 200, _titles_payload(_target_page())
+
+    wiki(handler)
+    views = await attention.get_wiki_pageviews(TARGET, days=90)
+    assert views and len(views) == 84
+
+
+async def test_rest_refusal_keeps_60_days_and_pauses_rest(wiki) -> None:
+    def handler(url: str, params: dict[str, Any] | None) -> tuple[int, Any]:
+        if url.startswith("https://wikimedia.org/"):
+            return 429, "You are making too many requests to the API."
+        return 200, _titles_payload(_target_page())
+
+    calls = wiki(handler)
+    views = await attention.get_wiki_pageviews(TARGET, days=90)
     assert views and 55 <= len(views) <= 60
+    other = CompanyRef(ticker="TGT2", name="Target Corporation", short_name="Target", aliases=["Target Corp"])
+    assert await attention.get_wiki_pageviews(other, days=120)
+    assert sum(url.startswith("https://wikimedia.org/") for url, _ in calls) == 1  # REST paused after refusal
 
 
-async def test_get_wiki_pageviews_errors_and_no_article() -> None:
-    with respx.mock as mock:
-        mock.get(attention.WIKI_API).mock(return_value=httpx.Response(403, text="Please respect our robot policy"))
-        with pytest.raises(UpstreamError):
-            await attention.get_wiki_pageviews(TARGET, days=60)
+async def test_refusal_pauses_the_host_and_fails_fast(wiki) -> None:
+    calls = wiki(lambda url, params: (403, "Please respect our robot policy"))
+    with pytest.raises(UpstreamError, match=r"HTTP 403"):
+        await attention.get_wiki_pageviews(TARGET, days=60)
+    with pytest.raises(UpstreamError, match=r"next try in \d+ s"):
+        await attention.get_wiki_pageviews(APPLE, days=60)
+    assert len(calls) == 1  # no retry, nothing sent while paused
+
+
+async def test_no_article_is_none(wiki) -> None:
+    wiki(lambda url, params: (200, {"batchcomplete": True}))
     other = CompanyRef(ticker="QQQQ", name="Nothing Corp", short_name="Nothing")
-    with respx.mock as mock:
-        mock.get(attention.WIKI_API).mock(return_value=httpx.Response(200, json={"batchcomplete": True}))
-        assert await attention.get_wiki_pageviews(other, days=60) is None
+    assert await attention.get_wiki_pageviews(other, days=60) is None
 
 
-async def test_serves_recent_views_when_wikipedia_refuses() -> None:
+async def test_serves_recent_views_when_wikipedia_refuses(wiki) -> None:
     from app.core import cache
 
-    payload = load_json("wiki/target_search.json")
-    with respx.mock as mock:
-        mock.get(attention.WIKI_API).mock(return_value=httpx.Response(200, json=payload))
-        fresh = await attention.get_wiki_pageviews(TARGET, days=60)
+    wiki(lambda url, params: (200, _titles_payload(_target_page())))
+    fresh = await attention.get_wiki_pageviews(TARGET, days=60)
     cache.clear_all()
-    with respx.mock as mock:
-        mock.get(attention.WIKI_API).mock(return_value=httpx.Response(429, text="Too many requests"))
-        assert await attention.get_wiki_pageviews(TARGET, days=60) == fresh
+    wiki(lambda url, params: (429, "Too many requests"))
+    assert await attention.get_wiki_pageviews(TARGET, days=60) == fresh

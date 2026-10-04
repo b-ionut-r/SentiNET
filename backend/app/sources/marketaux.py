@@ -5,11 +5,14 @@ per matched symbol, where it was found (title vs. body) and its own entity
 sentiment. An item is `ticker_specific` when the symbol is highlighted in the
 *title*. The provider's entity sentiment is kept in `extra["provider_score"]`
 for reference only (the pipeline scores text itself).
-Limits: free plan = 100 requests/day and 3 articles per request (we read 2 pages).
+Limits: free plan = 100 requests/day and 3 articles per request (we read 2
+pages), so results are cached per symbol for 1 h and pages are counted against a
+local daily budget; when it is spent the source says so instead of failing calls.
 Docs: https://www.marketaux.com/documentation (key: https://www.marketaux.com/register)
 """
 from __future__ import annotations
 
+import copy
 from datetime import timedelta
 from typing import Any
 
@@ -17,10 +20,12 @@ import httpx
 
 from app.config import settings
 from app.core import http
+from app.core.cache import cached
 from app.schemas import SignalKind
 from app.sources.base import CompanyRef, RawSignal, SourceBatch
 from app.sources.query import us_symbol
 from app.sources.util import (
+    DailyBudget,
     clean_text,
     dedupe,
     domain_of,
@@ -35,6 +40,8 @@ from app.sources.util import (
 URL = "https://api.marketaux.com/v1/news/all"
 PAGES = 2
 LOOKBACK = timedelta(days=7)
+CACHE_TTL = 3600
+BUDGET = DailyBudget(100)
 
 
 def parse_items(payload: Any, symbol: str) -> list[RawSignal]:
@@ -66,6 +73,30 @@ def parse_items(payload: Any, symbol: str) -> list[RawSignal]:
     return out
 
 
+async def _page(symbol: str, page: int) -> Any:
+    if not BUDGET.take():
+        raise http.UpstreamError(f"marketaux: daily free quota ({BUDGET.limit} requests) used up; resets 00:00 UTC")
+    params = {
+        "symbols": symbol,
+        "filter_entities": "true",
+        "language": "en",
+        "published_after": (utc_now() - LOOKBACK).strftime("%Y-%m-%dT%H:%M"),
+        "page": page,
+        "api_token": settings.marketaux_api_key,
+    }
+    try:
+        return await http.fetch_json(URL, params=params)
+    except (httpx.HTTPError, http.UpstreamError) as exc:
+        raise sanitized_error(exc, "marketaux") from None
+
+
+@cached(ttl=CACHE_TTL, none_ttl=60, maxsize=256)
+async def load_news(symbol: str) -> SourceBatch:
+    pages = await gather_partial(*(_page(symbol, n) for n in range(1, PAGES + 1)))
+    signals = [s for payload in pages if payload for s in parse_items(payload, symbol)]
+    return SourceBatch(signals=newest_first(dedupe(signals)))
+
+
 class MarketauxSource:
     key = "marketaux"
     label = "Marketaux"
@@ -81,24 +112,8 @@ class MarketauxSource:
     def supports(self, company: CompanyRef) -> bool:
         return us_symbol(company) is not None
 
-    async def _page(self, symbol: str, page: int) -> Any:
-        params = {
-            "symbols": symbol,
-            "filter_entities": "true",
-            "language": "en",
-            "published_after": (utc_now() - LOOKBACK).strftime("%Y-%m-%dT%H:%M"),
-            "page": page,
-            "api_token": settings.marketaux_api_key,
-        }
-        try:
-            return await http.fetch_json(URL, params=params)
-        except (httpx.HTTPError, http.UpstreamError) as exc:
-            raise sanitized_error(exc, "marketaux") from None
-
     async def fetch(self, company: CompanyRef) -> SourceBatch:
         symbol = us_symbol(company)
         if symbol is None or not self.configured():
             return SourceBatch()
-        pages = await gather_partial(*(self._page(symbol, n) for n in range(1, PAGES + 1)))
-        signals = [s for payload in pages if payload for s in parse_items(payload, symbol)]
-        return SourceBatch(signals=newest_first(dedupe(signals)))
+        return copy.deepcopy(await load_news(symbol))  # cached object: hand out a private copy

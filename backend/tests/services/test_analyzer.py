@@ -122,7 +122,7 @@ async def test_intel_failures_are_reported_not_raised(world: FakeWorld, monkeypa
     await analyzer.analyze("NVDA")
     inputs = world.inputs[0]
     assert inputs.intel_status["insiders"] == "error: ValueError: bad table"
-    assert inputs.intel_status["tone"] == "error: still loading after 0.2s; ready on next refresh"
+    assert inputs.intel_status["tone"] == "error: still loading after 0.2s; continuing in the background (reload to include)"
     assert inputs.intel_status["profile"].startswith("error: unexpected payload")
     assert inputs.insiders is None and inputs.tone is None and inputs.profile is None
     # The slow GDELT call keeps running in the background to warm its cache…
@@ -277,17 +277,56 @@ async def test_shutdown_cancels_inflight_runs(world: FakeWorld):
         await task
 
 
-async def test_intel_budget_caps_waiting_but_not_the_provider_call(world: FakeWorld, monkeypatch):
-    monkeypatch.setattr(analyzer, "INTEL_BUDGET", 0.3)
+async def test_run_budget_caps_waiting_but_not_the_provider_call(world: FakeWorld, monkeypatch):
+    monkeypatch.setattr(analyzer, "RUN_BUDGET", 0.3)
     monkeypatch.setattr(analyzer, "MIN_TIME_BOX", 0.1)
-    world.intel["tone"] = Sentinel(delay=0.8, value=None)
+    world.intel["quote"] = Sentinel(delay=0.8, value=Quote(price=1.0))  # a slow *core* task: budget applies
     rec = Recorder()
     a = await analyzer.analyze("NVDA", progress=rec)
     assert a.elapsed_ms < 700  # did not wait for the slow provider
-    tone = next(e for e in rec.events if e.key == "tone" and e.status != "running")
-    assert tone.status == "error" and "ready on next refresh" in tone.detail
-    assert any(t.get_name() == "bounded:intel:tone" for t in tasks._background)  # still finishing
+    quote = next(e for e in rec.events if e.key == "quote" and e.status != "running")
+    assert quote.status == "error" and "continuing in the background" in quote.detail
+    assert any(t.get_name() == "bounded:intel:quote" for t in tasks._background)  # still finishing
     await tasks.cancel_background()
+
+
+async def test_budget_counts_symbol_resolution(world: FakeWorld, monkeypatch):
+    monkeypatch.setattr(analyzer, "RUN_BUDGET", 0.6)
+    monkeypatch.setattr(analyzer, "MIN_TIME_BOX", 0.1)
+    world.resolve = Sentinel(delay=0.4, value=world.company)
+    world.intel["technicals"] = Sentinel(delay=2.0, value=None)
+    a = await analyzer.analyze("NVDA")
+    assert a.elapsed_ms < 900  # 0.4 s resolve + what was left of the 0.6 s budget, not 0.4 + 0.6
+    await tasks.cancel_background()
+
+
+async def test_tail_rule_stops_idling_for_slow_name_search_intel(world: FakeWorld, monkeypatch):
+    monkeypatch.setattr(analyzer, "TAIL_GRACE", 0.2)
+    world.intel["tone"] = Sentinel(delay=0.8, value=world.intel["tone"])
+    world.intel["wiki"] = Sentinel(delay=30, value=None)
+    rec = Recorder()
+    a = await analyzer.analyze("NVDA", progress=rec)
+    assert a.elapsed_ms < 600  # core done at ~0 s + 0.2 s grace; not the 11 s budget
+    tone = next(e for e in rec.events if e.key == "tone" and e.status != "running")
+    assert tone.status == "error" and "still loading" in tone.detail
+    assert world.inputs[-1].tone is None and world.inputs[-1].intel_status["tone"].startswith("error: still loading")
+
+    # The straggler lands later with data: the cached run is superseded, the next load recomputes with it.
+    assert (await analyzer.analyze("NVDA")).cached is True
+    await asyncio.sleep(0.8)
+    assert analyzer.cached_analysis("NVDA") is None
+    world.intel["tone"] = world.intel["tone"].value  # provider cache is warm now: instant
+    fresh = await analyzer.analyze("NVDA")
+    assert fresh.cached is False and world.inputs[-1].tone is not None
+    await tasks.cancel_background()
+
+
+async def test_failed_straggler_keeps_the_cached_result(world: FakeWorld, monkeypatch):
+    monkeypatch.setattr(analyzer, "TAIL_GRACE", 0.1)
+    world.intel["tone"] = Sentinel(delay=0.4, exc=RuntimeError("gdelt 429"))
+    await analyzer.analyze("NVDA")
+    await asyncio.sleep(0.5)
+    assert analyzer.cached_analysis("NVDA") is not None  # nothing better arrived: no pointless re-run
 
 
 async def test_refresh_spam_is_served_from_cache(world: FakeWorld, monkeypatch):
@@ -349,3 +388,74 @@ async def test_unknown_symbol_despite_name_search_failures(world: FakeWorld):
         await analyzer.analyze("QZXWV")
     assert asyncio.get_running_loop().time() - started < 1.0
     assert not any(t.get_name() == "bounded:intel:tone" for t in tasks._background)  # cancelled, not kept
+
+
+async def test_keyword_search_hits_do_not_prove_a_symbol_exists(world: FakeWorld):
+    """Live-observed: 'APPL' (AAPL typo) and delisted 'SIVB' match plenty of keyword-search news."""
+    world.resolve = CompanyRef(ticker="APPL", name="APPL", short_name="APPL")
+    world.sources = [(FakeSource("bing_news", signals=19, ticker_specific=False), "enabled"),
+                     (FakeSource("google_news", signals=1, ticker_specific=False), "enabled"),
+                     (FakeSource("bluesky", "social", signals=1, ticker_specific=False), "enabled"),
+                     (FakeSource("stocktwits", "social", signals=0), "enabled")]
+    for key in ("profile", "quote", "technicals", "analysts", "tone", "wiki"):
+        world.intel[key] = None
+    with pytest.raises(UnknownSymbol, match="mistyped or delisted"):
+        await analyzer.analyze("APPL")
+    assert world.inputs == [] and analyzer.cached_analysis("APPL") is None
+
+
+@pytest.mark.parametrize("source", [
+    FakeSource("stocktwits", "social", signals=0, metrics={"stocktwits_messages": 30, "stocktwits_watchers": 900}),
+    FakeSource("apewisdom", "social", signals=0, metrics={"reddit_mentions": 12, "reddit_rank": 80}),
+    FakeSource("seeking_alpha", signals=2, ticker_specific=True),
+])
+async def test_symbol_keyed_coverage_counts_as_existence(world: FakeWorld, source: FakeSource):
+    """No Yahoo quote (e.g. an OTC name), but the symbol's own stream / issuer-tagged feed has it."""
+    world.resolve = CompanyRef(ticker="OTCX", name="OTCX", short_name="OTCX")
+    world.sources = [(FakeSource("bing_news", signals=5, ticker_specific=False), "enabled"), (source, "enabled")]
+    for key in ("profile", "quote", "technicals", "analysts", "tone", "wiki"):
+        world.intel[key] = None
+    a = await analyzer.analyze("OTCX")
+    assert a.ticker == "OTCX"
+
+
+@pytest.mark.parametrize(("quote_type", "asset"), [("FUTURE", "futures"), ("CURRENCY", "currencies")])
+async def test_issuer_intel_skipped_for_futures_and_currencies(world: FakeWorld, quote_type: str, asset: str):
+    world.resolve = CompanyRef(ticker="GC=F", name="Gold Dec 26", short_name="Gold", quote_type=quote_type)
+    rec = Recorder()
+    await analyzer.analyze("GC=F", progress=rec)
+    for key in ("analysts", "insiders", "earnings", "calendar", "filings"):
+        assert rec.by_key(key) == ["skipped"] and key not in world.calls
+    assert next(e for e in rec.events if e.key == "filings").detail == f"n/a for {asset}"
+    assert set(world.inputs[0].intel_status) == {"profile", "quote", "technicals", "tone", "wiki"}
+
+
+async def test_ensure_known(world: FakeWorld):
+    # Resolver recognizes it (SEC CIK): no further calls.
+    assert (await analyzer.ensure_known("NVDA")).name == "NVIDIA Corporation"
+    assert "quote" not in world.calls
+    # Unresolvable and Yahoo positively has no quote → 404.
+    world.resolve = CompanyRef(ticker="TWTR", name="TWTR", short_name="TWTR")
+    world.intel["quote"] = None
+    with pytest.raises(UnknownSymbol):
+        await analyzer.ensure_known("TWTR")
+    # Quote lookup failing is an outage, not proof: accept.
+    world.intel["quote"] = Sentinel(exc=RuntimeError("HTTP 429"))
+    assert (await analyzer.ensure_known("TWTR")).ticker == "TWTR"
+
+
+async def test_unknown_symbol_is_negatively_cached(world: FakeWorld):
+    world.resolve = CompanyRef(ticker="QZXWV", name="QZXWV", short_name="QZXWV")
+    world.sources = [(FakeSource("bing_news", signals=4, ticker_specific=False), "enabled")]
+    for key in ("profile", "quote", "technicals", "analysts", "tone", "wiki"):
+        world.intel[key] = None
+    with pytest.raises(UnknownSymbol):
+        await analyzer.analyze("QZXWV")
+    rec = Recorder()
+    with pytest.raises(UnknownSymbol, match="mistyped"):
+        await analyzer.analyze("QZXWV", progress=rec)  # instant: no second fan-out
+    assert len(world.calls["quote"]) == 1 and world.sources[0][0].calls == 1
+    assert rec.events[-1].stage == "done" and rec.events[-1].status == "error"
+    world.intel["quote"] = Quote(price=3.2)  # it lists now; an explicit refresh re-checks
+    a = await analyzer.analyze("QZXWV", refresh=True)
+    assert a.ticker == "QZXWV"

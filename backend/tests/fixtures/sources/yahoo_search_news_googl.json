@@ -1,0 +1,165 @@
+[
+ {
+  "uuid": "a7211d23-a604-3871-ae55-bb1cd1a38e58",
+  "title": "AI Is Burning Through More Money Than Any Technology Boom in History — Now Comes the Hard Part",
+  "publisher": "24/7 Wall St.",
+  "link": "https://finance.yahoo.com/technology/ai/articles/ai-burning-more-money-technology-155319144.html",
+  "providerPublishTime": 1791129199,
+  "type": "STORY",
+  "relatedTickers": [
+   "GOOG",
+   "META",
+   "AMZN",
+   "ORCL",
+   "MSFT",
+   "META PLATFORMS"
+  ]
+ },
+ {
+  "uuid": "abf5deb3-88c4-37b5-9b58-4a992353680e",
+  "title": "LinkDaddy Reports 1.52M AI Crawler Requests to AI Verified Registry",
+  "publisher": "TMX Newsfile",
+  "link": "https://finance.yahoo.com/technology/ai/articles/linkdaddy-reports-1-52m-ai-141900806.html",
+  "providerPublishTime": 1791123540,
+  "type": "STORY",
+  "relatedTickers": [
+   "NET",
+   "OPAI.PVT",
+   "META",
+   "AMZN",
+   "AAPL",
+   "ANTH.PVT",
+   "MSFT",
+   "PEAI.PVT",
+   "GOOG"
+  ]
+ },
+ {
+  "uuid": "b8701ae6-0c12-36b5-a1e6-f8ae9f61e732",
+  "title": "A $1,000 Bet on Marvell in 2016 Crushed the Market With 2140% Returns",
+  "publisher": "24/7 Wall St.",
+  "link": "https://finance.yahoo.com/markets/stocks/articles/1-000-bet-marvell-2016-131540402.html",
+  "providerPublishTime": 1791119740,
+  "type": "STORY",
+  "relatedTickers": [
+   "MRVL",
+   "^GSPC",
+   "GOOG"
+  ]
+ },
+ {
+  "uuid": "c27529c0-dcac-3856-896d-29611725496b",
+  "title": "Why has e-Commerce accelerated and who is gaining?",
+  "publisher": "Investing.com",
+  "link": "https://finance.yahoo.com/markets/stocks/articles/why-e-commerce-accelerated-gaining-113713547.html",
+  "providerPublishTime": 1791113833,
+  "type": "STORY",
+  "relatedTickers": [
+   "GOOG"
+  ]
+ },
+ {
+  "uuid": "b110e30b-37ce-311e-9893-f80c984e27f4",
+  "title": "Gary Black Flags Waymo Is Leaving TSLA Behind On Autonomy Even As Tesla Beats Delivery Estimates In Q3",
+  "publisher": "Stocktwits",
+  "link": "https://finance.yahoo.com/markets/stocks/articles/gary-black-flags-waymo-leaving-105245308.html",
+  "providerPublishTime": 1791111165,
+  "type": "STORY",
+  "relatedTickers": [
+   "TSLA",
+   "GOOG"
+  ]
+ },
+ {
+  "uuid": "f8ffa19c-4b5a-3bd8-9891-75c5aff6d959",
+  "title": "Alphabet Reported Negative Free Cash Flow for the First Time Ever. Here's Why That Milestone Matters for Shareholders.",
+  "publisher": "Motley Fool",
+  "link": "https://finance.yahoo.com/markets/stocks/articles/alphabet-reported-negative-free-cash-095100273.html",
+  "providerPublishTime": 1791107460,
+  "type": "STORY",
+  "relatedTickers": [
+   "GOOG",
+   "NVDA"
+  ]
+ },
+ {
+  "uuid": "ecbb005c-6dd6-3905-9f53-81bf857bb658",
+  "title": "2 Magnificent Seven Stocks to Buy and Hold for the Rest of the Decade",
+  "publisher": "Motley Fool",
+  "link": "https://finance.yahoo.com/markets/stocks/articles/2-magnificent-seven-stocks-buy-093701568.html",
+  "providerPublishTime": 1791106621,
+  "type": "STORY",
+  "relatedTickers": [
+   "META",
+   "GOOG",
+   "NVDA"
+  ]
+ },
+ {
+  "uuid": "7622493a-088e-35a8-adb0-6a5c12f9fe2d",
+  "title": "Better Quantum Computing Stock: Alphabet vs. IonQ",
+  "publisher": "Motley Fool",
+  "link": "https://finance.yahoo.com/markets/stocks/articles/better-quantum-computing-stock-alphabet-060500997.html",
+  "providerPublishTime": 1791093900,
+  "type": "STORY",
+  "relatedTickers": [
+   "IONQ",
+   "GOOG",
+   "NVDA"
+  ]
+ },
+ {
+  "uuid": "60708421-8498-3e5b-bf19-bf35d7871e76",
+  "title": "Google’s Free AI Video Push Is a Boost for Storage. Have WDC and STX Already Priced It In?",
+  "publisher": "Insider Monkey",
+  "link": "https://finance.yahoo.com/technology/ai/articles/google-free-ai-video-push-010734278.html",
+  "providerPublishTime": 1791076054,
+  "type": "STORY",
+  "relatedTickers": [
+   "GOOG",
+   "WDC",
+   "STX"
+  ]
+ },
+ {
+  "uuid": "5058041a-ce4c-315d-81c9-9749462b456c",
+  "title": "Better Artificial Intelligence Stock: Alphabet vs. Meta Platforms",
+  "publisher": "Motley Fool",
+  "link": "https://finance.yahoo.com/technology/ai/articles/better-artificial-intelligence-stock-alphabet-010614956.html",
+  "providerPublishTime": 1791075974,
+  "type": "STORY",
+  "relatedTickers": [
+   "GOOG",
+   "META"
+  ]
+ },
+ {
+  "uuid": "650a473b-408f-3768-9c45-e23f335bf8a2",
+  "title": "How Muse Stacks up Vs. OpenAI Dots",
+  "publisher": "Investing.com",
+  "link": "https://finance.yahoo.com/technology/ai/articles/muse-stacks-vs-openai-dots-225400938.html",
+  "providerPublishTime": 1791068040,
+  "type": "STORY",
+  "relatedTickers": [
+   "META",
+   "OPAI.PVT",
+   "TFC",
+   "GOOG",
+   "SHOP"
+  ]
+ },
+ {
+  "uuid": "ea33fb6e-97fd-358d-b12a-87e0a267b521",
+  "title": "Elon Musk Said SpaceX AI Revenue Would Pass Everything Else by September. Did It?",
+  "publisher": "24/7 Wall St.",
+  "link": "https://finance.yahoo.com/technology/ai/articles/elon-musk-said-spacex-ai-210044241.html",
+  "providerPublishTime": 1791061244,
+  "type": "STORY",
+  "relatedTickers": [
+   "SPCX",
+   "GOOG",
+   "NVDA",
+   "GS"
+  ]
+ }
+]

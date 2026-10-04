@@ -9,22 +9,28 @@ second opinion. Relevance below ~0.6 is mostly incidental mentions (13F filings,
 >= 0.9 marks an item `ticker_specific`. Timestamps are UTC (cross-checked
 against Google News pubDates on 2026-10-04).
 Limits: free tier = 25 requests/day; throttling is signalled with HTTP 200 and
-an "Information"/"Note" message, which we surface as an error.
+an "Information"/"Note" message, which we surface as an error. So results are
+cached per symbol for 3 h and calls are counted against a local daily budget
+(a 30-minute watchlist refresh alone would need 48/day); once it is spent the
+source says so plainly instead of burning failed calls.
 Docs: https://www.alphavantage.co/documentation/#news-sentiment
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+import copy
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
 
 from app.config import settings
 from app.core import http
+from app.core.cache import cached
 from app.schemas import SignalKind
 from app.sources.base import CompanyRef, RawSignal, SourceBatch
 from app.sources.query import us_symbol
 from app.sources.util import (
+    DailyBudget,
     clean_text,
     dedupe,
     domain_of,
@@ -36,6 +42,8 @@ from app.sources.util import (
 
 URL = "https://www.alphavantage.co/query"
 LOOKBACK = timedelta(days=7)
+CACHE_TTL = 3 * 3600
+BUDGET = DailyBudget(25)
 METRIC_MIN_RELEVANCE = 0.5
 SPECIFIC_MIN_RELEVANCE = 0.9
 
@@ -50,7 +58,7 @@ def parse_time(value: str | None) -> datetime | None:
     """'20261004T151215' (UTC) -> datetime."""
     for fmt in ("%Y%m%dT%H%M%S", "%Y%m%dT%H%M"):
         try:
-            return datetime.strptime(value or "", fmt).replace(tzinfo=timezone.utc)
+            return datetime.strptime(value or "", fmt).replace(tzinfo=UTC)
         except ValueError:
             continue
     return None
@@ -110,6 +118,26 @@ def parse_payload(payload: Any, symbol: str) -> SourceBatch:
     return SourceBatch(signals=newest_first(dedupe(signals)), metrics=metrics)
 
 
+@cached(ttl=CACHE_TTL, none_ttl=60, maxsize=256)
+async def load_news(symbol: str) -> SourceBatch:
+    """One budgeted NEWS_SENTIMENT call per symbol per cache period."""
+    if not BUDGET.take():
+        raise http.UpstreamError(f"alphavantage: daily free quota ({BUDGET.limit} calls) used up; resets 00:00 UTC")
+    params = {
+        "function": "NEWS_SENTIMENT",
+        "tickers": symbol,
+        "sort": "LATEST",
+        "limit": 50,
+        "time_from": (utc_now() - LOOKBACK).strftime("%Y%m%dT%H%M"),
+        "apikey": settings.alphavantage_api_key,
+    }
+    try:
+        payload = await http.fetch_json(URL, params=params)
+    except (httpx.HTTPError, http.UpstreamError) as exc:
+        raise sanitized_error(exc, "alphavantage") from None
+    return parse_payload(payload, symbol)
+
+
 class AlphaVantageSource:
     key = "alphavantage"
     label = "Alpha Vantage"
@@ -129,16 +157,4 @@ class AlphaVantageSource:
         symbol = av_symbol(company)
         if symbol is None or not self.configured():
             return SourceBatch()
-        params = {
-            "function": "NEWS_SENTIMENT",
-            "tickers": symbol,
-            "sort": "LATEST",
-            "limit": 50,
-            "time_from": (utc_now() - LOOKBACK).strftime("%Y%m%dT%H%M"),
-            "apikey": settings.alphavantage_api_key,
-        }
-        try:
-            payload = await http.fetch_json(URL, params=params)
-        except (httpx.HTTPError, http.UpstreamError) as exc:
-            raise sanitized_error(exc, "alphavantage") from None
-        return parse_payload(payload, symbol)
+        return copy.deepcopy(await load_news(symbol))  # cached object: hand out a private copy

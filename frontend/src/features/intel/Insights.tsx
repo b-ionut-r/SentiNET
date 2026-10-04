@@ -21,7 +21,7 @@ const KIND: Record<InsightKind, { label: string; Icon: typeof Flame }> = {
 
 const RANK: Record<string, number> = { alert: 0, watch: 1, info: 2 };
 
-export function InsightsRail({ insights, className }: { insights: Insight[]; className?: string }) {
+export function InsightsRail({ insights, evidence, className }: { insights: Insight[]; evidence: number; className?: string }) {
   const sorted = [...insights].sort((a, b) => (RANK[a.severity] ?? 3) - (RANK[b.severity] ?? 3));
   const counts: Record<string, number> = { alert: 0, watch: 0, info: 0 };
   insights.forEach((i) => (counts[i.severity] = (counts[i.severity] ?? 0) + 1));
@@ -34,7 +34,11 @@ export function InsightsRail({ insights, className }: { insights: Insight[]; cla
       flush
     >
       {sorted.length === 0 ? (
-        <Empty title="Nothing unusual">No divergences, spikes, crowding or risk flags cleared their thresholds.</Empty>
+        evidence > 0 ? (
+          <Empty title="Nothing unusual">No divergences, spikes, crowding or risk flags cleared their thresholds.</Empty>
+        ) : (
+          <Empty title="Nothing to read">No signals were collected, so no insight can clear its evidence bar.</Empty>
+        )
       ) : (
         <ul className="divide-hair hairline-t">
           {sorted.map((ins, i) => {

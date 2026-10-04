@@ -6,10 +6,16 @@ America" / "B of A" -> "Bank of America") and the new price target (`value`);
 price moves carry the signed percent move. Direction of a price-target change
 comes from the numbers when both are present ("raises ... to $69 from $72" is
 a cut). Hypothetical/preview phrasing ("Will X Beat Estimates Again?",
-"Poised to Beat", "Could Soar") does not produce earnings/price events.
+"Poised to Beat", "Could Soar") does not produce earnings/price events, but
+a reported event inside a question about its consequences does ("Should You
+Buy Costco After Its Q4 Earnings Beat?"). Events are headline-level: long
+posts are judged on their first sentences (~300 chars).
 
 Patterns were tuned on real Google News / StockTwits phrasing (US, UK and
-Nordic broker notes, MarketBeat/TradingView auto-headlines, law-firm blasts).
+Nordic broker notes, MarketBeat/TradingView auto-headlines, law-firm blasts);
+see tests/nlp/test_events.py for the real cases, false friends included.
+Known limit: events are text-level — "Burford stock jumps after jury orders
+Apple to pay" yields price_up without saying whose price moved.
 """
 from __future__ import annotations
 
@@ -53,6 +59,7 @@ EVENT_LABELS: dict[str, str] = {
     "insider_sell": "Insider selling",
     "all_time_high": "All-time high",
     "low_52w": "52-week low",
+    "high_52w": "52-week high",
     "stock_split": "Stock split",
     "price_up": "Price jump",
     "price_down": "Price drop",
@@ -70,7 +77,7 @@ EVENT_POLARITY: dict[str, str] = {
     "investigation": "bear", "settlement": "neutral", "m_and_a": "neutral", "partnership": "bull",
     "contract_win": "bull", "product_launch": "bull", "recall": "bear", "exec_departure": "bear",
     "exec_hire": "neutral", "offering": "bear", "bankruptcy": "bear", "delisting": "bear", "short_report": "bear",
-    "insider_buy": "bull", "insider_sell": "bear", "all_time_high": "bull", "low_52w": "bear",
+    "insider_buy": "bull", "insider_sell": "bear", "all_time_high": "bull", "low_52w": "bear", "high_52w": "bull",
     "stock_split": "bull", "price_up": "bull", "price_down": "bear", "regulatory_approval": "bull",
     "regulatory_setback": "bear", "index_inclusion": "bull", "data_breach": "bear",
 }
@@ -85,6 +92,7 @@ EVENT_THEMES: dict[str, str] = {
     "settlement": "legal", "bankruptcy": "legal", "m_and_a": "deals", "partnership": "deals",
     "contract_win": "deals", "product_launch": "product", "recall": "product", "exec_departure": "management",
     "exec_hire": "management", "short_report": "trading", "stock_split": "trading", "index_inclusion": "trading",
+    "all_time_high": "trading", "low_52w": "trading", "high_52w": "trading",
     "insider_buy": "insider", "insider_sell": "insider", "delisting": "regulatory",
     "regulatory_approval": "regulatory", "regulatory_setback": "regulatory", "data_breach": "legal",
 }
@@ -301,8 +309,9 @@ _PT_ACTIVE_RE = re.compile(rf"\b(?P<verb>{_PT_UP}|{_PT_DOWN}|{_PT_NEUTRAL})\s+(?
                            re.IGNORECASE)
 _PT_PASSIVE_RE = re.compile(rf"{_PT}\s+(?:\w+\s+){{0,2}}?(?P<verb>{_PASSIVE_UP}|{_PASSIVE_DOWN})\b", re.IGNORECASE)
 _PT_NOUN_RE = re.compile(rf"\b(?P<verb>higher|lower|raised|reduced)\s+(?:[\w.&'-]+\s+){{0,2}}?{_PT}"
-                         rf"|(?:price[- ]targets?|targets?)\s+(?P<verb2>hikes?|raises?|increases?|boosts?|cuts?|"
-                         rf"reductions?)\b", re.IGNORECASE)
+                         rf"|(?:price[- ]targets?|(?:(?<=street )|(?<=analyst )|(?<=analysts' )|(?<=stock )|"
+                         rf"(?<=share )|(?<=its )|(?<=their ))targets?)\s+(?P<verb2>hikes?|raises?|increases?|boosts?|"
+                         rf"cuts?|reductions?)\b(?!\s+(?:prices?|jobs|costs?|staff)\b)", re.IGNORECASE)
 
 _HYPOTHETICAL_RE = re.compile(
     r"(?:\b(?:will|would|could|can|may|might|should|poised to|set to|expected to|likely to|on track to|"
@@ -341,9 +350,29 @@ _CLAUSE_SPLIT_RE = re.compile(r"(?<!\b[A-Z])(?<!\bInc)(?<!\bCo)(?<!\bCorp)(?<!\b
                               r"[;:!?]\s|\s[-|]\s")
 
 
-def _is_hypothetical(text: str, start: int) -> bool:
+# A reported event inside a question about its consequences is still a fact:
+# "Should You Buy Costco Stock After Its Q4 Earnings Beat?", "Will Dividend
+# Hike Change City Holding's Narrative?".
+_FACT_BEFORE_RE = re.compile(r"\b(?:after|following|on|despite|amid|post)\s+(?:its|the|a|an|their|this|that|"
+                             r"[\w.&'-]+'s)?\s*(?:[\w.&'-]+\s+){0,2}$", re.IGNORECASE)
+_CONSEQUENCE_AFTER_RE = re.compile(
+    r"^[^.?!]{0,40}?\b(?:change|changes|alter|alters|shift|shifts|reshape|lift|lifts|boost|boosts|spark|sparks|drive|"
+    r"drives|fuel|fuels|help|helps|hurt|hurts|matter|matters|mean|means|signal|signals|support|supports|keep|keeps|"
+    r"justify|justifies|make|makes|put|puts|send|sends|power|powers)\b", re.IGNORECASE)
+
+
+_NOUN_EVENT_RE = re.compile(r"(?:dividend|payout|earnings|eps|revenue|sales|profit|q[1-4]|guidance|outlook|forecast|"
+                            r"buyback|repurchase|delivery|deliveries|stock split|share split)\b", re.IGNORECASE)
+
+
+def _is_hypothetical(text: str, start: int, end: int | None = None) -> bool:
     """Modal/preview phrasing right before the event, or a yes/no question
-    ("Can X spark a rally?")."""
+    ("Can X spark a rally?") — unless the question is about the consequences
+    of an event that already happened (see _FACT_BEFORE_RE)."""
+    if _FACT_BEFORE_RE.search(text[max(0, start - 40):start]):
+        return False
+    if end is not None and _NOUN_EVENT_RE.match(text[start:end]) and _CONSEQUENCE_AFTER_RE.match(text[end:]):
+        return False
     clause = _CLAUSE_SPLIT_RE.split(text[max(0, start - 60):start])[-1]
     if _HYPOTHETICAL_RE.search(clause):
         return True
@@ -445,9 +474,13 @@ def _analyst_events(text: str) -> list[_Hit]:
     # --- rating changes ----------------------------------------------------- #
     rating_patterns = (
         ("analyst_upgrade", re.compile(r"\b(?:double[- ])?upgrad(?:e[sd]?|ing)\b|\bturns? bullish\b|"
+                                       r"\b(?:raise[sd]?|lift(?:s|ed)?|boost(?:s|ed)?)\s+(?:its\s+|the\s+)?(?:stock\s+)?"
+                                       r"rating\b(?!\s+(?:agency|agencies|outlook))|"
                                        r"\b(?:raise[sd]?|lift(?:s|ed)?|move[sd]?|bump(?:s|ed)?)\s+(?:\w+\s+){0,3}?"
                                        r"to\s+(?:strong[- ]buy|buy|outperform|overweight)\b", re.IGNORECASE)),
         ("analyst_downgrade", re.compile(r"\b(?:double[- ])?downgrad(?:e[sd]?|ing)\b|\bturns? bearish\b|"
+                                         r"\b(?:cut[s]?|lower(?:s|ed)?|slash(?:es|ed)?)\s+(?:its\s+|the\s+)?(?:stock\s+)?"
+                                         r"rating\b(?!\s+(?:agency|agencies|outlook))|"
                                          r"\b(?:cut[s]?|lower(?:s|ed)?|move[sd]?)\s+(?:\w+\s+){0,3}?"
                                          r"to\s+(?:sell|underperform|underweight|strong[- ]sell|reduce)\b",
                                          re.IGNORECASE)),
@@ -496,7 +529,7 @@ def _analyst_events(text: str) -> list[_Hit]:
         if m:
             stated = _num(m.group(1) or m.group(2) or m.group(3))
     for h in hits:
-        if h.value is None and h.key in {"analyst_upgrade", "analyst_downgrade", "analyst_initiate"}:
+        if h.value is None and h.key in {"analyst_upgrade", "analyst_downgrade", "analyst_initiate", "analyst_top_pick"}:
             h.value = stated
     return hits
 
@@ -636,6 +669,10 @@ _RULES: tuple[tuple[str, re.Pattern[str], bool], ...] = tuple((k, re.compile(p, 
      r"(?!(?-i:(?:During|Now|Before|After|In|On|At|For|With|From|And|Or|The|This|These|Today|Ahead|Rating|More|"
      r"Shares|Stock|Into|Back|Up|It|Them)\b))(?-i:[A-Z])[\w&.'-]+(?:\s+(?-i:[A-Z])[\w&.'-]+){0,3}"
      r"(?!\s+(?:stock|shares)\b)(?=.*\b(?:deal|billion|million|bn|takeover|acquisition|\$\d))"
+     r"|(?:\$|£|€)[\d.,]+\s?(?:billion|bn|b)\s+[^?!]{0,40}?\bdeal\s+(?:closes|closed|completes|completed|clears|"
+     r"cleared|wins approval|gets approval|just cleared)\b|"
+     r"(?:(?:\$|£|€)[\d.,]+\s?(?:billion|bn|b)|takeover|buyout)\s+deal\s+for\s+(?:rival\s+)?(?-i:[A-Z])[\w&.'-]+|"
+     r"\bdeal for rival\b"
      ), False),
     ("partnership", (
      r"\b(?:partner(?:s|ed|ing)? with|partnerships?|teams? up|teamed up|collaborat(?:es|ed|ing|ion)|alliance|"
@@ -664,8 +701,10 @@ _RULES: tuple[tuple[str, re.Pattern[str], bool], ...] = tuple((k, re.compile(p, 
      ), False),
     ("exec_hire", (
      r"\b(?:appoints?|appointed|names?|named|hires?|hired|taps?|tapped|picks?|poach(?:es|ed)|recruits?|"
-     r"promotes?|elevat(?:es|ed)|selects?)\s+(?:[\w.'-]+\s+){0,5}?(?:as\s+)?(?:new\s+|interim\s+|its\s+)?"
+     r"promotes?|elevat(?:es|ed)|selects?)\s+(?:[\w.'&-]+,?\s+){0,8}?(?:as\s+)?(?:new\s+|interim\s+|its\s+)?"
      r"(?:ceo|cfo|coo|cto|chief\s+\w+\s+officer|chief executive|chairman|president|head of)\b|"
+     r"\bnew\s+(?:finance|financial|operating|technology|executive)?\s*chief\s+(?:takes over|steps in|named)\b|"
+     r"\btakes? (?:over )?the helm\b|\btakes? over as\s+(?:ceo|cfo|chief|chair|president)\b|"
      r"\b(?:to join|joins?|to lead)\s+(?:[\w.'-]+\s+){0,3}?as\s+(?:its\s+|new\s+)?(?:ceo|cfo|coo|cto|chief|"
      r"president|head)\b|\bnames? new (?:ceo|cfo|chief)"
      ), False),
@@ -680,15 +719,18 @@ _RULES: tuple[tuple[str, re.Pattern[str], bool], ...] = tuple((k, re.compile(p, 
     ("bankruptcy", (
      r"\b(?:bankrupt(?:cy|cies)?|chapter (?:11|7|15)|going[- ]concern|insolven(?:t|cy)|receivership|"
      r"files? for (?:bankruptcy|creditor protection)|creditor protection|restructuring support agreement|"
-     r"default(?:s|ed)? on (?:its )?(?:debt|bonds?|loans?|notes|payments?))\b"
-     ), False),
+     r"default(?:s|ed)? on (?:its )?(?:debt|bonds?|loans?|notes|payments?)|rescue (?:financing|deal|package|loan)|"
+     r"debt restructuring|restructuring talks|forbearance agreement|miss(?:es|ed)? (?:an? )?(?:interest|coupon|debt|bond) "
+     r"payments?)\b"
+     ), True),
     ("delisting", (
      r"\b(?:delist(?:ing|ed|s)?|(?:nasdaq|nyse) (?:deficiency |non-?compliance |delisting )?notice|"
      r"non-?compliance with (?:nasdaq|nyse|listing)|minimum bid (?:price )?requirement|regain compliance)\b"
      ), False),
     ("short_report", (
      r"\bshort[- ]sell(?:er|ers|ing)?(?:'s)?\s+(?:\w+\s+)?(?:report|attack|alleg\w+|bet|target|campaign|claims|"
-     r"dispute|warning|accus\w+|raises concerns|spotlights?|questions|scrutiny|targets)\b|\bshort report\b|\b(?:hindenburg|muddy waters|citron|blue orca|spruce point|grizzly|"
+     r"dispute|warning|warns?|flags?|accus\w+|raises concerns|spotlights?|questions|scrutiny|targets|pressure|"
+     r"bets? against|takes? aim)\b|\bshort report\b|\b(?:hindenburg|muddy waters|citron|blue orca|spruce point|grizzly|"
      r"wolfpack|kerrisdale|fuzzy panda|culper|viceroy|gotham city|hunterbrook|glasshouse|iceberg|bleecker street|"
      r"j capital|scorpion capital|morpheus|night market|jehoshaphat|snowcap|bear cave)(?:\s+(?:research|capital))?"
      r"\s+(?:report|says|alleges|shorts?|takes?|bets?|targets?|is short|discloses|accuses|publishes)\b|"
@@ -696,9 +738,11 @@ _RULES: tuple[tuple[str, re.Pattern[str], bool], ...] = tuple((k, re.compile(p, 
      r"kerrisdale|fuzzy panda|culper|viceroy|hunterbrook|glasshouse)"
      ), False),
     ("insider_buy", (
-     rf"\b{_EXEC}s?\s+(?:[\w.'-]+\s+){{0,4}}?(?:buys?|bought|purchas(?:es|ed)|acquir(?:es|ed)|adds?|scoops? up|"
-     rf"snaps? up|picks? up|loads? up on)\s+(?:\$[\d.,]+\w*|[\d.,]+\s?(?:million|k|m|thousand)?|more|shares|stock|"
-     rf"stake)|\binsider (?:buying|purchases?|buys?)\b"
+     rf"\b{_EXEC}s?\s+(?:[\w.'-]+\s+){{0,6}}?(?:buys?|bought|purchas(?:es|ed)|acquir(?:es|ed)|adds?|scoops? up|"
+     rf"snaps? up|picks? up|loads? up on|subscribes?(?: for| to)?)\s+(?:\$[\d.,]+\w*|[\d.,]+%?\s?(?:million|k|m|"
+     rf"thousand)?|more|shares|stock|stake)|\binsider (?:buying|purchases?|buys?)\b|"
+     rf"\b{_EXEC}s?\s+(?:[\w.'-]+\s+){{0,6}}?(?:continues?|extends?)\s+(?:\w+\s+)?buying\b|"
+     rf"\b{_EXEC}s?\b[^.?!]{{0,60}}\$[\d.,]+\s?(?:million|m|k|thousand)?\s+(?:stock|share)\s+purchase\b"
      ), False),
     ("insider_sell", (
      rf"\b{_EXEC}s?\s+(?:[\w.'-]+\s+){{0,4}}?(?:sells?|sold|unloads?|dumps?|offloads?|disposes? of|trims?|"
@@ -717,9 +761,16 @@ _RULES: tuple[tuple[str, re.Pattern[str], bool], ...] = tuple((k, re.compile(p, 
      r"\b52[- ]week lows?\b|\b(?:multi-?year|decade|\d+-year|\d+-month|record|all[- ]time|lowest level in "
      r"\d+ years?)[- ]lows?\b|\blowest (?:level|close) (?:in|since) (?:\d+|a decade|years)\b"
      ), True),
+    ("high_52w", (
+     r"\b52[- ]week highs?\b|\b(?:multi-?year|decade|\d+-year|\d+-month)[- ]highs?\b"
+     ), True),
     ("stock_split", (
      r"\b(?:stock|share) split\b|\b(?:\d+|two|three|four|five|ten|twenty)[- ](?:for|to)[- ](?:\d+|one) "
-     r"(?:stock |share |reverse )?split\b|\breverse split\b|\bsplits? (?:its )?(?:stock|shares)\b"
+     r"(?:stock |share |reverse )?split\b|\breverse split\b|\bsplits? (?:its )?(?:stock|shares)\b|"
+     # reverse splits announced without the word: "Every 25 shares will become one", "plans to combine shares"
+     r"\b(?:every\s+)?(?:\d+|two|three|four|five|ten|fifteen|twenty|twenty-five|fifty|hundred)\s+(?:[\w.&'-]+\s+){0,2}?"
+     r"shares\s+(?:are expected to |will |to |would )?become\s+one\b|\b(?:combine|consolidate)s?\s+(?:its\s+)?"
+     r"(?:common\s+)?shares\b|\bshare consolidation\b"
      ), True),
     ("regulatory_approval", (
      r"\bfda (?:approv(?:es|ed|al)|clears?|cleared|clearance|grants?|nod|green[- ]lights?|accepts?)|"
@@ -768,7 +819,11 @@ _EXCLUDE: dict[str, re.Pattern[str]] = {
     "guidance_cut": re.compile(r"\bmoody'?s\b|\bfitch\b|\bs&p global ratings\b|\brating agency\b|"
                                r"\boutlook to (?:positive|stable|negative)\b|\b(?:imf|world bank|oecd|ecb|"
                                r"central bank|economists?)\b", re.IGNORECASE),
-    "m_and_a": re.compile(r"\b(?:stock|shares|stake|position|holdings?|\$[a-z]{1,6})\s+(?:\w+\s+){0,2}?(?:acquired|"
+    "m_and_a": re.compile(r"\b(?:never|won't|will not|wouldn't|would never|no)\s+(?:\w+\s+)?(?:merge|merger|acquire|"
+                          r"acquisition|buy|takeover)\b|"
+                          r"\b(?:i|we|i've|we've|i'm|just|finally|first|also)\s+(?:\w+\s+)?(?:bought|buy|buying|"
+                          r"purchased|added|picked up)\b|"
+                          r"\b(?:stock|shares|stake|position|holdings?|\$[a-z]{1,6})\s+(?:\w+\s+){0,2}?(?:acquired|"
                           r"bought|sold|purchased|cut|raised|lifted|trimmed|boosted|reduced|increased|decreased|"
                           r"grown)\s+by\b|\b(?:customer|user|talent|data|land) acquisition\b|\bacquisition costs?\b|"
                           r"\b(?:acquires?|buys|bought|purchases?|purchased|picks? up) (?:\d[\d,.]*%? (?:more )?)?"
@@ -776,7 +831,9 @@ _EXCLUDE: dict[str, re.Pattern[str]] = {
                           r"\b(?:upgrades?|upgraded|downgrades?|downgraded|raises?|cuts?|moves?)\b.{0,40}\bto (?:buy|acquire)\b|"
                           r"\b(?:buys|bought)\s+(?:put|call|puts|calls|options|bitcoin|ether|gold|the dip)\b|\bacquisition (?:corp|corporation|company|"
                           r"holdings|co)\b|\b(?:tech|ai|hostile) takeover\b", re.IGNORECASE),
-    "offering": re.compile(r"\binitial public offering\b|\bipo\b", re.IGNORECASE),
+    "offering": re.compile(r"\binitial public offering\b|\bipo\b|\b(?:director|officer|ceo|cfo|coo|insider|svp|evp|"
+                           r"president|founder|chair(?:man|woman)?|general counsel|executive)\b[^.;:]{0,60}?"
+                           r"(?:sells?|sold|proposes?)\b", re.IGNORECASE),
     "product_launch": re.compile(r"\b(?:launch(?:es|ed)?|unveil(?:s|ed)?|introduc(?:es|ed)|rolls? out|announces? new)\s+"
                                  r"(?:an?\s+|its\s+|the\s+)?(?:\$[\d.,]+|(?:[\w$.-]+\s+){0,6}?(?:probe|investigation|inquiry|"
                                  r"lawsuit|coverage|offering|ipo|buyback|repurchase|tender|bid|review|campaign "
@@ -787,14 +844,21 @@ _EXCLUDE: dict[str, re.Pattern[str]] = {
                                 r"\bshy of (?:a |its |the )?(?:first |new )?record\b|"
                                 r"\b(?:all[- ]time|record) highs? (?:could|may|might|is (?:next|in sight|within reach))\b|"
                                 r"\bshort interest\b", re.IGNORECASE),
-    "low_52w": re.compile(r"\b(?:from|off|above)\s+(?:its|their|the|a)?\s*(?:\w+\s+)?52[- ]week lows?\b|"
+    "high_52w": re.compile(r"\b(?:from|off|below|under|shy of|short of)\s+(?:its|their|the|a)?\s*(?:\w+\s+)?"
+                           r"52[- ]week highs?\b", re.IGNORECASE),
+    "low_52w": re.compile(r"\b(?:ratings?|short interest|volatility|vix|unemployment|inventor(?:y|ies)|costs?|"
+                          r"rates?|yields?|claims|delinquenc(?:y|ies)|defaults?)\s+(?:\w+\s+){0,2}?(?:hits?|at|to|near|"
+                          r"reach(?:es)?|falls? to|drops? to)\s+(?:an?\s+)?(?:new\s+)?(?:\d+-year|multi-?year|decade|record)|"
+                          r"\b(?:from|off|above)\s+(?:its|their|the|a)?\s*(?:\w+\s+)?52[- ]week lows?\b|"
                           r"\b(?:invested|investment)\b.{0,40}\b52[- ]week low|"
                           r"low (?:valuation|multiple|p/e|unemployment|rates?)\b", re.IGNORECASE),
     "lawsuit": re.compile(r"\bfollow(?:s|ed)? suit\b", re.IGNORECASE),
-    "recall": re.compile(r"\b(?:he|she|i|we|they|ceo|who|fans|founder|still|vividly|fondly|executives?)\s+"
-                         r"recall|\brecall(?:s|ed|ing)?\s+(?:how|when|that|the day|his|her|their|being|seeing|"
-                         r"meeting|growing|watching|working|a time|moments?)\b|\brecall (?:election|vote|"
-                         r"petition|campaign)\b|\btotal recall\b", re.IGNORECASE),
+    "recall": re.compile(r"\b(?:he|she|i|we|they|ceo|who|fans|founder|still|vividly|fondly|executives?|officials|"
+                         r"investors|traders|analysts|people|veterans|employees|workers|residents|experts|"
+                         r"economists|survivors|witnesses|colleagues|friends)\s+recall|\brecall(?:s|ed|ing)?\s+"
+                         r"(?:how|when|that|the day|his|her|their|being|seeing|meeting|growing|watching|working|"
+                         r"a time|moments?|the (?:\d{4}|crisis|crash|era|days|years|time|moment|dot-com))\b|"
+                         r"\brecall (?:election|vote|petition|campaign)\b|\btotal recall\b", re.IGNORECASE),
     "investigation": re.compile(r"\b(?:police|homicide|shooting|murder|crash|fire|rape|assault|death)\b",
                                 re.IGNORECASE),
 }
@@ -847,21 +911,22 @@ _TRIGGERS: dict[str, tuple[str, ...]] = {
     "exec_departure": ("step", "resign", "quit", "exit", "depart", "leav", "retir", "oust", "fired", "replaced",
                        " out"),
     "exec_hire": ("appoint", "name", "hire", "tap", "pick", "poach", "recruit", "promot", "elevat", "select", "join",
-                  "to lead"),
+                  "to lead", "takes over", "take over", "helm"),
     "offering": ("offering", "placement", "convertible", "dilut", "share sale", "raises $", "raising $", "sells $",
                  "sell $"),
     "bankruptcy": ("bankrupt", "chapter", "going concern", "going-concern", "insolven", "receivership",
-                   "creditor protection", "restructuring support", "default"),
+                   "creditor protection", "restructuring", "default", "rescue", "forbearance", "payment"),
     "delisting": ("delist", "notice", "compliance", "minimum bid"),
     "short_report": ("short", "hindenburg", "muddy waters", "citron", "blue orca", "spruce point", "grizzly",
                      "wolfpack", "kerrisdale", "fuzzy panda", "culper", "viceroy", "gotham", "hunterbrook",
                      "glasshouse", "iceberg", "bleecker", "j capital", "scorpion", "morpheus", "night market",
                      "jehoshaphat", "snowcap", "bear cave"),
-    "insider_buy": ("buy", "bought", "purchas", "acquir", "add", "scoop", "snap", "pick", "load"),
-    "insider_sell": ("sell", "sold", "unload", "dump", "offload", "dispos", "trim", "cash", "form 144", "10b5"),
+    "insider_buy": ("buy", "bought", "purchas", "acquir", "add", "scoop", "snap", "pick", "load", "subscribe"),
+    "insider_sell": ("sell", "sold", "sale", "unload", "dump", "offload", "dispos", "trim", "cash", "form 144", "10b5"),
     "all_time_high": ("high", "record"),
     "low_52w": ("low",),
-    "stock_split": ("split",),
+    "high_52w": ("high",),
+    "stock_split": ("split", "become one", "combine", "consolidat"),
     "regulatory_approval": ("fda", "approv", "ema", "chmp", "nod", "clearance"),
     "regulatory_setback": ("complete response", "fda", "clinical hold", "trial", "endpoint", "study"),
     "index_inclusion": ("s&p", "nasdaq-100", "nasdaq 100", "dow", "russell", "ftse"),
@@ -869,11 +934,27 @@ _TRIGGERS: dict[str, tuple[str, ...]] = {
 }
 
 
+_LEAD_CHARS = 300
+_SENTENCE_END_RE = re.compile(r"[.!?](?=\s+[A-Z$\d\"'(])")
+
+
+def _lead(text: str) -> str:
+    """Events are headline-level: a long post or summary is judged on its
+    first sentences (~300 chars), where news is stated; essays further down
+    mention "partnerships", "launches" and "mergers" in passing."""
+    if len(text) <= _LEAD_CHARS:
+        return text
+    cut = _LEAD_CHARS
+    for m in _SENTENCE_END_RE.finditer(text, 0, _LEAD_CHARS + 1):
+        cut = m.end()
+    return text[:cut]
+
+
 def detect_events(text: str) -> list[DetectedEvent]:
     """Events in `text`, in order of appearance; at most one per (key, firm)."""
     if not text:
         return []
-    t = fold(clean_text(text))
+    t = _lead(fold(clean_text(text)))
     low = t.lower()
     hits = _analyst_events(t) if _ANALYST_TRIGGER.search(low) else []
     for key, regex, guarded in _RULES:
@@ -882,7 +963,7 @@ def detect_events(text: str) -> list[DetectedEvent]:
             continue
         exclude = _EXCLUDE.get(key)
         for m in regex.finditer(t):
-            if guarded and _is_hypothetical(t, m.start()):
+            if guarded and _is_hypothetical(t, m.start(), m.end()):
                 continue
             if exclude and _excluded(key, exclude, t, m):
                 continue
@@ -905,7 +986,7 @@ def detect_events(text: str) -> list[DetectedEvent]:
 
 
 # Exclusions that only void the hit when they overlap it (others void any hit nearby).
-_OVERLAP_EXCLUSIONS = frozenset({"m_and_a", "product_launch", "all_time_high", "low_52w", "offering"})
+_OVERLAP_EXCLUSIONS = frozenset({"m_and_a", "product_launch", "all_time_high", "low_52w", "high_52w"})
 
 
 def _excluded(key: str, exclude: re.Pattern[str], text: str, m: re.Match[str]) -> bool:
@@ -931,7 +1012,17 @@ def _context_ok(key: str, text: str, m: re.Match[str]) -> bool:
     if key in {"earnings_beat", "earnings_miss"}:
         return not re.search(r"\b(?:guidance|outlook|forecasts?|guide)\s+$", text[max(0, m.start() - 20):m.start()],
                              re.IGNORECASE)
+    if key in {"guidance_raise", "guidance_cut"}:
+        if _MARKET_OUTLOOK_RE.search(m.group(0)):
+            return False  # "strong memory pricing outlook": an industry view, not company guidance
+        # "JPMorgan Cuts Forecast": a broker's own estimate, not company guidance.
+        return not any(f.end() <= m.start() and not re.search(r"[.;:!?]|\s[-|]\s", text[f.end():m.start()])
+                       and m.start() - f.end() <= 25 for f in _FIRM_RE.finditer(text))
     return True
+
+
+_MARKET_OUTLOOK_RE = re.compile(r"\b(?:pricing|price|demand|industry|market|sector|economic|macro|rate|rates|"
+                                r"weather|memory|chip|consumer)\s+(?:outlook|forecast|view)s?\b", re.IGNORECASE)
 
 
 def _polarity(key: str, text: str, m: re.Match[str]) -> str:
@@ -939,7 +1030,7 @@ def _polarity(key: str, text: str, m: re.Match[str]) -> str:
     if key == "buyback" and re.search(r"\b(?:suspend|halt|paus|scrap|cancel|end|slash|cut)\w*\s+(?:\w+\s+){0,2}$",
                                       text[max(0, m.start() - 30):m.start()], re.IGNORECASE):
         return "bear"
-    if key == "stock_split" and "reverse" in m.group(0).lower():
+    if key == "stock_split" and re.search(r"reverse|become one|combine|consolidat", m.group(0), re.IGNORECASE):
         return "bear"
     if key == "bankruptcy" and re.search(r"\b(?:emerg\w+|exit\w*) (?:from )?(?:chapter|bankruptcy)|chapter 11 exit|"
                                          r"\bavoids?\b", text, re.IGNORECASE):

@@ -165,3 +165,64 @@ def test_common_word_detection() -> None:
     assert is_common_word_name("AMD")  # short acronyms are ambiguous for full-text search
     assert not is_common_word_name("Nvidia")
     assert not is_common_word_name("Palo Alto Networks")
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        # Everyday-word heads keep their descriptor: "Structure" alone matches everything.
+        ("Structure Therapeutics Inc.", "Structure Therapeutics"),
+        ("Viking Therapeutics, Inc.", "Viking Therapeutics"),
+        ("Align Technology, Inc.", "Align Technology"),
+        ("CRISPR Therapeutics AG", "Crispr Therapeutics"),
+        ("Exact Sciences Corporation", "Exact Sciences"),
+        ("Duke Energy Corporation", "Duke Energy"),
+        ("Boston Scientific Corporation", "Boston Scientific"),  # place names are not brands
+        ("Archer Aviation Inc.", "Archer Aviation"),
+        ("Yum! Brands, Inc.", "Yum! Brands"),
+        # Coined heads drop industry words the press leaves out.
+        ("Gilead Sciences, Inc.", "Gilead"),
+        ("Toyota Motor Corporation", "Toyota"),
+        ("Tyson Foods, Inc.", "Tyson"),
+        ("Elevance Health, Inc.", "Elevance"),
+        ("SoundHound AI, Inc.", "SoundHound"),
+        ("D-Wave Quantum Inc.", "D-Wave"),
+        ("Rigetti Computing, Inc.", "Rigetti"),
+        ("Axon Enterprise, Inc.", "Axon"),
+        ("Clover Health Investments, Corp.", "Clover Health"),
+        # Tiny heads are no brand on their own.
+        ("On Holding AG", "On Holding"),
+        ("Nu Holdings Ltd.", "Nu Holdings"),
+        # All-caps registry words that are words, not acronyms.
+        ("OLD DOMINION FREIGHT LINE, INC.", "Old Dominion Freight Line"),
+        ("BLUE OWL CAPITAL INC.", "Blue Owl Capital"),
+    ],
+)
+def test_clean_company_name_precision_rules(raw: str, expected: str) -> None:
+    assert clean_company_name(raw) == expected
+
+
+def test_everyday_word_brands_get_their_legal_form_as_alias() -> None:
+    assert derive_names("SE", "EQUITY", long_name="Sea Limited").aliases == ["Sea Limited"]
+    assert derive_names("POOL", "EQUITY", long_name="Pool Corporation").aliases == ["Pool Corporation"]
+    assert derive_names("LMND", "EQUITY", long_name="Lemonade, Inc.").aliases == ["Lemonade Inc"]
+    assert derive_names("ONON", "EQUITY", long_name="On Holding AG").aliases == []  # never the bare "On"
+
+
+def test_futures_indices_and_foreign_brands() -> None:
+    from app.resolve.names import clean_future_name, registry_display_name
+
+    assert clean_future_name("Crude Oil Nov 26") == "Crude Oil"
+    assert derive_names("KC=F", "FUTURE", short_name="Coffee Dec 26").short_name == "Coffee"
+    gold = derive_names("GC=F", "FUTURE", short_name="Gold Dec 26")
+    assert gold.short_name == "Gold" and "gold prices" in gold.aliases
+    assert derive_names("^VIX", "INDEX", long_name="CBOE Volatility Index").short_name == "VIX"
+    assert derive_names("PBR", "EQUITY", long_name="Petróleo Brasileiro S.A. - Petrobras").short_name == "Petrobras"
+    assert registry_display_name("Bank of Montreal /CAN/") == "Bank of Montreal"
+    assert registry_display_name("UNITED STATES STEEL CORP /DE/") == "United States Steel Corp"
+
+
+def test_fund_names_drop_issuers_and_wrappers() -> None:
+    assert clean_fund_name("KraneShares CSI China Internet ETF") == "CSI China Internet"
+    assert clean_fund_name("iShares iBoxx $ High Yield Corporate Bond ETF") == "High Yield Corporate Bond"
+    assert clean_fund_name("iPath Series B S&P 500 VIX Short-Term Futures ETN") == "S&P 500 VIX Short-Term Futures"

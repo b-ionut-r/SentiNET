@@ -1,0 +1,697 @@
+{
+ "posts": [
+  {
+   "uri": "at://did:plc:6bqd4g66f6msjyjvkhfj7n4a/app.bsky.feed.post/3mx3knvh7j22y",
+   "cid": "bafyreic2ahsmpoby46uzql3zxmf4gmaphh742rdi4ovi6h5ebfzc26m274",
+   "author": {
+    "did": "did:plc:6bqd4g66f6msjyjvkhfj7n4a",
+    "handle": "laralynnwrites.bsky.social",
+    "displayName": "Lara Lynn"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "kffhealthnews.org/elections/si...",
+    "createdAt": "2026-10-04T23:30:47.533Z",
+    "facets": [
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#link",
+        "uri": "https://kffhealthnews.org/elections/single-payer-universal-healthcare-debate-midterms-oregon-proposal/"
+       }
+      ],
+      "index": {
+       "byteEnd": 33,
+       "byteStart": 0
+      }
+     }
+    ],
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": {
+    "external": {
+     "uri": "https://kffhealthnews.org/elections/single-payer-universal-healthcare-debate-midterms-oregon-proposal/",
+     "title": "Midterms Have Revived Universal Healthcare Debate. These States Are Ahead of Everyone. - KFF Health News",
+     "description": "While Democratic congressional candidates are floating the restoration of federal Affordable Care Act subsidies and Medicaid funding, Oregon officials are crafting a more ambitious plan to implement u..."
+    }
+   },
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "indexedAt": "2026-10-04T23:30:49.965Z"
+  },
+  {
+   "uri": "at://did:plc:wstpte2vzb4ra2iqtnw2d2ef/app.bsky.feed.post/3mx3knptbp22y",
+   "cid": "bafyreicyrd5np7xigzldjiz572ekhto7hvxunm4k7rp2dw5hou7l576iai",
+   "author": {
+    "did": "did:plc:wstpte2vzb4ra2iqtnw2d2ef",
+    "handle": "brucewilson.bsky.social",
+    "displayName": "Bruce Wilson"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "Israel has murdered so many of Gaza's health care workers. In spite of that, Hammam has persisted. And now, yet more catastrophe.",
+    "createdAt": "2026-10-04T23:30:41.637Z",
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": null,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "indexedAt": "2026-10-04T23:30:41.959Z"
+  },
+  {
+   "uri": "at://did:plc:w4ffuc5kesc6byiedumxttez/app.bsky.feed.post/3mx3knnya2c2q",
+   "cid": "bafyreigr6sgfs44hv6daljskp77kt5kmmu7envfruind32c7w4neqvpupq",
+   "author": {
+    "did": "did:plc:w4ffuc5kesc6byiedumxttez",
+    "handle": "ronrice.bsky.social",
+    "displayName": "Ronald Rice"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "Out of pocket capped at 8% of income. So no more 20% coinsurance and $100,000 bills? No more secondary policy at $300 a month? Hard to believe!\n\nThe Clintons only pretended to push for universal health care. Yes, the Democratic Party's priority is always protecting insurance and healthcare profits.",
+    "createdAt": "2026-10-04T23:30:39.702Z",
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": null,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "indexedAt": "2026-10-04T23:30:40.361Z"
+  },
+  {
+   "uri": "at://did:plc:5jycdvkvabnon545dxcisari/app.bsky.feed.post/3mx3kn6zxv32z",
+   "cid": "bafyreid327ondcgfhh7dfvi342ry6hgtx7pa6it5g2t3ljpa53aaiyzlam",
+   "author": {
+    "did": "did:plc:5jycdvkvabnon545dxcisari",
+    "handle": "rssfeedaccount.bsky.social",
+    "displayName": "Do Not Follow - service account to post RSS sourced data"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "\n\n#rsstime",
+    "createdAt": "2026-10-04T23:30:23.870700+00:00",
+    "facets": [
+     {
+      "$type": "app.bsky.richtext.facet",
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#tag",
+        "tag": "rsstime"
+       }
+      ],
+      "index": {
+       "$type": "app.bsky.richtext.facet#byteSlice",
+       "byteEnd": 10,
+       "byteStart": 2
+      }
+     }
+    ],
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": {
+    "external": {
+     "uri": "https://time.com/article/2026/10/04/trump-is-promising-health-care-checks-before-the-midterms-how-far-will-they-go-/",
+     "title": "Trump Is Promising Health Care Checks Before the Midterms. How Far Will They Go?",
+     "description": "Trump’s promised rebates come as Americans worry about health care costs. For Medicare recipients, a one-time payment may offer limited relief from rising premiums."
+    }
+   },
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "indexedAt": "2026-10-04T23:30:24.859Z"
+  },
+  {
+   "uri": "at://did:plc:elusnvy2zbwabwrmyrhjfmnu/app.bsky.feed.post/3mx3kfwq4kc24",
+   "cid": "bafyreibqmjthbduqlj5d5zptqoqwkwzdfhpjusz6vzdnuexgytiocyk5qe",
+   "author": {
+    "did": "did:plc:elusnvy2zbwabwrmyrhjfmnu",
+    "handle": "barryation.bsky.social",
+    "displayName": "Barryation"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "This person wants to spend money....on health care.\n\nThey want to raise taxes...on people who pretty much don't pay taxes despite being rich.\n\nThis is the type of shit I hear in my brain when shown messaging like that.",
+    "createdAt": "2026-10-04T23:26:20.419Z",
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": null,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 1,
+   "indexedAt": "2026-10-04T23:26:20.659Z"
+  },
+  {
+   "uri": "at://did:plc:7ivtunnboqdnda7qmiy3d5vk/app.bsky.feed.post/3mx3kdmwpwp2z",
+   "cid": "bafyreifn3ytypkjlx5snjcerff6yey5cp4yzofur6kvmlfjvvtm5t5thg4",
+   "author": {
+    "did": "did:plc:7ivtunnboqdnda7qmiy3d5vk",
+    "handle": "urbanmilwaukee.com",
+    "displayName": "Urban Milwaukee"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "Crowley, Tiffany Offer Opposing Health Care Plans in Race for Governor",
+    "createdAt": "2026-10-04T23:25:01+00:00",
+    "facets": [],
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": {
+    "external": {
+     "uri": "https://urbanmilwaukee.com/2026/10/04/crowley-tiffany-offer-opposing-health-care-plans-in-race-for-governor/",
+     "title": "Crowley, Tiffany Offer Opposing Health Care Plans in Race for Governor",
+     "description": "Affordability is an issue. Wisconsin's hospital prices among highest in the nation."
+    }
+   },
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "indexedAt": "2026-10-04T23:25:03.362Z"
+  },
+  {
+   "uri": "at://did:plc:grw6ewxz6rplbyycrksaoqiq/app.bsky.feed.post/3mx3k2d6dvc27",
+   "cid": "bafyreieo3nqkgv2s4uxmqbjede3wttolmeqs36ft7nqx5bg27nkyeyjpnq",
+   "author": {
+    "did": "did:plc:grw6ewxz6rplbyycrksaoqiq",
+    "handle": "slowmovingturtle.bsky.social",
+    "displayName": "Hiyo (this is an ANTI-ICE account!!) Fuck ICE"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "💐Matthew Shepard and James Byrd Jr. Hate Crimes Prevention Act of 2009\n💐Credit CARD Act of 2009\n💐Affordable Care Act of 2010, often called Obamacare\n💐Health Care and Education Reconciliation Act of 2010, which made final changes to the ACA",
+    "createdAt": "2026-10-04T23:19:50.590Z",
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": null,
+   "replyCount": 1,
+   "repostCount": 0,
+   "likeCount": 0,
+   "indexedAt": "2026-10-04T23:19:51.429Z"
+  },
+  {
+   "uri": "at://did:plc:2infxxyazrcs7nwajgrzalvm/app.bsky.feed.post/3mx3jznmes22u",
+   "cid": "bafyreiajp5bnx4t53xkmh7msygtcd6dztyzhuo2d2cnl6i6tjjly67mx4a",
+   "author": {
+    "did": "did:plc:2infxxyazrcs7nwajgrzalvm",
+    "handle": "billgray.bsky.social",
+    "displayName": "Bill Gray ☭ (nom de guerre)"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "New tax on millionaires to fun...\nwww.cbc.ca/news/canada/...",
+    "createdAt": "2026-10-04T23:19:28.222Z",
+    "facets": [
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#link",
+        "uri": "https://www.cbc.ca/news/canada/british-columbia/new-millionaires-tax-eby-promise-9.7368961"
+       }
+      ],
+      "index": {
+       "byteEnd": 60,
+       "byteStart": 34
+      }
+     }
+    ],
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": {
+    "external": {
+     "uri": "https://www.cbc.ca/news/canada/british-columbia/new-millionaires-tax-eby-promise-9.7368961",
+     "title": "New tax on millionaires to fund health care in B.C., promises NDP Leader Eby | CBC News",
+     "description": "British Columbia NDP Leader David Eby says his party will introduce a new tax bracket for those who earn $1 million or more to help pay for health care, if re-elected."
+    }
+   },
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "indexedAt": "2026-10-04T23:19:29.462Z"
+  },
+  {
+   "uri": "at://did:plc:hgste3ymhjwrea2h56cfhehz/app.bsky.feed.post/3mx3jvcntq22a",
+   "cid": "bafyreie4s77ugt5fpqumpr2g32am65v3nslpz5apuejljcjtv2jrohxb7e",
+   "author": {
+    "did": "did:plc:hgste3ymhjwrea2h56cfhehz",
+    "handle": "scgstephen.bsky.social",
+    "displayName": "🇨🇦 Scg 🇨🇦"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "Danielle Smith asked the Trudeau glvernment in 2022 to increase immigration because wages were rising quickly.\n\nNow she is demanding lower immigration because health care isn't keeping up.\n\nSeems like Danny has always had the ability to manage immigration.\n\nSeems like another big lie",
+    "createdAt": "2026-10-04T23:17:02.519Z",
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": null,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 1,
+   "indexedAt": "2026-10-04T23:17:03.858Z"
+  },
+  {
+   "uri": "at://did:plc:lkzlxbqntha4sjy6nxxisiuu/app.bsky.feed.post/3mx3ju7c5uc2q",
+   "cid": "bafyreiby24n4r45jdmsysbpdnrg4x4ail3fr75qelixjne6iysajzbpyoe",
+   "author": {
+    "did": "did:plc:lkzlxbqntha4sjy6nxxisiuu",
+    "handle": "asmallnicolatte.bsky.social",
+    "displayName": "Nicolette 🏳️‍🌈"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "I feel like every time something gets recalled we should make a point to not buy from that brand as a whole anymore. Clearly they are opting out regulations so they care more about money saving than the health and safety of their customers.",
+    "createdAt": "2026-10-04T23:16:25.426Z",
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": null,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "indexedAt": "2026-10-04T23:16:25.364Z"
+  },
+  {
+   "uri": "at://did:plc:btdlf5paswdzy6kcxzmta4uc/app.bsky.feed.post/3mx3jrqvdn22d",
+   "cid": "bafyreibt3j3awgvw7luau55euxf7pqj3ehckomtdggth3xkkkcdlcxlwxi",
+   "author": {
+    "did": "did:plc:btdlf5paswdzy6kcxzmta4uc",
+    "handle": "dianneames.bsky.social",
+    "displayName": "Dianne Ames"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "🤔\nLet's keep it real\nObama was NOT that great.\nHe\n- let Bankers make federal banking rules\n- bailed out oligarchs - not homeowners\n- lost touch w/communities\n- cucked to GOP and gave us crumbs\n- gave us ACA (Obamacare) instead of universal health care\n\nHe wasn't the worst - but he was not the best.",
+    "createdAt": "2026-10-04T23:15:03.229Z",
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": null,
+   "replyCount": 1,
+   "repostCount": 1,
+   "likeCount": 0,
+   "indexedAt": "2026-10-04T23:15:06.365Z"
+  },
+  {
+   "uri": "at://did:plc:cguwfiesizkt4ssgx6q7d6yy/app.bsky.feed.post/3mx3jpkw3f22h",
+   "cid": "bafyreifix7ljd2fak4jrpmjb6oja5jerd7rulqdkoggbm6ugsffpso56ju",
+   "author": {
+    "did": "did:plc:cguwfiesizkt4ssgx6q7d6yy",
+    "handle": "marawilson.bsky.social",
+    "displayName": "Mara Wilson"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "I have so many memories of Veselka! And of many other 24-hour restaurants in the East Village that no longer exist.\n\nAround the Clock, Cafe Orlin, Yaffa… probably some of these were shut down for health code violations, but I was 18-22 and didn’t care about that",
+    "createdAt": "2026-10-04T23:13:49.853Z",
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": null,
+   "replyCount": 6,
+   "repostCount": 1,
+   "likeCount": 39,
+   "indexedAt": "2026-10-04T23:13:50.072Z"
+  },
+  {
+   "uri": "at://did:plc:b2s75wmh5iwhhbyafzvwblrj/app.bsky.feed.post/3mx3joow2js27",
+   "cid": "bafyreide3nmgdbndyfsqgme2a3msyki4mhpvlqnjku5nvdimmtxhm5oye4",
+   "author": {
+    "did": "did:plc:b2s75wmh5iwhhbyafzvwblrj",
+    "handle": "nomorecopays.bsky.social",
+    "displayName": "No More CoPays! Inc."
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "If you're fed up with your health insurance, join up!  You pay for health insurance via employer based plans, deducted automatically from your paycheck, or an Affordable Care Act state plan and are getting less and less insurance while paying more each year.  Join us and fight back. nomorecopays.org",
+    "createdAt": "2026-10-04T23:13:20.492Z",
+    "facets": [
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#link",
+        "uri": "https://nomorecopays.org"
+       }
+      ],
+      "index": {
+       "byteEnd": 300,
+       "byteStart": 284
+      }
+     }
+    ],
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": {
+    "external": {
+     "uri": "https://nomorecopays.org/index.html",
+     "title": "No More CoPays! Inc. — Healthcare Reform Through Education",
+     "description": "No More CoPays! Inc. educates Americans about healthcare reform, patient rights, and building a patient-centered system free from administrative barriers. A 501(c)(3) nonprofit."
+    }
+   },
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 1,
+   "indexedAt": "2026-10-04T23:13:20.661Z"
+  },
+  {
+   "uri": "at://did:plc:djmiro6az44ynuxi7eg6sc55/app.bsky.feed.post/3mx3jnvf2y22g",
+   "cid": "bafyreifndv7yxiv7sy66ewxbrj6ws5rddmegabxqor4wcvx6kbc7fmhy2i",
+   "author": {
+    "did": "did:plc:djmiro6az44ynuxi7eg6sc55",
+    "handle": "kalpa108.bsky.social",
+    "displayName": "John"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "Health Care? Oh just like every other developed country 🫂✅",
+    "createdAt": "2026-10-04T23:12:53.720Z",
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": null,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "indexedAt": "2026-10-04T23:13:48.248Z"
+  },
+  {
+   "uri": "at://did:plc:qmretbwzxr6minaqwaog6cpc/app.bsky.feed.post/3mx3jn3kdvk2u",
+   "cid": "bafyreihb2pvnhjgq65ksk3us3rippywllds66v5r3g6qwejzoaza6brnka",
+   "author": {
+    "did": "did:plc:qmretbwzxr6minaqwaog6cpc",
+    "handle": "zentec.bsky.social",
+    "displayName": "Leonid Brezhnev’s Eyebrows"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "Of course they did, if you need Medicaid, you have no money to steal.\n\nWhy give people health care when you can’t pick their pockets.",
+    "createdAt": "2026-10-04T23:12:26.630Z",
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": null,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "indexedAt": "2026-10-04T23:12:27.261Z"
+  },
+  {
+   "uri": "at://did:plc:hekfkyylnxl7lqtfid6r6jzh/app.bsky.feed.post/3mx3jmo6gug2u",
+   "cid": "bafyreihrgbnlagifzetxdtilil4nfdszm3vevy6drmn7ox3cdqirtmakuy",
+   "author": {
+    "did": "did:plc:hekfkyylnxl7lqtfid6r6jzh",
+    "handle": "technobezz.com",
+    "displayName": "Technobezz"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "California's proposed one-time 5% billionaire tax could leave Sergey Brin owing about $13 billion. Most of the revenue would fund health care, tying the wealth fight to public services.\n\nPhoto: James Duncan Davidson/O'Reilly Media, Inc. via Wikimedia Commons (CC BY 2.0)",
+    "createdAt": "2026-10-04T23:12:12.420790Z",
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": null,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "indexedAt": "2026-10-04T23:12:13.460Z"
+  },
+  {
+   "uri": "at://did:plc:kom2ceajoy6p4knb3ca6364t/app.bsky.feed.post/3mx3jhrs2vc2k",
+   "cid": "bafyreiakeeur4bifsr2lp5kru3qcijiqt6ldf5dv3czsjbtlxlztqhrxom",
+   "author": {
+    "did": "did:plc:kom2ceajoy6p4knb3ca6364t",
+    "handle": "angrywaterman.bsky.social",
+    "displayName": "Jack Cousteau ⚓️"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "What does Sarah have in common with George Bush, Dick Cheney or Donald Trump? She supports all Israeli wars, opposes universal health care and fucks off taxing the rich. Now she's attacking one of our finest candidates. Sarah Longwell is a republican.",
+    "createdAt": "2026-10-04T23:09:28.625Z",
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": null,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 1,
+   "indexedAt": "2026-10-04T23:09:29.657Z"
+  },
+  {
+   "uri": "at://did:plc:cyy3irakdgdbhcdtd4ik6aro/app.bsky.feed.post/3mx3jfzgh3222",
+   "cid": "bafyreiea5q7vj4ns6oqby76grqr65wabw6jatqo2lntwabdm344vqljwim",
+   "author": {
+    "did": "did:plc:cyy3irakdgdbhcdtd4ik6aro",
+    "handle": "thecovidinfoguy.bsky.social",
+    "displayName": "Denis - The COVID Info Guy"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "\"The hidden harms of medical gaslighting\"\n\nFibromyalgia, Long COVID, endometriosis, chronic fatigue syndrome and autoimmune disorders put patients at higher risk of “medical gaslighting,” where genuine clinical concerns are dismissed or invalidated without proper medical evaluation.",
+    "createdAt": "2026-10-04T23:08:29.523Z",
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": null,
+   "replyCount": 4,
+   "repostCount": 12,
+   "likeCount": 25,
+   "indexedAt": "2026-10-04T23:08:32.061Z"
+  },
+  {
+   "uri": "at://did:plc:zrp6vyq3stfe5zow5rxanrmw/app.bsky.feed.post/3mx3jcc3f4c2u",
+   "cid": "bafyreicredm73jnvi5zd3x6jmuaqnig63qa6tglv75ckyb3uwkmotg6gc4",
+   "author": {
+    "did": "did:plc:zrp6vyq3stfe5zow5rxanrmw",
+    "handle": "ptcontagion.bsky.social",
+    "displayName": "CUDDY"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "",
+    "createdAt": "2026-10-04T23:06:24.376Z",
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": null,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "indexedAt": "2026-10-04T23:06:28.260Z"
+  },
+  {
+   "uri": "at://did:plc:6yzfeapjbpmqnkdvhrx64jdb/app.bsky.feed.post/3mx3j7trnjc24",
+   "cid": "bafyreicinfjmufjbkksk4symjlfrlh2ih7ddgcstnhtjpps34nyir4vdle",
+   "author": {
+    "did": "did:plc:6yzfeapjbpmqnkdvhrx64jdb",
+    "handle": "vastramutualaid.myatproto.social",
+    "displayName": "Vee Astra Mutual Aid"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "Got Dread Delusion with a dono and our qpr got us Minute of Islands, so we're pretty much satisfied if that's all we get for our birthday this year. That said, creatine and electrolytes to keep our body functional or some dollars in the laser gun fund would also be nice.\n\n throne.com/veeastra/col...",
+    "createdAt": "2026-10-04T23:05:02.273Z",
+    "facets": [
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#link",
+        "uri": "https://throne.com/veeastra/collections/health-trans-care"
+       }
+      ],
+      "index": {
+       "byteEnd": 300,
+       "byteStart": 274
+      }
+     }
+    ],
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": null,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "indexedAt": "2026-10-04T23:05:02.758Z"
+  },
+  {
+   "uri": "at://did:plc:rsq3bu3hd3wyoe2eqj5mfhox/app.bsky.feed.post/3mx3j4sr3ss2m",
+   "cid": "bafyreidzkft6hhy67u47fnhugxgkkraw44j5a6yzvwe2md36fvp6p24j3m",
+   "author": {
+    "did": "did:plc:rsq3bu3hd3wyoe2eqj5mfhox",
+    "handle": "shawnalouise72.bsky.social",
+    "displayName": "Ms.ShawnaLouise"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "I guess no one told that guy and Elon that calling AI something like “SI” instead might make people think of what “SI” means in health care:  Suicidal Ideation.",
+    "createdAt": "2026-10-04T23:03:20.542Z",
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": null,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 2,
+   "indexedAt": "2026-10-04T23:03:21.358Z"
+  },
+  {
+   "uri": "at://did:plc:iejjis7d67c2ibw3wg2ceqpm/app.bsky.feed.post/3mx3iz3d7z22f",
+   "cid": "bafyreigfjj4w3ufvfsvdjdwpqo453dmian7kwdabrlqatpt43kj6kahvpm",
+   "author": {
+    "did": "did:plc:iejjis7d67c2ibw3wg2ceqpm",
+    "handle": "jmbrittain.bsky.social",
+    "displayName": "J. Brittain"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "And there are folks that want to give them control over all health care",
+    "createdAt": "2026-10-04T23:01:15.309Z",
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": null,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 1,
+   "indexedAt": "2026-10-04T23:01:16.464Z"
+  },
+  {
+   "uri": "at://did:plc:4nmwak3dwpoilgwsqlsyohib/app.bsky.feed.post/3mx3ixsp3jj2m",
+   "cid": "bafyreievnzmusg5nswldhdkcjbnevg4yhjupbz6dsnhgcx5rousoxzh23u",
+   "author": {
+    "did": "did:plc:4nmwak3dwpoilgwsqlsyohib",
+    "handle": "halfmarshall.bsky.social",
+    "displayName": null
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "\"ROBERT F. KENNEDY JR. BECOMING a huge AI cheerleader probably wasn’t on your 2026 bingo card. It certainly wasn’t on mine.\" www.thebulwark.com/p/rfk-jr-wan...",
+    "createdAt": "2026-10-04T23:00:32.705Z",
+    "facets": [
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#link",
+        "uri": "https://www.thebulwark.com/p/rfk-jr-wants-to-ai-ify-health-care-claude-says-he-is-full-of-crap?r=br2x&utm_campaign=post&utm_medium=web"
+       }
+      ],
+      "index": {
+       "byteEnd": 163,
+       "byteStart": 129
+      }
+     }
+    ],
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": {
+    "external": {
+     "uri": "https://www.thebulwark.com/p/rfk-jr-wants-to-ai-ify-health-care-claude-says-he-is-full-of-crap?r=br2x&utm_campaign=post&utm_medium=web",
+     "title": "RFK Jr. Wants to AI-ify Health Care. Claude Says He’s Full of Sh*t.",
+     "description": "Kennedy is suddenly bullish on artificial intelligence—so we asked some AI assistants to rate his vaccine claims."
+    }
+   },
+   "replyCount": 1,
+   "repostCount": 0,
+   "likeCount": 1,
+   "indexedAt": "2026-10-04T23:00:35.066Z"
+  },
+  {
+   "uri": "at://did:plc:tmxxjgfxu7sqlxofnckkyvgs/app.bsky.feed.post/3mx3ix632gc2j",
+   "cid": "bafyreicp5a3yg7hvsf3oymvlidpfyzl4na66r5roikq26evd7w7vct6bii",
+   "author": {
+    "did": "did:plc:tmxxjgfxu7sqlxofnckkyvgs",
+    "handle": "ruralremotehealth.bsky.social",
+    "displayName": "Rural and Remote Health"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "point-of-care haemoglobin A1c tests in a very remote Aboriginal and TSI community: an agreement analysis with routine laboratory testing by H Dissanayake, S Braat, G Gurruwiwi, R Gulamanda, J Tynan, L Marlow, B Harrap, K Gongnini, J Wentworth, L Sanderson and BA Biggs\n\ndoi.org/10.22605/RRH...",
+    "createdAt": "2026-10-04T23:00:11.078Z",
+    "facets": [
+     {
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#link",
+        "uri": "https://doi.org/10.22605/RRH10969"
+       }
+      ],
+      "index": {
+       "byteEnd": 293,
+       "byteStart": 270
+      }
+     }
+    ],
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": {
+    "external": {
+     "uri": "https://doi.org/10.22605/RRH10969",
+     "title": "The utility of point-of-care haemoglobin A1c tests in a very remote Aboriginal and Torres Strait Islander community: an agreement analysis with routine laboratory testing",
+     "description": "Published article 10969 Rural and Remote Health"
+    }
+   },
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "indexedAt": "2026-10-04T23:00:14.260Z"
+  },
+  {
+   "uri": "at://did:plc:hiiw5zvwhnoybjepbxzgaa2s/app.bsky.feed.post/3mx3j5xwwz22f",
+   "cid": "bafyreibteqskmbgivtbf2lo6ct3dy4ln667mgtuqly6tqc3ogswkyrktc4",
+   "author": {
+    "did": "did:plc:hiiw5zvwhnoybjepbxzgaa2s",
+    "handle": "robertaao.bsky.social",
+    "displayName": "Roberta"
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "text": "The health insurance industry in the US is a lot more complex than it needs to be. It's also more expensive than it should be.\nWe have had, (probably not currently) state of the art medical care available, but not accessible unless one has the money to pay for it. \nWe need universal single payer.",
+    "createdAt": "2026-10-04T23:03:59.533Z",
+    "langs": [
+     "en"
+    ]
+   },
+   "embed": null,
+   "replyCount": 0,
+   "repostCount": 0,
+   "likeCount": 0,
+   "indexedAt": "2026-10-04T22:58:45.959Z"
+  }
+ ]
+}

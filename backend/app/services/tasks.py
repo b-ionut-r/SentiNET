@@ -12,7 +12,7 @@ import logging
 import re
 import time
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Generic, TypeVar
 from urllib.parse import urlsplit
 
@@ -36,12 +36,14 @@ _background: set[asyncio.Task[Any]] = set()
 
 @dataclass
 class Outcome(Generic[T]):
-    """Result of one bounded task."""
+    """Result of one bounded task. `pending` is the still-running call when a
+    kept-alive task outlived its time box (callers may watch it complete)."""
 
     value: T | None = None
     error: str | None = None
     ms: int = 0
     timed_out: bool = False
+    pending: asyncio.Task[Any] | None = field(default=None, repr=False, compare=False)
 
     @property
     def ok(self) -> bool:
@@ -88,10 +90,38 @@ def _secs(seconds: float) -> str:
     return f"{seconds:.0f}s" if seconds >= 2 else f"{seconds:.1f}s"
 
 
+def _retrieve(task: asyncio.Task[Any]) -> None:
+    """Mark a cancelled task's outcome as retrieved (no "exception never retrieved" noise)."""
+    if not task.cancelled():
+        task.exception()
+
+
 def _reap(task: asyncio.Task[Any]) -> None:
     _background.discard(task)
     if not task.cancelled() and task.exception() is not None:
         logger.debug("background task %s failed: %s", task.get_name(), task.exception())
+
+
+async def _await_task(task: asyncio.Task[T], timeout: float, until: asyncio.Event | None, grace: float) -> T:
+    """`task`'s result within `timeout` — cut to `grace` seconds after `until` is set.
+
+    Never cancels `task`; raises `TimeoutError` when it is still running.
+    """
+    loop = asyncio.get_running_loop()
+    end = loop.time() + timeout
+    if until is None:
+        await asyncio.wait({task}, timeout=timeout)
+    else:
+        waiter = asyncio.ensure_future(until.wait())
+        try:
+            await asyncio.wait({task, waiter}, timeout=timeout, return_when=asyncio.FIRST_COMPLETED)
+        finally:
+            waiter.cancel()
+        if not task.done() and until.is_set():
+            await asyncio.wait({task}, timeout=max(0.0, min(grace, end - loop.time())))
+    if not task.done():
+        raise TimeoutError
+    return task.result()
 
 
 async def run_bounded(
@@ -100,39 +130,41 @@ async def run_bounded(
     *,
     keep_alive: bool = False,
     name: str = "task",
+    until: asyncio.Event | None = None,
+    grace: float = 0.0,
 ) -> Outcome[T]:
     """Await `factory()` for at most `timeout` seconds; never raises (except cancellation).
 
-    With `keep_alive=True` a call that times out is *not* cancelled: it keeps
-    running in the background so a cached provider call still completes and
-    warms the cache for the next analysis (GDELT's 1 req/5 s budget makes
-    this valuable).
+    `until` + `grace` implement a tail rule: once the event is set (e.g. "all
+    core data is in"), wait at most `grace` more seconds instead of the full
+    time box. With `keep_alive=True` a call that times out is *not* cancelled:
+    it keeps running in the background (returned as `Outcome.pending`) so a
+    cached provider call still completes and warms its cache — GDELT's
+    1 request / 5 s budget makes this valuable.
     """
     started = time.perf_counter()
 
     def elapsed() -> int:
         return int((time.perf_counter() - started) * 1000)
 
-    task: asyncio.Task[T] | None = None
+    task: asyncio.Task[T] = asyncio.ensure_future(factory())
+    task.set_name(f"bounded:{name}")
     try:
-        if keep_alive:
-            task = asyncio.ensure_future(factory())
-            task.set_name(f"bounded:{name}")
-            value = await asyncio.wait_for(asyncio.shield(task), timeout)
-        else:
-            value = await asyncio.wait_for(factory(), timeout)
+        value = await _await_task(task, timeout, until, grace)
         return Outcome(value=value, ms=elapsed())
     except asyncio.CancelledError:
-        if task is not None:
-            task.cancel()
+        task.cancel()
         raise
-    except (asyncio.TimeoutError, TimeoutError):
-        if task is not None and not task.done():
+    except TimeoutError:
+        waited = _secs(elapsed() / 1000)
+        if keep_alive and not task.done():
             _background.add(task)
             task.add_done_callback(_reap)
-            return Outcome(error=f"still loading after {_secs(timeout)}; ready on next refresh",
-                           ms=elapsed(), timed_out=True)
-        return Outcome(error=f"timed out after {_secs(timeout)}", ms=elapsed(), timed_out=True)
+            return Outcome(error=f"still loading after {waited}; continuing in the background (reload to include)",
+                           ms=elapsed(), timed_out=True, pending=task)
+        task.cancel()
+        task.add_done_callback(_retrieve)
+        return Outcome(error=f"timed out after {waited}", ms=elapsed(), timed_out=True)
     except Exception as exc:  # noqa: BLE001 - a provider failure must never sink the analysis
         logger.info("%s failed: %s", name, describe_error(exc))
         return Outcome(error=describe_error(exc), ms=elapsed())

@@ -1,0 +1,870 @@
+{
+ "symbol": {
+  "id": 7396,
+  "symbol": "TGT",
+  "title": "Target Corp",
+  "watchlist_count": 50138
+ },
+ "cursor": {
+  "more": true,
+  "since": 665311946,
+  "max": 664620235
+ },
+ "response": {
+  "status": 200
+ },
+ "messages": [
+  {
+   "id": 665311946,
+   "body": "$TGT Target lowers prices on nearly 2,000 home, apparel products \n \nTarget Corporation is lowering prices on nearly 2,000 home and apparel &amp; accessories items, helping busy families find even more affordable options as holiday shopping gets underway. The latest reductions build on the more than 10,000 prices Target has lowered over the past year, continuing to make it easier for families to afford the things that matter to them. Guests will see price reductions across nearly 2,000 on-trend items and refreshed staples, including: Apparel and shoes: Lower prices across women&#39;s, men&#39;s, infant and toddler apparel and shoes for the entire family, with select items priced 20% or more lower than last year.  \n \nExamples include: Women&#39;s long-sleeve tees are now $12, down from $15; The average price of women&#39;s shoes is $35, down from $40 last year - with nearly 70% of new items priced below last year&#39;s styles; The average price of kids&#39; rain and winter boots is down approximately 15% from last year. Home: A fully refreshed bedding assortment, with prices 15% lower, on average, including: Threshold queen comforters are now $69, down from $89; Room Essentials queen comforters are now $40, down from $50; Threshold performance queen sheets are now $50, down from $55.",
+   "created_at": "2026-09-29T11:22:22Z",
+   "entities": {
+    "sentiment": null
+   },
+   "likes": {
+    "total": 1,
+    "user_ids": [
+     3819027
+    ]
+   },
+   "user": {
+    "id": 3960872,
+    "username": "DonCorleone77",
+    "followers": 76964
+   },
+   "symbols": [
+    {
+     "symbol": "TGT"
+    }
+   ]
+  },
+  {
+   "id": 665290774,
+   "body": "$INTU Considering $WMT  trades at 33 forward P/E, $AAPL  at 35 forward P/E with 15% revenue growth from super cycle,$TGT  at 16 forward P/E with 5% revenue growth rate… it’s an inconsistent market that folks at Situational Awareness saw perfect opportunity to manipulate back in January. That negative sentiment they created will probably persist into next year unfortunately $ADBE",
+   "created_at": "2026-09-28T21:54:44Z",
+   "entities": {
+    "sentiment": null
+   },
+   "likes": {
+    "total": 1,
+    "user_ids": [
+     3819027
+    ]
+   },
+   "user": {
+    "id": 77847,
+    "username": "StockTrax",
+    "followers": 98
+   },
+   "symbols": [
+    {
+     "symbol": "INTU"
+    },
+    {
+     "symbol": "WMT"
+    },
+    {
+     "symbol": "AAPL"
+    },
+    {
+     "symbol": "TGT"
+    },
+    {
+     "symbol": "ADBE"
+    }
+   ]
+  },
+  {
+   "id": 665266579,
+   "body": "$ESTA https://www.forbes.com/sites/emmasandler/2026/08/17/is-motiva-preserv-the-rolls-royce-of-breast-implants/ \n \n$TJX $TGT $LULU $PTON",
+   "created_at": "2026-09-28T17:44:50Z",
+   "entities": {
+    "sentiment": {
+     "basic": "Bullish"
+    }
+   },
+   "likes": {
+    "total": 2,
+    "user_ids": [
+     900663,
+     3819027
+    ]
+   },
+   "user": {
+    "id": 4638769,
+    "username": "MessAndGetHorns",
+    "followers": 366
+   },
+   "symbols": [
+    {
+     "symbol": "ESTA"
+    },
+    {
+     "symbol": "TJX"
+    },
+    {
+     "symbol": "TGT"
+    },
+    {
+     "symbol": "LULU"
+    },
+    {
+     "symbol": "PTON"
+    }
+   ]
+  },
+  {
+   "id": 665258959,
+   "body": "$TGT this is from a member after making my calls 🔥🔥🔥🔥🔥",
+   "created_at": "2026-09-28T16:38:42Z",
+   "entities": {
+    "sentiment": null
+   },
+   "likes": {
+    "total": 1,
+    "user_ids": [
+     3819027
+    ]
+   },
+   "user": {
+    "id": 11091971,
+    "username": "Primeoptionsst",
+    "followers": 87
+   },
+   "symbols": [
+    {
+     "symbol": "TGT"
+    }
+   ]
+  },
+  {
+   "id": 665258766,
+   "body": "$TGT swing these",
+   "created_at": "2026-09-28T16:37:04Z",
+   "entities": {
+    "sentiment": null
+   },
+   "likes": {
+    "total": 1,
+    "user_ids": [
+     3819027
+    ]
+   },
+   "reshares": {
+    "reshared_count": 1,
+    "user_ids": [
+     11091971
+    ]
+   },
+   "user": {
+    "id": 11091971,
+    "username": "Primeoptionsst",
+    "followers": 87
+   },
+   "symbols": [
+    {
+     "symbol": "TGT"
+    }
+   ]
+  },
+  {
+   "id": 665254108,
+   "body": "$AAPL $NVDA $TGT $SBUX  all organic",
+   "created_at": "2026-09-28T16:00:39Z",
+   "entities": {
+    "sentiment": null
+   },
+   "likes": {
+    "total": 1,
+    "user_ids": [
+     11126373
+    ]
+   },
+   "user": {
+    "id": 5057510,
+    "username": "dirk805",
+    "followers": 98
+   },
+   "symbols": [
+    {
+     "symbol": "AAPL"
+    },
+    {
+     "symbol": "NVDA"
+    },
+    {
+     "symbol": "TGT"
+    },
+    {
+     "symbol": "SBUX"
+    }
+   ]
+  },
+  {
+   "id": 665240753,
+   "body": "$TGT  167.5 .34  10/02",
+   "created_at": "2026-09-28T14:23:30Z",
+   "entities": {
+    "sentiment": null
+   },
+   "likes": {
+    "total": 2,
+    "user_ids": [
+     3860414,
+     3819027
+    ]
+   },
+   "reshares": {
+    "reshared_count": 1,
+    "user_ids": [
+     11091971
+    ]
+   },
+   "user": {
+    "id": 11091971,
+    "username": "Primeoptionsst",
+    "followers": 87
+   },
+   "symbols": [
+    {
+     "symbol": "TGT"
+    }
+   ]
+  },
+  {
+   "id": 665238346,
+   "body": "$TGT: “U.S., China Reach $60 Billion Tariff Deal; These Stocks Are Moving” (Investor&#39;s Business Daily). Target ranks 125th of 2,951 on the Quality Score today",
+   "created_at": "2026-09-28T14:07:53Z",
+   "entities": {
+    "sentiment": null
+   },
+   "likes": {
+    "total": 1,
+    "user_ids": [
+     3819027
+    ]
+   },
+   "user": {
+    "id": 4477110,
+    "username": "BigAllergies",
+    "followers": 45
+   },
+   "symbols": [
+    {
+     "symbol": "TGT"
+    }
+   ]
+  },
+  {
+   "id": 665235733,
+   "body": "Adobe Analytics: Projected $275.1B in US online sales b/n Nov. 1 &amp; Dec. 31, up + 6.7% y/y\n\nAdobe expects Cyber Monday to remain the biggest online shopping day of the season, forecasting $15.1B in a single day of sales, or up +6.2% y/y. \n\nAdobe projects Black Friday sales will grow at a stronger clip, up +9.2% to $12.9B, due in part to having the biggest discounts on categories like TVs, apparel &amp; appliances.\n\nAdobe said consumers continue to shop for the holidays earlier, w/ $AMZN Prime Day sales event in Oct driving further discounts across US retailers well ahead of Nov. Adobe expects online spending to hit $95.8B in October, up +8% y/y\n\nAdobe also expects consumers to stock up on essentials during holiday deals, projecting online sales of personal hygiene products will more than double-&amp; clothing basics will more than triple-during Cyber Week.\n\nAdobe said its f/casts are based on more than 1T visits to US retail sites, 100M SKUs &amp; 18 product categories\n\n$WMT $COST $TGT $XRT",
+   "created_at": "2026-09-28T13:51:42Z",
+   "entities": {
+    "sentiment": null
+   },
+   "likes": {
+    "total": 1,
+    "user_ids": [
+     6745641
+    ]
+   },
+   "user": {
+    "id": 11403,
+    "username": "Ro_Patel",
+    "followers": 44982
+   },
+   "symbols": [
+    {
+     "symbol": "AMZN"
+    },
+    {
+     "symbol": "WMT"
+    },
+    {
+     "symbol": "COST"
+    },
+    {
+     "symbol": "TGT"
+    },
+    {
+     "symbol": "XRT"
+    }
+   ]
+  },
+  {
+   "id": 665205369,
+   "body": "#Amazon Vs. #Meta&#39;s Muse: The Battle For #Retail, And What It Means For Investors $META $AMZN $SHOP \nAlso Mentions: $TGT $GOOG https://talkmarkets.com/article/amazon-vs-metas-muse-the-battle-for-retail-and-what-it-means-for-investors",
+   "created_at": "2026-09-27T22:36:48Z",
+   "entities": {
+    "sentiment": null
+   },
+   "user": {
+    "id": 296805,
+    "username": "TalkMarkets",
+    "followers": 32069
+   },
+   "symbols": [
+    {
+     "symbol": "META"
+    },
+    {
+     "symbol": "AMZN"
+    },
+    {
+     "symbol": "SHOP"
+    },
+    {
+     "symbol": "TGT"
+    },
+    {
+     "symbol": "GOOG"
+    }
+   ]
+  },
+  {
+   "id": 665194890,
+   "body": "$TGT \n \nOne of the quieter retail turnarounds this year: Target is up 61% year to date, and the traffic data underneath is why it looks real. \n \nComps rose 3.8% last quarter after falling 1.9% the year before. Traffic did the work, up 3.6% while average ticket barely moved. People are coming back, not just spending more per trip. \n \nThe headline EPS was flattered by a 994M tariff refund. The cleaner read: ex-refund EPS still grew 20% and beat consensus, and management raised the full-year sales guide to around 5%. \n \nSept 23 brought the dividend declaration: 1.16 per share payable Dec 1. Per the company&#39;s own release, it is the 237th consecutive dividend since 1967.",
+   "created_at": "2026-09-27T15:00:58Z",
+   "entities": {
+    "sentiment": null
+   },
+   "user": {
+    "id": 11124197,
+    "username": "KryptonResearch14",
+    "followers": 29
+   },
+   "symbols": [
+    {
+     "symbol": "TGT"
+    }
+   ]
+  },
+  {
+   "id": 665186719,
+   "body": "$TGT",
+   "created_at": "2026-09-27T01:43:12Z",
+   "entities": {
+    "sentiment": null
+   },
+   "conversation": {
+    "parent_message_id": 665186719,
+    "in_reply_to_message_id": null,
+    "parent": true,
+    "replies": 1
+   },
+   "user": {
+    "id": 619769,
+    "username": "OptionsPlayers",
+    "followers": 17666
+   },
+   "symbols": [
+    {
+     "symbol": "TGT"
+    }
+   ]
+  },
+  {
+   "id": 665122961,
+   "body": ".Thinking of Buying Costco? Here’s Why I’d Keep It on a Short Leash $COST $WMT $TGT  #MarketRecon .. https://pro.thestreet.com/trade-ideas/thinking-of-buying-costco-heres-why-id-keep-it-on-a-short-leash",
+   "created_at": "2026-09-25T15:51:27Z",
+   "entities": {
+    "sentiment": null
+   },
+   "likes": {
+    "total": 1,
+    "user_ids": [
+     10326660
+    ]
+   },
+   "user": {
+    "id": 286647,
+    "username": "Sarge986",
+    "followers": 844
+   },
+   "symbols": [
+    {
+     "symbol": "COST"
+    },
+    {
+     "symbol": "WMT"
+    },
+    {
+     "symbol": "TGT"
+    }
+   ]
+  },
+  {
+   "id": 665117623,
+   "body": "$WMT $TGT $SFM \nWmt and sfm are very attractive",
+   "created_at": "2026-09-25T15:09:15Z",
+   "entities": {
+    "sentiment": null
+   },
+   "user": {
+    "id": 5869427,
+    "username": "Srinivas111",
+    "followers": 682
+   },
+   "symbols": [
+    {
+     "symbol": "WMT"
+    },
+    {
+     "symbol": "TGT"
+    },
+    {
+     "symbol": "SFM"
+    }
+   ]
+  },
+  {
+   "id": 665059744,
+   "body": "$TGT",
+   "created_at": "2026-09-24T20:12:42Z",
+   "entities": {
+    "sentiment": {
+     "basic": "Bullish"
+    }
+   },
+   "user": {
+    "id": 51989,
+    "username": "opsguy",
+    "followers": 36
+   },
+   "symbols": [
+    {
+     "symbol": "TGT"
+    }
+   ]
+  },
+  {
+   "id": 665049427,
+   "body": "$TGT $165 by the end of this week",
+   "created_at": "2026-09-24T18:53:26Z",
+   "entities": {
+    "sentiment": null
+   },
+   "likes": {
+    "total": 2,
+    "user_ids": [
+     4306875,
+     1101302
+    ]
+   },
+   "user": {
+    "id": 10108751,
+    "username": "felixshen2008",
+    "followers": 4
+   },
+   "symbols": [
+    {
+     "symbol": "TGT"
+    }
+   ]
+  },
+  {
+   "id": 665033781,
+   "body": "Imagine dollar cost averaging into $INTC when it was the most hated ticker on wall street, or $TGT last year about this time when it seemed like their growth was completely dead. or what about $SLV.X when it was the laughingstock in the commodity space. \n \nI&#39;m convinced the only was to make decent gains these days is to look for the most hated companies that keep fighting for a turn around. That&#39;s why I&#39;m accumulating $SPCE  \n \nOther space names look great and all but they are already loved. To me, this seems like the most asymmetrical setup out there. I mean just look at all the engineering that has been put into this to ensure that the reliability, accuracy, and safety is perfected.  \n \nWith all that being said, there are a lot of people that have lost huge on this. It&#39;s been a long painful road for the investors that took the bet early.  I wish that pain upon no one as I&#39;ve gone through it many times. That&#39;s why looking for the names that are the most hated create the best opportunities.",
+   "created_at": "2026-09-24T16:50:52Z",
+   "entities": {
+    "sentiment": null
+   },
+   "likes": {
+    "total": 10,
+    "user_ids": [
+     1767436,
+     10956844,
+     6698827,
+     5202155,
+     8812865,
+     8917587,
+     5391378,
+     11054914,
+     1511803,
+     3937142
+    ]
+   },
+   "user": {
+    "id": 6751235,
+    "username": "long_watch",
+    "followers": 1
+   },
+   "symbols": [
+    {
+     "symbol": "INTC"
+    },
+    {
+     "symbol": "TGT"
+    },
+    {
+     "symbol": "SLV.X"
+    },
+    {
+     "symbol": "SPCE"
+    }
+   ]
+  },
+  {
+   "id": 664958348,
+   "body": "$TGT looks like this overpriced turd is finally getting smacked with reality. love it",
+   "created_at": "2026-09-23T20:25:23Z",
+   "entities": {
+    "sentiment": null
+   },
+   "likes": {
+    "total": 1,
+    "user_ids": [
+     8790656
+    ]
+   },
+   "user": {
+    "id": 7558523,
+    "username": "ItsCarRamRod",
+    "followers": 185
+   },
+   "symbols": [
+    {
+     "symbol": "TGT"
+    }
+   ]
+  },
+  {
+   "id": 664923764,
+   "body": "$MCD  this is a good indication to know where consumers are at the macro level. It begs the question why many consumers names like $TGT are still riding close to 52-week high. Red flags everywhere across this market. If anything is close to 52-week high on stretched valuation like $AAPL $NET , it is a good time to re-evaluate. Even better, take the opposite trade.",
+   "created_at": "2026-09-23T16:03:52Z",
+   "entities": {
+    "sentiment": null
+   },
+   "likes": {
+    "total": 1,
+    "user_ids": [
+     8790656
+    ]
+   },
+   "conversation": {
+    "parent_message_id": 664923764,
+    "in_reply_to_message_id": null,
+    "parent": true,
+    "replies": 1
+   },
+   "user": {
+    "id": 77847,
+    "username": "StockTrax",
+    "followers": 98
+   },
+   "symbols": [
+    {
+     "symbol": "MCD"
+    },
+    {
+     "symbol": "TGT"
+    },
+    {
+     "symbol": "AAPL"
+    },
+    {
+     "symbol": "NET"
+    }
+   ]
+  },
+  {
+   "id": 664912741,
+   "body": "@kbar3870 ahahahaha ok keep shopping @ $TGT",
+   "created_at": "2026-09-23T14:51:09Z",
+   "entities": {
+    "sentiment": null
+   },
+   "conversation": {
+    "parent_message_id": 664906902,
+    "in_reply_to_message_id": 664912486,
+    "parent": false,
+    "replies": 0
+   },
+   "user": {
+    "id": 1221477,
+    "username": "JohnAnthony_",
+    "followers": 108
+   },
+   "symbols": [
+    {
+     "symbol": "TGT"
+    }
+   ]
+  },
+  {
+   "id": 664901761,
+   "body": "$TGT,  $WMT, both doing grocery sell by App,  online,   $META -Muse insta- grocery all bs",
+   "created_at": "2026-09-23T13:53:48Z",
+   "entities": {
+    "sentiment": {
+     "basic": "Bearish"
+    }
+   },
+   "conversation": {
+    "parent_message_id": 664901761,
+    "in_reply_to_message_id": null,
+    "parent": true,
+    "replies": 1
+   },
+   "user": {
+    "id": 5773299,
+    "username": "Jack90",
+    "followers": 567
+   },
+   "symbols": [
+    {
+     "symbol": "TGT"
+    },
+    {
+     "symbol": "WMT"
+    },
+    {
+     "symbol": "META"
+    }
+   ]
+  },
+  {
+   "id": 664869456,
+   "body": "$PLTR Jeffries Brent Thill needs to be on $F $WMT $BRK.A $TGT !!! \n \nNot the #1 Ai Stock in the WORLD!!!",
+   "created_at": "2026-09-23T00:47:30Z",
+   "entities": {
+    "sentiment": null
+   },
+   "likes": {
+    "total": 6,
+    "user_ids": [
+     4424924,
+     11085415,
+     4652429,
+     3326188,
+     3226534,
+     4918465
+    ]
+   },
+   "user": {
+    "id": 3326188,
+    "username": "AshHydrogen",
+    "followers": 2115
+   },
+   "symbols": [
+    {
+     "symbol": "PLTR"
+    },
+    {
+     "symbol": "F"
+    },
+    {
+     "symbol": "WMT"
+    },
+    {
+     "symbol": "BRK.A"
+    },
+    {
+     "symbol": "TGT"
+    }
+   ]
+  },
+  {
+   "id": 664868781,
+   "body": "$TGT",
+   "created_at": "2026-09-23T00:32:19Z",
+   "entities": {
+    "sentiment": null
+   },
+   "likes": {
+    "total": 1,
+    "user_ids": [
+     4415228
+    ]
+   },
+   "user": {
+    "id": 9689816,
+    "username": "SWMG",
+    "followers": 0
+   },
+   "symbols": [
+    {
+     "symbol": "TGT"
+    }
+   ]
+  },
+  {
+   "id": 664850627,
+   "body": "$TWLO $ABNB $TGT $SNOW  \nTWLO Up another 15% ...  \nI find myself just going straight to the C² Calendar component. \nI&#39;m not sure why, it just makes like so E-Z.",
+   "created_at": "2026-09-22T20:09:41Z",
+   "entities": {
+    "sentiment": null
+   },
+   "user": {
+    "id": 314448,
+    "username": "WOLFSTREET",
+    "followers": 4119
+   },
+   "symbols": [
+    {
+     "symbol": "TWLO"
+    },
+    {
+     "symbol": "ABNB"
+    },
+    {
+     "symbol": "TGT"
+    },
+    {
+     "symbol": "SNOW"
+    }
+   ]
+  },
+  {
+   "id": 664828552,
+   "body": "$TGT Great 1 year chart. Bought some at 158.85",
+   "created_at": "2026-09-22T17:24:23Z",
+   "entities": {
+    "sentiment": null
+   },
+   "likes": {
+    "total": 1,
+    "user_ids": [
+     4415228
+    ]
+   },
+   "user": {
+    "id": 4949451,
+    "username": "john714",
+    "followers": 29
+   },
+   "symbols": [
+    {
+     "symbol": "TGT"
+    }
+   ]
+  },
+  {
+   "id": 664810869,
+   "body": "$TGT",
+   "created_at": "2026-09-22T15:05:19Z",
+   "entities": {
+    "sentiment": null
+   },
+   "user": {
+    "id": 1349438,
+    "username": "GeneralGainz",
+    "followers": 79
+   },
+   "symbols": [
+    {
+     "symbol": "TGT"
+    }
+   ]
+  },
+  {
+   "id": 664791045,
+   "body": "$TGT 40 down !!!😮",
+   "created_at": "2026-09-22T13:03:08Z",
+   "entities": {
+    "sentiment": null
+   },
+   "user": {
+    "id": 491226,
+    "username": "lnoa",
+    "followers": 59
+   },
+   "symbols": [
+    {
+     "symbol": "TGT"
+    }
+   ]
+  },
+  {
+   "id": 664732053,
+   "body": "$NKE For all the &quot;go woke go broke&quot; brain dead posters, how did that MAGA cancelation of the brand work out on $TGT and $BUD stock?",
+   "created_at": "2026-09-21T17:27:15Z",
+   "entities": {
+    "sentiment": {
+     "basic": "Bullish"
+    }
+   },
+   "likes": {
+    "total": 2,
+    "user_ids": [
+     6947064,
+     1562635
+    ]
+   },
+   "conversation": {
+    "parent_message_id": 664732053,
+    "in_reply_to_message_id": null,
+    "parent": true,
+    "replies": 1
+   },
+   "user": {
+    "id": 10072521,
+    "username": "sooo0O00oOoO0ooor",
+    "followers": 143
+   },
+   "symbols": [
+    {
+     "symbol": "NKE"
+    },
+    {
+     "symbol": "TGT"
+    },
+    {
+     "symbol": "BUD"
+    }
+   ]
+  },
+  {
+   "id": 664624874,
+   "body": "$NKE ready for next week ! When wokeness ends , Bottom is in !! \n$TGT $DIS end wokeness is inevitable.",
+   "created_at": "2026-09-18T22:16:52Z",
+   "entities": {
+    "sentiment": {
+     "basic": "Bullish"
+    }
+   },
+   "likes": {
+    "total": 1,
+    "user_ids": [
+     3778930
+    ]
+   },
+   "user": {
+    "id": 1611524,
+    "username": "MissionImpossibl",
+    "followers": 321
+   },
+   "symbols": [
+    {
+     "symbol": "NKE"
+    },
+    {
+     "symbol": "TGT"
+    },
+    {
+     "symbol": "DIS"
+    }
+   ]
+  },
+  {
+   "id": 664620235,
+   "body": "$TGT",
+   "created_at": "2026-09-18T20:59:07Z",
+   "entities": {
+    "sentiment": {
+     "basic": "Bullish"
+    }
+   },
+   "user": {
+    "id": 51989,
+    "username": "opsguy",
+    "followers": 36
+   },
+   "symbols": [
+    {
+     "symbol": "TGT"
+    }
+   ]
+  }
+ ]
+}

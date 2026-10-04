@@ -22,7 +22,7 @@ export function VerdictHero({ a }: { a: Analysis }) {
   const v = a.verdict;
   const p = polarityOf100(v.score);
   return (
-    <section id="verdict" className="panel relative scroll-mt-28 overflow-hidden shadow-hero" aria-label="SentiNET verdict">
+    <section id="verdict" className="panel relative scroll-mt-36 md:scroll-mt-28 overflow-hidden shadow-hero" aria-label="SentiNET verdict">
       <div
         className="pointer-events-none absolute inset-0"
         style={{ background: `radial-gradient(520px 260px at 140px 120px, ${toneVar(p, 0.09)}, transparent 70%)` }}

@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/"
+  xmlns:foaf="http://xmlns.com/foaf/0.1/" xmlns:og="http://ogp.me/ns#"
+  xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#" xmlns:schema="http://schema.org/"
+  xmlns:sioc="http://rdfs.org/sioc/ns#" xmlns:sioct="http://rdfs.org/sioc/types#"
+  xmlns:skos="http://www.w3.org/2004/02/skos/core#" xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
+  xmlns:nasdaq="http://nasdaq.com/reference/feeds/1.0" version="2.0" xml:base="https://www.nasdaq.com/feed/rssoutbound">
+ <channel>
+  <title>GOOGL Feed</title>
+  <link>https://www.nasdaq.com/feed/rssoutbound</link>
+  <description>This feed is responsible for generating the rss feed related to the topic GOOGL</description>
+  <language>en</language>
+  <item>
+   <title>Stocks Settle Higher as Fed Rate Hike Concerns Ease</title>
+   <link>https://www.nasdaq.com/articles/stocks-settle-higher-fed-rate-hike-concerns-ease</link>
+   <description>
+        The S&amp;P 500 Index ($SPX ) (SPY ) closed up by +0.73% on Friday, the Dow Jones Industrial Average ($DOWI ) (DIA ) closed up by +0.49%, and the Nasdaq 100 Index ($IUXX ) (QQQ ) closed up +1.00%.  December E-mini S&amp;P futures (ESZ26 ) rose +0.73%, and December E-mini...
+    </description>
+   <pubDate>Sun, 04 Oct 2026 23:16:46 +0000</pubDate>
+   <guid isPermaLink="true">https://www.nasdaq.com/articles/stocks-settle-higher-fed-rate-hike-concerns-ease?time=1791155806</guid>
+   <dc:creator>Barchart</dc:creator>
+   <category>Stocks</category>
+   <nasdaq:tickers>GOOGL,AMAT,AAPL,AVGO,ADI,TXN,ASML,MSFT,NTAP,TSLA,IBM,STX,WDC,AMD,LRCX,GLOB,CTSH,SPY,DIA,ON,KLAC,NVDA,META,NKE,ACN,QQQ,EPAM,SOXX,MCHP,ARM,HPE,AMZN,SYNA</nasdaq:tickers>
+  </item>
+  <item>
+   <title>Is Netflix (NFLX) Stock a Buy?</title>
+   <link>https://www.nasdaq.com/articles/netflix-nflx-stock-buy</link>
+   <description>
+        Key PointsNetflix is huge and still growing.
+    </description>
+   <pubDate>Sun, 04 Oct 2026 19:25:00 +0000</pubDate>
+   <guid isPermaLink="true">https://www.nasdaq.com/articles/netflix-nflx-stock-buy?time=1791141900</guid>
+   <dc:creator>The Motley Fool</dc:creator>
+   <category>Markets</category>
+   <nasdaq:tickers>NFLX,NFLX,GOOGL,AAPL,AMZN,KO,PEP,GOOG</nasdaq:tickers>
+  </item>
+  <item>
+   <title>Broadcom vs. Micron: Which Semiconductor Stock Is the Better AI Buy over the Next 3 Years?</title>
+   <link>https://www.nasdaq.com/articles/broadcom-vs-micron-which-semiconductor-stock-better-ai-buy-over-next-3-years</link>
+   <description>
+        Key PointsMicron and Broadcom are key players in the AI infrastructure ecosystem.
+    </description>
+   <pubDate>Sun, 04 Oct 2026 09:59:00 +0000</pubDate>
+   <guid isPermaLink="true">https://www.nasdaq.com/articles/broadcom-vs-micron-which-semiconductor-stock-better-ai-buy-over-next-3-years?time=1791107940</guid>
+   <dc:creator>The Motley Fool</dc:creator>
+   <category>Markets</category>
+   <nasdaq:tickers>MU,MU,AVGO,META,GOOGL,GOOG</nasdaq:tickers>
+  </item>
+  <item>
+   <title>Alphabet Reported Negative Free Cash Flow for the First Time Ever. Here's Why That Milestone Matters for Shareholders.</title>
+   <link>https://www.nasdaq.com/articles/alphabet-reported-negative-free-cash-flow-first-time-ever-heres-why-milestone-matters</link>
+   <description>
+        Key PointsAlphabet's capital expenditures spiked 100% year over year in Q2.
+    </description>
+   <pubDate>Sun, 04 Oct 2026 09:51:00 +0000</pubDate>
+   <guid isPermaLink="true">https://www.nasdaq.com/articles/alphabet-reported-negative-free-cash-flow-first-time-ever-heres-why-milestone-matters?time=1791107460</guid>
+   <dc:creator>The Motley Fool</dc:creator>
+   <category>Markets</category>
+   <nasdaq:tickers>GOOG,GOOG,GOOGL</nasdaq:tickers>
+  </item>
+  <item>
+   <title>2 Magnificent Seven Stocks to Buy and Hold for the Rest of the Decade</title>
+   <link>https://www.nasdaq.com/articles/2-magnificent-seven-stocks-buy-and-hold-rest-decade</link>
+   <description>
+        Key PointsMeta's second-quarter revenue climbed 28% from a year ago.
+    </description>
+   <pubDate>Sun, 04 Oct 2026 09:37:01 +0000</pubDate>
+   <guid isPermaLink="true">https://www.nasdaq.com/articles/2-magnificent-seven-stocks-buy-and-hold-rest-decade?time=1791106621</guid>
+   <dc:creator>The Motley Fool</dc:creator>
+   <category>Markets</category>
+   <nasdaq:tickers>META,META,GOOGL,GOOG</nasdaq:tickers>
+  </item>
+  <item>
+   <title>What Is Market Cap? A Foolish Analyst's Plain-English Guide to the Metric That Separates Winners From Losers.</title>
+   <link>https://www.nasdaq.com/articles/what-market-cap-foolish-analysts-plain-english-guide-metric-separates-winners-losers</link>
+   <description>
+        Key PointsMarket capitalization, or "market cap," is a way of measuring companies' size and value based on current stock market prices.
+    </description>
+   <pubDate>Sun, 04 Oct 2026 09:20:00 +0000</pubDate>
+   <guid isPermaLink="true">https://www.nasdaq.com/articles/what-market-cap-foolish-analysts-plain-english-guide-metric-separates-winners-losers?time=1791105600</guid>
+   <dc:creator>The Motley Fool</dc:creator>
+   <category>Markets</category>
+   <nasdaq:tickers>GOOGL,GOOGL,AAPL,NVDA,IWM,VOO,GOOG,IJJ</nasdaq:tickers>
+  </item>
+  <item>
+   <title>Better Quantum Computing Stock: Alphabet vs. IonQ</title>
+   <link>https://www.nasdaq.com/articles/better-quantum-computing-stock-alphabet-vs-ionq</link>
+   <description>
+        Key PointsIonQ and Alphabet have differing approaches to quantum computing.
+    </description>
+   <pubDate>Sun, 04 Oct 2026 06:05:00 +0000</pubDate>
+   <guid isPermaLink="true">https://www.nasdaq.com/articles/better-quantum-computing-stock-alphabet-vs-ionq?time=1791093900</guid>
+   <dc:creator>The Motley Fool</dc:creator>
+   <category>Markets</category>
+   <nasdaq:tickers>GOOGL,GOOGL,GOOG,IONQ</nasdaq:tickers>
+  </item>
+  <item>
+   <title>YouTube's Lead Over Netflix in TV Viewing Keeps Growing. Is Netflix Stock a Sell?</title>
+   <link>https://www.nasdaq.com/articles/youtubes-lead-over-netflix-tv-viewing-keeps-growing-netflix-stock-sell</link>
+   <description>
+        Key PointsYouTube got a record 14.2% of U.S. TV viewing in July, versus Netflix's 7.8%.
+    </description>
+   <pubDate>Sat, 03 Oct 2026 23:58:02 +0000</pubDate>
+   <guid isPermaLink="true">https://www.nasdaq.com/articles/youtubes-lead-over-netflix-tv-viewing-keeps-growing-netflix-stock-sell?time=1791071882</guid>
+   <dc:creator>The Motley Fool</dc:creator>
+   <category>Markets</category>
+   <nasdaq:tickers>NFLX,NFLX,GOOGL,GOOG</nasdaq:tickers>
+  </item>
+  <item>
+   <title>3 Trends That Will Push Copper Higher in 2028</title>
+   <link>https://www.nasdaq.com/articles/3-trends-will-push-copper-higher-2028</link>
+   <description>
+        Key PointsDeclining ore grades and lengthy development timelines for new mines could create copper shortages in the coming years.
+    </description>
+   <pubDate>Sat, 03 Oct 2026 19:50:00 +0000</pubDate>
+   <guid isPermaLink="true">https://www.nasdaq.com/articles/3-trends-will-push-copper-higher-2028?time=1791057000</guid>
+   <dc:creator>The Motley Fool</dc:creator>
+   <category>Markets</category>
+   <nasdaq:tickers>COPX,COPX,META,MSFT,GOOGL,AMZN,BAC,SPGI,GOOG</nasdaq:tickers>
+  </item>
+  <item>
+   <title>The S&amp;P 500 Is Not Enough: My 3-Stock Starter Portfolio for New Investors</title>
+   <link>https://www.nasdaq.com/articles/sp-500-not-enough-my-3-stock-starter-portfolio-new-investors</link>
+   <description>
+        Key PointsAmazon, Meta Platforms, and Alphabet make a rock-solid growth stock lineup to outperform an index.
+    </description>
+   <pubDate>Sat, 03 Oct 2026 17:35:00 +0000</pubDate>
+   <guid isPermaLink="true">https://www.nasdaq.com/articles/sp-500-not-enough-my-3-stock-starter-portfolio-new-investors?time=1791048900</guid>
+   <dc:creator>The Motley Fool</dc:creator>
+   <category>Markets</category>
+   <nasdaq:tickers>AMZN,AMZN,GOOGL,META,GOOG</nasdaq:tickers>
+  </item>
+  <item>
+   <title>Breakfast News: The 20-Year Stock Challenge</title>
+   <link>https://www.nasdaq.com/articles/breakfast-news-20-year-stock-challenge</link>
+   <description>
+        OCTOBER 3, 2026
+Warren Buffett once sat down with Coca-Cola&amp;rsquo;s (NYSE: KO) annual report from 1896, which is a level of homework most investors will never attempt. He observed how the company sold 116,492 gallons of syrup that year. A century later, it sold 3.2 billion. Missed AI&amp;rsquo;
+    </description>
+   <pubDate>Sat, 03 Oct 2026 11:50:00 +0000</pubDate>
+   <guid isPermaLink="true">https://www.nasdaq.com/articles/breakfast-news-20-year-stock-challenge?time=1791028200</guid>
+   <dc:creator>The Motley Fool</dc:creator>
+   <category>Markets</category>
+   <nasdaq:tickers>MSFT,MSFT,GOOGL,KO,META,AER,PLTR</nasdaq:tickers>
+  </item>
+  <item>
+   <title>Anthropic Delivers Massive News for AI Stock Investors</title>
+   <link>https://www.nasdaq.com/articles/anthropic-delivers-massive-news-ai-stock-investors</link>
+   <description>
+        The AI pioneer is losing billions of dollars on the bottom line, but the headline figure looks worse than it actually is.
+    </description>
+   <pubDate>Sat, 03 Oct 2026 05:41:17 +0000</pubDate>
+   <guid isPermaLink="true">https://www.nasdaq.com/articles/anthropic-delivers-massive-news-ai-stock-investors?time=1791006077</guid>
+   <dc:creator>The Motley Fool</dc:creator>
+   <category>Markets</category>
+   <nasdaq:tickers>AMZN,AMZN,AVGO,MSFT,GOOGL,MRVL,NVDA,MU,AMD</nasdaq:tickers>
+  </item>
+  <item>
+   <title>Stocks Rally as a Weak US Payroll Report Reduces Fed Rate Hike Chances</title>
+   <link>https://www.nasdaq.com/articles/stocks-rally-weak-us-payroll-report-reduces-fed-rate-hike-chances</link>
+   <description>
+        The S&amp;P 500 Index ($SPX ) (SPY ) is up by +1.05% today, the Dow Jones Industrial Average ($DOWI ) (DIA ) is up by +0.814%, and the Nasdaq 100 Index ($IUXX ) (QQQ ) is up +1.35%.  December E-mini S&amp;P futures (ESZ26 ) are up +0.99%, and December E-mini...
+    </description>
+   <pubDate>Fri, 02 Oct 2026 23:05:36 +0000</pubDate>
+   <guid isPermaLink="true">https://www.nasdaq.com/articles/stocks-rally-weak-us-payroll-report-reduces-fed-rate-hike-chances?time=1790982336</guid>
+   <dc:creator>Barchart</dc:creator>
+   <category>Stocks</category>
+   <nasdaq:tickers>MSTR,GOOGL,AMAT,AAPL,AVGO,ADI,GLXY,TXN,ABNB,COIN,ASML,MSFT,BMNR,TSLA,STX,WDC,AMD,LRCX,SPY,DIA,ON,KLAC,MARA,NVDA,META,NXPI,NKE,QQQ,IREN,INTC,SOXX,MCHP,RIOT,ARM,HOOD,AMZN,SYNA,MRVL</nasdaq:tickers>
+  </item>
+  <item>
+   <title>Soft Labor Data Meets Solid Earnings: The Bullish Setup for the Market</title>
+   <link>https://www.nasdaq.com/articles/soft-labor-data-meets-solid-earnings-bullish-setup-market</link>
+   <description>
+        Market participants reacted favorably to the soft labor data as it reduces the odds of an October rate hike, with continued strength in the earnings picture providing another reason to stay positive. 
+    </description>
+   <pubDate>Fri, 02 Oct 2026 21:34:00 +0000</pubDate>
+   <guid isPermaLink="true">https://www.nasdaq.com/articles/soft-labor-data-meets-solid-earnings-bullish-setup-market?time=1790976840</guid>
+   <dc:creator>Zacks</dc:creator>
+   <category>Earnings,Investing,Stocks</category>
+   <nasdaq:tickers>NKE,MU,NVDA,GOOGL</nasdaq:tickers>
+  </item>
+  <item>
+   <title>Stocks Climb as Weak US Economic News Eases Fed Rate Hike Concerns</title>
+   <link>https://www.nasdaq.com/articles/stocks-climb-weak-us-economic-news-eases-fed-rate-hike-concerns</link>
+   <description>
+        The S&amp;P 500 Index ($SPX ) (SPY ) is up by +0.90% today, the Dow Jones Industrial Average ($DOWI ) (DIA ) is up by +0.54%, and the Nasdaq 100 Index ($IUXX ) (QQQ ) is up +1.23%.  December E-mini S&amp;P futures (ESZ26 ) are up +0.85%, and December E-mini...
+    </description>
+   <pubDate>Fri, 02 Oct 2026 20:18:14 +0000</pubDate>
+   <guid isPermaLink="true">https://www.nasdaq.com/articles/stocks-climb-weak-us-economic-news-eases-fed-rate-hike-concerns?time=1790972294</guid>
+   <dc:creator>Barchart</dc:creator>
+   <category>Stocks</category>
+   <nasdaq:tickers>MSTR,GOOGL,AMAT,AAPL,AVGO,ADI,GLXY,TXN,ABNB,COIN,ASML,MSFT,BMNR,TSLA,QCOM,STX,WDC,AMD,LRCX,SPY,DIA,ON,KLAC,MARA,NVDA,META,NXPI,NKE,QQQ,IREN,INTC,SOXX,MCHP,RIOT,ARM,HPE,HOOD,AMZN,SYNA,MRVL</nasdaq:tickers>
+  </item>
+ </channel>
+</rss>

@@ -103,3 +103,20 @@ def test_bar_and_money_helpers():
     assert cli.bar(0, width=10).plain == "█████│     "
     assert cli.bar(50, width=10).plain == "     │     "
     assert cli.money(4.43e12) == "$4.43T" and cli.money(-3.3e6) == "-$3.30M" and cli.money(None) == "n/a"
+
+
+def test_env_example_has_no_inline_comments_and_parses():
+    """`docker run --env-file` passes values literally: `KEY=30  # note` would crash Settings."""
+    from pathlib import Path
+
+    from app.config import Settings
+
+    path = Path(__file__).resolve().parents[2] / ".env.example"
+    values = {}
+    for line in path.read_text().splitlines():
+        if line and not line.startswith("#"):
+            key, _, value = line.partition("=")
+            assert "#" not in value, f"inline comment in {line!r}"
+            values[key.lower()] = value
+    assert "monitor_interval_minutes" in values
+    Settings(_env_file=None, **{k: v for k, v in values.items() if v})  # every literal value validates

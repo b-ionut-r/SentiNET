@@ -6,7 +6,11 @@ every few minutes and publishes the 24 h-ago snapshot alongside, so mention
 sentiment — this source emits metrics only (never synthetic text).
 Limits: a global leaderboard (~700 stocks over 7 pages, ~140 coins), so the
 whole board is fetched once and cached for 10 minutes; tickers absent from the
-board had too few mentions to rank and yield an empty batch (status "empty").
+board had too few mentions to rank and yield an empty batch (status "empty") —
+unless some pages failed to load, in which case absence proves nothing and the
+source reports an error. The board counts upper-case tokens, so ticker-words
+(YOU, ALL, ES, DTE, CD: rank 9 "CLEAR Secure" was the word "YOU") are
+unsupported on the stock board (`crowd_symbol_ambiguous`).
 
 Metrics: reddit_mentions, reddit_mentions_prev (24 h ago), reddit_rank,
 reddit_rank_prev, reddit_upvotes, reddit_tracked (board size, for "rank 26 of 692").
@@ -15,38 +19,56 @@ Docs: https://apewisdom.io/api/
 from __future__ import annotations
 
 import asyncio
+import logging
+from dataclasses import dataclass
 from typing import Any
 
 from app.core import http
 from app.core.cache import cached
+from app.core.http import UpstreamError
 from app.schemas import SignalKind
 from app.sources.base import CompanyRef, SourceBatch
-from app.sources.query import us_symbol
+from app.sources.query import crowd_symbol_ambiguous, us_symbol
 
 URL = "https://apewisdom.io/api/v1.0/filter/{board}/page/{page}"
 MAX_PAGES = 10
+logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class Board:
+    rows: dict[str, dict[str, Any]]  # upper-case ticker -> row
+    complete: bool  # every page loaded
 
 
 @cached(ttl=600, none_ttl=60, maxsize=4)
-async def load_board(board: str) -> dict[str, dict[str, Any]]:
-    """Every ranked row of a leaderboard ("all-stocks" | "all-crypto"), keyed by upper-case ticker."""
+async def load_board(board: str) -> Board:
+    """Every ranked row of a leaderboard ("all-stocks" | "all-crypto"); later pages may fail individually."""
     first = await http.fetch_json(URL.format(board=board, page=1))
     pages = max(1, min(int(first.get("pages") or 1), MAX_PAGES))
-    rest = await asyncio.gather(*(http.fetch_json(URL.format(board=board, page=n)) for n in range(2, pages + 1)))
+    rest = await asyncio.gather(
+        *(http.fetch_json(URL.format(board=board, page=n)) for n in range(2, pages + 1)), return_exceptions=True
+    )
+    failed = [r for r in rest if isinstance(r, BaseException)]
+    if failed:
+        logger.info("apewisdom %s: %d of %d pages failed (%s)", board, len(failed), pages, type(failed[0]).__name__)
     rows: dict[str, dict[str, Any]] = {}
-    for page in (first, *rest):
+    for page in (first, *(r for r in rest if isinstance(r, dict))):
         for row in page.get("results") or []:
             ticker = str(row.get("ticker") or "").upper()
             if ticker:
                 rows.setdefault(ticker, row)
-    return rows
+    return Board(rows, complete=not failed)
 
 
 def board_and_symbol(company: CompanyRef) -> tuple[str, str] | None:
-    if company.is_crypto:
+    """Which board to read and the symbol as ApeWisdom writes it; None when unsupported."""
+    if company.is_crypto:  # crypto subs: "SOL", "LINK", "ONE" mean the coins there
         return "all-crypto", f"{company.base_symbol.upper()}.X"
     symbol = us_symbol(company)
-    return ("all-stocks", symbol) if symbol else None
+    if symbol is None or crowd_symbol_ambiguous(symbol):
+        return None
+    return "all-stocks", symbol
 
 
 def metrics_for(row: dict[str, Any], tracked: int) -> dict[str, Any]:
@@ -59,12 +81,13 @@ def metrics_for(row: dict[str, Any], tracked: int) -> dict[str, Any]:
     }
     out: dict[str, Any] = {}
     for key, field in mapping.items():
-        value = row.get(field)
-        if value is not None:
-            try:
-                out[key] = int(value)
-            except (TypeError, ValueError):
-                continue
+        try:
+            value = int(row[field])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if key.startswith("reddit_rank") and value <= 0:  # rank_24h_ago 0 = was not ranked
+            continue
+        out[key] = value
     if out:
         out["reddit_tracked"] = tracked
     return out
@@ -89,7 +112,11 @@ class ApeWisdomSource:
         target = board_and_symbol(company)
         if target is None:
             return SourceBatch()
-        board, symbol = target
-        rows = await load_board(board)
-        row = rows.get(symbol)
-        return SourceBatch(metrics=metrics_for(row, len(rows))) if row else SourceBatch()
+        board_key, symbol = target
+        board = await load_board(board_key)
+        row = board.rows.get(symbol)
+        if row is not None:
+            return SourceBatch(metrics=metrics_for(row, len(board.rows)))
+        if not board.complete:
+            raise UpstreamError(f"apewisdom: leaderboard partially unavailable; {symbol} not found on the loaded pages")
+        return SourceBatch()

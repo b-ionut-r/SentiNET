@@ -203,6 +203,7 @@ way ways look looks looking watch watching see sees seen get gets got make makes
 comes trading trade traders price prices value worth move moves moving lot lots key keys right left long short
 huge massive major latest recent ever every much many more most less least one two three four five six seven eight
 nine ten nearly almost about around above below likely set sets want wants deal deals plan plans plus via also into
+billion billions million millions trillion trillions thousand thousands hundred hundreds dozen dozens
 against investing invest invested own owns owning point points case question questions answer answers reason reasons
 simple strong message investment investments help helps keep keeps eyes enough number numbers fresh really here's
 what's there's it's i'm don't can't won't isn't doesn't didn't let's you're they're we're
@@ -229,19 +230,20 @@ CALENDAR_WORDS: frozenset[str] = wordset("january february march april may june 
                   "apr jun jul aug sep sept oct nov dec monday tuesday wednesday thursday friday saturday sunday")
 
 _TOKEN_RE = re.compile(
-    r"\$\d[\d,]*(?:\.\d+)?(?:\s?(?:trillion|billion|million|thousand|tn|bn|mn|[tbmk])\b)?"  # money
+    r"\$\d[\d,]*(?:\.\d+)?(?:\s?(?:trillion|billion|million|thousand|tln|trn|bln|mln|tn|bn|mn|[tbmk])\b)?"  # money
     r"|\d[\d,]*(?:\.\d+)?%"                                                               # percents
     r"|\$[a-z][a-z.]{0,7}(?<!\.)"                                                         # cashtags
     r"|\d[\d,]*(?:\.\d+)?"                                                                # numbers
     r"|[a-z][a-z0-9&'-]*[a-z0-9]|[a-z]",                                                  # words
 )
-_MONEY_RE = re.compile(r"^\$(\d[\d,]*(?:\.\d+)?)\s?(trillion|billion|million|thousand|tn|bn|mn|[tbmk])?$")
-_MONEY_SCALE = {"trillion": "t", "tn": "t", "t": "t", "billion": "b", "bn": "b", "b": "b",
-                "million": "m", "mn": "m", "m": "m", "thousand": "k", "k": "k"}
+_MONEY_RE = re.compile(r"^\$(\d[\d,]*(?:\.\d+)?)\s?(trillion|billion|million|thousand|tln|trn|bln|mln|tn|bn|mn|"
+                       r"[tbmk])?$")
+_MONEY_SCALE = {"trillion": "t", "tln": "t", "trn": "t", "tn": "t", "t": "t", "billion": "b", "bln": "b", "bn": "b",
+                "b": "b", "million": "m", "mln": "m", "mn": "m", "m": "m", "thousand": "k", "k": "k"}
 
 
 def normalize_money(token: str) -> str:
-    """'$150 billion' / '$150bn' / '$150B' -> '$150b'; '$1,070' -> '$1070'."""
+    """'$150 billion' / '$150bn' / '$150 bln' / '$150B' -> '$150b'; '$1,070' -> '$1070'."""
     m = _MONEY_RE.match(token.lower())
     if not m:
         return token

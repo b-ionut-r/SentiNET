@@ -65,8 +65,6 @@ function PaletteDialog({ onClose, pageCommands, openHelp }: { onClose: () => voi
     const out: Item[] = [];
     const sym = term.replace(/^\$/, "").toUpperCase();
 
-    // "Analyze X" leads when X is an exact symbol match or reads like a ticker;
-    // for a company-name query ("apple") the symbol matches lead instead.
     const exact = search.data?.find((m) => m.symbol.toUpperCase() === sym);
     const analyze: Item | null =
       term && TICKER_RE.test(term)
@@ -83,7 +81,10 @@ function PaletteDialog({ onClose, pageCommands, openHelp }: { onClose: () => voi
             run: () => go(`/t/${encodeURIComponent(sym)}`),
           }
         : null;
-    const tickerLike = !!exact || /^\$/.test(term) || /[0-9.\-=^]/.test(term) || sym.length <= 4;
+    // With symbol matches but no exact hit ("ap" → AAPL, APP…), the matches lead; an exact hit,
+    // a cashtag, a symbol-shaped query or no results yet keep "Analyze X" on top (Enter = go).
+    const fresh = debounced.trim() === term && !search.isPlaceholderData; // results answer *this* query
+    const tickerLike = !!exact || /^\$/.test(term) || /[0-9.\-=^]/.test(term) || !fresh || !search.data?.length;
     const symbols: Item[] = term
       ? (search.data ?? [])
           .filter((m) => m !== exact)

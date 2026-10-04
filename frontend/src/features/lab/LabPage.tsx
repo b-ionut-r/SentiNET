@@ -9,8 +9,9 @@ import { useEffect, useRef, useState } from "react";
 import { useLabScore } from "../../api/hooks";
 import type { ScoreResponse } from "../../api/types";
 import { SegmentLegend, StackedBar } from "../../components/charts/Bars";
-import { Chip, ScoreChip } from "../../components/ui/Badges";
+import { Chip, Mark, PolarityChip, ScoreChip } from "../../components/ui/Badges";
 import { DriverText } from "../../components/ui/DriverText";
+import { MetaGroup } from "../../components/ui/MetaGroup";
 import { Empty, ErrorState } from "../../components/ui/Misc";
 import { Panel, SubHead } from "../../components/ui/Panel";
 import { cx } from "../../lib/cx";
@@ -189,6 +190,7 @@ export default function LabPage() {
 
 function Results({ res, stale }: { res: ScoreResponse; stale: boolean }) {
   const s = res.summary;
+  const weightedByRelevance = res.results.some((r) => r.relevance != null);
   const segs = [
     { key: "bull", label: "Bullish", value: s.bullish, color: "rgb(var(--bull))" },
     { key: "neu", label: "Neutral", value: s.neutral, color: "rgb(var(--mid))" },
@@ -209,9 +211,11 @@ function Results({ res, stale }: { res: ScoreResponse; stale: boolean }) {
           <div>
             <div className="flex items-center gap-3">
               <span className={cx("text-[28px] font-semibold leading-none tracking-[-0.02em]", textTone[polarityOf(s.score)])}>{signed(s.score)}</span>
-              <ScoreChip score={s.score} label />
+              <PolarityChip p={polarityOf(s.score)} />
             </div>
-            <p className="mt-1.5 text-2xs text-muted">mean score (−1 bearish … +1 bullish) · confidence {Math.round(s.confidence * 100)}%</p>
+            <p className="mt-1.5 text-2xs text-muted">
+              {weightedByRelevance ? "confidence- and relevance-weighted mean" : "confidence-weighted mean"} (−1 bearish … +1 bullish) · confidence {Math.round(s.confidence * 100)}%
+            </p>
             <StackedBar segments={segs} height={8} className="mt-3" />
             <SegmentLegend segments={segs} className="mt-2" />
           </div>
@@ -242,14 +246,26 @@ function Results({ res, stale }: { res: ScoreResponse; stale: boolean }) {
               </div>
               <div className="min-w-0">
                 <p className="text-[13px] leading-[19px] text-ink"><DriverText text={r.text} drivers={r.drivers} /></p>
-                <div className="mt-1 flex flex-wrap items-center gap-1.5 text-2xs text-muted">
-                  <span>confidence {Math.round(r.confidence * 100)}%</span>
-                  {r.relevance != null && <span>· relevance {Math.round(r.relevance * 100)}%</span>}
-                  {r.drivers.slice(0, 4).map((d) => (
-                    <span key={d.term} className={cx("num", textTone[d.impact > 0 ? "bull" : d.impact < 0 ? "bear" : "neutral"])}>
-                      · {d.term} {signed(d.impact)}
-                    </span>
-                  ))}
+                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-2xs text-muted">
+                  <MetaGroup
+                    items={[
+                      <span key="c">confidence {Math.round(r.confidence * 100)}%</span>,
+                      r.relevance != null ? (
+                        <span key="r" className={cx(r.relevance < 0.35 && "font-medium text-ink-2")} title="How clearly the text is about the ticker; it scales the item's weight in the summary">
+                          relevance {Math.round(r.relevance * 100)}%{r.relevance < 0.35 ? " — barely about this ticker" : ""}
+                        </span>
+                      ) : null,
+                    ]}
+                  />
+                  <MetaGroup
+                    items={r.drivers.slice(0, 4).map((d) => (
+                      <span key={d.term} className="inline-flex max-w-[240px] items-center gap-1 text-ink-2" title={`${d.term} ${signed(d.impact)}`}>
+                        <Mark p={d.impact > 0 ? "bull" : d.impact < 0 ? "bear" : "neutral"} className="text-[7px]" />
+                        <span className="truncate">{d.term}</span>
+                        <span className="num text-muted">{signed(d.impact)}</span>
+                      </span>
+                    ))}
+                  />
                   {r.events.map((e) => (
                     <Chip key={e}>{eventLabel(e)}</Chip>
                   ))}

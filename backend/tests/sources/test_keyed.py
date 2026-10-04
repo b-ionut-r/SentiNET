@@ -9,7 +9,7 @@ import respx
 from app.config import settings
 from app.core.http import UpstreamError
 from app.sources import alphavantage, finnhub, marketaux, reddit
-from app.sources.util import is_listing_page
+from app.sources.util import DailyBudget, is_listing_page
 from tests.conftest import load_json_fixture
 from tests.sources.conftest import company
 
@@ -30,17 +30,30 @@ async def test_unconfigured_without_keys(no_keys, source):
 
 
 # --------------------------------------------------------------------------- Finnhub
+@pytest.fixture(autouse=True)
+def _fresh_budgets(monkeypatch):
+    monkeypatch.setattr(alphavantage, "BUDGET", DailyBudget(25))
+    monkeypatch.setattr(marketaux, "BUDGET", DailyBudget(100))
+
+
 @respx.mock
-async def test_finnhub_parses_and_marks_ticker_specific(monkeypatch, frozen_now):
+async def test_finnhub_parses_and_marks_only_named_items_ticker_specific(monkeypatch, frozen_now):
     monkeypatch.setattr(settings, "finnhub_api_key", SECRET)
     route = respx.get(finnhub.URL).mock(return_value=httpx.Response(200, json=fx("finnhub_company_news_handmade.json")))
     batch = await finnhub.FinnhubSource().fetch(company("AAPL"))
-    params = route.calls[0].request.url.params
+    request = route.calls[0].request
+    params = request.url.params
     assert params["symbol"] == "AAPL" and params["from"] == "2026-09-27" and params["to"] == "2026-10-04"
-    titles = [s.title for s in batch.signals]
-    assert titles == ["Example: Apple faces example lawsuit & probe", "Example: Apple shares rise after example upgrade"]
-    assert all(s.ticker_specific and s.timestamp.tzinfo for s in batch.signals)  # option-chain page + empty dropped
+    # The key travels in a header, never in the URL (URLs end up in access/proxy logs).
+    assert request.headers["X-Finnhub-Token"] == SECRET and SECRET not in str(request.url)
+    specific = {s.title: s.ticker_specific for s in batch.signals}
+    assert specific == {  # option-chain page + empty headline dropped
+        "Example: Apple faces example lawsuit & probe": True,
+        "Example: Stocks settle higher as example rate worries ease": False,  # market wrap: relevance decides
+        "Example: Apple shares rise after example upgrade": True,
+    }
     assert batch.signals[0].body == "Synthetic HTML summary."
+    assert all(s.timestamp.tzinfo for s in batch.signals)
 
 
 @respx.mock
@@ -67,13 +80,27 @@ def test_marketaux_title_highlight_means_ticker_specific():
 
 
 @respx.mock
-async def test_marketaux_reads_pages_and_tolerates_one_failure(monkeypatch):
+async def test_marketaux_reads_pages_tolerates_one_failure_and_caches(monkeypatch):
     monkeypatch.setattr(settings, "marketaux_api_key", SECRET)
-    respx.get(marketaux.URL).mock(
+    route = respx.get(marketaux.URL).mock(
         side_effect=[httpx.Response(200, json=fx("marketaux_news_handmade.json")), httpx.Response(402)]
     )
-    batch = await marketaux.MarketauxSource().fetch(company("TSLA"))
+    src = marketaux.MarketauxSource()
+    batch = await src.fetch(company("TSLA"))
     assert len(batch.signals) == 2
+    batch.signals.clear()  # callers get a private copy of the cached batch
+    assert len((await src.fetch(company("TSLA"))).signals) == 2 and route.call_count == 2  # served from cache
+    assert marketaux.BUDGET.remaining == 98
+
+
+@respx.mock
+async def test_marketaux_spent_budget_is_reported_plainly(monkeypatch):
+    monkeypatch.setattr(settings, "marketaux_api_key", SECRET)
+    monkeypatch.setattr(marketaux, "BUDGET", DailyBudget(0))
+    route = respx.get(marketaux.URL).mock(return_value=httpx.Response(200, json=fx("marketaux_news_handmade.json")))
+    with pytest.raises(UpstreamError, match="daily free quota"):
+        await marketaux.MarketauxSource().fetch(company("TSLA"))
+    assert route.call_count == 0
 
 
 @respx.mock
@@ -122,17 +149,30 @@ def test_alphavantage_time_and_symbols():
 
 
 @respx.mock
-async def test_alphavantage_fetch_sends_window_and_sanitizes(monkeypatch, frozen_now):
+async def test_alphavantage_fetch_sends_window_caches_and_sanitizes(monkeypatch, frozen_now):
     monkeypatch.setattr(settings, "alphavantage_api_key", SECRET)
     route = respx.get(alphavantage.URL).mock(return_value=httpx.Response(200, json=fx("alphavantage_news_aapl_demo.json")))
-    await alphavantage.AlphaVantageSource().fetch(company("AAPL"))
+    src = alphavantage.AlphaVantageSource()
+    first = await src.fetch(company("AAPL"))
     params = route.calls[0].request.url.params
     assert params["tickers"] == "AAPL" and params["time_from"] == "20260927T2230" and params["sort"] == "LATEST"
+    assert (await src.fetch(company("AAPL"))).metrics == first.metrics and route.call_count == 1  # 3 h cache
+    assert alphavantage.BUDGET.remaining == 24
     route.mock(return_value=httpx.Response(500))
     monkeypatch.setattr("app.core.http.asyncio.sleep", _no_sleep)
     with pytest.raises(UpstreamError) as info:
-        await alphavantage.AlphaVantageSource().fetch(company("AAPL"))
+        await src.fetch(company("NVDA"))  # cache miss -> real (failing) call
     assert SECRET not in str(info.value)
+
+
+@respx.mock
+async def test_alphavantage_spent_budget_is_reported_plainly(monkeypatch):
+    monkeypatch.setattr(settings, "alphavantage_api_key", SECRET)
+    monkeypatch.setattr(alphavantage, "BUDGET", DailyBudget(0))
+    route = respx.get(alphavantage.URL).mock(return_value=httpx.Response(200, json={}))
+    with pytest.raises(UpstreamError, match="daily free quota"):
+        await alphavantage.AlphaVantageSource().fetch(company("AAPL"))
+    assert route.call_count == 0
 
 
 async def _no_sleep(*_args, **_kwargs):
@@ -140,8 +180,11 @@ async def _no_sleep(*_args, **_kwargs):
 
 
 # --------------------------------------------------------------------------- Reddit
-def test_reddit_listing_skips_stickied_and_nsfw():
-    signals = reddit.parse_listing(fx("reddit_search_handmade.json"))
+def test_reddit_listing_skips_stickied_nsfw_and_posts_not_naming_the_asset():
+    from app.sources.query import Mentions, search_terms
+
+    assert len(reddit.parse_listing(fx("reddit_search_handmade.json"))) == 2  # without a matcher
+    signals = reddit.parse_listing(fx("reddit_search_handmade.json"), Mentions(search_terms(company("NVDA"))))
     assert [s.title for s in signals] == ["Example: NVDA earnings play discussion"]
     s = signals[0]
     assert s.engagement == 165 and s.publisher == "r/wallstreetbets" and s.body == "Synthetic & body text"

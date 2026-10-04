@@ -8,14 +8,19 @@
    analyst rating changes ("cut to Neutral from Buy"), price-target moves
    ("PT raised to $54 from $50" - direction from the numbers), earnings
    beats/misses, guidance raises/cuts, reported-vs-expected figures
-   ("EPS $1.66 vs. $1.58"), fund flows, equity offerings, legal relief.
+   ("EPS $1.66 vs. $1.58", "EPS 74 cents; consensus 86 cents"), fund flows,
+   options flow, insider trades, regulatory approvals, charges, equity
+   offerings, legal relief, trend endings ("boom is coming to an end").
 2. Lexicon phrases (longest match first), incl. neutralizers that block
    false friends ("shares outstanding", "in line with", "Best Buy").
 3. Composition: movement words take their sign from what moved
-   ("costs surge" < 0, "loss narrowed" > 0, "shares tumble 12%" << "dips 1%").
+   ("costs surge" < 0, "loss narrowed" > 0, "shares tumble 12%" << "dips 1%",
+   "inflation lighter than expected" > 0, "wipe $5T from GDP" < 0). Transitive
+   uses with a non-metric object ("Google drops plan") are not price moves.
 4. Modifiers: negation scope ("not", "fails to", "won't", "avoids"), contrast
-   ("but" up-weights the later clause, "despite X" down-weights X), hedges
-   ("may", "reportedly"), intensifiers, questions and listicles.
+   ("but" up-weights the later clause, "despite X" down-weights X), context
+   clauses ("after/amid/as ..." count less and never overturn the headline
+   verb), hedges ("may", "reportedly"), intensifiers, questions and listicles.
 
 Everything is deterministic, regex/dict based and fast (no models).
 """
@@ -57,6 +62,7 @@ _TRANSLATE = str.maketrans({"’": "'", "‘": "'", "“": '"', "”": '"', "′
 _TOKEN_RE = re.compile(
     r"""
     (?P<amp>[a-z]{1,2}&[a-z]{1,3}\b)
+   |(?P<xtick>[a-z]{1,6}\.(?:ax|to|hk|ss|sz|pa|de|sw|mi|as|br|st|ol|he|ks|kq|ns|bo|sa|mx|nz|si|v|l|t)\b(?!\.))
    |(?P<word>[a-z][a-z0-9]*(?:'[a-z]+)*|n't)
    |(?P<tag>\$[a-z][a-z0-9]{0,5}(?:[.\-][a-z]{1,3})?(?![a-z0-9]))
    |(?P<pct>(?:(?<![\w.%$])[-+])?\d+(?:[.,]\d+)*\s?(?:%|percent\b|per\s?cent\b|pct\b))
@@ -137,6 +143,8 @@ def tokenize(low: str) -> list[Token]:
             out.append(Token(raw, s, e, "num", _number(raw), raw[0] in "+-"))
         elif kind == "emo":
             out.append(Token(raw, s, e, "emo"))
+        elif kind == "xtick":  # exchange-suffixed ticker ("NCM.AX", "SHOP.TO"): a name, never a word
+            out.append(Token(raw, s, e, "tag"))
         elif kind in ("tag", "cur", "sep", "soft", "hash"):
             out.append(Token(raw.strip(), s, e, kind))
     return out
@@ -320,7 +328,7 @@ _RANGE_TAIL = (r"(?:\s+(?:to|at|of)\s+(?:a\s+range\s+of\s+)?(?:up\s+|down\s+)?[^
                r"(?:\s+(?:to|-)\s+[^\s;!?]*\d[^\s;!?]*)?(?:\s+(?:from|vs\.?)\s+(?:up\s+|down\s+)?"
                r"[^\s;!?]*\d[^\s;!?]*(?:\s+(?:to|-)\s+[^\s;!?]*\d[^\s;!?]*)?)?)?")
 _UPV = (r"raise[sd]?|raising|lift(?:s|ed|ing)?|boost(?:s|ed|ing)?|bump(?:s|ed|ing)?|hike[sd]?|hiking|"
-        r"increas(?:e|es|ed|ing)|up(?:s|ped|ping)?|nudge[sd]?\s+up|push(?:es|ed)\s+up|improv(?:e|es|ed|ing)|"
+        r"increas(?:e|es|ed|ing)|ups|upped|upping|nudge[sd]?\s+up|push(?:es|ed)\s+up|improv(?:e|es|ed|ing)|"
         r"strengthen(?:s|ed|ing)?")
 _DNV = (r"cut(?:s|ting)?|lower(?:s|ed|ing)?|slash(?:es|ed|ing)?|trim(?:s|med|ming)?|reduc(?:e|es|ed|ing)|"
         r"chop(?:s|ped|ping)?|decreas(?:e|es|ed|ing)|par(?:e|es|ed|ing)|nudge[sd]?\s+down|ratchet(?:s|ed)?\s+down|"
@@ -448,6 +456,72 @@ def _flows(m: re.Match[str]) -> RuleMatch:
     return RuleMatch(m.start(), m.end(), -0.9 if bearish else 0.9, f"{who} {' '.join(act.split())}", "flows")
 
 
+def _imperative(m: re.Match[str]) -> RuleMatch:
+    """A headline that tells you what to do ("Avalara: Buy This Leader", "Sell Nike")."""
+    v = m.group("v")
+    return RuleMatch(m.start("v"), m.end(), 0.7 if v == "buy" else -0.7, v, "imperative")
+
+
+def _pct_outcome(m: re.Match[str]) -> RuleMatch:
+    """"have a 33% loss to show for it" / "a 159% gain"."""
+    return RuleMatch(m.start(), m.end(), -0.9 if m.group("w").startswith("loss") else 0.8, m.group(), "pct_loss")
+
+
+def _fast_enough(m: re.Match[str]) -> RuleMatch:
+    """"Hedge funds couldn't dump X fast enough": eager selling, not a negated sale."""
+    selling = m.group("v") in ("dump", "sell", "unload", "ditch")
+    return RuleMatch(m.start(), m.end(), -0.8 if selling else 0.8, f"couldn't {m.group('v')} fast enough",
+                     "fast_enough")
+
+
+_BEARISH_TRENDS = ("selloff", "sell", "slump", "decline", "bear", "downturn", "recession", "crisis", "slide", "rout",
+                   "downtrend")
+
+
+def _trend_end(m: re.Match[str]) -> RuleMatch:
+    """A trend ending: the end of a boom is bad news, the end of a slump good news."""
+    bearish_trend = m.group("what").startswith(_BEARISH_TRENDS)
+    return RuleMatch(m.start(), m.end(), 0.7 if bearish_trend else -0.8,
+                     f"{' '.join(m.group('what').split())} ending", "trend_end")
+
+
+def _streak(m: re.Match[str]) -> RuleMatch:
+    """A streak ending flips its meaning: a losing streak snapped is good news."""
+    losing = (m.group("kind") or m.group("kind2")) == "losing"
+    return RuleMatch(m.start(), m.end(), 0.6 if losing else -0.6,
+                     "losing streak ends" if losing else "winning streak ends", "streak")
+
+
+def _vs_consensus(m: re.Match[str]) -> Optional[RuleMatch]:
+    """"Q3 adj. EPS 74 cents; FactSet consensus 86 cents": reported vs. expected decides the sign."""
+    new, est = _amount(m.group("new")), _amount(m.group("est"))
+    if new is None or est is None or new == est or not est:
+        return None
+    sign = 1 if new > est else -1
+    mag = 0.8 + 0.4 * min(1.0, abs(new - est) / abs(est) / 0.1)
+    return RuleMatch(m.start(), m.end(), sign * mag, f"{m.group('new').strip()} vs consensus {m.group('est').strip()}",
+                     "vs_consensus")
+
+
+def _options(m: re.Match[str]) -> RuleMatch:
+    """Options flow ("2000 July $1900 calls opening"): bought calls/sold puts lean bullish."""
+    sign = 1 if m.group("side") == "calls" else -1
+    tail = m.group("tail") or ""
+    sold = re.search(r"\b(?:sold|selling|sell|sells|written|writing)\b", tail)
+    if sold:
+        sign = -sign
+    label = f"{m.group('side')} {'sold' if sold else 'bought'}"
+    end = m.start("tail") + sold.end() if sold else m.end("side")
+    return RuleMatch(m.start(), end, 0.6 * sign * (0.6 if sold else 1.0), label, "options_flow")
+
+
+def _insider(m: re.Match[str]) -> RuleMatch:
+    """Executives trading their own stock: purchases are a strong vote of confidence; sales are often routine."""
+    buy = m.group("act").startswith(("buy", "bought", "purchas", "acquir", "add"))
+    label = f"{' '.join(m.group('who').split())} {m.group('act')}"  # "ceo buys", "co founder sold"
+    return RuleMatch(m.start(), m.end(), 0.8 if buy else -0.5, label, "insider")
+
+
 def _offering(m: re.Match[str]) -> Optional[RuleMatch]:
     span = m.group()
     if re.search(r"\b(?:notes?|bonds?|debt|senior|debentures|credit|loan|term\s+loan)\b", span):
@@ -464,7 +538,7 @@ _RULES: list[tuple[str, re.Pattern[str], Callable[[re.Match[str]], Optional[Rule
     ("analyst", re.compile(
         r"\b(?P<verb>upgrade[sd]?|downgrade[sd]?|raise[sd]?|lift(?:s|ed)?|boost(?:s|ed)?|bump(?:s|ed)?|"
         r"hike[sd]?|mov(?:e|es|ed|ing)|cut(?:s|ting)?|lower(?:s|ed|ing)?|trim(?:s|med)?|reduce[sd]?|"
-        r"slash(?:es|ed)?|ups|upped|take[sn]?|took|raising|upgrading|downgrading)\b(?:(?!\bto\b)[^.;!?$\d]){0,50}?\bto\s+(?:an?\s+)?['\"]?(?P<new>" + RATING + r")\b"
+        r"slash(?:es|ed)?|ups|upped|take[sn]?|took|raising|upgrading|downgrading)\b(?:(?!\bto\b)(?:\$[a-z]{1,6}\b|[^.;!?$\d])){0,50}?\bto\s+(?:an?\s+)?['\"]?(?P<new>" + RATING + r")\b"
         r"(?:[^.;!?$]{0,40}?\bfrom\s+(?:an?\s+)?['\"]?(?P<old>" + RATING + r")\b)?"), _analyst_change),
     ("analyst", re.compile(
         r"(?P<verb>)\b(?P<new>" + RATING + r")\s+from\s+(?P<old>" + RATING + r")\b"), _analyst_change),
@@ -492,7 +566,8 @@ _RULES: list[tuple[str, re.Pattern[str], Callable[[re.Match[str]], Optional[Rule
     ("beat", re.compile(
         r"\b(?:beat(?:s|ing)?|top(?:s|ped|ping)?|exceed(?:s|ed|ing)?|surpass(?:es|ed|ing)?|crush(?:es|ed)?|"
         r"smash(?:es|ed)?|trounce[sd]?|outstrip(?:s|ped)?|blow(?:s)?\s+past|blew\s+past|blow(?:s)?\s+away|"
-        r"blew\s+away|best(?:s|ed)?|clear(?:s|ed)?|outpace[sd]?)" + _GAP.replace("{0,4}", "{0,5}") + _EXP + r"\b"),
+        r"blew\s+away|best(?:s|ed)?|clear(?:s|ed)?|outpace[sd]?|(?:squeak|edge|sail|breeze|cruise|race|zoom)"
+        r"(?:s|d|ed)?\s+(?:past|by|over))" + _GAP.replace("{0,4}", "{0,5}") + _EXP + r"\b"),
      _fixed(1.0, "beats estimates", "beat")),
     ("beat", re.compile(r"\b(?:beat(?:s)?|tops|topped|exceed(?:s|ed)?)\s+(?:[^\s.;!?]+\s+){0,2}?" + _BY_ON),
      _fixed(1.0, "beats", "beat")),
@@ -500,7 +575,8 @@ _RULES: list[tuple[str, re.Pattern[str], Callable[[re.Match[str]], Optional[Rule
                         r"(?:beat|beats|top|tops|exceed|exceeds|surpass(?:es)?)\b"), _fixed(1.0, "beat", "beat")),
     ("miss", re.compile(
         r"\b(?:miss(?:es|ed|ing)?|undershoot(?:s)?|undershot|fall(?:s|ing)?\s+short\s+of|fell\s+short\s+of|"
-        r"c(?:o|a)me[s]?\s+in\s+(?:below|under|short\s+of)|trail(?:s|ed)?|lag(?:s|ged)?)" + _GAP + _EXP + r"\b"),
+        r"c(?:o|a)m(?:e|es|ing)\s+(?:in|up)\s+(?:below|under|short\s+of|shy\s+of|light\s+of)|fall(?:s|ing)?\s+shy\s+of|"
+        r"fell\s+shy\s+of|trail(?:s|ed)?|lag(?:s|ged)?)" + _GAP + _EXP + r"\b"),
      _fixed(-1.0, "misses estimates", "miss")),
     ("miss", re.compile(r"\bmiss(?:es|ed)?\s+(?:[^\s.;!?]+\s+){0,2}?" + _BY_ON), _fixed(-1.0, "misses", "miss")),
     ("eps_loss", re.compile(r"\b(?:eps|loss\s+per\s+share)\s+(?:of\s+)?(?:-\s?[$€£¥]|[$€£¥]\s?-|\([$€£¥])\s?\d"),
@@ -521,9 +597,9 @@ _RULES: list[tuple[str, re.Pattern[str], Callable[[re.Match[str]], Optional[Rule
     ("below_exp", re.compile(
         r"\b(?:below|under|short\s+of|worse\s+than|weaker\s+than|behind|softer\s+than|missing)\s+(?:the\s+)?"
         r"(?:[^\s.;!?]+\s+){0,2}?" + _EXP + r"\b"), _fixed(-0.9, "below expectations", "below_exp")),
-    ("vs_exp", re.compile(r"\b(?:better|stronger)\s+than\s+(?:expected|anticipated|forecast)\b"),
+    ("vs_exp", re.compile(r"\bbetter\s+than\s+(?:expected|anticipated|forecast)\b"),
      _fixed(1.0, "better than expected", "above_exp")),
-    ("vs_exp", re.compile(r"\b(?:worse|weaker|softer|poorer)\s+than\s+(?:expected|anticipated|forecast)\b"),
+    ("vs_exp", re.compile(r"\b(?:worse|poorer)\s+than\s+(?:expected|anticipated|forecast)\b"),
      _fixed(-1.0, "worse than expected", "below_exp")),
     ("vs_exp", re.compile(r"\bbetter\s+than\s+feared\b"), _fixed(0.6, "better than feared", "above_exp")),
     ("vs_exp", re.compile(r"\bworse\s+than\s+feared\b"), _fixed(-0.9, "worse than feared", "below_exp")),
@@ -557,9 +633,69 @@ _RULES: list[tuple[str, re.Pattern[str], Callable[[re.Match[str]], Optional[Rule
         r"(?:are\s+|were\s+|is\s+|have\s+been\s+|keep\s+|continue\s+to\s+|have\s+|just\s+|still\s+|"
         r"arent\s+done\s+|aren't\s+done\s+|not\s+done\s+)*"
         r"(?P<act>buying|accumulating|piling\s+into|snapping\s+up|loading\s+up|adding|scooping\s+up|pouring\s+into|"
-        r"rushing\s+into|flocking\s+to|bought|selling|dumping|unloading|bailing|fleeing|exiting|abandoning|"
+        r"rushing\s+into|flocking\s+to|betting\s+(?:big\s+)?on|bet\s+on|bullish\s+on|bought|selling|dumping|unloading|bailing|fleeing|exiting|abandoning|"
         r"shorting|cashing\s+out|trimming|sold|dumped|fled|souring\s+on|soured\s+on|cooling\s+on|warming\s+up)\b"),
      _flows),
+    # --- results & outlook idioms
+    ("inline", re.compile(r"\b(?:eps|earnings|revenues?|sales|results?|ffo|affo|nii|ebitda|q[1-4])\s+(?:and\s+\S+\s+)?"
+                          r"(?:in\s+line|inline)\b(?!\s+with)"), _fixed(0.5, "in-line", "inline")),
+    ("trend_end", re.compile(
+        r"\b(?P<what>boom|rally|run|bull\s+market|bull\s+run|growth|expansion|recovery|upswing|selloff|sell\s+off|"
+        r"slump|decline|bear\s+market|downturn|recession|crisis|slide|rout|downtrend|uptrend)\s+(?:is\s+|was\s+|may\s+be\s+|"
+        r"could\s+be\s+|appears\s+)?(?:coming\s+to\s+an\s+end|over|ends|ended|is\s+ending|fizzles|fizzled|fades|faded|"
+        r"runs\s+out\s+of\s+steam|ran\s+out\s+of\s+steam|stalls|stalled)\b"), _trend_end),
+    ("metric_hit", re.compile(r"\b(?:revenues?|sales|earnings|profits?|margins?|results|demand|growth|eps)\s+hit\b"
+                              r"(?!\s+(?:a\s+|an\s+|the\s+|new\s+|fresh\s+)?(?:record|all\s+time|high|highs|peak|"
+                              r"milestone|target|\$|\d))"), _fixed(-0.7, "revenue hit", "metric_hit")),
+    ("pct_loss", re.compile(r"\b\d[\d.,]*\s?%\s+(?P<w>loss|losses|gain|gains|return)\b(?!\s+on\b)"), _pct_outcome),
+    # --- positioning, ratings and trading idioms
+    ("fast_enough", re.compile(r"\b(?:couldn'?t|could\s+not|can'?t|cannot|can\s+not)\s+(?P<v>dump|sell|unload|ditch|buy|"
+                               r"own|get|grab|scoop\s+up|add)\b[^.;!?]{0,40}?\bfast\s+enough\b"), _fast_enough),
+    ("out_of_slump", re.compile(
+        r"\b(?:snap\w*|climb\w*|pull\w*|bounc\w*|break\w*|broke|emerg\w*|recover\w*|come|comes|came|coming|"
+        r"crawl\w*|dig\w*|dug)\s+out\s+of\s+(?:a\s+|the\s+|its\s+|their\s+)?(?:[a-z-]+\s+)?(?:slump|rut|funk|downturn|"
+        r"recession|slide|decline|bear\s+market|hole|selloff|sell\s+off|losing\s+streak|crisis|bankruptcy)\b"),
+     _fixed(0.8, "out of a slump", "out_of_slump")),
+    ("good_buy", re.compile(r"\b(?:an?|is\s+a|still\s+a)\s+(?:good|great|decent|solid|screaming|clear|strong|compelling|"
+                            r"smart|top|bargain|long\s+term)\s+buy\b(?!\s+(?:back|out))"),
+     _fixed(0.9, "a good buy", "good_buy")),
+    ("streak", re.compile(r"\b(?:snap(?:s|ped)?|end(?:s|ed)?|break(?:s)?|broke|halt(?:s|ed)?)\s+(?:[^\s.;!?]+\s+){0,3}?"
+                          r"(?P<kind>win(?:ning)?|losing)\s+streak\b|\b(?P<kind2>win(?:ning)?|losing)\s+streak\s+"
+                          r"(?:ends|ended|snapped|is\s+over|comes\s+to\s+an\s+end)\b"), _streak),
+    ("imperative", re.compile(r"(?:^|[:;]\s+|\s[-\u2013\u2014]\s+)(?P<v>buy|sell)\s+"
+                              r"(?!back\b|out\b|in\b|into\b|side\b|on\b|off\b|to\b|or\b|and\b|now,?\s+pay)"
+                              r"(?:this|these|the|now|shares|stock|\$?[a-z])"), _imperative),
+    ("top_pick", re.compile(r"\btop\s+(?:[a-z&]+\s+){1,2}?picks?\b"), _fixed(0.9, "top pick", "top_pick")),
+    ("options_flow", re.compile(
+        r"(?:[$]\s?\d[\d.,]*|\b\d[\d.,]*)\s+(?P<side>calls|puts)\b(?P<tail>(?:\s+[^\s.;!?]+){0,3})"), _options),
+    # --- reported numbers, charges, insiders, approvals
+    ("vs_consensus", re.compile(
+        rf"\b(?P<m>eps|earnings|revenues?|sales|ffo|ebitda|net\s+income)\s+(?:of\s+|was\s+|at\s+)?(?P<new>{_AMT})\s*[;,]?\s+"
+        rf"(?:[a-z]+\s+){{0,2}}?(?:consensus|estimates?|expectations?|est\.?)\s+(?:of\s+|was\s+|at\s+|is\s+)?(?P<est>{_AMT})"),
+     _vs_consensus),
+    ("charge", re.compile(
+        r"\b(?:incur\w*|take[sn]?|taking|took|book\w*|record\w*|post(?:s|ed|ing)?|flag\w*|expects?)\s+(?:a\s+|an\s+)?"
+        r"(?:[$€£¥]?\s?\d[\d.,]*\s*(?:million|billion|mln|bln|mn|bn|m|b)?\s+)?(?:(?:pre\s?tax|after\s?tax|one\s?time|"
+        r"non\s?cash|impairment|restructuring|write\s?down|goodwill|special|quarterly)\s+)*charges?\b"),
+     _fixed(-0.6, "charge", "charge")),
+    ("insider", re.compile(
+        r"\b(?P<who>ceo|cfo|coo|chairman|chairwoman|chair|founder|co\s?founder|directors?|insiders?|executives?|"
+        r"execs?|president|chief\s+executive|board\s+members?)\b(?:[^.;!?]|\.\d){0,40}?\b(?P<act>buys|bought|buying|"
+        r"purchases|purchased|acquires|acquired|adds|added|sells|sold|selling|dumps|dumped|unloads|unloaded)\b"
+        r"(?:[^.;!?]|\.\d){0,40}?\b"
+        r"(?:shares|stock|stake|options|calls)\b"), _insider),
+    ("license", re.compile(
+        r"\b(?:obtain(?:s|ed|ing)?|receiv(?:e|es|ed|ing)|secur(?:e|es|ed|ing)|wins?|won|gets?|got|gain(?:s|ed)?|"
+        r"grant(?:s|ed)|award(?:s|ed)|earn(?:s|ed)?|land(?:s|ed)?)(?:\s+[^\s.;!?]+){0,4}?\s+(?P<what>licen[cs]es?|"
+        r"approvals?|clearance|permits?|patents?|authori[sz]ation|certification|designation|orphan\s+drug)\b"),
+     lambda m: RuleMatch(m.start(), m.end(), 0.7, f"{' '.join(m.group('what').split())} secured", "license")),
+    ("regulatory_ok", re.compile(
+        r"\b(?:fda|ema|chmp|mhra|pmda|nmpa|health\s+canada|regulators?|antitrust\s+(?:regulators?|authorit\w+)|"
+        r"european\s+commission|cfius|watchdog)\b(?:\s+[^\s.;!?]+){0,4}?\s+(?:approv\w+|clear(?:s|ed)?|ok'?d|okays|"
+        r"green\s?light\w*|authori[sz]\w+|accept(?:s|ed)?|grant(?:s|ed)?|oks)\b"), _fixed(0.9, "regulatory approval",
+                                                                                "regulatory_ok")),
+    ("returns", re.compile(r"\b(?:made|gained|earned|returned)\s+(?:a\s+|over\s+|more\s+than\s+)?\d[\d.,]*\s?%"),
+     _fixed(0.8, "gained", "returns")),
     # --- equity issuance
     ("offering", re.compile(
         r"\b(?:prices?|priced|pricing|announces?|announced|launch(?:es|ed)?|proposed|commences?|files?\s+for|"
@@ -572,7 +708,8 @@ _RULES: list[tuple[str, re.Pattern[str], Callable[[re.Match[str]], Optional[Rule
     ("legal_relief", re.compile(
         r"\b(?:dismiss(?:es|ed)?|drop(?:s|ped)?|toss(?:es|ed)?|throw(?:s|n)?\s+out|threw\s+out|end(?:s|ed)?|"
         r"close[sd]?|suspend(?:s|ed)?|clear(?:s|ed)?|wins?|won|prevail(?:s|ed)?\s+in)\b(?:\s+[^\s.;!?]+){0,4}?\s+"
-        r"(?:lawsuit|suit|case|probe|investigation|charges|complaint|inquiry|patent\s+(?:case|suit|trial))\b"),
+        r"(?:lawsuits?|suits?|cases?|probes?|investigations?|charges|complaints?|inquir(?:y|ies)|"
+        r"patent\s+(?:case|suit|trial))\b"),
      _fixed(0.7, "legal relief", "legal_relief")),
     ("legal_relief", re.compile(
         r"\b(?:lawsuit|suit|case|probe|investigation|charges|claims?|complaint|inquiry)\s+(?:was\s+|is\s+|were\s+|"
@@ -617,8 +754,8 @@ _TRIGGERS: dict[str, tuple[str, ...]] = {
                           "remain"),
     "price_target": ("target", "pt", "tgt", "objective"),
     "beat": ("beat", "top", "exceed", "surpass", "crush", "smash", "trounce", "outstrip", "blow", "blew", "best",
-             "clear", "outpac"),
-    "miss": ("miss", "short", "undersh", "came in", "come in", "comes in", "trail", "lag", "meet", "match",
+             "clear", "outpac", "squeak", "edge", "sail", "breez", "cruis", "race", "zoom"),
+    "miss": ("miss", "short", "shy", "undersh", "came in", "come in", "comes in", "trail", "lag", "meet", "match",
              "reach", "hit ", "beat", "top"),
     "above_exp": ("above", "ahead", "better", "exceeding", "topping", "beating", "stronger", "surpassing"),
     "below_exp": ("below", "under", "short", "worse", "weaker", "behind", "softer", "missing"),
@@ -633,6 +770,17 @@ _TRIGGERS: dict[str, tuple[str, ...]] = {
     "eps_loss": ("eps", "per share"), "job_cuts": ("job", "position", "worker", "employee", "staff", "role",
                                                    "headcount", "workforce"), "fine": ("fine", "penalty"),
     "bankruptcy": ("bankruptcy", "insolvency", "creditor protection", "chapter 11"), "superlative": ("never been",),
+    "fast_enough": ("fast enough",), "out_of_slump": ("out of",), "good_buy": (" buy",),
+    "imperative": ("buy", "sell"),
+    "vs_consensus": ("consensus", "estimate", "expectation", "est"), "charge": ("charge",), "top_pick": ("pick",), "streak": ("streak",), "metric_hit": (" hit",),
+    "pct_loss": ("% loss", "% gain", "% return", "%loss", "%gain"),
+    "trend_end": ("end", "over", "fizzle", "fade", "steam", "stall"), "options_flow": ("calls", "puts"), "insider": ("ceo", "cfo", "coo", "chair", "founder", "director", "insider", "exec",
+                                       "president", "chief", "board"),
+    "license": ("licen", "approval", "clearance", "permit", "patent", "authori", "certification", "designation",
+                "orphan"),
+    "returns": ("made", "gained", "earned", "returned"),
+    "regulatory_ok": ("fda", "ema", "chmp", "mhra", "pmda", "nmpa", "health canada", "regulator", "antitrust",
+                      "european commission", "cfius", "watchdog"),
     "buy_dip": ("dip", "pullback", "weakness", "sell"),
 }
 
@@ -793,7 +941,8 @@ _FILLER = frozenset({"the", "a", "an", "its", "their", "his", "her", "our", "thi
                      "full", "year", "annual", "quarterly", "fiscal", "first", "second", "third", "fourth",
                      "quarter", "q1", "q2", "q3", "q4", "h1", "h2", "fy", "company", "group", "total", "overall",
                      "adjusted", "adj", "comparable", "global", "us", "domestic", "international", "core",
-                     "organic", "underlying", "reported", "consolidated", "own", "per", "share", "and"})
+                     "organic", "underlying", "reported", "consolidated", "own", "per", "share", "and", "much",
+                     "far", "slightly", "somewhat", "just", "only", "even", "still"})
 
 
 def _pct_magnitude(p: float) -> float:
@@ -815,7 +964,7 @@ def _find_metric(tokens: list[Token], at: list[Optional[_Span]], i0: int, step: 
     n = len(tokens)
     while 0 <= j < n and seen < limit:
         t = tokens[j]
-        if t.kind == "sep" or (t.kind == "soft" and not soft_ok):
+        if t.kind == "sep" or (t.kind == "soft" and (not soft_ok or t.text != ",")):
             return None
         if t.kind == "soft":
             seen += 1
@@ -824,10 +973,12 @@ def _find_metric(tokens: list[Token], at: list[Optional[_Span]], i0: int, step: 
         sp = at[j]
         if sp is not None:
             if sp.metric is not None and not sp.neutral:
-                if step > 0:  # the head of a compound moves: "(slower) revenue growth"
+                if step > 0:  # the head of a compound moves: "(slower) revenue growth", "dollar funding squeeze"
                     head = at[sp.end] if sp.end < n else None
-                    if head is not None and head.key in lx.METRIC_DIRECTIONS:
+                    while head is not None and head.metric is not None and not head.neutral and head is not sp \
+                            and head.key not in _META_HEADS:
                         sp = head
+                        head = at[sp.end] if sp.end < n else None
                 return sp
             if sp.direction is not None and sp.metric is None and sp.key not in lx.FOOTPRINT_VERBS \
                     and not sp.level_qual and sp.key not in ("record", "records") and not through_moves:
@@ -893,6 +1044,8 @@ def _level_ok(tokens: list[Token], at: list[Optional[_Span]], sp: _Span) -> tupl
                                                                       "ten", "months", "weeks", "the")):
             qualified = max(qualified, 1.8)
             break
+    if sp.key in ("peak", "peaks") and qualified == 1.0:
+        return False, 0.0  # "peak" is a level only when qualified ("3-week peak"); "peak season" is not
     if sp.key in ("high", "low") and qualified == 1.0:
         prev = tokens[sp.start - 1].text if sp.start > 0 else ""
         if prev not in _LEVEL_TRIGGERS:
@@ -920,10 +1073,35 @@ bought use uses used wake wakes woke waking speak speaks spoke cozy gobble eat e
 pays paid chalk chalked cough coughed add adds added adding step steps stepped stepping shore shores shored
 buck bucks bucked hike hikes hiked ramp ramps ramped boot boots booted give gives gave giving
 """.split())
+_SUBORDINATORS = frozenset({"after", "before", "amid", "amidst", "following", "despite", "while", "since", "because",
+                            "when", "although", "though", "whereas", "unless", "as", "due", "thanks", "owing"})
+# losing/gaining *anything* is evaluative: "loses license", "gains ground"
+_EVALUATIVE_TRANSITIVE = frozenset(lx.verb_forms("lose", extra=("lost",)) + lx.verb_forms("gain"))
+# a following word that is itself a verb means no object: "rally started", "stocks rally continues"
+_VERBISH = frozenset({"is", "are", "was", "were", "has", "have", "had", "will", "would", "could", "can", "may",
+                      "might", "should", "must", "continues", "continue", "begins", "began", "starts", "seems",
+                      "looks", "appears", "remains", "stays", "keeps", "kept"})
+# words that may follow a bare (intransitive) price move: "Tesla tumbles Monday", "slides below $200"
+_MOVE_NEXT = _UPDOWN_NEXT | _PREPS | frozenset({
+    "below", "above", "under", "toward", "towards", "past", "near", "back", "further", "anew", "again", "more",
+    "most", "nearly", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", "today",
+    "tonight", "yesterday", "tomorrow", "now", "then", "too", "also", "still", "but", "and", "or", "while",
+    "despite", "amid", "ahead", "into", "through", "fast", "quickly", "sharply", "steeply", "lower", "higher",
+    "down", "up", "off", "out", "away", "even", "following", "before", "during", "until", "when",
+    "where", "which", "who", "that", "if", "because", "pre", "post", "intraday", "late", "early", "big",
+    "hard", "afterhours", "premarket", "midday", "slightly", "modestly", "significantly", "dramatically",
+    "almost", "over", "some", "rs", "x", "vs", "versus", "soon", "later", "next", "week", "month", "year",
+    "session", "trading", "hours", "day", "days", "weeks", "months", "years"})
 _RECORD_PREV = frozenset({"new", "fresh", "hit", "hits", "hitting", "at", "to", "set", "sets", "reach", "reaches",
                           "reached", "notch", "notches", "notched", "close", "closes", "closed", "another", "all"})
 
 
+# heads that describe a metric rather than replace it: "loss outlook" is still about the loss
+_META_HEADS = frozenset({"outlook", "forecast", "forecasts", "guidance", "estimate", "estimates", "expectations",
+                         "target", "targets", "view", "rating", "ratings"})
+_PRICE_NOUNS = frozenset({"shares", "stock", "stocks", "share price", "stock price", "share prices", "stock prices"})
+_DETERMINERS = frozenset({"the", "a", "an", "its", "their", "his", "her", "our", "your", "my", "these", "those",
+                          "of", "for", "with", "by", "about"})
 _QTY_QUALIFIERS = frozenset({"over", "nearly", "almost", "about", "around", "roughly", "more", "than", "by", "some",
                              "another", "a", "further", "as", "much", "at", "least", "just", "only"})
 
@@ -958,6 +1136,10 @@ def _attach(sp: _Span, tokens: list[Token], at: list[Optional[_Span]]) -> Option
             return None
         # "claims fall to lowest since April": the extreme belongs to the verb's subject
         return _find_metric(tokens, at, sp.start - 1, -1, 7, through_moves=True), mult
+    if d.pos == "o":  # needs a percent right after: "Euro off 0.1%"
+        if nxt is None or nxt.kind != "pct":
+            return None
+        return _find_metric(tokens, at, sp.start - 1, -1, 3), 1.0
     if d.pos == "q":  # needs a quantity right after: "production contracts 3.8%"
         nums = [t for t in tokens[sp.end: sp.end + 2] if t.kind in ("pct", "num")]
         return (_find_metric(tokens, at, sp.start - 1, -1, 4), 1.0) if nums else None
@@ -992,10 +1174,13 @@ def _attach(sp: _Span, tokens: list[Token], at: list[Optional[_Span]]) -> Option
         metric = None
         if nxt is not None and nxt.text in _CONNECTORS:
             after = tokens[sp.end + 1] if sp.end + 1 < n else None
-            if after is not None and after.kind not in ("pct", "num", "cur"):  # not "decrease of 25.7%"
-                metric = _find_metric(tokens, at, sp.end + 1, 1, 3)
+            if after is not None and (after.kind not in ("pct", "num", "cur") or _is_year_token(after)):
+                # "rise in sales", "drop in 2020 revenue" (not "decrease of 25.7%")
+                metric = _find_metric(tokens, at, sp.end + 1, 1, 3, stop_words=_SUBORDINATORS)
         if metric is None:  # compound: "dividend cut", "sales growth"
             metric = _find_metric(tokens, at, sp.start - 1, -1, 1)
+        if metric is None and sp.key in lx.HOMOGRAPHS and prev is not None and prev.text in _DETERMINERS:
+            return None, 1.0  # noun reading: "a rally prior to earnings", "the drop"
         if metric is None and sp.key in lx.HOMOGRAPHS:  # verb reading: "cut existing tariffs", "sales fall"
             return _attach_verb(sp, tokens, at, nxt, prev)
         if metric is None:  # subject: "sales posted a 5% increase" (not "fears of a selloff")
@@ -1005,8 +1190,9 @@ def _attach(sp: _Span, tokens: list[Token], at: list[Optional[_Span]]) -> Option
         metric = None
         if nxt is not None and nxt.text not in _PREPS:  # "higher raw material costs", not "lower on concerns"
             metric = _find_metric(tokens, at, sp.end, 1, 3, stop_words=_PREPS, stop_at_valence=True)
-        if metric is None and d.default > 0:
-            metric = _find_metric(tokens, at, sp.start - 1, -1, 4)
+        if metric is None and d.default > 0:  # predicate: "inflation at 3.0%, much lighter than expected"
+            metric = _find_metric(tokens, at, sp.start - 1, -1, 6 if " than " in sp.key else 4,
+                                  soft_ok=" than " in sp.key)
         return metric, 1.0
     return _attach_verb(sp, tokens, at, nxt, prev)
 
@@ -1018,8 +1204,19 @@ def _attach_verb(sp: _Span, tokens: list[Token], at: list[Optional[_Span]], nxt:
     if key.endswith("ed") and prev is not None and prev.text in _PREPS | {"a", "an", "the", "its", "their"} \
             and nxt is not None and nxt.kind == "w" and at[sp.end] is None and nxt.text not in _PREPS:
         return None  # participle used as adjective: "from narrowed focus", "a reduced stake"
+    if prev is not None and prev.text in _DETERMINERS and key not in lx.HOMOGRAPHS \
+            and not _quantity_after(tokens, sp.end):
+        return None  # noun reading: "stick to the rockets", "a slip of the tongue"
+    if key == "advanced" and nxt is not None and nxt.kind == "w" and nxt.text not in _PREPS:
+        return None  # adjective: "Advanced Drainage Systems", "advanced chips"
+    right_sp = at[sp.end] if sp.end < len(tokens) else None
+    if right_sp is not None and right_sp.key in _PRICE_NOUNS and key not in lx.TRANSITIVE:
+        return None  # a name, not a move: "Zoom shares get whacked", "Rocket stock"
     if key in lx.FOOTPRINT_VERBS:
         metric = _find_metric(tokens, at, sp.end, 1, 3)
+        if metric is None and prev is not None and prev.text in ("are", "were", "be", "been", "being", "is", "was",
+                                                                 "remain", "remains", "stay", "stays"):
+            metric = _find_metric(tokens, at, sp.start - 1, -1, 4)  # passive: "stores are closed"
         return (metric, 1.0) if metric is not None and metric.key in lx.FOOTPRINT_METRICS else None
     if key in lx.TREND_ONLY:
         metric = _find_metric(tokens, at, sp.end, 1, 3)
@@ -1031,14 +1228,64 @@ def _attach_verb(sp: _Span, tokens: list[Token], at: list[Optional[_Span]], nxt:
     metric = None
     if key in lx.TRANSITIVE or key.split(" ")[0] in lx.TRANSITIVE:  # object: "cut existing tariffs"
         metric = _find_metric(tokens, at, sp.end, 1, 3, stop_words=_PREPS)
+        if metric is None:
+            metric = _removed_from(tokens, at, sp.end)
     gerund_complement = key.endswith("ing") and prev is not None and prev.text in ("of", "to", "for", "about")
     if metric is None and not gerund_complement:
-        # subject, possibly across an appositive: "Operating profit, excluding X, rose"
-        metric = _find_metric(tokens, at, sp.start - 1, -1, 6, soft_ok=True)
+        # subject, possibly across an appositive: "Operating profit, excluding X, rose" - but not
+        # out of a subordinate clause ("pared gains after climbing to records")
+        metric = _find_metric(tokens, at, sp.start - 1, -1, 6, soft_ok=True, stop_words=_SUBORDINATORS)
     if metric is None and nxt is not None and nxt.text in ("in", "of") and sp.end + 1 < len(tokens) \
             and tokens[sp.end + 1].kind not in ("pct", "num", "cur"):  # "rise in sales", not "decrease of 25%"
         metric = _find_metric(tokens, at, sp.end + 1, 1, 3)
+    if metric is None and nxt is not None and nxt.kind == "w" and nxt.text not in _MOVE_NEXT and " " not in key \
+            and not nxt.text.endswith("ed") and nxt.text not in _VERBISH \
+            and at[sp.end] is None and not _quantity_after(tokens, sp.end) and key not in _EVALUATIVE_TRANSITIVE:
+        return None  # transitive with a non-metric object: "Google drops plan", "Musk drops song"
     return metric, 1.0
+
+
+def _is_year_token(t: Token) -> bool:
+    return t.kind == "num" and 1900 <= t.value <= 2100 and float(t.value).is_integer() and not t.signed
+
+
+def _boundary_between(tokens: list[Token], i: int, j: int) -> bool:
+    """A comma/colon/sentence break, or a word, between token positions ``i`` and ``j``."""
+    return any(t.kind in ("soft", "sep") or t.kind == "w" for t in tokens[i:j])
+
+
+def _conjoined_conflict(tokens: list[Token], at: list[Optional[_Span]], metric: _Span) -> bool:
+    """Is ``metric`` the second of two conjoined subjects with opposite polarity ("stocks and yields")?"""
+    assert metric.metric is not None
+    j = metric.start - 1
+    for _ in range(2):  # "stock futures and [Treasury] yields"
+        if j >= 1 and tokens[j].kind == "w" and tokens[j].text not in ("and", "&") and at[j] is None:
+            j -= 1
+    if j < 1 or tokens[j].text not in ("and", "&", ","):
+        return False
+    for k in range(j - 1, max(-1, j - 4), -1):
+        other = at[k]
+        if other is not None and other.metric is not None and other is not metric:
+            return (other.metric.polarity > 0) != (metric.metric.polarity > 0)
+        if tokens[k].kind in ("sep", "soft"):
+            break
+    return False
+
+
+def _removed_from(tokens: list[Token], at: list[Optional[_Span]], i: int) -> Optional[_Span]:
+    """"wipe $5 trillion from GDP" / "shave 2% off sales": the metric after from/off (amount first)."""
+    j, n, seen_amount = i, len(tokens), False
+    while j < n and j < i + 5:
+        t = tokens[j]
+        if t.kind in ("num", "pct", "cur"):
+            seen_amount = True
+        elif t.text in ("from", "off") and seen_amount:
+            return _find_metric(tokens, at, j + 1, 1, 3)
+        elif t.kind != "w" or t.text not in ("a", "an", "about", "nearly", "almost", "over", "up", "to", "some"):
+            if not (t.kind == "w" and t.text in ("billion", "million", "trillion")):
+                return None
+        j += 1
+    return None
 
 
 def _numeric_change(tokens: list[Token], i: int) -> Optional[float]:
@@ -1066,6 +1313,7 @@ def _compose(tokens: list[Token], at: list[Optional[_Span]], spans: list[_Span])
     """Pair movement words with the metric they move; emit signed hits."""
     pairs: list[tuple[_Span, Optional[_Span], float]] = []
     consumed: set[int] = set()
+    directed: set[int] = set()
     for sp in spans:
         if sp.direction is None or sp.neutral:
             continue
@@ -1075,8 +1323,16 @@ def _compose(tokens: list[Token], at: list[Optional[_Span]], spans: list[_Span])
         metric, mult = found
         if metric is sp:
             metric = None
+        if metric is not None and metric.end <= sp.start and _conjoined_conflict(tokens, at, metric):
+            metric = None  # "stock futures and bond yields drop": opposite readings, keep the plain move
+        if metric is not None and id(metric) in directed and (
+                sp.direction.pos == "l" or _boundary_between(tokens, metric.end, sp.start)):
+            # "sales slump, squeezing automakers" / "decline to an 18-year low": the earlier word is
+            # itself the move, not the thing being moved
+            metric = None
         if metric is not None:
             consumed.add(id(metric))
+        directed.add(id(sp))
         pairs.append((sp, metric, mult))
 
     hits: list[Hit] = []
@@ -1123,7 +1379,7 @@ def _compose(tokens: list[Token], at: list[Optional[_Span]], spans: list[_Span])
 # Main entry
 # --------------------------------------------------------------------------- #
 # Modifier strengths (tuned on the Twitter-financial train split).
-NEGATION_FLIP = 0.65  # negated positive flips and shrinks ("not strong")
+NEGATION_FLIP = 0.8  # negated positive flips and shrinks ("not strong")
 NEGATION_FLIP_NEG = 0.8  # negated negative = relief ("won't hinder growth"), capped at NEGATED_CAP
 NEGATED_CAP = 1.0  # "avoids bankruptcy" is relief, not euphoria
 SHIFT_BEFORE, SHIFT_AFTER = 0.55, 1.2  # "A but B": B is what matters
@@ -1263,7 +1519,8 @@ def _apply_modifiers(ev: Evidence, tokens: list[Token], at: list[Optional[_Span]
     # a trailing question without "?" separators: "Is X a buy" (headline style, no punctuation)
     first = tokens[0].text
     if first in lx.QUESTION_STARTERS and first not in ("why", "how", "what", "who", "when", "where", "which") \
-            and sent[-1] == 0 and n > 2 and tokens[1].kind in ("w", "tag"):
+            and sent[-1] == 0 and n > 2 and tokens[1].kind in ("w", "tag") \
+            and low[tokens[0].end: tokens[1].start].isspace():  # "Can-Fite +17%" is a name
         question_sents.add(0)
     ev.question = bool(question_sents)
     asking = _question_tokens(tokens, sent, question_sents)
@@ -1341,14 +1598,16 @@ def _question_tokens(tokens: list[Token], sent: list[int], question_sents: set[i
         idx = [i for i in range(n) if sent[i] == sid]
         start = idx[0]
         for i in idx[:-1]:
-            if tokens[i].kind == "soft" and tokens[i + 1].text in lx.QUESTION_STARTERS:
+            if tokens[i].kind == "soft" and (tokens[i + 1].text in lx.QUESTION_STARTERS or (
+                    tokens[i + 1].text in ("so", "but", "and") and i + 2 < len(tokens)
+                    and tokens[i + 2].text in lx.QUESTION_STARTERS)):  # "..., so why not ...?"
                 start = i + 1
         for i in idx:
             flags[i] = i >= start
     return flags
 
 
-BACKGROUND_CAP = 0.5  # opposing context may offset at most half of the main clause
+BACKGROUND_CAP = 0.2  # opposing context may offset at most a fifth of the main clause
 
 
 def _cap_background(hits: list[Hit], background: list[bool]) -> None:
@@ -1385,7 +1644,9 @@ def _background_clauses(tokens: list[Token], hits: list[Hit], sent: list[int]) -
             for j in range(i + 1, _clause_end(tokens, i + 1)):  # "bounces back from a steep sell-off"
                 flags[j] = True
             continue
-        if t.text in ("after", "following", "amid", "amidst") and i > 0:
+        if t.text in ("after", "following", "amid", "amidst"):
+            if i == 0 and _clause_end(tokens, 1) == n:
+                continue  # "After X, Y" needs the comma to know where the context ends
             nxt = tokens[i + 1].text if i + 1 < n else ""
             if nxt in ("hours", "market", "the", "close") and (i + 2 >= n or tokens[i + 2].text in ("bell", "close")
                                                                 or nxt in ("hours", "market", "close")):
@@ -1445,12 +1706,13 @@ def _negator_for(tokens: list[Token], at: list[Optional[_Span]], negators: list[
         ok = True
         for j in range(sp.end, target):
             t = tokens[j]
-            if t.kind in ("sep", "soft") or (at[j] is not None and at[j].contrast is not None):  # type: ignore[union-attr]
-                ok = False
+            if t.kind in ("sep", "soft") or t.text in _SUBORDINATORS or (
+                    at[j] is not None and at[j].contrast is not None):  # type: ignore[union-attr]
+                ok = False  # "not concluded due to probe": the probe is not negated
                 break
             if t.kind == "w":
                 gap += 1
-        limit = 4 if sp.key in ("unlikely", "no longer", "without", "never") else 3
+        limit = 4 if sp.key in ("unlikely", "no longer", "without", "never", "end to") else 3
         if ok and gap <= limit and (best is None or sp.start > best.start):
             best = sp
     return best

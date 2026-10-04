@@ -6,6 +6,12 @@ each ticker with an enabled alert rule) whose newest snapshot is older than
 schedule, so restarts neither stampede the APIs nor skip a cycle. Each refresh
 is a normal analysis, which stores a snapshot and evaluates alert rules; the
 monitor then retries undelivered webhooks and prunes very old snapshots.
+
+A ticker whose refresh fails is not retried every tick (a failed run stores no
+snapshot, so it would look "due" forever and fan out to ~30 provider calls a
+minute): it backs off exponentially — interval × 2^(failures−1), capped at
+24 h — and an unknown/delisted symbol waits the full 24 h straight away.
+Failing tickers are reported in `Monitor.status` (`GET /api/monitor`).
 """
 from __future__ import annotations
 
@@ -16,14 +22,27 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
 from app.config import settings
+from app.services.errors import UnknownSymbol
 from app.services.tasks import describe_error
 from app.storage import db
 
 logger = logging.getLogger(__name__)
 
 MIN_INTERVAL_MINUTES = 5  # floor: free APIs deserve politeness
+MAX_BACKOFF = timedelta(hours=24)
 PRUNE_EVERY = timedelta(hours=24)
 SNAPSHOT_RETENTION_DAYS = 400
+
+
+@dataclass
+class TickerFailure:
+    """Consecutive failed refreshes of one ticker and when it is next tried."""
+
+    failures: int
+    last_attempt: datetime
+    retry_at: datetime
+    error: str
+    unknown: bool = False  # the symbol does not exist (typo / delisted)
 
 
 @dataclass
@@ -33,6 +52,7 @@ class MonitorStatus:
     last_cycle_at: datetime | None = None
     last_refreshed: list[str] = field(default_factory=list)
     last_error: str | None = None
+    failing: dict[str, TickerFailure] = field(default_factory=dict)
 
 
 class Monitor:
@@ -72,16 +92,44 @@ class Monitor:
         self._task = None
         self.status.running = False
 
+    def backoff(self, failures: int, unknown: bool) -> timedelta:
+        """Wait before retrying a ticker after `failures` consecutive failed refreshes."""
+        if unknown:
+            return MAX_BACKOFF
+        return min(MAX_BACKOFF, self.interval * 2 ** max(0, failures - 1))
+
     async def due_tickers(self, now: datetime) -> list[str]:
-        """Watched/alerted tickers whose newest snapshot is older than the interval."""
+        """Watched/alerted tickers whose newest snapshot is older than the interval (minus backoff)."""
         tickers = list(dict.fromkeys([*await db.watch_tickers(), *await db.alert_tickers()]))
+        failing = self.status.failing
+        for gone in set(failing) - set(tickers):  # unwatched since: forget it
+            del failing[gone]
         slack = timedelta(seconds=min(60.0, self.tick_seconds))  # don't miss a cycle by a hair
         due = []
         for t in tickers:
             last = await db.latest_snapshot(t)
-            if last is None or now - last.at >= self.interval - slack:
+            fail = failing.get(t)
+            if fail is not None and last is not None and last.at > fail.last_attempt:
+                del failing[t]  # analyzed successfully since (e.g. by a user): healthy again
+                fail = None
+            if fail is not None:
+                if now >= fail.retry_at - slack:
+                    due.append(t)
+            elif last is None or now - last.at >= self.interval - slack:
                 due.append(t)
         return due
+
+    def _record_failure(self, ticker: str, now: datetime, exc: Exception) -> None:
+        prev = self.status.failing.get(ticker)
+        failures = (prev.failures if prev else 0) + 1
+        unknown = isinstance(exc, UnknownSymbol)
+        wait = self.backoff(failures, unknown)
+        error = describe_error(exc)
+        self.status.failing[ticker] = TickerFailure(failures=failures, last_attempt=now, retry_at=now + wait,
+                                                    error=error, unknown=unknown)
+        self.status.last_error = f"{ticker}: {error}"
+        logger.warning("monitor refresh of %s failed (%d in a row; next try in %s): %s",
+                       ticker, failures, wait, error)
 
     async def run_once(self, now: datetime | None = None) -> list[str]:
         """One cycle: refresh due tickers sequentially; returns those refreshed successfully."""
@@ -94,10 +142,11 @@ class Monitor:
                 await asyncio.sleep(self.pause_seconds)
             try:
                 await analyzer.analyze(ticker, refresh=True)
-                refreshed.append(ticker)
             except Exception as exc:  # noqa: BLE001 - one bad ticker must not stop the cycle
-                self.status.last_error = f"{ticker}: {describe_error(exc)}"
-                logger.warning("monitor refresh of %s failed: %s", ticker, describe_error(exc))
+                self._record_failure(ticker, now, exc)
+                continue
+            self.status.failing.pop(ticker, None)
+            refreshed.append(ticker)
         try:
             await alerts.retry_undelivered(now)
             if self._last_prune is None or now - self._last_prune >= PRUNE_EVERY:

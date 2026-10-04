@@ -93,14 +93,14 @@ export default function PriceTone({ a }: { a: Analysis }) {
   const priceQ = usePrice(a.ticker, range);
   const history = useHistory(a.ticker, 90);
   const daily = DAILY.has(range);
-  const toneSeries = a.tone?.series ?? [];
+  const toneSeries = useMemo(() => a.tone?.series ?? [], [a.tone]);
   const withTone = TONE_RANGES.has(range);
   const rows = useMemo(() => buildRows(priceQ.data?.candles ?? [], withTone ? toneSeries : [], daily), [priceQ.data, toneSeries, daily, withTone]);
   const showTone = withTone && toneSeries.length > 0;
   const currency = priceQ.data?.currency ?? a.quote?.currency;
 
   return (
-    <div id="price" className="grid scroll-mt-28 gap-4 lg:grid-cols-12">
+    <div id="price" className="grid scroll-mt-36 md:scroll-mt-28 gap-4 lg:grid-cols-12">
       <Panel
         title="Price × news tone"
         subtitle={

@@ -5,7 +5,7 @@
 import { OctagonAlert, Check, KeyRound, Minus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-import { useSources } from "../../api/hooks";
+import { useSources, type TrackedProgress } from "../../api/hooks";
 import type { ProgressEvent } from "../../api/types";
 import { Skeleton } from "../../components/ui/Misc";
 import { cx } from "../../lib/cx";
@@ -24,7 +24,7 @@ interface Chip {
 
 const STAGE_TITLE: Record<string, string> = { source: "Sources", intel: "Market intel", synth: "Synthesis" };
 
-export function ScanPanel({ ticker, progress }: { ticker: string; progress: ProgressEvent[] }) {
+export function ScanPanel({ ticker, progress }: { ticker: string; progress: TrackedProgress[] }) {
   const sources = useSources();
   const [elapsed, setElapsed] = useState(0);
 
@@ -53,7 +53,11 @@ export function ScanPanel({ ticker, progress }: { ticker: string; progress: Prog
   const total = Math.max(all.length, 1);
   const items = all.reduce((s, c) => s + (c.status === "ok" ? c.count ?? 0 : 0), 0);
   const resolved = progress.find((p) => p.stage === "resolve" && p.status === "ok");
-  const log = progress.filter((p) => p.status !== "running").slice(-6);
+  // Terminal log: the six most recent completions, oldest first.
+  const log = progress
+    .filter((p) => p.status !== "running")
+    .sort((x, y) => x.seq - y.seq)
+    .slice(-6);
 
   return (
     <div className="space-y-4" aria-busy="true" aria-live="polite">

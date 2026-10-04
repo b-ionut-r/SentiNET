@@ -4,7 +4,7 @@ from __future__ import annotations
 import pytest
 
 from app.config import settings
-from app.sources.base import Source
+from app.sources.base import CompanyRef, Source
 from app.sources.registry import ALL_SOURCES, all_sources, enabled_sources, get_source
 from tests.sources.conftest import company
 
@@ -60,3 +60,20 @@ def test_configured_keyed_source_becomes_enabled(no_keys, monkeypatch):
     monkeypatch.setattr(settings, "finnhub_api_key", "k")
     status = {s.key: st for s, st in enabled_sources(company("AAPL"))}
     assert status["finnhub"] == "enabled"
+
+
+def test_word_tickers_and_everyday_names_are_honestly_unsupported(no_keys):
+    you = CompanyRef(ticker="YOU", name="Clear Secure, Inc.", short_name="Clear Secure")
+    status = {s.key: st for s, st in enabled_sources(you)}
+    assert status["apewisdom"] == status["tradestie"] == "unsupported"  # boards count the word "YOU"
+    assert status["google_news"] == status["stocktwits"] == "enabled"
+    target = {s.key: st for s, st in enabled_sources(company("TGT"))}
+    assert target["hackernews"] == "unsupported"  # HN "target" is never the retailer
+
+
+def test_futures_and_fx_get_theme_searches(no_keys):
+    gold = CompanyRef(ticker="GC=F", name="Gold Dec 26", short_name="Gold Dec 26", quote_type="FUTURE")
+    status = {s.key: st for s, st in enabled_sources(gold)}
+    assert status["google_news"] == status["bing_news"] == status["yahoo_news"] == "enabled"
+    assert status["stocktwits"] == status["nasdaq"] == "unsupported"
+

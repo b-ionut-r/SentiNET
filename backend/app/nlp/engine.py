@@ -8,7 +8,8 @@ give VADER (caps, emphasis, emoji) more say.
 
     engine = get_engine()
     [a] = engine.score(["Nvidia price target raised to $250 from $220 at MS"], ["news"])
-    a.score, a.label, a.confidence, a.drivers   # 0.6, "bullish", 0.8, [("price target raised ...", 0.6)]
+    a.score, a.label, a.confidence   # 0.63, "bullish", 0.85
+    a.drivers                        # [("price target raised to $250 from $220", 0.74)]
 
 Scores are in [-1, 1]; ``label_for`` maps them to labels with ``NEUTRAL_BAND``.
 Weak or self-cancelling evidence is pulled into the neutral band on purpose:
@@ -61,15 +62,34 @@ class SentinelParams:
     """Blend/calibration knobs.
 
     News values were grid-searched on the Twitter-financial *train* split; social
-    values on the even-id half of a StockTwits author-tagged sample (odd ids held out)."""
+    values on the even-id half of a StockTwits author-tagged sample (odd ids held out).
+    The optimum is flat (+-0.005 macro-F1 around these values), so they are not fragile."""
 
-    scale: float = 1.2  # raw evidence -> tanh(raw / scale)
-    news_fin_weight: float = 0.9  # news/analysis/filing: finance evidence 0.9 + VADER 0.1
+    scale: float = 1.3  # news: raw evidence -> tanh(raw / scale)
+    social_scale: float = 1.2
+    # news/analysis/filing: finance evidence 0.95 + VADER 0.05. VADER misreads headlines ("crude",
+    # "gross", context clauses), and on the tuning split every extra point of VADER weight hurt.
+    news_fin_weight: float = 0.95
     social_fin_weight: float = 0.6  # social: finance evidence 0.6 + VADER 0.4 (caps, emoji, slang)
-    news_deadzone: float = 0.30  # blended |score| below this is pulled to 0 (soft threshold)
+    news_deadzone: float = 0.28  # blended |score| below this is pulled to 0 (soft threshold)
     social_deadzone: float = 0.08  # posts are short opinions: commit earlier
     news_vader_solo: float = 0.75  # VADER weight multiplier when no finance evidence exists
     social_vader_solo: float = 1.0
+    # evidence reliability by kind (Twitter-train calibration): numeric/structural rules and
+    # composed moves are more trustworthy than a lone lexicon word
+    rule_weight: float = 1.2
+    move_weight: float = 1.15
+    lex_weight: float = 0.8
+
+    def source_weight(self, source: str, social: bool = False) -> float:
+        """Reliability multiplier for one piece of evidence (``Hit.source``)."""
+        if social:  # posts were calibrated on their own (StockTwits author tags)
+            return 1.0
+        if source.startswith("rule:"):
+            return self.rule_weight
+        if source == "move":
+            return self.move_weight
+        return self.lex_weight  # lex, metric, social
 
 
 class _FinanceVader(SentimentIntensityAnalyzer):
@@ -201,10 +221,10 @@ class SentinelEngine:
     # ------------------------------------------------------------ internals
     def _from_evidence(self, ev: Evidence, social: bool) -> TextAnalysis:
         p = self.params
-        values = _dedupe_values(ev)
+        values = _dedupe_values(ev, p, social)
         raw = sum(values)
         mass = sum(abs(v) for v in values)
-        fin = math.tanh(raw / p.scale)
+        fin = math.tanh(raw / (p.social_scale if social else p.scale))
         # Without finance evidence a headline's VADER share (<= 0.075) can never clear the news
         # dead-zone, so skip it there; social posts always get VADER (caps, emoji, slang).
         need_vader = ev.text and (social or values)
@@ -220,7 +240,7 @@ class SentinelEngine:
         score = max(-1.0, min(1.0, math.copysign(mag, blended)))
         label = label_for(score)
         confidence = self._confidence(ev, raw, mass, fin, vader, blended, label, deadzone)
-        drivers = self._drivers(ev, w_fin, w_vader, vader if not values else 0.0)
+        drivers = self._drivers(ev, w_fin, w_vader, vader if not values else 0.0, social)
         return TextAnalysis(score=round(score, 4), label=label, confidence=round(confidence, 3), drivers=drivers)
 
     def _confidence(self, ev: Evidence, raw: float, mass: float, fin: float, vader: float, blended: float,
@@ -254,8 +274,9 @@ class SentinelEngine:
         conf = (0.3 + 0.7 * strength) * (0.55 + 0.45 * consistency) * agree * shape
         return max(0.05, min(0.98, conf))
 
-    def _drivers(self, ev: Evidence, w_fin: float, w_vader: float, vader_only: float) -> list[tuple[str, float]]:
-        scale = self.params.scale
+    def _drivers(self, ev: Evidence, w_fin: float, w_vader: float, vader_only: float,
+                 social: bool) -> list[tuple[str, float]]:
+        scale = self.params.social_scale if social else self.params.scale
         merged: dict[str, float] = {}
         counts: dict[str, int] = {}
         for h in ev.hits:
@@ -264,8 +285,9 @@ class SentinelEngine:
                 continue
             counts[term] = counts.get(term, 0) + 1
             if counts[term] <= 2:  # repeated emoji/terms: diminishing, like the score
-                merged[term] = merged.get(term, 0.0) + w_fin * math.tanh(h.value / scale) * (1.0 if counts[term] == 1
-                                                                                          else 0.5)
+                value = h.value * self.params.source_weight(h.source, social)
+                merged[term] = merged.get(term, 0.0) + w_fin * math.tanh(value / scale) * (1.0 if counts[term] == 1
+                                                                                        else 0.5)
         if not merged and abs(vader_only) >= 0.05:
             # no finance evidence: explain VADER's call with the words it reacted to
             lex = self._vader.lexicon
@@ -273,15 +295,31 @@ class SentinelEngine:
                 v = lex.get(t.text)
                 if v is not None and abs(v) >= 1.0:
                     merged[t.text] = merged.get(t.text, 0.0) + w_vader * math.tanh(v / 4.0)
+        _fold_nested(merged)
         ranked = sorted(merged.items(), key=lambda kv: -abs(kv[1]))
-        return [(term, round(impact, 3)) for term, impact in ranked if abs(impact) >= 0.01][:MAX_DRIVERS]
+        return [(term, round(max(-1.0, min(1.0, impact)), 3)) for term, impact in ranked
+                if abs(impact) >= 0.01][:MAX_DRIVERS]
 
 
-def _dedupe_values(ev: Evidence) -> list[float]:
-    """Repeated identical evidence has diminishing returns ("🤑🤑🤑🤑" is not 4x one "🤑")."""
+def _fold_nested(merged: dict[str, float]) -> None:
+    """Fold a driver into a longer same-signed driver that contains it, so "claims fall" and
+    "claims fall to lowest" show once (as the more specific phrase)."""
+    for short in sorted(merged, key=len):
+        low = short.lower()
+        for long in sorted(merged, key=len, reverse=True):
+            if len(long) <= len(short):
+                break
+            if low in long.lower() and (merged[long] > 0) == (merged[short] > 0):
+                merged[long] += merged.pop(short)
+                break
+
+
+def _dedupe_values(ev: Evidence, params: SentinelParams, social: bool) -> list[float]:
+    """Reliability-weighted evidence values; repeated identical evidence has diminishing
+    returns ("🤑🤑🤑🤑" is not 4x one "🤑")."""
     groups: dict[str, list[float]] = {}
     for h in ev.hits:
-        groups.setdefault(h.term.lower(), []).append(h.value)
+        groups.setdefault(h.term.lower(), []).append(h.value * params.source_weight(h.source, social))
     out: list[float] = []
     for vals in groups.values():
         if len(vals) == 1:

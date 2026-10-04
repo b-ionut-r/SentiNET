@@ -12,6 +12,7 @@ import time
 
 import pytest
 
+from app.nlp import lexicon as lx
 from app.nlp.engine import NEUTRAL_BAND, SentinelEngine, VaderEngine, label_for
 from app.nlp.types import TextAnalysis
 
@@ -160,7 +161,9 @@ CASES: list[tuple[str, str, str]] = [
     ("Company raises quarterly dividend by 10%", "bullish", "news"),
     ("Carnival suspends its dividend", "bearish", "news"),
     ("$KRC - Kilroy Realty declares $0.485 dividend", "neutral", "news"),
-    ("KBR wins $23.7M Army contract", "bullish", "news"),
+    # a routine contract win is not headline sentiment (annotators agree); events flag it separately
+    ("KBR wins $23.7M Army contract", "neutral", "news"),
+    ("Palantir wins $10 billion Army contract, shares jump 6%", "bullish", "news"),
     # macro
     ("Fed cuts interest rates by 50 basis points", "bullish", "news"),
     ("Fed signals more rate hikes ahead as inflation persists", "bearish", "news"),
@@ -203,6 +206,60 @@ CASES: list[tuple[str, str, str]] = [
     ("Shares were little changed in early trading", "neutral", "news"),
     ("Prices for the new models range from $799 to $1,099", "neutral", "news"),
     ("Merck's vericiguat studied in heart failure patients", "neutral", "news"),
+    # reported vs. consensus, idiomatic beats/misses
+    ("Acme Q2 adj. EPS $1.02; FactSet consensus $1.21", "bearish", "news"),
+    ("Acme Q2 revenue $4.1 billion; consensus $3.9 billion", "bullish", "news"),
+    ("Retailer's holiday sales come up shy of estimates", "bearish", "news"),
+    ("Home sales squeak past estimates in March", "bullish", "news"),
+    ("Acme EPS in-line, beats on revenue", "bullish", "news"),
+    ("Wedbush names Apple its top tech pick for 2027", "bullish", "news"),
+    ("Jefferies lifts $TSLA to Buy from Hold", "bullish", "news"),
+    ("Palo Alto Networks is a decent buy after the sharp fall", "bullish", "news"),
+    # price moves: quantities, names, context clauses
+    ("Acme stock up 4.2% in afternoon trading", "bullish", "news"),
+    ("Here's why Acme stock is down over 9% today", "bearish", "news"),
+    ("Euro off 0.3% against the dollar", "bearish", "news"),
+    ("Acme extends premarket losses, now down 5%", "bearish", "news"),
+    ("Can-Fite +12% after patent grant", "bullish", "news"),
+    ("Zoom shares get whacked after weak guidance", "bearish", "news"),
+    ("Shares of NCM.AX rise 4% on contract news", "bullish", "news"),
+    ("Acme bounces 2% after plunging 15% on Tuesday", "bullish", "news"),
+    ("Dollar rises as trade tensions worsen", "bullish", "news"),
+    ("U.S. stock futures and Treasury yields drop", "bearish", "news"),
+    ("Apple's market value tops $4 trillion", "bullish", "news"),
+    ("Global debt tops $300 trillion", "bearish", "news"),
+    ("Earnings dropped 16%, how did the company fare against peers?", "bearish", "news"),
+    # macro comparatives and trends
+    ("Core inflation came in at 2.6%, much cooler than expected", "bullish", "news"),
+    ("Retail sales weaker than expected in May", "bearish", "news"),
+    ("Fed's 'bazooka' soothes dollar funding squeeze", "bullish", "news"),
+    ("The virus could wipe $2 trillion from global GDP", "bearish", "news"),
+    ("Shale's drilling boom is coming to an end", "bearish", "news"),
+    ("Soybeans snap out of a slump on export hopes", "bullish", "news"),
+    ("The worst is behind us, CEO says", "bullish", "news"),
+    ("Dow snaps five-day losing streak", "bullish", "news"),
+    ("Winning streak ends for the Nasdaq", "bearish", "news"),
+    # corporate events, insiders, approvals, options flow
+    ("Electrolux to take a $70 million restructuring charge", "bearish", "news"),
+    ("CEO buys 50,000 shares of the company", "bullish", "news"),
+    ("Co-founder sold $1.5 billion of company stock this month", "bearish", "news"),
+    ("FDA accepts Acme's new drug application for review", "bullish", "news"),
+    ("Acme obtains European license for its battery plant", "bullish", "news"),
+    ("Uber loses its London operating license", "bearish", "news"),
+    ("Hedge funds are betting on Acme", "bullish", "news"),
+    ("Hedge funds couldn't dump Acme fast enough", "bearish", "news"),
+    ("Acme reports a surprise loss as demand weakens", "bearish", "news"),
+    ("Investors who bought Acme a year ago have a 40% loss to show for it", "bearish", "news"),
+    ("Insurer sees revenue hit from hurricane season", "bearish", "news"),
+    ("Sales hit a record in the third quarter", "bullish", "news"),
+    ("Traders bought 2,000 July $190 calls on Acme", "bullish", "news"),
+    ("5,000 $40 puts opening in Acme ahead of earnings", "bearish", "news"),
+    # transitive verbs with non-metric objects are not price moves
+    ("Google drops plan to buy stake in wind farm", "neutral", "news"),
+    ("Musk drops surprise song on streaming platforms", "neutral", "news"),
+    ("ECB to ease collateral requirements for banks", "neutral", "news"),
+    ("Is Acme's 15% return on equity sustainable?", "neutral", "news"),
+    ("bagholders crying again, this thing is going to zero", "bearish", "social"),
 ]
 
 
@@ -221,6 +278,16 @@ def test_case_count_and_balance() -> None:
     assert len(CASES) >= 120
     labels = {label for _, label, _ in CASES}
     assert labels == {"bullish", "bearish", "neutral"}
+
+
+def test_lexicon_breadth() -> None:
+    assert lx.lexicon_size() >= 600
+    phrases = [k for table in (lx.POSITIVE, lx.NEGATIVE, lx.LITIGIOUS, lx.SOCIAL) for k in table if " " in k]
+    assert len(phrases) >= 150
+    for slang in ("to the moon", "bagholder", "rug pull", "diamond hands", "paper hands", "short squeeze",
+                  "dead cat bounce", "rekt", "tendies", "🚀", "🌕", "📈", "📉", "🐻", "🐂"):
+        assert any(slang in t for t in (lx.SOCIAL, lx.POSITIVE, lx.NEGATIVE)), slang
+    assert "puts" in lx.SOCIAL_ONLY and "calls" in lx.SOCIAL_ONLY
 
 
 # --------------------------------------------------------------------------- #
@@ -307,6 +374,18 @@ def _highlightable(term: str, text: str) -> bool:
         return True
     toks = (t.strip(".,;:!?()\"'") for t in term.lower().split())
     return any(len(t) >= 3 and t not in _STOP and t in low for t in toks)
+
+
+def test_nested_drivers_fold_into_the_specific_phrase(engine: SentinelEngine) -> None:
+    a = engine.analyze("Jobless claims fall to lowest since 2019")
+    assert len(a.drivers) == 1 and "lowest" in a.drivers[0][0].lower() and a.drivers[0][1] > 0
+
+
+def test_short_rule_evidence_is_shown_verbatim(engine: SentinelEngine) -> None:
+    a = engine.analyze("Twitter tops expectations with first $1 billion quarterly revenue")
+    assert a.drivers[0][0] == "tops expectations"
+    b = engine.analyze("Apple cut to Neutral from Buy at Goldman")
+    assert b.drivers[0][0] == "cut to Neutral from Buy"
 
 
 def test_negated_driver_includes_negator(engine: SentinelEngine) -> None:

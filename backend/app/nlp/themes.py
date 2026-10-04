@@ -40,6 +40,9 @@ _PATTERNS: dict[str, tuple[str, ...]] = {
         r"(?:\w+ ){0,3}?(?:estimates|expectations|consensus)"), r"\b(?:earnings|eps|revenue|profit) (?:beat|miss)\b",
         r"\bearnings call\b", r"\b(?:gross|operating|net) margins?\b", r"\b(?:same-store|comparable) sales\b",
         r"\bcomps\b", r"\bdeliveries\b", r"\bbookings\b", r"\btop[- ]line\b", r"\bbottom[- ]line\b",
+        r"\bregistrations\b", r"\b(?:unit|car|vehicle|ev|iphone|device) sales\b",
+        (r"\b(?:better|worse|more|less|fewer|stronger|weaker)(?:\s+\w+){0,2}\s+than (?:wall street |analysts |"
+         r"the street )?expected\b"),
     ),
     "guidance": (
         r"\bguidance\b", r"\boutlook\b(?! to (?:positive|negative|stable))", r"\bforecasts?\b(?!\s+(?:and|&) price)",
@@ -52,18 +55,25 @@ _PATTERNS: dict[str, tuple[str, ...]] = {
         r"\binitiat(?:es|ed) (?:coverage|at)\b", r"\b(?:over|under)weight\b", r"\b(?:out|under)perform\b",
         r"\b(?:buy|sell|hold|neutral) rating\b", r"\bequal[- ]weight\b", r"\banalysts?\b", r"\btop pick\b",
         r"\bstreet-high\b", r"\bconsensus (?:rating|target)\b", r"\breiterates?\b", r"\bcoverage\b",
+        r"\b(?:conviction|focus|top picks?|best ideas) list\b", r"\bdirector'?s cut\b",
         (r"\b(?:morgan stanley|goldman sachs|jpmorgan|bofa|bank of america|citi(?:group)?|wells fargo|barclays|ubs|"
         r"jefferies|bernstein|mizuho|evercore|piper sandler|wedbush|needham|oppenheimer|raymond james|keybanc|"
         r"truist|td cowen|rbc|bmo|hsbc|deutsche bank|baird|stifel|cantor|loop capital|rosenblatt) (?:says|sees|"
         r"expects|thinks|calls|names|picks|likes|warns|is)\b"),
+        (r"\b(?:says|according to|per)\s+(?:morgan stanley|goldman sachs|jpmorgan|bofa|bank of america|citi|wells "
+         r"fargo|barclays|ubs|jefferies|bernstein|mizuho|evercore|piper sandler|wedbush|needham|oppenheimer|"
+         r"raymond james|keybanc|truist|td cowen|rbc|bmo|hsbc|deutsche bank|baird|stifel|cantor|counterpoint|"
+         r"analysts?)\b"),
     ),
     "product": (
         r"\blaunch(?:es|ed|ing)?\b(?! coverage)", r"\bunveil(?:s|ed|ing)?\b", (r"\bnew (?:product|model|chip|phone|"
         r"device|app|feature|service|platform|vehicle|car|drug|lineup|version)s?\b"), r"\brolls? out\b", r"\bdebut",
         r"\brelease[sd]?\b(?! (?:date|of (?:earnings|results)))", r"\biphones?\b", r"\bipads?\b", r"\bmacbooks?\b",
-        r"\bgpus?\b", r"\bchips?\b", r"\bsmartphones?\b", r"\bdevices?\b", r"\bsoftware update\b", r"\bfeatures?\b",
+        r"\bsmartphones?\b", r"\bsoftware update\b", r"\bnew features?\b",
         r"\bpre-?orders?\b", r"\bproduct (?:line|lineup|roadmap|event|cycle)\b", r"\brecalls?\b", r"\bsmart glasses\b",
-        r"\bvehicles?\b", r"\brobotaxis?\b", r"\bsubscription\b", r"\bkeynote\b", r"\bevent\b(?= (?:on|in|next))",
+        r"\brobotaxis?\b", r"\bsubscription\b", r"\bkeynote\b", r"\bevent\b(?= (?:on|in|next))",
+        r"\b(?:downloads|weekly users|monthly users|daily active users|active users|paying subscribers)\b",
+        r"\b(?:event|launch|reveal|release|unveiling|rollout)\s+(?:\w+\s+){0,2}?(?:delayed|postponed|pushed back)\b",
         r"\bfda (?:approv|clear)", r"\bpipeline\b(?=.{0,30}\b(?:drug|trial|candidate))",
     ),
     "ai": (
@@ -95,7 +105,7 @@ _PATTERNS: dict[str, tuple[str, ...]] = {
         r"\bacqui(?:re|res|red|ring|sition|sitions)\b(?! cost)", r"\bmergers?\b", r"\bmerge\b", r"\btakeover\b",
         r"\bbuyout\b", r"\btender offer\b", r"\bspin-?offs?\b", r"\bdivest", r"\bpartner(?:s|ship|ships|ed)?\b",
         r"\bteams? up\b", r"\bcollaborat", r"\balliance\b", r"\bjoint venture\b", r"\bstake in\b", r"\binvests? in\b",
-        r"\b(?:inks|signs|strikes|struck) (?:a )?(?:\w+ )?(?:deal|pact|agreement)\b", (r"\bcontracts?\b(?! (?:talks|"
+        r"\b(?:inks?|signs?|signed|strikes?|struck|reach(?:es|ed)?)\s+(?:an?\s+)?(?:[\w-]+\s+){0,4}?(?:deal|pact|agreement)\b", (r"\bcontracts?\b(?! (?:talks|"
         r"extension))"), r"\bdeal (?:to|with|for)\b", r"\b(?:supply|licensing|cloud|chip) (?:deal|agreement)\b",
         r"\bbid\b", r"\bgo(?:es|ing)? private\b", r"\bfinancing\b",
     ),
@@ -103,13 +113,17 @@ _PATTERNS: dict[str, tuple[str, ...]] = {
         r"\bceo\b", r"\bcfo\b", r"\bcoo\b", r"\bcto\b", r"\bchief executive\b", (r"\bchief (?:financial|operating|"
         r"technology|executive|ai|enterprise) officer\b"), r"\bchair(?:man|woman)?\b", r"\bpresident\b",
         r"\bfounder\b", r"\bsteps? down\b", r"\bresign", r"\bappoint", r"\bnames? (?:new )?(?:ceo|cfo|chief)\b",
-        r"\bhires?\b", r"\btaps?\b", r"\bsuccession\b", r"\bleadership\b", r"\bboard (?:of directors|seat|member)s?\b",
-        r"\bmanagement\b(?! (?:fee|software|services))", r"\brestructur", r"\bexecutives?\b", r"\breorgani[sz]",
+        r"\b(?:hires?|taps?)\s+(?:[\w.'&-]+\s+){0,3}?(?:ceo|cfo|coo|cto|chief|president|executive|exec|head)\b",
+        r"\bsuccession\b", r"\bleadership\b", r"\bboard (?:of directors|seat|member)s?\b",
+        r"(?<!capital )(?<!asset )(?<!investment )(?<!wealth )(?<!portfolio )(?<!fund )(?<!investment )"
+        r"\bmanagement\b(?! (?:fee|software|services|company|co|llc|inc|corp|group|lp|ltd))",
+        r"\brestructur", r"\bexecutives?\b", r"\breorgani[sz]",
         r"\boverhaul\b",
     ),
     "capital_return": (
         r"\bbuybacks?\b", r"\bbuy-backs?\b", r"\b(?:share|stock) repurchases?\b", r"\brepurchas", r"\bbuy back\b",
-        r"\bdividends?\b(?! tax)", r"\bpayouts?\b", r"\bspecial dividend\b", r"\bshareholder returns?\b",
+        r"\bdividends?\b(?! (?:tax|stocks?|kings?|aristocrats?|etfs?|investors?|payers?|growth stocks?|"
+        r"portfolio|income|yield))", r"\bpayouts?\b", r"\bspecial dividend\b", r"\bshareholder returns?\b",
         r"\breturn(?:s|ed|ing)? capital\b", r"\bcapital return\b", r"\byield(?:s|ing)? \d",
     ),
     "macro": (
@@ -118,8 +132,8 @@ _PATTERNS: dict[str, tuple[str, ...]] = {
         r"\bgdp\b", r"\brecession\b", r"\btreasury yields?\b", r"\bbond yields?\b", (r"\byields? (?:rise|fall|jump|"
         r"climb|surge)"), r"\btrade war\b", r"\beconom(?:y|ic|ies)\b", (r"\bconsumer (?:confidence|sentiment|"
         r"spending)\b"), r"\boil prices?\b", r"\bcrude\b", r"\bdollar\b", r"\bs&p 500\b", r"\bnasdaq composite\b",
-        r"\bdow jones\b", r"\bstock market\b", (r"\bwall street\b(?! (?:analysts?|estimates|expects|sees|"
-        r"consensus))"), r"\bgovernment shutdown\b", r"\belection\b", r"\bgeopolitic", r"\bwar\b(?! chest)",
+        r"\bdow jones\b", r"\bstock market\b(?! today)", r"\bwall street (?:stocks|rally|rallies|selloff|"
+        r"sell-off|slump|closes|ends|opens|futures)\b", r"\bgovernment shutdown\b", r"\belection\b", r"\bgeopolitic", r"\bwar\b(?! chest)",
         r"\bcentral bank\b", r"\bmarket (?:selloff|sell-off|rally|rout|crash)\b", r"\brisk[- ]off\b",
         r"\bvolatility\b",
     ),
@@ -153,6 +167,8 @@ _PATTERNS: dict[str, tuple[str, ...]] = {
         r"\bretail (?:traders|investors|trading|frenzy|crowd)\b", r"\b13f\b", r"\bhedge funds?\b",
         r"\b(?:stake|position) (?:cut|raised|lifted|trimmed|boosted|reduced|increased) by\b",
         r"\b(?:stock|shares) (?:acquired|bought|sold|purchased) by\b", r"\betf (?:inflows|outflows)\b",
+        r"\b(?:shares|stake|stock|position)\b[^?!]{0,50}\b(?:acquired|bought|sold|purchased|trimmed|raised|lowered|"
+        r"cut|boosted|lifted|reduced)\s+by\b", r"\b(?:purchases|acquires|buys|sells|trims|boosts)\s+[\d,]+\s+shares of\b",
         r"\btechnicals?\b", r"\bdeath cross\b", r"\bgolden cross\b", r"\bbreakout\b", r"\bsupport level\b",
         r"\bresistance\b", r"\bmoving average\b", r"\brsi\b", r"\boverbought\b", r"\boversold\b",
         r"\bpremarket\b", r"\bafter-hours\b", r"\bstock movers\b", r"\bmost active\b", r"\bbuy point\b",
@@ -160,7 +176,7 @@ _PATTERNS: dict[str, tuple[str, ...]] = {
     ),
     "valuation": (
         r"\bvaluations?\b", r"\bvalued at\b", r"\bundervalued\b", r"\bovervalued\b", r"\bcheap\b", r"\bexpensive\b",
-        r"\bfair value\b", r"\bp/?e\b", r"\bprice-to-(?:earnings|sales|book)\b", r"\bmultiples?\b",
+        r"\bfair value\b", r"\bp/?e\b", r"\b\d+\s?(?:x|times)\s+(?:forward\s+|trailing\s+)?(?:earnings|sales|revenue|ebitda|book)\b", r"\bprice-to-(?:earnings|sales|book)\b", r"\bmultiples?\b",
         r"\bintrinsic value\b", r"\bdiscount\b", r"\bpremium\b(?! (?:iphone|devices?|brand|products?|tier))",
         r"\b(?:could|would) be worth\b", r"\bupside\b", r"\bdownside\b", r"\bmarket (?:cap|value|valuation)\b",
         r"\bbubble\b", r"\btrillion\b", r"\bbuy now\b", r"\b(?:is it|still) a buy\b", (r"\btoo (?:cheap|expensive|"

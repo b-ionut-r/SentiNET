@@ -22,7 +22,7 @@ waste republic summit pacific atlantic liberty freedom fidelity prudential princ
 solar wave vital core prime bright clear smart open next new best big true blue green red black white
 silver gold diamond crown keystone anchor harbor bridge tower peak mosaic alliance union capital trade
 desk data cloud signal vector matrix quantum fusion nexus atlas titan apex zenith vertex pulse spark flex
-bumble chewy toast peloton nikola robinhood sea grab wish yum
+bumble chewy toast peloton nikola robinhood sea grab wish yum strategy intel
 coach ring box dollar riot genius progress premier pinnacle structure viking align pool crispr
 twist insight vision focus element harmony avidity exact natural guardant arrowhead ocean ideal
 river lake forest mountain rock stone moon sky rain snow wind fire water earth field meadow garden

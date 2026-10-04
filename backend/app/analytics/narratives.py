@@ -4,9 +4,13 @@ Only published media (news/analysis) that is clearly about the company
 (relevance >= 0.5) is clustered; crowd chatter is summarized elsewhere.
 
     impact = coverage × (0.3 + 0.7·intensity) × freshness            (0..1)
-    coverage  = 1 − exp(−(items + 0.5·outlets) / 5)       syndicated copies count
+    coverage  = 1 − exp(−(Σ relevance·copies + 0.5·outlets) / 5)   syndicated copies count
     intensity = max(|tone| / 0.4, 0.6 if a material event) capped at 1
     freshness = 0.35 + 0.65 · 0.5^(hours since last item / 48)
+
+Single items, and clusters carried by a single outlet, only count when the
+outlet is trusted, the item clearly about the company, the tone strong (or a
+material event) and the headline a statement (not a question or listicle).
 
 A narrative is NEW when none of its headlines shares >= 50% of its content
 tokens (Jaccard) with any narrative headline of the previous snapshot.
@@ -33,6 +37,7 @@ NEW_JACCARD = 0.5
 SINGLETON_MIN_TRUST = 0.9
 SINGLETON_MIN_RELEVANCE = 0.8
 SINGLETON_MIN_TONE = 0.3
+SINGLE_OUTLET_MAX_FOCUS = 2.0  # a story only one outlet covers counts as at most 2 items
 
 # Events that are developments in their own right (price moves merely describe the tape).
 PRICE_EVENTS = frozenset({"price_up", "price_down", "all_time_high", "low_52w"})
@@ -40,6 +45,10 @@ PRICE_EVENTS = frozenset({"price_up", "price_down", "all_time_high", "low_52w"})
 _STOP = frozenset("""a an and are as at be by for from has have in into is it its of on or s says say said the
 to was were will with after amid over than that this vs via new more why how what""".split())
 _TOKEN_RE = re.compile(r"[a-z0-9$%][a-z0-9$%.']*")
+# Questions, listicles and "reasons to buy" pieces are opinion, not developments.
+WEAK_TITLE_RE = re.compile(
+    r"\?\s*$|^\s*(?:why|how|what|is|are|should|can|could|will|would|here'?s|this is)\b|"
+    r"\b\d+\s+(?:reasons?|stocks?|things|ways|charts?)\b", re.IGNORECASE)
 
 
 @dataclass
@@ -100,20 +109,23 @@ def _story(rep: Item, members: list[Item], now: datetime) -> Story | None:
     events = Counter(k for m in members for k in m.event_keys)
     material = [k for k, _ in events.most_common() if k not in PRICE_EVENTS]
 
-    if count < 2 and not (
-        rep.trust >= SINGLETON_MIN_TRUST and rep.relevance >= SINGLETON_MIN_RELEVANCE
-        and (abs(tone) >= SINGLETON_MIN_TONE or material)
-    ):
-        return None
-
     outlet_counts = Counter(o for m in members for o in m.outlets())
     outlets = sorted(outlet_counts, key=lambda o: (-outlet_counts[o], -textkit.publisher_trust(o), o))
+    # One item, or one outlet repeating itself, must clear the singleton bar.
+    if (count < 2 or len(outlets) <= 1) and not (
+        rep.trust >= SINGLETON_MIN_TRUST and rep.relevance >= SINGLETON_MIN_RELEVANCE
+        and (abs(tone) >= SINGLETON_MIN_TONE or material) and not WEAK_TITLE_RE.search(rep.title)
+    ):
+        return None
     times = [t for m in members for t in m.times()]
     first, last = (min(times), max(times)) if times else (None, None)
     velocity = sum(1 for t in times if now - t <= timedelta(hours=24))
 
     intensity = max(min(1.0, abs(tone) / 0.4), 0.6 if material else 0.0)
-    coverage = 1.0 - math.exp(-(count + 0.5 * len(outlets)) / 5.0)
+    focus = sum(m.coverage * m.relevance for m in members)  # coverage *of this company*
+    if len(outlets) <= 1:
+        focus = min(focus, SINGLE_OUTLET_MAX_FOCUS)
+    coverage = 1.0 - math.exp(-(focus + 0.5 * len(outlets)) / 5.0)
     age_h = (now - last).total_seconds() / 3600.0 if last else 48.0
     freshness = 0.35 + 0.65 * 0.5 ** (max(age_h, 0.0) / 48.0)
     impact = coverage * (0.3 + 0.7 * intensity) * freshness

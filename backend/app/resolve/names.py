@@ -168,6 +168,13 @@ BRANDS: dict[str, Brand] = {
     "LRCX": Brand("Lam Research"),
     "ADI": Brand("Analog Devices"),
     "MRVL": Brand("Marvell", ("Marvell Technology",)),
+    # Foreign issuers whose registry name is not what the press writes.
+    "PBR": Brand("Petrobras", ("Petróleo Brasileiro", "Petroleo Brasileiro")),
+    "BUD": Brand("AB InBev", ("Anheuser-Busch InBev", "Anheuser-Busch")),
+    "NU": Brand("Nu Holdings", ("Nubank",)),
+    "TCEHY": Brand("Tencent", ("Tencent Holdings",)),
+    "NTDOY": Brand("Nintendo"),
+    "TTE": Brand("TotalEnergies"),
     # Funds: what the fund is *about* is what the news covers.
     "SPY": Brand("S&P 500", ("SPDR S&P 500",)),
     "VOO": Brand("S&P 500", ("Vanguard S&P 500",)),
@@ -191,6 +198,25 @@ BRANDS: dict[str, Brand] = {
     "XLE": Brand("Energy stocks", ("oil stocks",)),
     "ARKK": Brand("ARK Innovation", ("Cathie Wood",)),
     "IBIT": Brand("Bitcoin", ("iShares Bitcoin Trust",)),
+    # Indices and futures: the market they track is what the news names.
+    "^GSPC": Brand("S&P 500"),
+    "^IXIC": Brand("Nasdaq Composite", ("Nasdaq",)),
+    "^NDX": Brand("Nasdaq 100", ("Nasdaq-100",)),
+    "^DJI": Brand("Dow Jones", ("Dow Jones Industrial Average",)),
+    "^RUT": Brand("Russell 2000"),
+    "^VIX": Brand("VIX", ("Cboe Volatility Index", "volatility index")),
+    "^TNX": Brand("10-year Treasury yield", ("Treasury yields", "10-year yield")),
+    "ES=F": Brand("S&P 500", ("S&P 500 futures", "stock futures")),
+    "NQ=F": Brand("Nasdaq 100", ("Nasdaq futures",)),
+    "YM=F": Brand("Dow Jones", ("Dow futures",)),
+    "RTY=F": Brand("Russell 2000", ("Russell futures",)),
+    "GC=F": Brand("Gold", ("gold prices", "gold futures")),
+    "SI=F": Brand("Silver", ("silver prices", "silver futures")),
+    "HG=F": Brand("Copper", ("copper prices", "copper futures")),
+    "CL=F": Brand("Crude oil", ("oil prices", "WTI crude")),
+    "BZ=F": Brand("Brent crude", ("oil prices", "Brent")),
+    "NG=F": Brand("Natural gas", ("natural gas prices",)),
+    "ZN=F": Brand("10-year Treasury", ("Treasury yields", "Treasury futures")),
     "GBTC": Brand("Bitcoin", ("Grayscale Bitcoin Trust",)),
 }
 
@@ -351,6 +377,11 @@ def fix_case(name: str) -> str:
     return " ".join(fixed)
 
 
+def registry_display_name(title: str) -> str:
+    """SEC registrant title for display: "BANK OF MONTREAL /CAN/" -> "Bank of Montreal"."""
+    return fix_case(_STATE_SUFFIX.sub("", html.unescape(title or "")).strip(" ,"))
+
+
 def ascii_fold(text: str) -> str:
     """"Estée" -> "Estee" (search engines and GDELT are inconsistent with accents)."""
     return unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
@@ -380,7 +411,8 @@ def _base_clean_with_tail(raw: str) -> tuple[list[str], list[str]]:
 
 def _distinctive(token: str) -> bool:
     bare = token.strip(".,&'!")
-    return len(bare) >= 3 and bare.lower() not in COMMON_WORDS
+    # Acronym heads keep their descriptor too: "CVS Health", "DTE Energy" are what people search.
+    return len(bare) >= 4 and bare.lower() not in COMMON_WORDS
 
 
 def _strip_descriptors(tokens: list[str]) -> list[str]:
@@ -444,9 +476,10 @@ def clean_company_name(raw: str) -> str:
 # Fund issuers / wrappers that say nothing about what the fund holds.
 _FUND_NOISE = re.compile(
     r"\b(?:state street|spdr|ishares|vanguard|invesco|proshares|direxion(?: daily)?|schwab|"
-    r"global x|vaneck|first trust|wisdomtree|fidelity|jpmorgan|j\.p\. morgan|ark|"
-    r"select sector|index fund|index|etf|etn|fund|trust|shares|series \d+|portfolio|core|"
-    r"ultrapro|ultrashort|ultra|bull|bear|[1-3]x|daily|leveraged|inverse|msci)\b",
+    r"global x|vaneck|first trust|wisdomtree|fidelity|jpmorgan|j\.p\. morgan|ark|kraneshares|xtrackers|"
+    r"amplify|roundhill|grayscale|defiance|yieldmax|simplify|pacer|dimensional|avantis|graniteshares|"
+    r"franklin|ipath|ishares|select sector|index fund|index|etf|etn|fund|trust|shares|series (?:\d+|[a-z])|"
+    r"portfolio|core|ultrapro|ultrashort|ultra|bull|bear|[1-3]x|daily|leveraged|inverse|msci|iboxx)\b|\$",
     re.IGNORECASE,
 )
 
@@ -457,6 +490,16 @@ def clean_fund_name(raw: str) -> str:
     name = _PARENS.sub("", name)
     core = re.sub(r"\s+", " ", _FUND_NOISE.sub(" ", name)).strip(" ,.-&")
     return core if len(core) >= 3 else (name.strip() or raw)
+
+
+_CONTRACT_MONTH = re.compile(
+    r"\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+'?\d{2,4}$", re.IGNORECASE
+)
+
+
+def clean_future_name(raw: str) -> str:
+    """"Crude Oil Nov 26" -> "Crude Oil" (the contract month is not what the news says)."""
+    return _CONTRACT_MONTH.sub("", (raw or "").strip()).strip() or raw
 
 
 def clean_crypto_name(raw: str) -> str:
@@ -503,6 +546,9 @@ def derive_names(
     elif quote_type == "CRYPTOCURRENCY":
         short = CRYPTO_NAMES.get(base) or clean_crypto_name(crypto_name or long_name or short_name or base)
         aliases = list(CRYPTO_ALIASES.get(base, ()))
+    elif quote_type == "FUTURE":
+        short = clean_future_name(short_name or long_name or ticker)
+        aliases = []
     elif quote_type in {"ETF", "MUTUALFUND"}:
         source = long_name or short_name or registry_name or ticker
         short = clean_fund_name(source)

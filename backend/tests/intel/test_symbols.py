@@ -159,3 +159,21 @@ async def test_search_falls_back_to_sec(monkeypatch: pytest.MonkeyPatch) -> None
     res = await symbols.search_symbols("NVDA", 5)
     assert res and res[0].symbol == "NVDA"
     assert await symbols.search_symbols("   ") == []
+
+
+def test_funds_carry_their_theme_as_alias() -> None:
+    """Headlines say "S&P 500" / "regional banks", never the wrapper's name."""
+    kre = build_company_ref("KRE", {"quoteType": "ETF", "longName": "SPDR S&P Regional Banking ETF"}, None)
+    assert "regional banks" in kre.aliases
+    spy = build_company_ref("SPY", {"quoteType": "ETF", "longName": "SPDR S&P 500 ETF Trust"}, ("0000884394", "SPDR"))
+    assert spy.short_name == "S&P 500" and [a for a in spy.aliases if a.lower() == "s&p 500"] == []
+    vix = build_company_ref("^VIX", {"quoteType": "INDEX", "longName": "CBOE Volatility Index"}, None)
+    assert vix.short_name == "VIX" and vix.cik is None
+
+
+def test_search_drops_collision_numbered_crypto_tokens() -> None:
+    quotes = [
+        {"symbol": "ETH-USD", "shortname": "Ethereum USD", "quoteType": "CRYPTOCURRENCY", "exchange": "CCC"},
+        {"symbol": "USDE29470-USD", "shortname": "Ethena USDe USD", "quoteType": "CRYPTOCURRENCY", "exchange": "CCC"},
+    ]
+    assert [m.symbol for m in matches_from_yahoo(quotes, "eth", 8)] == ["ETH-USD"]

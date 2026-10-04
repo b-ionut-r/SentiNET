@@ -7,11 +7,16 @@ feed's per-ticker `sentiment_score`/`sentiment` are FROZEN — NVDA 0.011
 while comment counts changed daily. Publishing that as "WSB sentiment" would be
 fabricated signal, so wsb_sentiment/wsb_label are emitted only when a
 comparison against the list from 28 days earlier proves the scores are being
-recomputed (self-healing if the provider fixes it). Ticker-words ("AI", "UK",
-"YOU") are skipped: their counts measure the word, not the stock.
+recomputed (self-healing if the provider fixes it). Ticker-words and WSB lingo
+("AI", "UK", "CD", "HYSA", "CAPE" — all on the live board) are unsupported:
+their counts measure the word, not the stock (`crowd_symbol_ambiguous`; MU, GM,
+KO are real tickers there). The list is rebuilt through the day and is thin on
+weekends (Sunday's top-50 summed to 100 comments vs 746 on a Thursday), so a
+rank is only reported from a board with >= 300 comments and >= 5 for the ticker.
 
-Metrics: wsb_comments, wsb_rank (1-50) and — only when the gate passes —
-wsb_sentiment (-1..1) and wsb_label ("bullish"/"bearish").
+Metrics: wsb_comments, wsb_board_total (comments across the top-50, for share
+and context), wsb_rank (1-50, gated as above) and — only when the sentiment
+gate passes — wsb_sentiment (-1..1) and wsb_label ("bullish"/"bearish").
 Docs: https://tradestie.com/apps/reddit/api/
 """
 from __future__ import annotations
@@ -25,11 +30,12 @@ from app.core import http
 from app.core.cache import cached
 from app.schemas import SignalKind
 from app.sources.base import CompanyRef, SourceBatch
-from app.sources.query import is_word_ticker, us_symbol
+from app.sources.query import crowd_symbol_ambiguous, us_symbol
 from app.sources.util import utc_now
 
 URL = "https://tradestie.com/api/v1/apps/reddit"
-UNAMBIGUOUS_ON_WSB = {"SPY"}  # a "word" elsewhere, but on WSB it always means the ETF
+MIN_BOARD_COMMENTS = 300  # below this the day's list is too partial to rank against
+MIN_TICKER_COMMENTS = 5
 
 
 def _index(rows: Any) -> dict[str, tuple[int, dict[str, Any]]]:
@@ -62,12 +68,22 @@ async def sentiment_gate() -> bool | None:
         return None
 
 
-def metrics_for(rank: int, row: dict[str, Any], sentiment_live: bool) -> dict[str, Any]:
-    out: dict[str, Any] = {"wsb_rank": rank}
+def _comments(row: dict[str, Any]) -> int:
     try:
-        out["wsb_comments"] = int(row.get("no_of_comments") or 0)
+        return max(0, int(row.get("no_of_comments") or 0))
     except (TypeError, ValueError):
-        pass
+        return 0
+
+
+def board_total(board: dict[str, tuple[int, dict[str, Any]]]) -> int:
+    return sum(_comments(row) for _, row in board.values())
+
+
+def metrics_for(rank: int, row: dict[str, Any], sentiment_live: bool, total: int) -> dict[str, Any]:
+    comments = _comments(row)
+    out: dict[str, Any] = {"wsb_comments": comments, "wsb_board_total": total}
+    if total >= MIN_BOARD_COMMENTS and comments >= MIN_TICKER_COMMENTS:
+        out["wsb_rank"] = rank
     score, label = row.get("sentiment_score"), str(row.get("sentiment") or "").lower()
     if sentiment_live and isinstance(score, (int, float)) and label in ("bullish", "bearish"):
         out["wsb_sentiment"] = max(-1.0, min(1.0, float(score)))
@@ -81,7 +97,7 @@ class TradestieSource:
     kind: SignalKind = "social"
     weight = 0.4
     requires_key = False
-    description = "r/wallstreetbets top-50 discussion rank and comment volume (metrics only; frozen sentiment gated out)."
+    description = "r/wallstreetbets top-50 comment volume and rank (metrics only; frozen sentiment gated out)."
     docs_url: str | None = "https://tradestie.com/apps/reddit/api/"
 
     def configured(self) -> bool:
@@ -89,13 +105,14 @@ class TradestieSource:
 
     def supports(self, company: CompanyRef) -> bool:
         symbol = us_symbol(company)
-        return symbol is not None and (symbol in UNAMBIGUOUS_ON_WSB or not is_word_ticker(symbol))
+        return symbol is not None and not crowd_symbol_ambiguous(symbol)
 
     async def fetch(self, company: CompanyRef) -> SourceBatch:
         if not self.supports(company):
             return SourceBatch()
-        hit = (await load_today()).get(us_symbol(company) or "")
+        board = await load_today()
+        hit = board.get(us_symbol(company) or "")
         if hit is None:
             return SourceBatch()
         rank, row = hit
-        return SourceBatch(metrics=metrics_for(rank, row, bool(await sentiment_gate())))
+        return SourceBatch(metrics=metrics_for(rank, row, bool(await sentiment_gate()), board_total(board)))

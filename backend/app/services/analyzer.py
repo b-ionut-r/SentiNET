@@ -26,7 +26,7 @@ import time
 from collections import OrderedDict
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from app.config import settings
@@ -65,12 +65,19 @@ STORAGE_TIMEOUT = 5.0
 LISTENER_TIMEOUT = 2.0
 TONE_DAYS = 90  # keep in sync with the history endpoint so both share GDELT's cache
 LATEST_KEEP = 64
-# The analysis waits at most this long (from fan-out start) for structured intel.
-# Stragglers are not cancelled: they finish in the background, warming their
-# provider cache for the next refresh and for /api/history (GDELT allows only
-# 1 request / 5 s, so a cold tone trend can take longer than a user should wait).
-INTEL_BUDGET = 12.0
+# Time budget of a cold run, counted from the start (symbol resolution
+# included) to synthesis, which then takes well under a second: < 12 s total.
+RUN_BUDGET = 11.0
+RESOLVE_TIMEOUT = 8.0
 MIN_TIME_BOX = 1.0
+# Tail rule: once every source and every core intel task has answered, the slow
+# name-search tasks (GDELT tone, Wikipedia) get at most this much longer instead
+# of idling to the end of the budget. Stragglers are not cancelled: they finish
+# in the background, warm their provider cache (GDELT allows 1 request / 5 s)
+# and, when they bring data, invalidate the cached analysis so the next load
+# recomputes with it.
+TAIL_GRACE = 3.0
+TAIL_KEYS = frozenset({"tone", "wiki"})
 # A `refresh` within this many seconds of the last run returns that run (flagged
 # cached): news does not change that fast, and free APIs deserve politeness.
 MIN_REFRESH_SECONDS = 45.0
@@ -86,6 +93,12 @@ _cache = TTLStore(ttl=settings.analyze_cache_ttl, maxsize=128)
 _latest: OrderedDict[str, Analysis] = OrderedDict()  # last result per ticker, no TTL (exports)
 _runs: dict[str, _Run] = {}
 _slots: tuple[asyncio.AbstractEventLoop, asyncio.Semaphore] | None = None
+# symbol -> generated_at of a cached analysis superseded by late-arriving data
+_stale: dict[str, datetime] = {}
+# Negative cache: symbols just found not to exist (a typo re-submitted should not
+# fan out to ~30 provider calls again). `refresh=True` bypasses it.
+UNKNOWN_TTL = 600
+_unknown = TTLStore(ttl=UNKNOWN_TTL, maxsize=256)
 
 
 def _run_slots() -> asyncio.Semaphore:
@@ -124,9 +137,23 @@ def normalize(raw: str) -> str:
     return symbol
 
 
+def _cache_get(symbol: str) -> Analysis | None:
+    """Cached analysis unless late data (a straggler that has since arrived) superseded it."""
+    hit = _cache.get(symbol)
+    if hit is None:
+        return None
+    stale = _stale.get(symbol)
+    return None if stale is not None and hit.generated_at <= stale else hit
+
+
+def _mark_stale(symbol: str, generated_at: datetime) -> None:
+    if symbol not in _stale or _stale[symbol] < generated_at:
+        _stale[symbol] = generated_at
+
+
 def cached_analysis(symbol: str) -> Analysis | None:
     """The fresh cached analysis for a canonical symbol, if any."""
-    hit = _cache.get(symbol)
+    hit = _cache_get(symbol)
     return hit.model_copy(update={"cached": True}) if hit is not None else None
 
 
@@ -141,6 +168,8 @@ def reset() -> None:
     _cache.clear()
     _latest.clear()
     _runs.clear()
+    _stale.clear()
+    _unknown.clear()
     _slots = None
 
 
@@ -216,9 +245,9 @@ async def analyze(ticker: str, refresh: bool = False, progress: ProgressCallback
     failure); provider failures are absorbed into the result.
     """
     symbol = normalize(ticker)
-    hit = _cache.get(symbol)
+    hit = _cache_get(symbol)
     if hit is not None:
-        age = (datetime.now(timezone.utc) - hit.generated_at).total_seconds()
+        age = (datetime.now(UTC) - hit.generated_at).total_seconds()
         if not refresh or age < MIN_REFRESH_SECONDS:
             if progress is not None:
                 await _deliver(progress, ProgressEvent(
@@ -226,6 +255,12 @@ async def analyze(ticker: str, refresh: bool = False, progress: ProgressCallback
                     count=len(hit.signals), ms=0, detail=f"computed {_ago(int(age))} ago",
                 ))
             return hit.model_copy(update={"cached": True})
+    known_unknown = _unknown.get(symbol)
+    if known_unknown is not None and not refresh:
+        if progress is not None:
+            await _deliver(progress, ProgressEvent(stage="done", key="done", label="Analysis stopped",
+                                                   status="error", detail=known_unknown))
+        raise UnknownSymbol(known_unknown)
 
     run = _runs.get(symbol)
     if run is None:
@@ -270,14 +305,22 @@ _INTEL_LABELS = {
 }
 
 # Structured intel that does not exist for an asset class (saves Yahoo/SEC calls).
+_NO_ISSUER = {"analysts", "insiders", "earnings", "calendar", "filings"}  # nothing issues these
 _NOT_APPLICABLE: dict[str, set[str]] = {
-    "CRYPTOCURRENCY": {"analysts", "insiders", "earnings", "calendar", "filings"},
+    "CRYPTOCURRENCY": _NO_ISSUER,
     "ETF": {"analysts", "insiders", "earnings", "filings"},
     "MUTUALFUND": {"analysts", "insiders", "earnings", "filings"},
-    "INDEX": {"analysts", "insiders", "earnings", "calendar", "filings"},
+    "INDEX": _NO_ISSUER,
+    "FUTURE": _NO_ISSUER,
+    "CURRENCY": _NO_ISSUER,
 }
 
-_ASSET_NAMES = {"CRYPTOCURRENCY": "crypto", "ETF": "ETFs", "MUTUALFUND": "funds", "INDEX": "indices"}
+_ASSET_NAMES = {"CRYPTOCURRENCY": "crypto", "ETF": "ETFs", "MUTUALFUND": "funds", "INDEX": "indices",
+                "FUTURE": "futures", "CURRENCY": "currencies"}
+
+# Evidence that an instrument exists must be keyed by the *symbol*: keyword
+# searches (news, Bluesky, Hacker News) return something for almost any string.
+_SYMBOL_KEYED_METRICS = ("stocktwits_", "reddit_", "wsb_")
 
 
 async def _execute(run: _Run) -> Analysis:
@@ -311,10 +354,11 @@ async def _execute_inner(run: _Run) -> Analysis:
     from app.analytics.inputs import AnalysisInputs
 
     started = time.perf_counter()
-    now = datetime.now(timezone.utc)
+    deadline = time.monotonic() + RUN_BUDGET  # resolution counts against the budget too
+    now = datetime.now(UTC)
     symbol = run.symbol
 
-    company = await _resolve(run)
+    company = await _resolve(run, deadline)
     planned, skipped_runs = _plan_sources(company)
     specs = _intel_specs(company)
     for source in planned:
@@ -329,27 +373,34 @@ async def _execute_inner(run: _Run) -> Analysis:
         await run.emit(ProgressEvent(stage="source", key=skipped.source.key, label=skipped.source.label,
                                      status="skipped", detail=hint))
 
+    core_done = asyncio.Event()  # every source and non-tail intel task has answered
     try:
         async with asyncio.TaskGroup() as tg:
             engine_task = tg.create_task(run_cpu(_engine_name))
             previous_task = tg.create_task(_previous_snapshot(symbol, now))
-            source_tasks = [tg.create_task(_run_source(run, s, company)) for s in planned]
-            deadline = time.monotonic() + INTEL_BUDGET
+            source_tasks = [tg.create_task(_run_source(run, s, company, deadline)) for s in planned]
             intel_tasks = {
-                s.key: tg.create_task(_run_intel(run, s, deadline)) for s in specs if s.key != "analysts"
+                s.key: tg.create_task(_run_intel(run, s, deadline, core_done if s.key in TAIL_KEYS else None))
+                for s in specs if s.key != "analysts"
             }
             analysts_spec = next((s for s in specs if s.key == "analysts"), None)
             if analysts_spec is not None:
                 intel_tasks["analysts"] = tg.create_task(
                     _run_analysts(run, analysts_spec, symbol, intel_tasks.get("quote"), deadline)
                 )
+            core = [*source_tasks, *(t for k, t in intel_tasks.items() if k not in TAIL_KEYS)]
+            tg.create_task(_set_when_done(core, core_done))
             # Fail fast on typos: decide "unknown symbol" as soon as market data and
             # sources have answered (raising here cancels the slower tasks).
             tg.create_task(_early_unknown_check(symbol, company, source_tasks, skipped_runs, intel_tasks))
     except* UnknownSymbol as group:
+        _unknown.set(symbol, str(group.exceptions[0]))
         raise group.exceptions[0] from None
     source_runs = [t.result() for t in source_tasks] + skipped_runs
     intel = {k: t.result() for k, t in intel_tasks.items()}
+    for out in intel.values():
+        if out.pending is not None:
+            out.pending.add_done_callback(functools.partial(_straggler_done, symbol, now))
     skipped_keys = {s.key for s in specs if s.skip}
     status = {
         k: (("ok" if has_data(o.value) else "empty") if o.ok else f"error: {o.error}")
@@ -380,7 +431,8 @@ async def _execute_inner(run: _Run) -> Analysis:
     )
     analysis = await _synthesize(run, inputs)
     analysis = analysis.model_copy(update={
-        "ticker": symbol, "cached": False, "elapsed_ms": int((time.perf_counter() - started) * 1000),
+        "ticker": symbol, "generated_at": now, "cached": False,
+        "elapsed_ms": int((time.perf_counter() - started) * 1000),
     })
     await _persist_and_alert(analysis)
 
@@ -398,14 +450,38 @@ async def _execute_inner(run: _Run) -> Analysis:
     return analysis
 
 
-async def _resolve(run: _Run) -> CompanyRef:
+async def _set_when_done(tasks: list[asyncio.Task[Any]], event: asyncio.Event) -> None:
+    if tasks:
+        await asyncio.wait(tasks)
+    event.set()
+
+
+def _straggler_done(symbol: str, generated_at: datetime, task: asyncio.Task[Any]) -> None:
+    """A kept-alive provider call finished after its run: if it brought data, the cached
+    analysis of that run is superseded (the next load recomputes, now with this data)."""
+    if task.cancelled() or task.exception() is not None or not has_data(task.result()):
+        return
+    _mark_stale(symbol, generated_at)
+    logger.info("late data for %s (%s); cached analysis superseded", symbol, task.get_name())
+
+
+def _time_box(limit: float, deadline: float | None) -> float:
+    """`limit`, cut to what is left of the run budget (never below `MIN_TIME_BOX`)."""
+    if deadline is None:
+        return limit
+    return min(limit, max(MIN_TIME_BOX, deadline - time.monotonic()))
+
+
+async def _resolve(run: _Run, deadline: float | None = None) -> CompanyRef:
     """Resolve the company; on failure fall back to a bare ref so the rest still runs."""
     await run.emit(ProgressEvent(stage="resolve", key="resolve", label="Resolve symbol", status="running"))
+    # Kept alive: a slow first resolve (SEC ticker map download) still lands in its cache.
     out = await run_bounded(deferred("app.resolve.symbols", "resolve_company", run.symbol),
-                            settings.intel_timeout, name="resolve")
+                            _time_box(min(RESOLVE_TIMEOUT, settings.intel_timeout), deadline),
+                            keep_alive=True, name="resolve")
     company = out.value if out.ok and isinstance(out.value, CompanyRef) else None
     if company is None:
-        error = out.error or "unexpected resolver payload"
+        error = f"slow resolver ({out.ms / 1000:.0f}s)" if out.timed_out else (out.error or "unexpected payload")
         await run.emit(ProgressEvent(stage="resolve", key="resolve", label="Resolve symbol", status="error",
                                      ms=out.ms, detail=f"{error}; continuing with the bare symbol"))
         return bare_company(run.symbol)
@@ -472,10 +548,10 @@ def _plan_sources(company: CompanyRef) -> tuple[list[Source], list[Any]]:
     return planned, skipped
 
 
-async def _run_source(run: _Run, source: Source, company: CompanyRef) -> Any:
+async def _run_source(run: _Run, source: Source, company: CompanyRef, deadline: float | None = None) -> Any:
     from app.analytics.inputs import SourceRun
 
-    out = await run_bounded(lambda: source.fetch(company), settings.source_timeout,
+    out = await run_bounded(lambda: source.fetch(company), _time_box(settings.source_timeout, deadline),
                             keep_alive=False, name=f"source:{source.key}")
     if not out.ok:
         await run.emit(ProgressEvent(stage="source", key=source.key, label=source.label,
@@ -528,18 +604,18 @@ def _intel_specs(company: CompanyRef) -> list[_IntelSpec]:
     for key, call, expect in calls:
         skip = f"n/a for {asset}" if key in na else None
         if key == "filings" and not skip and not company.cik:
-            skip = "no SEC filer (non-US listing)"
+            skip = "no SEC registrant found for this symbol"
         specs.append(_IntelSpec(key, _INTEL_LABELS[key], call, expect, skip))
     return specs
 
 
-async def _run_intel(run: _Run, spec: _IntelSpec, deadline: float | None = None) -> Outcome[Any]:
+async def _run_intel(run: _Run, spec: _IntelSpec, deadline: float | None = None,
+                     tail: asyncio.Event | None = None) -> Outcome[Any]:
+    """One intel task, time-boxed by the run budget (and the tail rule when `tail` is given)."""
     if spec.skip:
         return Outcome()
-    timeout = settings.intel_timeout
-    if deadline is not None:
-        timeout = min(timeout, max(MIN_TIME_BOX, deadline - time.monotonic()))
-    out = await run_bounded(spec.call, timeout, keep_alive=spec.keep_alive, name=f"intel:{spec.key}")
+    out = await run_bounded(spec.call, _time_box(settings.intel_timeout, deadline), keep_alive=spec.keep_alive,
+                            name=f"intel:{spec.key}", until=tail, grace=TAIL_GRACE)
     if out.ok and out.value is not None and not isinstance(out.value, spec.expect):
         logger.warning("intel %s returned %s, expected %s", spec.key, type(out.value).__name__, spec.expect)
         out = Outcome(error=f"unexpected payload ({type(out.value).__name__})", ms=out.ms)
@@ -642,13 +718,25 @@ async def _early_unknown_check(symbol: str, company: CompanyRef, source_tasks: l
                  {k: t.result() for k, t in decisive.items()})
 
 
+def _symbol_coverage(run: Any) -> bool:
+    """True when a source answered *for this symbol*: a ticker-specific item (symbol
+    stream / issuer-tagged feed) or crowd metrics looked up by the symbol."""
+    batch = getattr(run, "batch", None)
+    if getattr(run, "status", None) != "ok" or batch is None:
+        return False
+    return (any(s.ticker_specific for s in batch.signals)
+            or any(k.startswith(_SYMBOL_KEYED_METRICS) for k in batch.metrics))
+
+
 def _check_known(symbol: str, company: CompanyRef, runs: list[Any], intel: dict[str, Outcome[Any]]) -> None:
-    """404 when market data positively says "no such instrument" and no source has any coverage.
+    """404 when market data positively says "no such instrument" and nothing keyed by the symbol exists.
 
     Yahoo's quote is the authority on whether a symbol trades: only an *answer*
     of "nothing" counts (a failed quote could be an outage, so the degraded
-    analysis proceeds and reports it). Name-search providers (GDELT, Wikipedia)
-    say nothing about existence and are ignored here.
+    analysis proceeds and reports it). Keyword searches (news feeds, Bluesky,
+    Hacker News, GDELT, Wikipedia) say nothing about existence — "APPL" or a
+    delisted "SIVB" still matches articles — so only symbol-keyed coverage
+    (StockTwits stream, issuer-tagged items, Reddit/WSB boards) counts.
     """
     if company.cik or company.name != symbol:
         return
@@ -662,12 +750,41 @@ def _check_known(symbol: str, company: CompanyRef, runs: list[Any], intel: dict[
     p = profile.value if profile is not None and profile.ok else None
     if isinstance(p, Profile) and (p.name != symbol or p.sector or p.exchange):
         return
-    if any(getattr(r, "status", None) == "ok" for r in runs):
+    if any(_symbol_coverage(r) for r in runs):
         return
-    raise UnknownSymbol(
-        f"No market data or coverage found for '{symbol}'. Check the symbol "
-        "(exchange suffix like SHOP.TO, crypto like BTC-USD)."
-    )
+    raise UnknownSymbol(_unknown_message(symbol))
+
+
+def _unknown_message(symbol: str) -> str:
+    return (f"No market data or symbol coverage found for '{symbol}' — it may be mistyped or delisted. "
+            "Check the symbol (exchange suffix like SHOP.TO, crypto like BTC-USD).")
+
+
+async def ensure_known(symbol: str) -> CompanyRef:
+    """The company behind a symbol about to be watched/alerted; `UnknownSymbol` (404) if nothing knows it.
+
+    Cheap: a stored snapshot or recent analysis proves it; otherwise the
+    (cached) resolver, then one quote lookup. Only a positive "no quote" for an
+    unresolvable symbol rejects — provider outages accept (the monitor backs
+    off from tickers that keep failing).
+    """
+    from app.storage import db
+
+    recent = latest_analysis(symbol)
+    if recent is not None:
+        name = recent.profile.name if recent.profile is not None else symbol
+        return CompanyRef(ticker=symbol, name=name or symbol, short_name=name or symbol)
+    company = await resolve_or_bare(symbol, timeout=RESOLVE_TIMEOUT)
+    if company.cik or company.name != symbol:
+        return company
+    stored = await run_bounded(lambda: db.latest_snapshot(symbol), STORAGE_TIMEOUT, name="known-snapshot")
+    if stored.ok and stored.value is not None:
+        return company
+    quote = await run_bounded(deferred("app.intel.market_data", "get_quote", symbol), RESOLVE_TIMEOUT,
+                              name="known-quote")
+    if not quote.ok or has_data(quote.value):
+        return company
+    raise UnknownSymbol(_unknown_message(symbol))
 
 
 async def _synthesize(run: _Run, inputs: Any) -> Analysis:

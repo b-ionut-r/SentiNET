@@ -46,6 +46,48 @@ async def test_stocktwits_metrics_live():
     m = batch.metrics
     assert m["stocktwits_messages"] > 0 and m["stocktwits_watchers"] > 100_000
     assert m["stocktwits_bullish"] + m["stocktwits_bearish"] <= m["stocktwits_messages"]
+    assert m["stocktwits_bull_authors"] <= m["stocktwits_bullish"] and 0 < m["stocktwits_window_hours"] <= 72
+
+
+async def test_google_word_symbol_precision_live():
+    # Before the fix 23/81 TGT items were commodity calls ("… TGT 147800") or teacher-exam posts.
+    batch = await _fetch("google_news", "TGT")
+    assert len(batch.signals) >= 10
+    assert not any(re.search(r"TGT \d{4,}|\bUP TGT\b|\bTGT (?:exam|result|admit)", s.title, re.I) for s in batch.signals)
+    named = [s for s in batch.signals if re.search(r"Target|\bTGT\b", s.title)]
+    assert len(named) >= 0.95 * len(batch.signals)
+
+
+async def test_google_word_named_coin_live():
+    # Before the fix 100/100 TRUMP-USD items were political news.
+    batch = await _fetch("google_news", "TRUMP-USD")
+    coin = [s for s in batch.signals if re.search(r"(?i)meme ?coin|token|crypto|\$TRUMP|coin", s.title)]
+    assert batch.signals and len(coin) >= 0.8 * len(batch.signals)
+
+
+async def test_google_theme_recall_live():
+    # "Nasdaq 100" OR "Nasdaq-100" returned 0 from Google; variants now collapse.
+    assert len((await _fetch("google_news", "QQQ")).signals) >= 30
+
+
+async def test_hackernews_never_returns_homonyms_live():
+    from app.sources.query import Mentions, search_terms
+
+    assert not get_source("hackernews").supports(company("TGT"))
+    batch = await _fetch("hackernews", "MAR")  # bare "MAR" used to return Mars / "Mar 31st" hits 30/30
+    mentions = Mentions(search_terms(company("MAR")))
+    assert all(mentions.about(f"{s.title} {s.body or ''}") for s in batch.signals)
+
+
+async def test_yahoo_share_class_issuer_live():
+    # Yahoo tags Alphabet news GOOG only; GOOGL used to get 2 items.
+    assert len((await _fetch("yahoo_news", "GOOGL")).signals) >= 5
+
+
+async def test_bluesky_metrics_live():
+    m = (await _fetch("bluesky", "NVDA")).metrics
+    assert m["bluesky_posts"] >= m["bluesky_authors"] > 0 and m["bluesky_posts_per_day"] > 0
+    assert isinstance(m["bluesky_saturated"], bool) and 0 < m["bluesky_span_hours"] <= 168
 
 
 async def test_apewisdom_live_board():

@@ -17,7 +17,7 @@ import { cx } from "../../lib/cx";
 import { useHotkeys } from "../../lib/hotkeys";
 import { getRecent, pushRecent } from "../../lib/storage";
 import { AnalystsPanel, EarningsPanel, InsidersPanel } from "./SmartMoney";
-import { CaseAndCatalysts } from "./Case";
+import { CasePanel, WatchNext } from "./Case";
 import { CrowdPanel } from "./Crowd";
 import { FilingsPanel, SourcesPanel } from "./Health";
 import { HeaderStrip } from "./HeaderStrip";
@@ -111,18 +111,25 @@ function IntelView({
       <SectionNav a={a} />
       <VerdictHero a={a} />
 
-      <div className="grid gap-4 lg:grid-cols-12">
-        <InsightsRail insights={a.insights} className="lg:col-span-4 lg:col-start-9 lg:row-start-1" />
-        <Narratives a={a} membersOf={narrativeSignals} className="lg:col-span-8 lg:col-start-1 lg:row-start-1" />
+      {/* Two independent columns on desktop (story + case | insights + catalysts) so a short
+          column never forces gaps into the other; on phones the wrappers dissolve
+          (display: contents) and `order` restores reading order: insights, stories, case, catalysts. */}
+      <div className="flex flex-col gap-4 lg:grid lg:grid-cols-12 lg:items-start">
+        <div className="contents lg:col-span-8 lg:flex lg:flex-col lg:gap-4">
+          <Narratives a={a} membersOf={narrativeSignals} className="order-2 lg:order-none" />
+          <CasePanel a={a} className="order-3 lg:order-none" />
+        </div>
+        <div className="contents lg:col-span-4 lg:flex lg:flex-col lg:gap-4">
+          <InsightsRail insights={a.insights} evidence={a.sentiment.n} className="order-1 lg:order-none" />
+          <WatchNext a={a} className="order-4 lg:order-none" />
+        </div>
       </div>
-
-      <CaseAndCatalysts a={a} />
 
       <Suspense fallback={<Skeleton className="h-[460px] w-full rounded-xl" />}>
         <PriceTone a={a} />
       </Suspense>
 
-      <section id="smart-money" className="grid scroll-mt-28 gap-4 lg:grid-cols-3">
+      <section id="smart-money" className="grid scroll-mt-36 md:scroll-mt-28 gap-4 lg:grid-cols-3">
         <AnalystsPanel a={a} />
         <InsidersPanel a={a} />
         <EarningsPanel a={a} />

@@ -7,33 +7,38 @@ single-word query returns *generic trending news* instead of matches, so every
 query is multi-word; bursts sometimes get an empty 200 body (retried once).
 Links are `bing.com/news/apiclick.aspx?...&url=<real>` wrappers — unwrapped.
 Timestamps are labelled GMT but are US-Pacific wall time (corrected, see `parse_pubdate`).
+Bing half-ignores some queries ('"AT&T" shares' returned celebrity "shares her…"
+stories), so every item must itself name the asset (`Mentions`, title + snippet)
+and be at most 14 days old.
 Docs: https://www.bing.com/news (RSS via `format=rss`, unofficial).
 """
 from __future__ import annotations
 
 import asyncio
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from urllib.parse import parse_qs, urlsplit
 
 from app.core import http
 from app.core.http import UpstreamError
 from app.schemas import SignalKind
 from app.sources.base import CompanyRef, RawSignal, SourceBatch
-from app.sources.query import SearchTerms, search_terms
+from app.sources.query import THEME_TYPES, Mentions, SearchTerms, search_terms
 from app.sources.util import (
     clean_text,
     dedupe,
     domain_of,
     gather_partial,
     is_listing_page,
+    is_recent,
     newest_first,
     parse_rfc822,
     parse_xml,
+    utc_now,
 )
 
 URL = "https://www.bing.com/news/search"
-_FINANCE_NOUN = re.compile(r"\b(stocks?|prices?|yields|market|treasuries|etf|index)\b", re.IGNORECASE)
+_FINANCE_NOUN = re.compile(r"\b(stocks?|prices?|yields|markets?|treasuries|etf|index|futures|bonds|reits)\b", re.IGNORECASE)
 
 
 def build_queries(terms: SearchTerms) -> list[str]:
@@ -41,10 +46,10 @@ def build_queries(terms: SearchTerms) -> list[str]:
     name = f'"{terms.primary}"'
     if terms.asset == "crypto":
         return [f"{name} price", f"{name} crypto"]
-    if terms.asset == "etf":
-        if _FINANCE_NOUN.search(terms.primary):  # theme is already a market phrase ("chip stocks")
-            return [name, f"{name} ETF"]
-        return [f"{name} stocks", f"{name} market"]
+    if terms.asset == "etf":  # funds/indices/futures/FX: context words fit the instrument
+        if " " in terms.primary and _FINANCE_NOUN.search(terms.primary):  # already a phrase ("chip stocks")
+            return [name, f"{name} {terms.context[-1]}"]
+        return [f"{name} {terms.context[0]}", f"{name} {terms.context[2]}"]
     if terms.ambiguous and terms.symbol.lower() != terms.primary.lower():
         return [f"{name} {terms.symbol} stock", f"{name} {terms.symbol} shares"]
     return [f"{name} stock", f"{name} shares"]
@@ -72,22 +77,32 @@ def pacific_to_utc(wall: datetime) -> datetime:
     dst_start = _nth_sunday(wall.year, 3, 2).replace(hour=2)
     dst_end = _nth_sunday(wall.year, 11, 1).replace(hour=2)
     offset = 7 if dst_start <= wall < dst_end else 8
-    return (wall + timedelta(hours=offset)).replace(tzinfo=timezone.utc)
+    return (wall + timedelta(hours=offset)).replace(tzinfo=UTC)
 
 
 def parse_pubdate(value: str | None) -> datetime | None:
     """Bing labels pubDate "GMT" but it is US-Pacific wall time for mkt=en-US.
 
-    Verified live 2026-10-04: 20+ identical articles were exactly 7.0 h behind
-    their Google News / Yahoo timestamps (PDT = UTC-7).
+    Verified live 2026-10-04 (and by an independent review across five markets):
+    identical articles were exactly 7.0 h behind their Google News / Yahoo
+    timestamps (PDT = UTC-7). Only the mislabelled "GMT" form is shifted; a real
+    numeric offset is trusted as-is.
     """
     parsed = parse_rfc822(value)
-    return pacific_to_utc(parsed.replace(tzinfo=None)) if parsed else None
+    if parsed is None or not (value or "").strip().upper().endswith("GMT"):
+        return parsed
+    return pacific_to_utc(parsed.replace(tzinfo=None))
 
 
-def parse_feed(content: bytes) -> list[RawSignal]:
+def parse_feed(content: bytes, now: datetime | None = None) -> list[RawSignal]:
+    """Items with unwrapped links, publishers and Pacific-corrected times.
+
+    Self-check: if any corrected time lands > 10 min in the future, Bing has
+    started sending true UTC, so every item keeps its raw timestamp instead.
+    """
     root = parse_xml(content, "bing_news")
     out: list[RawSignal] = []
+    raw_times: list[datetime | None] = []
     for item in root.iterfind("./channel/item"):
         title = clean_text(item.findtext("title"))
         if not title or is_listing_page(title):
@@ -97,16 +112,22 @@ def parse_feed(content: bytes) -> list[RawSignal]:
         source = next((clean_text(ch.text) for ch in item if ch.tag.endswith("}Source") and ch.text), None)
         publisher = source.removesuffix(" on MSN").strip() if source else domain_of(url)
         body = clean_text(item.findtext("description"), limit=600) or None
+        pub_date = item.findtext("pubDate")
+        raw_times.append(parse_rfc822(pub_date))
         out.append(
             RawSignal(
                 title=title,
                 body=body,
                 url=url,
                 publisher=publisher,
-                timestamp=parse_pubdate(item.findtext("pubDate")),
+                timestamp=parse_pubdate(pub_date),
                 extra={"domain": domain_of(url)} if url else {},
             )
         )
+    limit = (now or utc_now()) + timedelta(minutes=10)
+    if any(s.timestamp and s.timestamp > limit for s in out):
+        for signal, raw in zip(out, raw_times, strict=True):
+            signal.timestamp = raw
     return out
 
 
@@ -123,7 +144,7 @@ class BingNewsSource:
         return True
 
     def supports(self, company: CompanyRef) -> bool:
-        return company.quote_type in {"EQUITY", "ETF", "CRYPTOCURRENCY", "MUTUALFUND", "INDEX"}
+        return company.quote_type in {"EQUITY", "CRYPTOCURRENCY", *THEME_TYPES}
 
     async def _search(self, query: str) -> list[RawSignal]:
         params = {"q": query, "format": "rss", "qft": 'sortbydate="1"', "mkt": "en-US"}
@@ -140,12 +161,13 @@ class BingNewsSource:
     async def fetch(self, company: CompanyRef) -> SourceBatch:
         terms = search_terms(company)
         results = await gather_partial(*(self._search(q) for q in build_queries(terms)))
-        mention = re.compile("|".join(re.escape(t) for t in (*terms.names, terms.symbol)), re.IGNORECASE)
+        about = Mentions(terms).about
+        # Per item, not per page: Bing's generic "trending" fallback and half-matched pages
+        # mix on-topic and unrelated stories.
         signals = dedupe(
-            sig
+            s
             for batch in results
-            # A page where nothing names the asset is Bing's generic "trending" fallback, not results.
-            if batch and any(mention.search(f"{s.title} {s.body or ''}") for s in batch)
-            for sig in batch
+            for s in batch or []
+            if is_recent(s.timestamp) and about(f"{s.title} {s.body or ''}")
         )
         return SourceBatch(signals=newest_first(signals))

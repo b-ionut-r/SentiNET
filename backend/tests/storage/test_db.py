@@ -188,3 +188,63 @@ async def test_alert_rules_and_events(store):
     assert await db.delete_rule(r1.id) is True
     assert await db.delete_rule(r1.id) is False
     assert all(e.rule_id is None for e in await db.list_alert_events(10))
+
+
+async def test_snapshot_extra_separates_unavailable_from_empty(store):
+    from app.schemas import SourceReport
+
+    news = SourceReport(key="google_news", label="Google News", kind="news", status="empty")
+    down = SourceReport(key="bing_news", label="Bing News", kind="news", status="error")
+    a = analysis_at(T0, analysts=None, sources=[news, down],
+                    narratives=[Narrative(id="n1", headline="Nvidia unveils Rubin", count=5, score=0.31,
+                                          signal_ids=[f"s{i}" for i in range(40)])])
+    rec = await db.save_snapshot(a)
+    assert rec.analyst_keys is None  # Yahoo failed: unknown, not "no actions"
+    assert rec.news_ok is True  # a news source answered (even "nothing found" is an answer)
+    outage = await db.save_snapshot(analysis_at(T0, sources=[down]))
+    assert outage.news_ok is False
+    (story,) = rec.stories
+    assert story.headline == "Nvidia unveils Rubin" and story.score == 0.31
+    assert story.ids == tuple(f"s{i}" for i in range(db.STORY_IDS))
+    empty = await db.save_snapshot(analysis_at(T0 + timedelta(hours=1), analysts=AnalystView()))
+    assert empty.analyst_keys == () and empty.stories == ()
+
+
+async def test_nan_scores_do_not_sink_the_snapshot(store):
+    a = analysis_at(T0)
+    a = a.model_copy(update={"sentiment": a.sentiment.model_copy(update={"score": float("nan")}),
+                             "news": a.news.model_copy(update={"score": float("inf")})})
+    rec = await db.save_snapshot(a)
+    assert rec.snapshot.score == 0.0 and rec.snapshot.news_score is None
+
+
+async def test_prune_drops_story_ids_from_old_snapshots(store):
+    narr = [Narrative(id="n1", headline="Old story", count=5, signal_ids=["a", "b"])]
+    await db.save_snapshot(analysis_at(datetime.now(UTC) - timedelta(days=10), narratives=narr))
+    await db.save_snapshot(analysis_at(datetime.now(UTC), narratives=narr))
+    await db.prune_snapshots(keep_days=400)
+    old, new = sorted([await db.latest_record("NVDA", before=datetime.now(UTC) - timedelta(days=5)),
+                       await db.latest_record("NVDA")], key=lambda r: r.at)
+    assert old.stories[0].ids == () and old.stories[0].headline == "Old story"  # headline kept
+    assert new.stories[0].ids == ("a", "b")
+
+
+def test_migrates_v1_database(tmp_path):
+    """A v1 store (no claim column) opens, gains the column and keeps its rows."""
+    path = tmp_path / "v1.db"
+    conn = sqlite3.connect(path)
+    conn.executescript(db._SCHEMA.replace("    delivered  INTEGER NOT NULL DEFAULT 0,  -- 0 pending · 1 delivered · 2 "
+                                          "claimed (POST in flight)\n    claimed_at TEXT\n",
+                                          "    delivered  INTEGER NOT NULL DEFAULT 0\n"))
+    conn.execute("INSERT INTO alert_events (ticker, at, title, detail) VALUES ('NVDA', ?, 't', 'd')",
+                 (db.to_db_time(T0),))
+    conn.execute("PRAGMA user_version = 1")
+    conn.commit()
+    assert "claimed_at" not in {r[1] for r in conn.execute("PRAGMA table_info(alert_events)")}
+    conn.close()
+    store = db.Database(str(path))
+    cols = store.call(lambda c: {r[1] for r in c.execute("PRAGMA table_info(alert_events)")})
+    assert "claimed_at" in cols
+    assert store.call(lambda c: c.execute("PRAGMA user_version").fetchone()[0]) == db.SCHEMA_VERSION
+    assert store.call(lambda c: c.execute("SELECT COUNT(*) FROM alert_events").fetchone()[0]) == 1
+    store.close()

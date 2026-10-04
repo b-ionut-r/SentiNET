@@ -8,6 +8,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import type { Analysis, Signal } from "../../api/types";
 import { Chip, ScoreChip } from "../../components/ui/Badges";
 import { DriverText } from "../../components/ui/DriverText";
+import { MetaGroup } from "../../components/ui/MetaGroup";
 import { Empty, Segmented } from "../../components/ui/Misc";
 import { Panel } from "../../components/ui/Panel";
 import { cx } from "../../lib/cx";
@@ -141,28 +142,15 @@ export function SignalExplorer({ a }: { a: Analysis }) {
   );
 }
 
-/** Dot-separated run that wraps as one unit, so a separator never starts a line. */
-function MetaGroup({ items }: { items: ReactNode[] }) {
-  const parts = items.filter(Boolean);
-  if (!parts.length) return null;
-  return (
-    <span className="inline-flex flex-wrap items-center gap-x-1.5">
-      {parts.map((m, i) => (
-        <span key={i} className="inline-flex items-center gap-x-1.5 whitespace-nowrap">
-          {i > 0 && <span className="text-faint" aria-hidden>·</span>}
-          {m}
-        </span>
-      ))}
-    </span>
-  );
-}
-
 function SignalRow({ s }: { s: Signal }) {
+  // Social posts are about who said it; news is about which outlet ran it.
+  const who = s.kind === "social" && s.author ? `@${s.author.replace(/^@/, "")}` : s.publisher ?? (s.author ? `@${s.author.replace(/^@/, "")}` : null);
+  const sameAsSource = !who || who.toLowerCase().replace(/[^a-z0-9]/g, "") === s.source_label.toLowerCase().replace(/[^a-z0-9]/g, "");
   const provenance: ReactNode[] = [
     <span key="pub" className="font-medium text-ink-2">
-      {s.publisher ?? (s.author ? `@${s.author}` : s.source_label)}
+      {who ?? s.source_label}
     </span>,
-    s.publisher || s.author ? <span key="src">{s.source_label}</span> : null,
+    sameAsSource ? null : <span key="src">{s.source_label}</span>,
     <span key="t" title={s.timestamp ?? undefined}>
       {timeAgo(s.timestamp)}
     </span>,

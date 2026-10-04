@@ -41,6 +41,13 @@ page.on("console", (m) => m.type() === "error" && errors.push(`console: ${m.text
 const steps = [
   { name: "intel", path: `/t/${TICKER}`, until: "#verdict", timeout: 90_000 },
   { name: "market", path: "/", until: "main section, main [role=alert], main p", timeout: 60_000 },
+  {
+    name: "compare",
+    path: `/compare?t=${TICKER},MSFT,NVDA`,
+    until: "text=Key stats",
+    timeout: 120_000,
+    act: () => page.waitForSelector("text=/Analyzing .*first runs/", { state: "detached", timeout: 120_000 }),
+  },
   { name: "watchlist", path: "/watchlist", until: "main section", timeout: 20_000 },
   { name: "lab", path: "/lab", until: "main section", timeout: 20_000, act: async () => {
       await page.getByRole("button", { name: /^score$/i }).click();

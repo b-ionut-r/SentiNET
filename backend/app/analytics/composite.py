@@ -1,0 +1,572 @@
+"""The SentiNET composite: six evidence components -> one calibrated 0..100 score.
+
+Each component maps its evidence to a signed strength x in [-1, 1]
+(score = 50 + 50·x) with a confidence in [0, 1]. Calibration choices:
+
+* news/social text: x = tanh((s − b)·n/(n+6) / 0.35) — the weighted mean tone s
+  is measured against the typical tone b (headlines skew positive: medians across
+  a live sample of 11 tickers on 2026-10-04 were +0.05 for news and +0.06 for
+  social text; b = +0.04 / +0.05 sits just below) and shrunk toward neutral for
+  small samples (6 pseudo-items).
+* StockTwits author tags are judged against their structural baseline (62%
+  bullish), WSB sentiment against 0; both shrink with sample size.
+* analysts: ratings are judged against the typical consensus (mean 2.4 on the
+  1..5 scale), target upside against the typical +10%, revisions relative to
+  coverage size.
+* insiders: only open-market trades; buying by several insiders is strong,
+  selling is scaled by market cap and mild (it is routine).
+* momentum: GDELT 7d-vs-30d tone change + 90d percentile, and the last 48 h of
+  headlines vs. the prior days (damped unless the shift is ~2 standard errors).
+* technicals: risk-adjusted returns / DMA distances (scaled by 30d
+  volatility), dampened at RSI extremes (contrarian).
+
+Composite = Σ w_eff·score / Σ w_eff with w_eff = nominal weight ×
+(0.35 + 0.65·confidence), renormalized over available components, then pulled
+toward 50 when little of the nominal weight is available.
+"""
+from __future__ import annotations
+
+import math
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from typing import Any, Literal
+
+from app.analytics.aggregate import Summary
+from app.analytics.util import clamp, count, join_and, money, ordinal, pct, signed, squash, to_100
+from app.schemas import AnalystView, Component, CrowdView, InsiderView, Technicals, ToneTrend
+
+ComponentKey = Literal["news", "social", "analysts", "insiders", "momentum", "technicals"]
+
+WEIGHTS: dict[ComponentKey, float] = {
+    "news": 0.30, "social": 0.15, "analysts": 0.20, "insiders": 0.10, "momentum": 0.10, "technicals": 0.15,
+}
+LABELS: dict[ComponentKey, str] = {
+    "news": "News", "social": "Social", "analysts": "Analysts", "insiders": "Insiders",
+    "momentum": "Momentum", "technicals": "Technicals",
+}
+
+TEXT_PRIOR = 6.0  # pseudo-items of neutral prior for text components
+TEXT_SCALE = 0.35
+NEWS_BASELINE = 0.04  # typical headline tone (see module docstring)
+SHIFT_SCALE = 0.5  # 48h-vs-prior headline tone shift giving x = tanh(1)
+SOCIAL_BASELINE = 0.05  # typical social-post tone
+STOCKTWITS_BASELINE = 0.62
+STOCKTWITS_MIN_TAGGED = 5
+RATING_BASELINE = 2.4  # typical consensus mean (1 strong buy … 5 strong sell)
+UPSIDE_BASELINE = 10.0  # typical upside to the mean target, percent
+FULL_COVERAGE = 0.6  # nominal weight available for an unshrunk composite
+PHRASE_MARGIN = 0.15  # |x| of a clear signal (named as a driver in the headline)
+MILD_MARGIN = 0.05  # |x| of a mild lean (named only as a counterweight)
+
+CONSENSUS_NAMES = {
+    "strong_buy": "Strong Buy", "buy": "Buy", "hold": "Hold", "sell": "Sell", "strong_sell": "Strong Sell",
+}
+
+
+@dataclass
+class Part:
+    """One component with its evidence (becomes a schema `Component`)."""
+
+    key: ComponentKey
+    score: float | None = None
+    confidence: float = 0.0
+    detail: str = "no data"
+    reason: str | None = None  # evidence line for the verdict's reasons
+    phrase: str | None = None  # short clause for the headline (only when directional)
+    strong: bool = False  # the phrase describes a clear signal, not a mild lean
+    facts: dict[str, Any] = field(default_factory=dict)  # numbers other modules reuse
+
+    @property
+    def available(self) -> bool:
+        return self.score is not None
+
+    @property
+    def x(self) -> float:
+        """Signed strength in [-1, 1] (0 when unavailable)."""
+        return 0.0 if self.score is None else (self.score - 50.0) / 50.0
+
+    def component(self) -> Component:
+        return Component(
+            key=self.key, label=LABELS[self.key],
+            score=round(self.score, 1) if self.score is not None else None,
+            weight=WEIGHTS[self.key], available=self.available, detail=self.detail,
+            confidence=round(self.confidence, 3),
+        )
+
+
+@dataclass
+class Sub:
+    """A sub-signal inside a component: strength x, reliability r, nominal weight w."""
+
+    x: float
+    r: float
+    w: float
+
+
+def _blend(subs: list[Sub]) -> tuple[float, float] | None:
+    """(x, confidence) of reliability-weighted sub-signals; None when empty."""
+    subs = [s for s in subs if s.w > 0]
+    if not subs:
+        return None
+    eff = sum(s.w * max(s.r, 0.05) for s in subs)
+    x = sum(s.w * max(s.r, 0.05) * s.x for s in subs) / eff
+    conf = sum(s.w * s.r for s in subs) / sum(s.w for s in subs)
+    return clamp(x, -1, 1), clamp(conf)
+
+
+def text_strength(mean: float, n: int, baseline: float = 0.0) -> float:
+    """Shrunk, saturating strength of a weighted mean tone over n items vs its typical level."""
+    return squash((mean - baseline) * n / (n + TEXT_PRIOR), TEXT_SCALE)
+
+
+def _pick(x: float, bull: str, bear: str, flat: str, margin: float = 0.1) -> str:
+    return bull if x >= margin else bear if x <= -margin else flat
+
+
+def _phrase(x: float, bull: str, bear: str, mild_bull: str | None = None,
+            mild_bear: str | None = None) -> tuple[str | None, bool]:
+    """(headline clause, strong?): strong for |x| >= PHRASE_MARGIN, mild down to MILD_MARGIN."""
+    if x >= PHRASE_MARGIN:
+        return bull, True
+    if x <= -PHRASE_MARGIN:
+        return bear, True
+    if x >= MILD_MARGIN:
+        return mild_bull or bull, False
+    if x <= -MILD_MARGIN:
+        return mild_bear or bear, False
+    return None, False
+
+
+# --------------------------------------------------------------------------- #
+# News
+# --------------------------------------------------------------------------- #
+def news_part(s: Summary, av_sentiment: float | None = None, av_articles: int | None = None) -> Part:
+    """Published-media tone (+ Alpha Vantage's own ticker sentiment when keyed)."""
+    part = Part("news", detail="no relevant news")
+    has_av = av_sentiment is not None and (av_articles or 0) >= 5
+    if s.n == 0 and not has_av:
+        return part
+    subs = []
+    if s.n and s.mean is not None:
+        subs.append(Sub(text_strength(s.mean, s.n, NEWS_BASELINE), s.confidence, 0.8))
+    if has_av:
+        assert av_sentiment is not None and av_articles is not None
+        subs.append(Sub(text_strength(av_sentiment, av_articles), av_articles / (av_articles + 10), 0.2))
+    x, conf = _blend(subs) or (0.0, 0.0)
+    part.score, part.confidence = to_100(x), conf
+    shown = s.shrunk
+    bits = []
+    if s.n:
+        bits.append(f"{signed(shown)} across {count(s.n, 'article')} ({s.bullish} bullish / {s.bearish} bearish)")
+    if has_av:
+        bits.append(f"Alpha Vantage {signed(av_sentiment or 0.0)} ({av_articles} articles)")
+    part.detail = " · ".join(bits)
+    part.facts.update(tone=shown, n=s.n, outlets=s.outlets)
+    if s.n:
+        soft = abs(shown) < 0.1
+        lead = _pick(x, "News flow positive" if not soft else "News flow warmer than usual",
+                     "News flow negative" if not soft else "News flow softer than usual", "News flow mixed")
+        typical = f"; typical is {signed(NEWS_BASELINE)}" if soft and abs(x) >= 0.1 else ""
+        part.reason = (f"{lead}: {signed(shown)} average tone across {count(s.n, 'article')} from "
+                       f"{count(s.outlets, 'outlet')} ({s.bullish} bullish vs {s.bearish} bearish{typical})")
+        size = f"{signed(shown)} across {count(s.n, 'article')}"
+        part.phrase, part.strong = _phrase(x, f"{'upbeat' if shown >= 0.15 else 'positive'} news ({size})",
+                                           f"{'negative' if shown <= -0.1 else 'soft'} news ({size})")
+    return part
+
+
+# --------------------------------------------------------------------------- #
+# Social
+# --------------------------------------------------------------------------- #
+def social_part(s: Summary, crowd: CrowdView | None) -> Part:
+    """Retail tone: social text + StockTwits author tags (vs baseline) + WSB sentiment."""
+    part = Part("social", detail="no social data")
+    subs: list[Sub] = []
+    bits: list[str] = []
+    reason_bits: list[str] = []
+    if s.n and s.mean is not None:
+        subs.append(Sub(text_strength(s.mean, s.n, SOCIAL_BASELINE), s.confidence, 0.45))
+        bits.append(f"posts {signed(s.shrunk)} ({s.n})")
+        reason_bits.append(f"social posts average {signed(s.shrunk)} across {s.n}")
+    ratio, tagged = None, 0
+    if crowd is not None and crowd.stocktwits_bull_ratio is not None:
+        tagged = (crowd.stocktwits_bullish or 0) + (crowd.stocktwits_bearish or 0)
+        if tagged >= STOCKTWITS_MIN_TAGGED:
+            ratio = crowd.stocktwits_bull_ratio
+            adj = (ratio - STOCKTWITS_BASELINE) * tagged / (tagged + 10)
+            subs.append(Sub(squash(adj, 0.2), tagged / (tagged + 15), 0.40))
+            bits.insert(0, f"StockTwits {ratio:.0%} bullish ({tagged} tagged)")
+            reason_bits.insert(0, f"{ratio:.0%} of {tagged} tagged StockTwits posts are bullish "
+                                  f"({STOCKTWITS_BASELINE:.0%} is typical)")
+    if crowd is not None and crowd.wsb_sentiment is not None:
+        comments = crowd.wsb_comments or 0
+        subs.append(Sub(squash(crowd.wsb_sentiment, TEXT_SCALE) * comments / (comments + 20),
+                        comments / (comments + 30), 0.15))
+        bits.append(f"WSB {signed(crowd.wsb_sentiment)}")
+        reason_bits.append(f"WallStreetBets {crowd.wsb_label or 'sentiment'} ({signed(crowd.wsb_sentiment)}, "
+                           f"{count(comments, 'comment')})")
+    blended = _blend(subs)
+    if blended is None:
+        return part
+    x, conf = blended
+    part.score, part.confidence = to_100(x), conf
+    part.detail = " · ".join(bits)
+    part.facts.update(ratio=ratio, tagged=tagged, tone=s.shrunk if s.n else None, n=s.n)
+    lead = _pick(x, "Retail leaning bullish", "Retail leaning bearish", "Retail sentiment mixed")
+    part.reason = f"{lead}: " + "; ".join(reason_bits)
+    if ratio is not None:
+        bull, bear = f"retail ({ratio:.0%} of {tagged} tagged)", f"retail ({ratio:.0%} bullish of {tagged} tagged)"
+        part.phrase, part.strong = _phrase(x, f"bullish {bull}", f"bearish {bear}",
+                                           f"mildly bullish {bull}", f"mildly bearish {bear}")
+    elif s.n:
+        part.phrase, part.strong = _phrase(x, f"upbeat social chatter ({signed(s.shrunk)})",
+                                           f"bearish social chatter ({signed(s.shrunk)})")
+    return part
+
+
+# --------------------------------------------------------------------------- #
+# Analysts
+# --------------------------------------------------------------------------- #
+@dataclass
+class Revisions:
+    """Rating/target changes in the recent window (from the action list)."""
+
+    upgrades_30d: int = 0
+    downgrades_30d: int = 0
+    raises_30d: int = 0
+    cuts_30d: int = 0
+    raise_firms: list[str] = field(default_factory=list)
+    cut_firms: list[str] = field(default_factory=list)
+    upgrade_firms: list[str] = field(default_factory=list)
+    downgrade_firms: list[str] = field(default_factory=list)
+
+
+def revisions(view: AnalystView, now: datetime) -> Revisions:
+    out = Revisions()
+    since = now - timedelta(days=30)
+    for a in view.actions:
+        if a.date < since:
+            continue
+        if a.action == "up":
+            out.upgrades_30d += 1
+            out.upgrade_firms.append(a.firm)
+        elif a.action == "down":
+            out.downgrades_30d += 1
+            out.downgrade_firms.append(a.firm)
+        if a.action != "init" and a.price_target and a.prior_target and a.prior_target > 0:
+            change = a.price_target / a.prior_target - 1
+            if change > 0.001:
+                out.raises_30d += 1
+                out.raise_firms.append(a.firm)
+            elif change < -0.001:
+                out.cuts_30d += 1
+                out.cut_firms.append(a.firm)
+    # The provider's counts may see actions beyond the 25 listed; keep the larger.
+    out.raises_30d = max(out.raises_30d, view.pt_raises_30d)
+    out.cuts_30d = max(out.cuts_30d, view.pt_cuts_30d)
+    return out
+
+
+def consensus_name(view: AnalystView) -> str | None:
+    return CONSENSUS_NAMES.get(view.consensus or "")
+
+
+def analysts_part(view: AnalystView | None, now: datetime) -> Part:
+    """Consensus rating vs typical, upside to the mean target, revision momentum."""
+    part = Part("analysts", detail="no analyst coverage")
+    if view is None:
+        return part
+    subs: list[Sub] = []
+    total = view.total
+    rating_x = upside_x = None
+    if view.mean_rating is not None:
+        shrink = total / (total + 3) if total else 0.5
+        rating_x = clamp(0.56 * (RATING_BASELINE - view.mean_rating), -1, 1) * shrink
+        subs.append(Sub(rating_x, (total / (total + 5)) if total else 0.3, 0.45))
+    if view.upside_pct is not None:
+        upside_x = squash(view.upside_pct - UPSIDE_BASELINE, 30.0)
+        subs.append(Sub(upside_x, 0.8 if total >= 5 else 0.5, 0.30))
+    rev = revisions(view, now)
+    net = (view.upgrades_90d - view.downgrades_90d) + 0.5 * (rev.raises_30d - rev.cuts_30d)
+    recent = any(now - a.date <= timedelta(days=90) for a in view.actions)
+    # "No revisions" is information when the stock is rated; stale actions alone are not.
+    if view.actions and (subs or recent):
+        subs.append(Sub(squash(net, 2 + 0.5 * math.sqrt(max(total, 1))), 0.7, 0.25))
+    blended = _blend(subs)
+    if blended is None:
+        return part
+    x, conf = blended
+    part.score, part.confidence = to_100(x), conf
+    name = consensus_name(view)
+
+    head = []
+    if name:
+        head.append(f"{name}" + (f" ({view.mean_rating:.2f})" if view.mean_rating is not None else ""))
+    if total:
+        head.append(count(total, "analyst"))
+    if view.upside_pct is not None:
+        head.append(f"target {pct(view.upside_pct)}")
+    rev_bits = []
+    if rev.raises_30d or rev.cuts_30d:
+        rev_bits.append(f"30d PT: {rev.raises_30d} up / {rev.cuts_30d} down")
+    if view.upgrades_90d or view.downgrades_90d:
+        rev_bits.append(f"90d: {view.upgrades_90d} upgrades / {view.downgrades_90d} downgrades")
+    part.detail = " · ".join(head + rev_bits) or "coverage without ratings"
+    part.facts.update(name=name, net=net, revisions=rev)
+
+    clauses = []
+    if name:
+        rated = f"{name} consensus" + (
+            f" (mean {view.mean_rating:.2f}" + (f" from {count(total, 'analyst')})" if total else ")")
+            if view.mean_rating is not None else "")
+        clauses.append(rated)
+    if view.target_mean is not None and view.upside_pct is not None:
+        side = "above" if view.upside_pct >= 0 else "below"
+        clauses.append(f"mean target {money(view.target_mean, price=True)} is {pct(abs(view.upside_pct), sign=False)} "
+                       f"{side} the price")
+    if rev_bits:
+        clauses.append("; ".join(rev_bits))
+    mixed = rating_x is not None and upside_x is not None and rating_x * upside_x < 0 and \
+        min(abs(rating_x), abs(upside_x)) >= 0.08
+    if mixed and len(clauses) >= 2:  # "Hold consensus (…), but mean target … is 29% above the price"
+        clauses[:2] = [f"{clauses[0]}, but {clauses[1]}"]
+    lead = "Analysts mixed" if mixed else _pick(x, "Analysts bullish", "Analysts cautious", "Analysts neutral")
+    part.reason = f"{lead}: " + "; ".join(clauses) if clauses else None
+    up = view.upside_pct
+    to_target = f"{pct(up)} to target" if up is not None else None
+    if name and to_target:
+        bull = f"a {name} consensus ({to_target})"
+    elif to_target:
+        bull = f"bullish analysts ({to_target})"
+    else:
+        bull = f"a {name} consensus" if name else "bullish analyst revisions"
+    if up is not None and up < UPSIDE_BASELINE / 2:
+        bear = f"limited analyst upside ({to_target}" + (f", {name})" if name else ")")
+    elif rev.cuts_30d + view.downgrades_90d > rev.raises_30d + view.upgrades_90d:
+        bear = f"analyst downgrades ({view.downgrades_90d} in 90d, {rev.cuts_30d} PT cuts in 30d)"
+    else:
+        bear = f"a {name or 'cautious'} analyst consensus"
+    inner = ", ".join(b for b in (name, to_target) if b)
+    part.phrase, part.strong = _phrase(x, bull, bear, f"supportive analysts ({inner})" if inner else None,
+                                       f"cautious analysts ({inner})" if inner else None)
+    return part
+
+
+# --------------------------------------------------------------------------- #
+# Insiders
+# --------------------------------------------------------------------------- #
+def insiders_part(view: InsiderView | None, market_cap: float | None, now: datetime) -> Part:
+    """Open-market insider flow: clustered buying is strong, selling is routine-scaled."""
+    part = Part("insiders", detail="no open-market insider trades")
+    if view is None or (view.buys == 0 and view.sells == 0):
+        return part
+    today = now.date()
+    buys = [t for t in view.transactions if t.kind == "buy"]
+    latest_by_buyer: dict[str, int] = {}
+    for t in buys:
+        age = max((today - t.date).days, 0)
+        latest_by_buyer[t.insider] = min(age, latest_by_buyer.get(t.insider, age))
+    if latest_by_buyer:
+        buyer_signal = sum(0.5 ** (age / 60.0) for age in latest_by_buyer.values())
+    else:
+        buyer_signal = 0.5 * view.buys
+    buy_signal = buyer_signal * (1 + 0.5 * math.log10(1 + view.buy_value / 250_000)) if view.buys else 0.0
+    sell_bps = view.sell_value / market_cap * 1e4 if market_cap and market_cap > 0 else None
+    sell_signal = sell_bps / 5.0 if sell_bps is not None else min(3.0, view.sells / 8.0)
+    x = 0.7 * math.tanh(buy_signal / 2.5) - 0.4 * math.tanh(sell_signal / 2.0)
+    trades = view.buys + view.sells
+    part.score = to_100(x)
+    part.confidence = clamp(trades / (trades + 4) * (1.0 if view.buys else 0.7))
+    window = f"{view.window_days}d"
+    part.detail = (f"{view.buys} buys ({money(view.buy_value)}) / {view.sells} sells ({money(view.sell_value)}) · "
+                   f"{window}")
+    buyers = len(latest_by_buyer) or None
+    part.facts.update(buyers=buyers, sell_bps=sell_bps, buy_signal=buy_signal)
+    who = f" by {count(buyers, 'insider')}" if buyers else ""
+    share = f", {sell_bps / 100:.2f}% of market cap" if sell_bps is not None else ""
+    days = f"{view.window_days} days"
+    if view.buys:
+        lead = "Insider buying" if x >= 0 else "Net insider selling"
+        sells = f" vs {count(view.sells, 'sale')} ({money(view.sell_value)}{share})" if view.sells else ", no sales"
+        part.reason = (f"{lead}: {count(view.buys, 'open-market purchase')} ({money(view.buy_value)}){who} "
+                       f"in {days}{sells}")
+        bear = f"net insider selling ({money(view.sell_value)} sold vs {money(view.buy_value)} bought)"
+    else:
+        routine = " — routine-sized for its market cap" if sell_bps is not None and sell_bps < 5 else ""
+        part.reason = (f"Insider selling only: {count(view.sells, 'open-market sale')} ({money(view.sell_value)}{share}) "
+                       f"and no purchases in {days}{routine}")
+        bear = f"insider selling ({money(view.sell_value)}{share})"
+    part.phrase, part.strong = _phrase(x, f"insider buying ({money(view.buy_value)}{who})", bear)
+    return part
+
+
+# --------------------------------------------------------------------------- #
+# Momentum (of sentiment)
+# --------------------------------------------------------------------------- #
+def momentum_part(tone: ToneTrend | None, recent: Summary, older: Summary) -> Part:
+    """Is sentiment improving? GDELT tone trend + last-48h headlines vs the prior days."""
+    part = Part("momentum", detail="no tone history")
+    subs: list[Sub] = []
+    bits: list[str] = []
+    reason_bits: list[str] = []
+    if tone is not None and tone.change_7d_vs_30d is not None:
+        ch, p = tone.change_7d_vs_30d, tone.percentile_7d
+        g = math.tanh(ch / 0.8)
+        g = 0.6 * g + 0.4 * (2 * p - 1) if p is not None else g
+        subs.append(Sub(g, 0.8 if len(tone.series) >= 30 else 0.5, 0.6))
+        pctl = f", {ordinal(round(p * 100))} pct of 90d" if p is not None else ""
+        t7 = f"{signed(tone.tone_7d)} " if tone.tone_7d is not None else ""
+        t30 = f" vs 30d {signed(tone.tone_30d)}" if tone.tone_30d is not None else ""
+        bits.append(f"GDELT 7d {t7}({signed(ch)}{t30}){pctl}")
+        reason_bits.append(f"global news tone (GDELT) 7d {t7}vs 30d"
+                           f"{' ' + signed(tone.tone_30d) if tone.tone_30d is not None else ''}"
+                           f" ({signed(ch)}){pctl}")
+    shift = headline_shift(recent, older)
+    if shift is not None:
+        d, z = shift
+        k = min(recent.n, older.n)
+        # Short-window shifts partly reflect news-cycle decay after an event day: keep them modest.
+        subs.append(Sub(math.tanh(d / SHIFT_SCALE) * min(1.0, abs(z) / 2.0), 0.6 * k / (k + 15), 0.4))
+        bits.append(f"headlines 48h {signed(recent.mean or 0.0)} vs {signed(older.mean or 0.0)} before")
+        reason_bits.append(f"last-48h headlines average {signed(recent.mean or 0.0)} ({recent.n}) vs "
+                           f"{signed(older.mean or 0.0)} in the prior days ({older.n})")
+    blended = _blend(subs)
+    if blended is None:
+        return part
+    x, conf = blended
+    part.score, part.confidence = to_100(x), conf
+    part.detail = " · ".join(bits)
+    level = tone.tone_7d if tone is not None and tone.tone_7d is not None else recent.mean
+    if x >= 0.1:
+        lead = "Sentiment turning positive" if level is not None and level > 0 and _was_negative(tone, older) \
+            else "Sentiment improving"
+    elif x <= -0.1:
+        lead = "Sentiment cooling" if level is not None and level > 0 else "Sentiment deteriorating"
+    else:
+        lead = "Sentiment trend flat"
+    part.reason = f"{lead}: " + "; ".join(reason_bits)
+    verb_up, verb_down = "improving", ("cooling" if level is not None and level > 0 else "deteriorating")
+    if tone is not None and tone.change_7d_vs_30d is not None:
+        part.phrase, part.strong = _phrase(
+            x, f"{verb_up} global news tone (GDELT {signed(tone.change_7d_vs_30d)} vs 30d)",
+            f"{verb_down} global news tone (GDELT {signed(tone.change_7d_vs_30d)} vs 30d)")
+    elif shift is not None:
+        r, o = signed(recent.mean or 0.0), signed(older.mean or 0.0)
+        part.phrase, part.strong = _phrase(x, f"{verb_up} headlines ({r} in 48h vs {o} before)",
+                                           f"{verb_down} headlines ({r} in 48h vs {o} before)")
+    part.facts.update(tone_change=tone.change_7d_vs_30d if tone else None)
+    return part
+
+
+def headline_shift(recent: Summary, older: Summary) -> tuple[float, float] | None:
+    """(tone difference, its z-score) between the last 48 h and the prior days (>= 5 items each)."""
+    if recent.n < 5 or older.n < 5 or recent.mean is None or older.mean is None:
+        return None
+    d = recent.mean - older.mean
+    se = math.sqrt(recent.spread ** 2 / max(recent.n_eff, 1.0) + older.spread ** 2 / max(older.n_eff, 1.0))
+    return d, d / max(se, 0.02)
+
+
+def _was_negative(tone: ToneTrend | None, older: Summary) -> bool:
+    if tone is not None and tone.tone_30d is not None:
+        return tone.tone_30d < 0
+    return older.mean is not None and older.mean < 0
+
+
+# --------------------------------------------------------------------------- #
+# Technicals
+# --------------------------------------------------------------------------- #
+def technicals_part(t: Technicals | None) -> Part:
+    """Price-implied sentiment: volatility-scaled returns and DMA distances, RSI-dampened."""
+    part = Part("technicals", detail="no price history")
+    if t is None:
+        return part
+    sigma = max((t.volatility_30d or 0.0) / math.sqrt(12), 1.5) if t.volatility_30d else 8.0  # monthly %
+    pieces: list[tuple[float | None, float, float]] = [
+        (t.return_1m, sigma, 0.25),
+        (t.return_3m, sigma * math.sqrt(3), 0.30),
+        (t.vs_50dma_pct, sigma, 0.20),
+        (t.vs_200dma_pct, sigma * math.sqrt(3), 0.25),
+    ]
+    avail = [(v, s, w) for v, s, w in pieces if v is not None]
+    if not avail:
+        return part
+    m = sum(w * math.tanh(v / s) for v, s, w in avail) / sum(w for _, _, w in avail)
+    x = math.tanh(1.1 * m)
+    rsi = t.rsi_14
+    if rsi is not None and rsi > 75 and x > 0:
+        x *= 1 - min(0.5, (rsi - 75) / 30)
+    elif rsi is not None and rsi < 25 and x < 0:
+        x *= 1 - min(0.5, (25 - rsi) / 30)
+    part.score = to_100(x)
+    part.confidence = clamp(0.9 * sum(w for _, _, w in avail))
+    bits = [t.trend] if t.trend else []
+    if t.return_3m is not None:
+        bits.append(f"3M {pct(t.return_3m)}")
+    elif t.return_1m is not None:
+        bits.append(f"1M {pct(t.return_1m)}")
+    if t.vs_200dma_pct is not None:
+        bits.append(f"{pct(t.vs_200dma_pct)} vs 200-DMA")
+    elif t.vs_50dma_pct is not None:
+        bits.append(f"{pct(t.vs_50dma_pct)} vs 50-DMA")
+    if rsi is not None:
+        bits.append(f"RSI {rsi:.0f}")
+    part.detail = " · ".join(bits)
+
+    clauses = []
+    if t.return_3m is not None:
+        clauses.append(f"{pct(t.return_3m)} over 3 months")
+    if t.return_1m is not None:
+        clauses.append(f"{pct(t.return_1m)} over 1 month")
+    if t.vs_200dma_pct is not None:
+        side = "above" if t.vs_200dma_pct >= 0 else "below"
+        clauses.append(f"{pct(abs(t.vs_200dma_pct), sign=False)} {side} the 200-day average")
+    if rsi is not None:
+        state = " (overbought)" if rsi >= 70 else " (oversold)" if rsi <= 30 else ""
+        clauses.append(f"RSI {rsi:.0f}{state}")
+    lead = _pick(x, "Price trend supportive", "Price trend weak", "Price trend flat")
+    part.reason = f"{lead}: " + join_and(clauses)
+    moves = [(abs(v) / s, f"{pct(v)} in {label}") for v, s, label in (
+        (t.return_1m, sigma, "1M"), (t.return_3m, sigma * math.sqrt(3), "3M")) if v is not None]
+    horizon = max(moves)[1] if moves else None  # the more striking move, volatility-adjusted
+    if horizon:
+        part.phrase, part.strong = _phrase(x, f"a strong price trend ({horizon})", f"a weak tape ({horizon})",
+                                           f"a firm price trend ({horizon})", f"a soft tape ({horizon})")
+    part.facts.update(sigma_month=sigma)
+    return part
+
+
+# --------------------------------------------------------------------------- #
+# Composite
+# --------------------------------------------------------------------------- #
+@dataclass
+class Composite:
+    score: int
+    raw: float  # before the coverage pull toward 50
+    coverage: float  # nominal weight of available components (0..1)
+    parts: dict[ComponentKey, Part]
+    effective: dict[ComponentKey, float]  # w_eff of available components (normalized)
+    contributions: dict[ComponentKey, float]  # points vs 50; sums to score - 50 (before rounding)
+
+    def available(self) -> list[Part]:
+        return [p for p in self.parts.values() if p.available]
+
+
+def compose(parts: list[Part]) -> Composite:
+    """Renormalized, confidence-weighted composite with a small-coverage pull to 50."""
+    by_key = {p.key: p for p in parts}
+    avail = [p for p in parts if p.available]
+    if not avail:
+        return Composite(score=50, raw=50.0, coverage=0.0, parts=by_key, effective={}, contributions={})
+    eff = {p.key: WEIGHTS[p.key] * (0.35 + 0.65 * p.confidence) for p in avail}
+    total = sum(eff.values())
+    raw = sum(eff[p.key] * (p.score or 50.0) for p in avail) / total
+    coverage = sum(WEIGHTS[p.key] for p in avail)
+    pull = 0.5 + 0.5 * min(1.0, coverage / FULL_COVERAGE)
+    final = 50.0 + (raw - 50.0) * pull
+    contributions = {p.key: eff[p.key] / total * ((p.score or 50.0) - 50.0) * pull for p in avail}
+    return Composite(
+        score=int(round(clamp(final, 0, 100))), raw=raw, coverage=coverage, parts=by_key,
+        effective={k: v / total for k, v in eff.items()}, contributions=contributions,
+    )
+

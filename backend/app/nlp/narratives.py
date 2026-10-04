@@ -8,14 +8,31 @@
 
 * `cluster_narratives(items, company)` groups headlines about the same
   *development* ("Nvidia adds $150B to buyback" / "Nvidia's record repurchase
-  shows the stock is too cheap for Huang to resist"). Features are TF-IDF
-  weighted content terms with the company's own name removed:
-  stemmed words, concept tokens that collapse paraphrases ("share
-  repurchase" == "buyback", "all-time high" == "record high"), adjacent-word
-  bigrams, normalized money amounts ("$150 billion" == "$150B") and detected
-  event keys / analyst firms. Clusters come from exact average-link
-  agglomeration (mean pairwise cosine via cluster sum-vectors) with a tuned
-  threshold. Pure Python; ~50 ms for 500 headlines.
+  shows the stock is too cheap for Huang to resist"):
+
+  1. Syndicated copies are collapsed first (they would fake story cores and
+     deflate the idf of a story's own terms) and re-expanded at the end.
+  2. Features: TF-IDF weighted content terms with the company's own name
+     removed — stemmed words, proper nouns learned from the batch's casing,
+     concept tokens that collapse paraphrases ("share repurchase" ==
+     "buyback", "third-quarter" == "Q3", "expectations" == "estimates"),
+     adjacent-word bigrams, normalized money amounts ("$150 billion" ==
+     "$150B"; round "$1B" weighs little), detected events / analyst firms,
+     and time-local event features (event group x trading session: "stock
+     jumps 5% on delivery beat" and "why is Tesla stock surging today?").
+     Hub terms whose documents share little else ("Muse", "AI") are damped.
+  3. Exact average-link agglomeration (mean pairwise cosine via cluster
+     sum-vectors, time-faded), gated by shared anchors and absolute evidence.
+  4. Refinement: merge close cores, move clearly misplaced members, attach
+     satellites to the core whose *defining* features they share.
+
+  Measured on hand-labeled real Google News sets in tests/fixtures/nlp
+  (pairwise F1 / B-cubed F1): tuning sets NVDA .91/.92, AAPL .83/.89,
+  META .50/.81, TGT .82/.87, XYZ .99/.96; validation TSLA .80/.83,
+  AMZN .81/.86; test set AMD .89/.89 at its first, untouched scoring
+  (.83/.87 after later fixes). The previous version scored NVDA .83/.89,
+  TGT .71/.78, META .48/.82, TSLA .75/.77, AMD .90/.91 on the same sets.
+  Pure Python, deterministic; ~0.25 s for 500 headlines of one company.
 """
 from __future__ import annotations
 
@@ -46,13 +63,12 @@ from app.nlp.text import (
 from app.nlp.types import Cluster, ClusterItem
 from app.sources.base import CompanyRef
 
-# Average-link threshold on mean pairwise cosine (tuned on labeled real
-# headline sets in tests/fixtures/nlp, see test_narratives.py).
+# Tuned on the labeled sets in tests/fixtures/nlp (see module docstring and
+# tests/nlp/test_narratives.py). Average-link cut-off on mean pairwise cosine:
 CLUSTER_THRESHOLD = 0.08
-LINKAGE = "average"
-LINKAGE_CENTROID = 0
 SINGLETON_DAMPING = 0.3
-MIN_EVIDENCE = 2.0
+IDF_PRIOR_DOCS = 10
+MIN_EVIDENCE = 1.5
 HUB_MIN_DF = 4
 HUB_REFERENCE = 0.1
 HUB_FLOOR = 0.2
@@ -61,13 +77,15 @@ TIME_FADE_H = 144.0
 # Clusters sharing no anchor (entity, amount, bigram, concept, firm) need this
 # much average-link similarity to merge: plain words link only near-paraphrases.
 NONANCHOR_SIM = 0.4
-CANDIDATE_MAX_DF = 0.2
+ANCHOR_MAX_DF = 0.35
 # Refinement (see _refine): cores, defining features, attach/merge cut-offs.
-REFINE = 1
+REFINE = True
 CORE_MIN = 3
-DEFINING_FRAC = 0.5
+DEFINING_FRAC = 0.4
+DEFINING_FRAC_TIMED = 0.25
 ATTACH_SIM = 0.2
 CORE_MERGE_SIM = 0.35
+REASSIGN_MARGIN = 0.1
 
 # --------------------------------------------------------------------------- #
 # Duplicates
@@ -86,8 +104,9 @@ def find_duplicates(titles: list[str]) -> list[list[int]]:
     Two titles are duplicates when their normalized forms are equal, their
     token Jaccard similarity is >= 0.8, or (for titles of 6+ tokens) one is
     a truncation/extension of the other (>= 90% of the shorter's tokens in the
-    longer, in order). Groups are connected components; representative =
-    lowest index."""
+    longer, in order) — unless each states a number, amount or date the other
+    lacks (template headlines about different filings/days). Groups are
+    connected components; representative = lowest index."""
     n = len(titles)
     parent = list(range(n))
 
@@ -114,23 +133,22 @@ def find_duplicates(titles: list[str]) -> list[list[int]]:
         else:
             by_norm[key] = i
 
-    # Candidate pairs share a token that is rare in this batch.
+    # Exact prefix filtering: order each title's tokens rarest-first; a pair
+    # reaching the Jaccard/containment cut-offs must share a token from the
+    # first |s| - ceil(DUP_JACCARD * |s|) + 1 of either side, so probing that
+    # prefix against a full inverted index finds every candidate cheaply.
     df = Counter(tok for s in sets for tok in s)
-    rare_cap = max(3, n // 5)
     index: dict[str, list[int]] = defaultdict(list)
     for i, s in enumerate(sets):
         for tok in s:
-            if df[tok] <= rare_cap:
-                index[tok].append(i)
-    seen: set[tuple[int, int]] = set()
-    for members in index.values():
-        for a_pos, a in enumerate(members):
-            for b in members[a_pos + 1:]:
-                if (a, b) in seen or find(a) == find(b):
-                    continue
-                seen.add((a, b))
-                if _near_identical(seqs[a], seqs[b], sets[a], sets[b]):
-                    union(a, b)
+            index[tok].append(i)
+    for a, s in enumerate(sets):
+        if not s:
+            continue
+        prefix = sorted(s, key=lambda tok: (df[tok], tok))[:len(s) - math.ceil(DUP_JACCARD * len(s)) + 1]
+        for b in sorted({b for tok in prefix for b in index[tok] if b != a}):
+            if find(a) != find(b) and _near_identical(seqs[a], seqs[b], sets[a], sets[b]):
+                union(a, b)
 
     groups: dict[int, list[int]] = defaultdict(list)
     for i in range(n):
@@ -138,9 +156,22 @@ def find_duplicates(titles: list[str]) -> list[list[int]]:
     return [sorted(g) for _, g in sorted(groups.items())]
 
 
+_SLOT_RE = re.compile(r"^(?:\$?\d[\d.,]*[%tbmk]?)$")
+
+
+def _slots(seq: list[str]) -> set[str]:
+    """Values that template headlines vary ("Insider Sold Shares Worth
+    $1,327,740" / "$1,360,080", "underperforms Monday" / "Friday"). The
+    last token is skipped: truncated copies cut it ("...Target of $1")."""
+    return {t for t in seq[:-1] if _SLOT_RE.match(t) or t in CALENDAR_WORDS}
+
+
 def _near_identical(sa: list[str], sb: list[str], a: frozenset[str], b: frozenset[str]) -> bool:
     if not a or not b:
         return False
+    slots_a, slots_b = _slots(sa), _slots(sb)
+    if slots_a - slots_b and slots_b - slots_a:
+        return False  # same template, different facts: separate items
     inter = len(a & b)
     if inter / len(a | b) >= DUP_JACCARD:
         return True
@@ -194,6 +225,10 @@ _PHRASES: tuple[tuple[re.Pattern[str], str], ...] = tuple((re.compile(p, re.IGNO
     (r"\bsmart[- ]home\b", " smart-home "),
     (r"\bshort[- ]sell(?:er|ers|ing)?\b", " short-seller "),
     (r"\b52[- ]week lows?\b", " 52w-low "),
+    # "best month since 2022" / "best quarter in over 2 years": one rally story.
+    (r"\bbest (?:(?:single|full|trading)[- ])?(?:day|week|month|quarter|year|session|stretch|run|start)s?\b", " best-stretch "),
+    (r"\bworst (?:(?:single|full|trading)[- ])?(?:day|week|month|quarter|year|session|stretch|run|start)s?\b",
+     " worst-stretch "),
     (r"\bstock split\b", " stock-split "),
     ((r"\b(?:cut|cuts|cutting|slash(?:es|ed|ing)?|lower(?:s|ed|ing)?|reduc(?:e|es|ed|ing)|trim(?:s|med|ming)?)"
       r"(?: \w+)? prices?\b|\bprice (?:cuts?|reductions?|war)\b|\bvalue war\b"), " price-cut "),
@@ -209,7 +244,7 @@ _PHRASES: tuple[tuple[re.Pattern[str], str], ...] = tuple((re.compile(p, re.IGNO
     (r"\b(?:third|3rd)[- ]quarter\b|\b3q\b", " q3 "),
     (r"\b(?:fourth|4th)[- ]quarter\b|\b4q\b", " q4 "),
     ((r"\b(?:analysts'? |wall street(?:'s)? |street )?(?:expectations|estimates?|forecasts|consensus(?: estimates?)?|"
-      r"projections)\b"), " estimates "),
+      r"projections)\b|\bthan (?:(?:wall street|analysts|the street|investors) )?(?:had )?expected\b"), " estimates "),
 ))
 
 _ACRONYMS = wordset("ai ceo cfo coo cto us usa uk eu ev evs ipo etf etfs q1 q2 q3 q4 eps gdp cpi fed sec ftc doj "
@@ -229,6 +264,7 @@ _W_VERB = 0.45
 _W_BIGRAM = 0.5
 _W_CONCEPT = 1.6
 _W_MONEY = 1.6
+_W_ROUND_MONEY = 0.6
 _W_NUMBER = 0.6
 _W_PCT = 0.5
 _W_YEAR = 0.2
@@ -325,6 +361,47 @@ def _is_entity_shape(surface: str) -> bool:
     return surface.isupper() and 2 <= len(surface) <= 6 and surface.lower() not in _ACRONYMS
 
 
+def _money_specific(token: str) -> bool:
+    """'$8.2b', '$150b', '$486,532' and trillion-scale figures identify a story;
+    round '$1b', '$10000', '$100m' recur across unrelated ones (every
+    '$1 billion deal')."""
+    digits = re.sub(r"[^\d]", "", token).rstrip("0")
+    return len(digits) >= 2 or digits not in {"", "1"} or token.endswith("t")  # "$1t": market-cap milestones
+
+
+def _split_hyphens(tokens: list[str]) -> list[str]:
+    """'auto-vote' -> 'auto', 'vote' and 'tesla-spacex' -> 'tesla', 'spacex' so
+    hyphenated and spaced spellings share features; concept tokens stay whole."""
+    out: list[str] = []
+    for tok in tokens:
+        if "-" in tok and tok not in _CONCEPTS and not tok[:1].isdigit():
+            out.extend(part for part in tok.split("-") if part)
+        else:
+            out.append(tok)
+    return out
+
+
+# A move attributed to a period ("jumped 30% in September", "has rallied 35%",
+# "is down 20% this year") is a recap, not the current session's move.
+_PERIOD_MOVE_RE = re.compile(
+    r"\b(?:in|during|for|over|since|through)\s+(?:the\s+)?(?:past\s+|last\s+|first\s+)?(?:(?-i:[A-Z])[a-z]+\b|"
+    r"(?:19|20)\d\d|week|month|quarter|year|q[1-4]|h[12]|\d+\s+(?:days|weeks|months|years))|"
+    r"\b(?:this|last|past)\s+(?:week|month|quarter|year)\b|\b(?:ytd|year[- ]to[- ]date|so far this year)\b",
+    re.IGNORECASE,
+)
+_PERFECT_RE = re.compile(r"\b(?:has|have|had)\b", re.IGNORECASE)
+
+
+def _period_move(title: str, span: str | None) -> bool:
+    """True when a price move in `title` is a multi-day recap, not a session move."""
+    text = fold(title)
+    idx = text.find(span) if span else -1
+    if idx < 0 or not span:
+        return False
+    after = text[idx + len(span):idx + len(span) + 40].lstrip(" ,")
+    return bool(_PERIOD_MOVE_RE.match(after) or _PERFECT_RE.search(text[max(0, idx - 15):idx + len(span)]))
+
+
 def _own_subject(title: str, span: str | None, own: frozenset[str]) -> bool:
     """True when the company is named right before an event span ("Tesla
     stock jumps 5%"), i.e. the move is the company's, not a rival's."""
@@ -356,12 +433,13 @@ def _raw_features(title: str, own: frozenset[str], proper: frozenset[str]
         if anchor:
             anchors.add(feature)
 
-    for tok in tokenize(text):
+    for tok in _split_hyphens(tokenize(text)):
         surface = cased.get(tok, tok)
         if tok in own or tok.lstrip("$") in own:
             content.append(("", "", False))  # the company's own name is not a story feature
         elif tok.startswith("$") and tok[1:2].isdigit():
-            add(tok, _W_MONEY, tok.upper(), anchor=True)
+            specific = _money_specific(tok)
+            add(tok, _W_MONEY if specific else _W_ROUND_MONEY, tok.upper(), anchor=specific)
             content.append((tok, tok.upper(), False))
         elif _PCT_RE.match(tok):
             value = float(tok[:-1].replace(",", "") or 0)
@@ -403,7 +481,8 @@ def _raw_features(title: str, own: frozenset[str], proper: frozenset[str]
         timed.add("analyst-bear")
     for event in detect_events(title):
         group = _TIMED_GROUPS.get(event.key)
-        if group and (not group.startswith("move-") or _own_subject(title, event.span, own)):
+        if group and (not group.startswith("move-") or (_own_subject(title, event.span, own)
+                                                         and not _period_move(title, event.span))):
             timed.add(group)
         if event.key in {"price_up", "price_down"}:
             continue
@@ -468,7 +547,9 @@ def _vectorize(titles: list[str], company: CompanyRef | None, times: list[float 
             anchors.add(key)
     n = len(titles)
     df = Counter(f for feats, _a, _s, _t in raw for f in feats)
-    idf = {f: math.log((n + 1) / (c + 0.5)) for f, c in df.items()}
+    # Background pseudo-documents keep idf meaningful in small batches: with
+    # 3 headlines all about one buyback, "buyback" must still link them.
+    idf = {f: math.log((n + IDF_PRIOR_DOCS) / (c + 0.5)) for f, c in df.items()}
     # Features seen once cannot link anything; keep them faint so they don't
     # swamp the shared ones in the norm.
     weighted = [{f: w * idf[f] * (SINGLETON_DAMPING if df[f] == 1 else 1.0) for f, w in feats.items() if idf[f] > 0}
@@ -494,6 +575,17 @@ def _time_factor(a: tuple[float, int], b: tuple[float, int]) -> float:
     return max(0.5, 1.0 - max(0.0, gap_h - TIME_GRACE_H) / TIME_FADE_H)
 
 
+def _heavy(vec: dict[str, float], bound: float) -> set[str]:
+    """Features left after dropping the lightest ones whose L2 norm < bound."""
+    mass = 0.0
+    out: set[str] = set()
+    for f, w in sorted(vec.items(), key=lambda fw: (fw[1], fw[0])):
+        mass += w * w
+        if mass >= bound * bound:
+            out.add(f)
+    return out
+
+
 def _average_link(docs: list[_Doc], threshold: float, times: list[float | None] | None = None) -> list[list[int]]:
     """Exact average-link agglomeration: sim(A, B) = (ΣA·ΣB) / (|A||B|) for
     unit vectors (× a time-proximity factor), merged greedily from the most
@@ -508,22 +600,20 @@ def _average_link(docs: list[_Doc], threshold: float, times: list[float | None] 
     anchors: dict[int, set[str]] = {i: set(d.anchors) for i, d in enumerate(docs)}
     members: dict[int, list[int]] = {i: [i] for i in range(len(docs))}
     version = dict.fromkeys(sums, 0)
-    # Candidate pairs share an anchor or a reasonably specific term; terms in
-    # a large share of the batch only cost time (their pairs score low).
+    # Candidate pairs share a key: an anchor (pairs below NONANCHOR_SIM need
+    # one; anchors in a large share of the batch are not story-specific) or a
+    # "heavy" feature — the lightest features of a unit vector whose L2 mass
+    # stays below NONANCHOR_SIM can't by themselves reach it (Cauchy-Schwarz).
     df = Counter(f for d in docs for f in d.vec)
-    cap = max(3, int(CANDIDATE_MAX_DF * len(docs)))
-    keys: dict[int, set[str]] = {i: {f for f in d.vec if f in d.anchors or df[f] <= cap} for i, d in enumerate(docs)}
+    anchor_cap = max(3, int(ANCHOR_MAX_DF * len(docs)))
+    keys: dict[int, set[str]] = {i: {f for f in d.anchors if df[f] <= anchor_cap} | _heavy(d.vec, NONANCHOR_SIM)
+                                 for i, d in enumerate(docs)}
     by_key: dict[str, set[int]] = defaultdict(set)
     for i, feats in keys.items():
         for f in feats:
             by_key[f].add(i)
 
     heap: list[tuple[float, int, int, int, int]] = []
-
-    def norm(c: int) -> float:
-        return math.sqrt(sum(v * v for v in sums[c].values())) or 1.0
-
-    norms = {c: norm(c) for c in sums}
 
     def evidence(a: int, b: int) -> float:
         """Shared information in absolute tf-idf units (mean per member), so a
@@ -535,13 +625,23 @@ def _average_link(docs: list[_Doc], threshold: float, times: list[float | None] 
             ra, rb, na, nb = rb, ra, nb, na
         return sum(min(w / na, rb[f] / nb) for f, w in ra.items() if f in rb)
 
+    # Cached ΣA·ΣB per cluster pair. Average linkage is reducible:
+    # (ΣA + ΣB)·ΣC = ΣA·ΣC + ΣB·ΣC, so a merge never re-scans a big cluster.
+    dots: dict[tuple[int, int], float] = {}
+    partners: dict[int, set[int]] = defaultdict(set)
+
+    def pair_dot(a: int, b: int) -> float:
+        key = (a, b) if a < b else (b, a)
+        value = dots.get(key)
+        if value is None:
+            value = dots[key] = _dot(sums[a], sums[b])
+            partners[a].add(b)
+            partners[b].add(a)
+        return value
+
     def push(a: int, b: int) -> None:
         a, b = min(a, b), max(a, b)
-        dot = _dot(sums[a], sums[b])
-        if LINKAGE == "centroid" or LINKAGE_CENTROID:
-            sim = dot / (norms[a] * norms[b])
-        else:
-            sim = dot / (len(members[a]) * len(members[b]))
+        sim = pair_dot(a, b) / (len(members[a]) * len(members[b]))
         sim *= _time_factor(clock[a], clock[b])
         if sim < threshold or (sim < NONANCHOR_SIM and not anchors[a] & anchors[b]):
             return
@@ -556,6 +656,16 @@ def _average_link(docs: list[_Doc], threshold: float, times: list[float | None] 
         _neg, a, b, va, vb = heapq.heappop(heap)
         if a not in sums or b not in sums or version[a] != va or version[b] != vb:
             continue
+        neighbors = {j for f in keys[a] | keys[b] for j in by_key[f]} - {a, b}
+        merged_dots = {j: pair_dot(a, j) + pair_dot(b, j) for j in neighbors}  # pre-merge vectors
+        for c in (a, b):  # invalidate every cached pair of the two old clusters
+            for j in partners.pop(c, set()):
+                dots.pop((c, j) if c < j else (j, c), None)
+                partners[j].discard(c)
+        for j, value in merged_dots.items():
+            dots[(a, j) if a < j else (j, a)] = value
+            partners[a].add(j)
+            partners[j].add(a)
         for f, w in sums.pop(b).items():  # merge b into a
             sums[a][f] = sums[a].get(f, 0.0) + w
         for f, w in raws.pop(b).items():
@@ -570,8 +680,7 @@ def _average_link(docs: list[_Doc], threshold: float, times: list[float | None] 
         clock[a] = (ta[0] + tb[0], ta[1] + tb[1])
         version[a] += 1
         version.pop(b)
-        norms[a] = norm(a)
-        for j in {j for f in keys[a] for j in by_key[f] if j != a}:
+        for j in neighbors:
             push(a, j)
     return [sorted(m) for m in members.values()]
 
@@ -601,23 +710,61 @@ def _profile(group: list[int], docs: list[_Doc]) -> tuple[dict[str, float], set[
         for f, w in docs[i].vec.items():
             total[f] += w
             counts[f] += 1
-    need = max(2.0, DEFINING_FRAC * len(group)) if len(group) > 1 else 1.0
-    return _unit(total), {f for f, c in counts.items() if c >= need}
+    if len(group) == 1:
+        return _unit(total), set(counts)
+    need = max(2.0, DEFINING_FRAC * len(group))
+    # Not every headline about a day's story mentions the price move, so a
+    # session feature carried by a quarter of the core already characterizes it.
+    need_timed = max(2.0, DEFINING_FRAC_TIMED * len(group))
+    return _unit(total), {f for f, c in counts.items() if c >= (need_timed if f.startswith("t:") else need)}
 
 
 def _refine(groups: list[list[int]], docs: list[_Doc], times: list[float | None]) -> list[list[int]]:
     """Second pass over the average-link result. Average linkage keeps
     stories tight but leaves satellites behind: a big story's own terms are
     frequent (low idf), and a short follow-up headline is never similar to
-    *every* member. Here (1) cores (>= CORE_MIN members) whose centroids are
-    close and share a defining feature merge, then (2) every smaller cluster
-    joins the core it shares a defining feature with and is most similar to
-    (centroid cosine >= ATTACH_SIM, time-faded)."""
-    cores = sorted((g for g in groups if len(g) >= CORE_MIN), key=lambda g: (-len(g), g[0]))
-    small = [g for g in groups if len(g) < CORE_MIN]
-    merged = True
-    while merged and len(cores) > 1:
-        merged = False
+    *every* member. Cores are clusters of >= CORE_MIN distinct headlines:
+    (1) cores with close centroids that share a defining feature merge;
+    (2) a core member that is clearly closer to a larger core it shares a
+    defining feature with moves there (one nearest-centroid pass);
+    (3) every smaller cluster joins the core it shares a defining feature
+    with and is most similar to (centroid cosine >= ATTACH_SIM, time-faded)."""
+    cores = _merge_cores(sorted((g for g in groups if len(g) >= CORE_MIN), key=lambda g: (-len(g), g[0])),
+                         docs, times)
+    if not cores:
+        return groups
+    cores = _reassign(cores, docs, times)
+    profiles = [_profile(g, docs) for g in cores]
+    out = [list(g) for g in cores]
+    for g in (g for g in groups if len(g) < CORE_MIN):
+        centroid, _defining = _profile(g, docs)
+        k = _best_core(set(centroid), centroid, _span(g, times), cores, profiles, times, ATTACH_SIM)
+        if k >= 0:
+            out[k].extend(g)
+        else:
+            out.append(list(g))
+    return [sorted(g) for g in out if g]
+
+
+def _best_core(feats: set[str], vec: dict[str, float], span: tuple[float, float] | None, cores: list[list[int]],
+               profiles: list[tuple[dict[str, float], set[str]]], times: list[float | None], floor: float,
+               skip: int = -1, min_size: int = 0) -> int:
+    """Index of the most similar core sharing a defining feature with `feats`
+    (similarity >= floor), or -1."""
+    best_k, best_sim = -1, floor
+    for k, (centroid, defining) in enumerate(profiles):
+        if k == skip or len(cores[k]) < min_size or not feats & defining:
+            continue
+        sim = _dot(vec, centroid) * _span_factor(span, _span(cores[k], times))
+        if sim >= best_sim:
+            best_k, best_sim = k, sim
+    return best_k
+
+
+def _merge_cores(cores: list[list[int]], docs: list[_Doc], times: list[float | None]) -> list[list[int]]:
+    """Greedily merge the closest pair of cores (centroid cosine >=
+    CORE_MERGE_SIM, sharing a defining feature) until none qualifies."""
+    while len(cores) > 1:
         profiles = [_profile(g, docs) for g in cores]
         best: tuple[float, int, int] | None = None
         for a in range(len(cores)):
@@ -628,29 +775,38 @@ def _refine(groups: list[list[int]], docs: list[_Doc], times: list[float | None]
                                                                           _span(cores[b], times))
                 if sim >= CORE_MERGE_SIM and (best is None or sim > best[0]):
                     best = (sim, a, b)
-        if best:
-            _sim, a, b = best
-            cores[a] = sorted(cores[a] + cores.pop(b))
-            merged = True
-    if not cores:
-        return groups
+        if best is None:
+            break
+        _sim, a, b = best
+        cores[a] = sorted(cores[a] + cores.pop(b))
+    return cores
+
+
+def _reassign(cores: list[list[int]], docs: list[_Doc], times: list[float | None]) -> list[list[int]]:
+    """One nearest-centroid pass: a member moves to a core at least as large
+    as its own when it shares a defining feature with it and is closer to it
+    (by REASSIGN_MARGIN) than to the rest of its own cluster. Profiles are
+    computed once up front, so the result is order-independent."""
     profiles = [_profile(g, docs) for g in cores]
+    moves: list[tuple[int, int, int]] = []  # (item, from core, to core)
+    for c, group in enumerate(cores):
+        total: dict[str, float] = defaultdict(float)
+        for i in group:
+            for f, w in docs[i].vec.items():
+                total[f] += w
+        for i in group:
+            rest = _unit({f: w - docs[i].vec.get(f, 0.0) for f, w in total.items()})
+            own_sim = _dot(docs[i].vec, rest)
+            point = (times[i], times[i]) if times[i] is not None else None
+            k = _best_core(set(docs[i].vec), docs[i].vec, point, cores, profiles, times,
+                           max(ATTACH_SIM, own_sim + REASSIGN_MARGIN), skip=c, min_size=len(group))
+            if k >= 0:
+                moves.append((i, c, k))
     out = [list(g) for g in cores]
-    for g in small:
-        centroid, feats = _profile(g, docs)
-        own = set(centroid)
-        best_k, best_sim = -1, ATTACH_SIM
-        for k, (core_centroid, defining) in enumerate(profiles):
-            if not own & defining:
-                continue
-            sim = _dot(centroid, core_centroid) * _span_factor(_span(g, times), _span(cores[k], times))
-            if sim >= best_sim:
-                best_k, best_sim = k, sim
-        if best_k >= 0:
-            out[best_k].extend(g)
-        else:
-            out.append(list(g))
-    return [sorted(g) for g in out]
+    for i, c, k in moves:
+        out[c].remove(i)
+        out[k].append(i)
+    return [sorted(g) for g in out if g]
 
 
 def _is_weak_headline(title: str) -> bool:
@@ -671,10 +827,19 @@ def cluster_narratives(items: list[ClusterItem], company: CompanyRef | None = No
         return []
     titles = [it.title or "" for it in items]
     times = [it.timestamp.timestamp() if it.timestamp else None for it in items]
-    docs, idf, common = _vectorize(titles, company, times)
-    groups = _average_link(docs, CLUSTER_THRESHOLD if threshold is None else threshold, times)
+    # Cluster distinct headlines only: syndicated copies would fake "cores"
+    # and inflate the document frequency (lower the idf) of a story's terms.
+    copies = find_duplicates(titles)
+    rep_times = [times[g[0]] for g in copies]
+    rep_docs, idf, common = _vectorize([titles[g[0]] for g in copies], company, rep_times)
+    rep_groups = _average_link(rep_docs, CLUSTER_THRESHOLD if threshold is None else threshold, rep_times)
     if REFINE:
-        groups = _refine(groups, docs, times)
+        rep_groups = _refine(rep_groups, rep_docs, rep_times)
+    docs: list[_Doc] = [rep_docs[0]] * len(items)
+    for k, g in enumerate(copies):
+        for i in g:
+            docs[i] = rep_docs[k]
+    groups = [sorted(i for k in rg for i in copies[k]) for rg in rep_groups]
 
     def group_key(g: list[int]) -> tuple[float, int, float]:
         weight = sum(max(items[i].weight, 0.0) for i in g)
@@ -727,6 +892,7 @@ _CONCEPT_LABELS = {
     "smart-home": "smart home", "data-center": "data centers", "short-seller": "short seller", "52w-low": "52-week low",
     "stock-split": "stock split", "earnings-beat": "earnings beat", "earnings-miss": "earnings miss",
     "price-cut": "price cuts", "price-hike": "price hikes", "inst-holding": "institutional holdings",
+    "best-stretch": "best run", "worst-stretch": "worst run",
 }
 
 

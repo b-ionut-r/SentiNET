@@ -128,7 +128,7 @@ THEMES: dict[str, tuple[str, ...]] = {
 # Theme names that are market talk on their own (a post saying "the S&P 500" needs no
 # extra finance word). Others ("gold", "euro") need market vocabulary nearby.
 SELF_EVIDENT_THEMES = frozenset({
-    "dow jones", "nasdaq", "vix", "treasuries", "nikkei", "dax", "hang seng", "ark innovation",
+    "dow jones", "vix", "treasuries", "nikkei", "dax", "hang seng", "ark innovation",
     "magnificent seven", "reits", "junk bonds", "emerging markets", "brent crude", "small caps",
 })
 

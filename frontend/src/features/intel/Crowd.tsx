@@ -19,9 +19,18 @@ export function CrowdPanel({ a, className }: { a: Analysis; className?: string }
   const att = a.attention;
   return (
     <Panel id="crowd" title="Crowd & attention" icon={<Users />} subtitle="Retail positioning and how loudly the market is talking" className={className}>
-      <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      <div className={cx("grid gap-5", (c || att) && "md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]")}>
         <div className="space-y-4">{c ? <Retail c={c} socialScore={a.social.n ? a.social.score : null} socialN={a.social.n} /> : <Empty title="No crowd data">Retail sources returned nothing for this ticker.</Empty>}</div>
-        <div>{att ? <Attention att={att} /> : <Empty title="No attention data" />}</div>
+        <div>
+          {att ? (
+            <Attention att={att} />
+          ) : (
+            <>
+              <SubHead>Attention</SubHead>
+              <p className="text-xs text-muted">No attention reading this run — it needs GDELT article volume, Wikipedia pageviews or Reddit mention history, and none came back usable.</p>
+            </>
+          )}
+        </div>
       </div>
     </Panel>
   );

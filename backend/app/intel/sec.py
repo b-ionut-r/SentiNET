@@ -124,6 +124,7 @@ FORMS: dict[str, FormInfo] = {
     "424B4": FormInfo("Prospectus: securities offering priced", "medium", family="424B"),
     "424B5": FormInfo("Prospectus supplement: securities offering", "medium", family="424B"),
     "424B7": FormInfo("Prospectus: resale by holders", "medium", family="424B"),
+    "424B8": FormInfo("Prospectus (late-filed supplement)", "low", family="424B2"),
     "424B2": FormInfo("Pricing supplement (notes/debt program)", "low", family="424B2"),
     "FWP": FormInfo("Free-writing prospectus (offering materials)", "low", family="FWP"),
     "S-8": FormInfo("Employee stock plan registration", "low"),
@@ -249,6 +250,7 @@ def filings_from_submissions(
         info = FORMS.get(form) or FORMS.get(form.replace("SCHEDULE ", "SC "))
         if info is None:
             desc = (recent.get("primaryDocDescription") or [""] * len(forms))[i] or form
+            desc = desc.capitalize() if desc.isupper() and len(desc) > 6 else desc  # "AMENDED AND …" -> "Amended and …"
             info = FormInfo(desc if desc.upper() != form.upper() else f"Form {form}", "low")
         rows.append((Filing(form=form, date=filed, title=info.title, url=url,
                             importance=info.importance, polarity=info.polarity), info.family))
@@ -301,8 +303,15 @@ _NARRATIVE_ITEMS = {"1.01", "1.02", "1.03", "1.05", "2.01", "2.03", "2.04", "2.0
 _ITEM_HEADER = re.compile(r"\bItem\s+(\d\.\d\d)\b\.?", re.IGNORECASE)
 _DEFINED_TERM = re.compile(r"\s*\((?:[^()]{0,60}?,\s*)?(?:the\s+|collectively\s+)?[“\"][^”\"]{1,40}[”\"]\)")
 _BOILERPLATE = re.compile(r"press release|exhibit 99|incorporated (?:herein )?by reference|furnished|"
-                          r"forward-looking|shall not be deemed", re.IGNORECASE)
-_LEAD_DATE = re.compile(r"^(?:\([a-z]\)\s*)?(?:On|Effective)\s+[A-Z][a-z]+\s+\d{1,2},\s+\d{4},?\s+", re.UNICODE)
+                          r"forward-looking|shall not be deemed|set forth (?:in|under|above|below)|"
+                          r"(?:these|such) statements|current (?:opinions|expectations|beliefs)|"
+                          r"is hereby incorporated|see item \d", re.IGNORECASE)
+_LEAD_DATE = re.compile(r"^(?:\([a-z]\)\s*)?(?:on|effective)\s+[A-Z][a-z]+\s+\d{1,2},\s+\d{4},?\s+",
+                        re.UNICODE | re.IGNORECASE)
+# "As previously disclosed, on March 4, 2026, …" / "As previously reported … on August 6, 2025, …"
+_PREVIOUSLY = re.compile(r"^(?:(?:In addition|Additionally|Further(?:more)?|Also),\s+)?"
+                         r"As (?:previously |was )?(?:reported|disclosed|announced)(?:\b.{0,200}?\d{4})?,\s+",
+                         re.IGNORECASE)
 _SENTENCE_END = re.compile(r"\.\s+(?=[A-Z(“\"])")
 _ABBREVIATIONS = {"inc", "corp", "co", "ltd", "no", "mr", "ms", "mrs", "dr", "st", "jr", "sr", "s", "u", "approx",
                   "vs", "n.a", "l.p", "l.l.c", "e.g", "i.e"}
@@ -365,7 +374,8 @@ _MONEY = re.compile(r"\$\s?\d|\b\d[\d,.]*\s?(?:billion|million|percent)\b|\d%")
 
 
 def _clean_sentence(sentence: str) -> str:
-    sentence = _LEAD_DATE.sub("", _DEFINED_TERM.sub("", sentence)).strip()
+    sentence = _PREVIOUSLY.sub("", _DEFINED_TERM.sub("", sentence).strip())
+    sentence = _LEAD_DATE.sub("", sentence).strip()
     return (sentence[:1].upper() + sentence[1:]).rstrip(".") + "."
 
 
@@ -381,7 +391,8 @@ def _fit(sentence: str, budget: int) -> str | None:
 def _excerpt(section: str, max_chars: int) -> str | None:
     """Lead sentence + (preferably) the next sentence that carries a number."""
     sentences = [s.strip() for s in _split_sentences(section) if s.strip()]
-    narrative = [s for s in sentences[:6] if not _BOILERPLATE.search(s)]
+    # A real narrative sentence names something: skip boilerplate and dangling cross-references.
+    narrative = [s for s in sentences[:6] if not _BOILERPLATE.search(s) and len(s) >= 40]
     if not narrative:
         return None
     lead = _fit(_clean_sentence(narrative[0]), max_chars)
@@ -397,6 +408,8 @@ _EXEC = r"\b(?:chief executive|chief financial|ceo|cfo)\b.{0,160}\b"
 _EXCERPT_RULES: tuple[tuple[re.Pattern[str], Importance, Pol | None], ...] = (
     (re.compile(r"going concern|material weakness|subpoena|wells notice|investigation by|class action",
                 re.IGNORECASE), "high", "bear"),
+    (re.compile(r"deficiency (?:letter|notice)|listing qualifications|minimum bid price|regain compliance|"
+                r"(?:notice|notification) of delisting|delisting determination", re.IGNORECASE), "high", "bear"),
     (re.compile(_EXEC + r"(?:resign|terminat|separat)", re.IGNORECASE | re.DOTALL), "high", "bear"),
     (re.compile(_EXEC + r"(?:retire|step(?:ping)? down|depart|transition|successor|appoint)",
                 re.IGNORECASE | re.DOTALL), "high", None),

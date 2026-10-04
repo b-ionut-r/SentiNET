@@ -18,7 +18,11 @@ export const keys = {
   alerts: ["alerts"] as const,
   alertEvents: ["alert-events"] as const,
   sources: ["sources"] as const,
+  health: ["health"] as const,
 };
+
+/** A progress event plus its arrival order (the latest update per task wins). */
+export type TrackedProgress = ProgressEvent & { seq: number };
 
 /**
  * The Intel page's analysis: streamed over SSE with live progress, cached per
@@ -26,7 +30,8 @@ export const keys = {
  * stays on screen.
  */
 export function useAnalysis(ticker: string) {
-  const [progress, setProgress] = useState<Record<string, ProgressEvent>>({});
+  const [progress, setProgress] = useState<Record<string, TrackedProgress>>({});
+  const seq = useRef(0);
   const refreshNext = useRef(false);
   const qc = useQueryClient();
 
@@ -41,7 +46,7 @@ export function useAnalysis(ticker: string) {
       return streamAnalysis(ticker, {
         refresh,
         signal,
-        onProgress: (ev) => setProgress((p) => ({ ...p, [`${ev.stage}:${ev.key}`]: ev })),
+        onProgress: (ev) => setProgress((p) => ({ ...p, [`${ev.stage}:${ev.key}`]: { ...ev, seq: ++seq.current } })),
       });
     },
     staleTime: 5 * MIN,
@@ -114,6 +119,10 @@ export function useSearch(q: string) {
     placeholderData: keepPreviousData,
     retry: false,
   });
+}
+
+export function useHealth() {
+  return useQuery({ queryKey: keys.health, queryFn: ({ signal }) => api.health(signal), staleTime: 10 * MIN, retry: 1 });
 }
 
 export function useSources() {

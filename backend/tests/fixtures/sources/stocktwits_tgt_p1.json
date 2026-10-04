@@ -1,0 +1,840 @@
+{
+ "symbol": {
+  "id": 7396,
+  "symbol": "TGT",
+  "title": "Target Corp",
+  "watchlist_count": 50138
+ },
+ "cursor": {
+  "more": true,
+  "since": 665727579,
+  "max": 665315049
+ },
+ "response": {
+  "status": 200
+ },
+ "messages": [
+  {
+   "id": 665727579,
+   "body": "$TGT i love target but i really dont see this doing well into the future. Every retail is getting demolished by $AMZN",
+   "created_at": "2026-10-04T22:52:56Z",
+   "entities": {
+    "sentiment": {
+     "basic": "Bearish"
+    }
+   },
+   "user": {
+    "id": 1101302,
+    "username": "Andrew100x",
+    "followers": 158
+   },
+   "symbols": [
+    {
+     "symbol": "TGT"
+    },
+    {
+     "symbol": "AMZN"
+    }
+   ]
+  },
+  {
+   "id": 665699394,
+   "body": "$TGT picking up 165 call for 10/30",
+   "created_at": "2026-10-03T16:42:59Z",
+   "entities": {
+    "sentiment": {
+     "basic": "Bullish"
+    }
+   },
+   "user": {
+    "id": 10018162,
+    "username": "lrn_2_invest",
+    "followers": 0
+   },
+   "symbols": [
+    {
+     "symbol": "TGT"
+    }
+   ]
+  },
+  {
+   "id": 665623956,
+   "body": "$TGT is this stock retarded ?",
+   "created_at": "2026-10-02T14:02:05Z",
+   "entities": {
+    "sentiment": null
+   },
+   "likes": {
+    "total": 3,
+    "user_ids": [
+     7558523,
+     4415228,
+     3819027
+    ]
+   },
+   "user": {
+    "id": 3557376,
+    "username": "PikaPump",
+    "followers": 107
+   },
+   "symbols": [
+    {
+     "symbol": "TGT"
+    }
+   ]
+  },
+  {
+   "id": 665612945,
+   "body": "Zacks prefers $TGT over $MELI in recent article.",
+   "created_at": "2026-10-02T12:49:15Z",
+   "entities": {
+    "sentiment": {
+     "basic": "Bullish"
+    }
+   },
+   "likes": {
+    "total": 1,
+    "user_ids": [
+     3819027
+    ]
+   },
+   "conversation": {
+    "parent_message_id": 665612945,
+    "in_reply_to_message_id": null,
+    "parent": true,
+    "replies": 1
+   },
+   "user": {
+    "id": 129472,
+    "username": "Good2go",
+    "followers": 1776
+   },
+   "symbols": [
+    {
+     "symbol": "TGT"
+    },
+    {
+     "symbol": "MELI"
+    }
+   ]
+  },
+  {
+   "id": 665602483,
+   "body": "$NKE funny how MAGA cucks keep spamming go woke and go broke 🤣 If that was the case how do you explain the woke trifecta doing just fine $TGT $DIS and $SBUX",
+   "created_at": "2026-10-02T09:05:38Z",
+   "entities": {
+    "sentiment": null
+   },
+   "likes": {
+    "total": 3,
+    "user_ids": [
+     5319680,
+     6116544,
+     3819027
+    ]
+   },
+   "conversation": {
+    "parent_message_id": 665602483,
+    "in_reply_to_message_id": null,
+    "parent": true,
+    "replies": 3
+   },
+   "user": {
+    "id": 5423900,
+    "username": "StockAuthority123",
+    "followers": 149
+   },
+   "symbols": [
+    {
+     "symbol": "NKE"
+    },
+    {
+     "symbol": "TGT"
+    },
+    {
+     "symbol": "DIS"
+    },
+    {
+     "symbol": "SBUX"
+    }
+   ]
+  },
+  {
+   "id": 665593398,
+   "body": "$NKE $TGT $65 by March 2026!!",
+   "created_at": "2026-10-02T01:37:07Z",
+   "entities": {
+    "sentiment": null
+   },
+   "likes": {
+    "total": 3,
+    "user_ids": [
+     112914,
+     9254302,
+     3819027
+    ]
+   },
+   "user": {
+    "id": 1611524,
+    "username": "MissionImpossibl",
+    "followers": 321
+   },
+   "symbols": [
+    {
+     "symbol": "NKE"
+    },
+    {
+     "symbol": "TGT"
+    }
+   ]
+  },
+  {
+   "id": 665593368,
+   "body": "$NKE who remembers $TGT $80 s less than an year ago !! ??",
+   "created_at": "2026-10-02T01:36:22Z",
+   "entities": {
+    "sentiment": {
+     "basic": "Bullish"
+    }
+   },
+   "likes": {
+    "total": 8,
+    "user_ids": [
+     1593070,
+     5161243,
+     3951542,
+     6541141,
+     3446598,
+     462152,
+     4684276,
+     3819027
+    ]
+   },
+   "reshares": {
+    "reshared_count": 1,
+    "user_ids": [
+     1611524
+    ]
+   },
+   "conversation": {
+    "parent_message_id": 665593368,
+    "in_reply_to_message_id": null,
+    "parent": true,
+    "replies": 1
+   },
+   "user": {
+    "id": 1611524,
+    "username": "MissionImpossibl",
+    "followers": 321
+   },
+   "symbols": [
+    {
+     "symbol": "NKE"
+    },
+    {
+     "symbol": "TGT"
+    }
+   ]
+  },
+  {
+   "id": 665590184,
+   "body": "$TGT its not hard...",
+   "created_at": "2026-10-02T00:20:34Z",
+   "entities": {
+    "sentiment": null
+   },
+   "likes": {
+    "total": 1,
+    "user_ids": [
+     3819027
+    ]
+   },
+   "user": {
+    "id": 423510,
+    "username": "InfinityVenom",
+    "followers": 167
+   },
+   "symbols": [
+    {
+     "symbol": "TGT"
+    }
+   ]
+  },
+  {
+   "id": 665585498,
+   "body": "$NKE were they the face of this woke agenda. Not $DIS not $TGT I got this one all wrong.",
+   "created_at": "2026-10-01T22:53:20Z",
+   "entities": {
+    "sentiment": null
+   },
+   "likes": {
+    "total": 4,
+    "user_ids": [
+     10002200,
+     5062509,
+     1711286,
+     3819027
+    ]
+   },
+   "user": {
+    "id": 7387905,
+    "username": "chartistmind",
+    "followers": 3
+   },
+   "symbols": [
+    {
+     "symbol": "NKE"
+    },
+    {
+     "symbol": "DIS"
+    },
+    {
+     "symbol": "TGT"
+    }
+   ]
+  },
+  {
+   "id": 665585197,
+   "body": "$NKE when woke dude getting canned? $DIS Chapick got canned. $TGT Cornell got canned",
+   "created_at": "2026-10-01T22:48:06Z",
+   "entities": {
+    "sentiment": null
+   },
+   "likes": {
+    "total": 4,
+    "user_ids": [
+     6517014,
+     10002200,
+     1711286,
+     3819027
+    ]
+   },
+   "user": {
+    "id": 7387905,
+    "username": "chartistmind",
+    "followers": 3
+   },
+   "symbols": [
+    {
+     "symbol": "NKE"
+    },
+    {
+     "symbol": "DIS"
+    },
+    {
+     "symbol": "TGT"
+    }
+   ]
+  },
+  {
+   "id": 665561094,
+   "body": "$TGT is coiling really tight against its apex! \n \n50DMA being held as support. just waiting to see $161.25 break!",
+   "created_at": "2026-10-01T18:38:03Z",
+   "entities": {
+    "sentiment": null
+   },
+   "likes": {
+    "total": 3,
+    "user_ids": [
+     3557376,
+     3768366,
+     3819027
+    ]
+   },
+   "user": {
+    "id": 4258248,
+    "username": "theoptionsplug",
+    "followers": 3742
+   },
+   "symbols": [
+    {
+     "symbol": "TGT"
+    }
+   ]
+  },
+  {
+   "id": 665560639,
+   "body": "$TGT Target, Safeway win in grocery delivery, pickup \nStudy findings show that grocery ecommerce is increasingly connected to the broader retailer relationship \n \nSupermarket News  \nOctober 1, 2026",
+   "created_at": "2026-10-01T18:34:05Z",
+   "entities": {
+    "sentiment": {
+     "basic": "Bullish"
+    }
+   },
+   "likes": {
+    "total": 1,
+    "user_ids": [
+     3819027
+    ]
+   },
+   "user": {
+    "id": 51989,
+    "username": "opsguy",
+    "followers": 36
+   },
+   "symbols": [
+    {
+     "symbol": "TGT"
+    }
+   ]
+  },
+  {
+   "id": 665550830,
+   "body": "$TGT options flow lesson: volume and open interest answer different questions. Volume counts contracts traded during the session. Open interest is the standing balance from the prior settle. The two should not be treated as interchangeable. The alert snapshot shows $3.6M in the Dec 18 $155 puts. Volume was 21.1x standing open interest at capture. Intraday volume does not establish whether a position was opened or held; the next settled open interest is the check.",
+   "created_at": "2026-10-01T17:16:58Z",
+   "entities": {
+    "sentiment": null
+   },
+   "likes": {
+    "total": 1,
+    "user_ids": [
+     3819027
+    ]
+   },
+   "user": {
+    "id": 11071554,
+    "username": "PredictionFLO1",
+    "followers": 43
+   },
+   "symbols": [
+    {
+     "symbol": "TGT"
+    }
+   ]
+  },
+  {
+   "id": 665541834,
+   "body": "don’t worry $NKE longs. as you recover like $TGT  and $CBRL and $BUD , there’s a new kid on the block for the woke shorts ➡️ $NFLX",
+   "created_at": "2026-10-01T16:02:15Z",
+   "entities": {
+    "sentiment": null
+   },
+   "likes": {
+    "total": 3,
+    "user_ids": [
+     1711286,
+     10002200,
+     3819027
+    ]
+   },
+   "user": {
+    "id": 7387905,
+    "username": "chartistmind",
+    "followers": 3
+   },
+   "symbols": [
+    {
+     "symbol": "NKE"
+    },
+    {
+     "symbol": "TGT"
+    },
+    {
+     "symbol": "CBRL"
+    },
+    {
+     "symbol": "BUD"
+    },
+    {
+     "symbol": "NFLX"
+    }
+   ]
+  },
+  {
+   "id": 665541495,
+   "body": "$TGT pay attention",
+   "created_at": "2026-10-01T15:59:32Z",
+   "entities": {
+    "sentiment": null
+   },
+   "likes": {
+    "total": 1,
+    "user_ids": [
+     3819027
+    ]
+   },
+   "user": {
+    "id": 4415228,
+    "username": "Ari66_",
+    "followers": 95
+   },
+   "symbols": [
+    {
+     "symbol": "TGT"
+    }
+   ]
+  },
+  {
+   "id": 665483653,
+   "body": "#Target Corporation Chart Analysis $TGT https://talkmarkets.com/article/target-corporation-chart-analysis",
+   "created_at": "2026-09-30T20:30:30Z",
+   "entities": {
+    "sentiment": null
+   },
+   "likes": {
+    "total": 1,
+    "user_ids": [
+     3819027
+    ]
+   },
+   "user": {
+    "id": 296805,
+    "username": "TalkMarkets",
+    "followers": 32069
+   },
+   "symbols": [
+    {
+     "symbol": "TGT"
+    }
+   ]
+  },
+  {
+   "id": 665474683,
+   "body": "$TGT \n \nHSBC upgraded Target to Buy from Hold today and raised its target to 190 from 125. That is a 52 percent raise, sitting well above the Street average near 166. \n \nAnalyst Joe Thomas also lifted his fiscal 2027 earnings estimate to 10.61 from 8.26, up 28 percent. His case: better sales create operating leverage, pushing margins toward 6 percent. \n \nThe read behind it: second-quarter growth was traffic-driven. Shoppers visited more often instead of spending more per trip. Thomas says that shows Target is rebuilding traffic without cannibalizing its store base. \n \nThe wrinkle: Target cut prices on nearly 2,000 items Tuesday, on top of 10,000-plus over the past year. Traffic built on price cuts is real until the margin math shows up. \n \nShares around 157 today, up 63 percent on the year.",
+   "created_at": "2026-09-30T19:34:08Z",
+   "entities": {
+    "sentiment": null
+   },
+   "likes": {
+    "total": 1,
+    "user_ids": [
+     3819027
+    ]
+   },
+   "user": {
+    "id": 11124197,
+    "username": "KryptonResearch14",
+    "followers": 29
+   },
+   "symbols": [
+    {
+     "symbol": "TGT"
+    }
+   ]
+  },
+  {
+   "id": 665460451,
+   "body": "$TGT opens +2% and closes in the RED, LOL",
+   "created_at": "2026-09-30T17:36:16Z",
+   "entities": {
+    "sentiment": null
+   },
+   "likes": {
+    "total": 1,
+    "user_ids": [
+     3819027
+    ]
+   },
+   "user": {
+    "id": 7558523,
+    "username": "ItsCarRamRod",
+    "followers": 185
+   },
+   "symbols": [
+    {
+     "symbol": "TGT"
+    }
+   ]
+  },
+  {
+   "id": 665446565,
+   "body": "Take a look at Target, our chart of the week for 9/30 $TGT. https://explosiveoptions.net/options-trading-charts/target-corp-chart-analysis-2/",
+   "created_at": "2026-09-30T15:50:54Z",
+   "entities": {
+    "sentiment": null
+   },
+   "likes": {
+    "total": 1,
+    "user_ids": [
+     3819027
+    ]
+   },
+   "user": {
+    "id": 30662,
+    "username": "aztecs99",
+    "followers": 5928
+   },
+   "symbols": [
+    {
+     "symbol": "TGT"
+    }
+   ]
+  },
+  {
+   "id": 665430399,
+   "body": "🎯 10/02 $TGT 167.5c @0.08\n\nTHIS CAN GO 1,000%+\n\n🕺🔥🕺 oh yeah ✈️🔥✈️",
+   "created_at": "2026-09-30T14:11:05Z",
+   "entities": {
+    "sentiment": null
+   },
+   "likes": {
+    "total": 2,
+    "user_ids": [
+     10742851,
+     3819027
+    ]
+   },
+   "user": {
+    "id": 10742851,
+    "username": "D_GEN_ERAL",
+    "followers": 241
+   },
+   "symbols": [
+    {
+     "symbol": "TGT"
+    }
+   ]
+  },
+  {
+   "id": 665428718,
+   "body": "$TGT $320 soon.",
+   "created_at": "2026-09-30T14:02:11Z",
+   "entities": {
+    "sentiment": {
+     "basic": "Bullish"
+    }
+   },
+   "likes": {
+    "total": 3,
+    "user_ids": [
+     9010143,
+     1405312,
+     3819027
+    ]
+   },
+   "user": {
+    "id": 9010143,
+    "username": "onlythebestcompanies",
+    "followers": 88
+   },
+   "symbols": [
+    {
+     "symbol": "TGT"
+    }
+   ]
+  },
+  {
+   "id": 665416556,
+   "body": "$TGT: Target upgraded to Buy from Hold at HSBC, tgt $190 https://www.briefing.com/calendars/updown?Filter=All&amp;utm_campaign=updown&amp;utm_medium=social&amp;utm_source=st&amp;utm_content=link",
+   "created_at": "2026-09-30T12:46:20Z",
+   "entities": {
+    "sentiment": null
+   },
+   "likes": {
+    "total": 1,
+    "user_ids": [
+     3819027
+    ]
+   },
+   "user": {
+    "id": 8115,
+    "username": "briefingcom",
+    "followers": 87434
+   },
+   "symbols": [
+    {
+     "symbol": "TGT"
+    }
+   ]
+  },
+  {
+   "id": 665394758,
+   "body": "I looked at the business behind $TGT (TARGET CORP) for you. Based on financial data and reported results. #TGT #TARGET",
+   "created_at": "2026-09-30T00:58:29Z",
+   "entities": {
+    "sentiment": null
+   },
+   "likes": {
+    "total": 1,
+    "user_ids": [
+     3819027
+    ]
+   },
+   "user": {
+    "id": 6586623,
+    "username": "PenkeInvesting",
+    "followers": 1189
+   },
+   "symbols": [
+    {
+     "symbol": "TGT"
+    }
+   ]
+  },
+  {
+   "id": 665387101,
+   "body": "UBS has highlighted key U.S. durable-goods retailers as AI-powered shopping agents emerge, potentially reshaping how consumers discover and purchase products. \nWalmart  The retailer is positioned through a combination of partnerships with external AI platforms and investments in its own capabilities. Its scale, logistics network, pricing power and broad product selection remain important regardless of where the shopping journey begins. UBS said the key challenge may be protecting Walmart’s high-margin advertising business and broader ecosystem economics rather than simply maintaining sales growth. \nTarget   The retailer retains competitive advantages from its scale and logistics capabilities. AI agents could increasingly direct traffic toward retailers offering the strongest and most consistent value proposition, while Target will need to balance sales growth with protecting its high-margin advertising business as commerce becomes more agent-driven. \n$WMT  $TGT",
+   "created_at": "2026-09-29T22:29:55Z",
+   "entities": {
+    "sentiment": null
+   },
+   "user": {
+    "id": 962572,
+    "username": "topstockalerts",
+    "followers": 109860
+   },
+   "symbols": [
+    {
+     "symbol": "WMT"
+    },
+    {
+     "symbol": "TGT"
+    }
+   ]
+  },
+  {
+   "id": 665386882,
+   "body": "$TGT",
+   "created_at": "2026-09-29T22:26:39Z",
+   "entities": {
+    "sentiment": null
+   },
+   "likes": {
+    "total": 1,
+    "user_ids": [
+     3819027
+    ]
+   },
+   "user": {
+    "id": 4459467,
+    "username": "AStrokeOfLuck",
+    "followers": 705
+   },
+   "symbols": [
+    {
+     "symbol": "TGT"
+    }
+   ]
+  },
+  {
+   "id": 665357057,
+   "body": "Target Cuts Prices On Nearly 2,000 Products Ahead Of Holidays: A Look At The Key Highlights\n\n$TGT $WMT\n\nhttps://stocktwits.com/news/equity/markets/target-cuts-prices-on-nearly-2-000-products-ahead-of-holidays-a-look-at-the-key-highlights/cZMZelCRBWE",
+   "created_at": "2026-09-29T17:30:36Z",
+   "entities": {
+    "sentiment": null
+   },
+   "likes": {
+    "total": 1,
+    "user_ids": [
+     3819027
+    ]
+   },
+   "user": {
+    "id": 9403392,
+    "username": "StocktwitsNews",
+    "followers": 112604
+   },
+   "symbols": [
+    {
+     "symbol": "TGT"
+    },
+    {
+     "symbol": "WMT"
+    }
+   ]
+  },
+  {
+   "id": 665351144,
+   "body": "$TGT OMG!  Up 60%!   PE must be like 45 or something.  Wait, it’s only 15?    BUY, BUY, BUY!!!!",
+   "created_at": "2026-09-29T16:45:02Z",
+   "entities": {
+    "sentiment": {
+     "basic": "Bullish"
+    }
+   },
+   "likes": {
+    "total": 4,
+    "user_ids": [
+     4903858,
+     3768366,
+     1405312,
+     3819027
+    ]
+   },
+   "user": {
+    "id": 51989,
+    "username": "opsguy",
+    "followers": 36
+   },
+   "symbols": [
+    {
+     "symbol": "TGT"
+    }
+   ]
+  },
+  {
+   "id": 665339922,
+   "body": "$TGT picked up 500 shares, with a short term hedge",
+   "created_at": "2026-09-29T15:22:30Z",
+   "entities": {
+    "sentiment": {
+     "basic": "Bullish"
+    }
+   },
+   "likes": {
+    "total": 1,
+    "user_ids": [
+     3819027
+    ]
+   },
+   "user": {
+    "id": 9265498,
+    "username": "GoAt2OG",
+    "followers": 86
+   },
+   "symbols": [
+    {
+     "symbol": "TGT"
+    }
+   ]
+  },
+  {
+   "id": 665330683,
+   "body": "$TGT prices are a tradeoff, if they raise prices = less sales and less shoppers coming to TGT. If they lower prices = less revenue but more shoppers.",
+   "created_at": "2026-09-29T14:20:26Z",
+   "entities": {
+    "sentiment": null
+   },
+   "likes": {
+    "total": 1,
+    "user_ids": [
+     3819027
+    ]
+   },
+   "user": {
+    "id": 7558523,
+    "username": "ItsCarRamRod",
+    "followers": 185
+   },
+   "symbols": [
+    {
+     "symbol": "TGT"
+    }
+   ]
+  },
+  {
+   "id": 665315049,
+   "body": "$TGT (-0.3% pre) Target cuts prices on thousands of products as value war heats up \n \nhttps://ooc.bz/l/115757",
+   "created_at": "2026-09-29T12:16:14Z",
+   "entities": {
+    "sentiment": null
+   },
+   "likes": {
+    "total": 1,
+    "user_ids": [
+     3819027
+    ]
+   },
+   "user": {
+    "id": 348830,
+    "username": "OpenOutcrier",
+    "followers": 211493
+   },
+   "symbols": [
+    {
+     "symbol": "TGT"
+    }
+   ]
+  }
+ ]
+}

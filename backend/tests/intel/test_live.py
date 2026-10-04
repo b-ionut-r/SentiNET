@@ -81,7 +81,21 @@ async def test_gdelt_tone() -> None:
 async def test_wikipedia_pageviews() -> None:
     company = await resolve_company("AAPL")
     try:
-        views = await attention.get_wiki_pageviews(company, 60)
+        views = await attention.get_wiki_pageviews(company, 90)
     except UpstreamError as exc:
         pytest.skip(f"Wikipedia refused from this IP: {exc}")
-    assert views and len(views) >= 30
+    assert views and len(views) >= 55
+
+
+@pytest.mark.parametrize(
+    ("ticker", "title"),
+    [("AAPL", "Apple Inc."), ("TGT", "Target Corporation"), ("META", "Meta Platforms"), ("XYZ", "Block, Inc."),
+     ("SNAP", "Snap Inc."), ("SOFI", "SoFi"), ("NVDA", "Nvidia"), ("BTC-USD", "Bitcoin"), ("SPY", "S&P 500")],
+)
+async def test_wikipedia_article_choice_for_homonyms(ticker: str, title: str) -> None:
+    company = await resolve_company(ticker)
+    try:
+        page = await attention.find_article(company)
+    except UpstreamError as exc:
+        pytest.skip(f"Wikipedia refused from this IP: {exc}")
+    assert page is not None and page["title"] == title

@@ -2,7 +2,7 @@
  "kind": "Listing",
  "data": {
   "after": null,
-  "dist": 3,
+  "dist": 4,
   "children": [
    {
     "kind": "t3",
@@ -49,6 +49,22 @@
      "score": 1,
      "num_comments": 0,
      "over_18": true,
+     "stickied": false,
+     "link_flair_text": null
+    }
+   },
+   {
+    "kind": "t3",
+    "data": {
+     "title": "Example: my price target for this example name",
+     "selftext": "Synthetic post that never names the company.",
+     "permalink": "/r/stocks/comments/jkl012/example/",
+     "author": "example_user2",
+     "subreddit": "stocks",
+     "created_utc": 1791130000.0,
+     "score": 3,
+     "num_comments": 1,
+     "over_18": false,
      "stickied": false,
      "link_flair_text": null
     }

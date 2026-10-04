@@ -223,10 +223,17 @@ function ComponentMatrix({ tickers, data }: { tickers: string[]; data: Array<Ana
                     <td key={tickers[i]} className="px-1.5 py-1">
                       <div
                         className="flex h-8 items-center justify-center rounded-md text-sm num"
-                        style={{ background: v == null ? "transparent" : `color-mix(in oklab, ${divergingFill((v - 50) / 30)} 30%, transparent)` }}
+                        style={{ background: v == null ? "transparent" : `color-mix(in oklab, ${divergingFill(Math.abs(v - 50) < 5 ? 0 : (v - 50) / 30)} 30%, transparent)` }}
                         title={comp?.detail ?? undefined}
                       >
-                        {v == null ? <span className="text-xs text-faint">{a ? "n/a" : "…"}</span> : <span className="text-ink">{Math.round(v)}</span>}
+                        {v == null ? (
+                          <span className="text-xs text-faint">{a ? "n/a" : "…"}</span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-ink">
+                            {polarityOf100(v) !== "neutral" && <Mark p={polarityOf100(v)} className="text-[8px]" />}
+                            {Math.round(v)}
+                          </span>
+                        )}
                       </div>
                     </td>
                   );
@@ -240,12 +247,22 @@ function ComponentMatrix({ tickers, data }: { tickers: string[]; data: Array<Ana
   );
 }
 
+/** One point per calendar day; days GDELT didn't report become gaps (null) instead of being bridged by a line. */
+function dailyPoints(series: Array<{ date: string; tone: number | null }>): Array<{ x: number; y: number | null }> {
+  const byDay = new Map(series.map((p) => [Date.parse(`${p.date}T12:00:00Z`), p.tone]));
+  const days = [...byDay.keys()].filter(Number.isFinite).sort((x, y) => x - y);
+  if (days.length < 2) return days.map((x) => ({ x, y: byDay.get(x) ?? null }));
+  const out: Array<{ x: number; y: number | null }> = [];
+  for (let x = days[0]; x <= days[days.length - 1]; x += 864e5) out.push({ x, y: byDay.get(x) ?? null });
+  return out;
+}
+
 function ToneCompare({ tickers, data }: { tickers: string[]; data: Array<Analysis | null> }) {
   const series = useMemo<LineSeries[]>(
     () =>
       data.flatMap((a, i) =>
         a?.tone?.series.length
-          ? [{ key: tickers[i], label: tickers[i], color: SLOT[i], points: a.tone.series.map((p) => ({ x: Date.parse(`${p.date}T12:00:00Z`), y: p.tone })) }]
+          ? [{ key: tickers[i], label: tickers[i], color: SLOT[i], points: dailyPoints(a.tone.series) }]
           : [],
       ),
     [data, tickers],
@@ -258,7 +275,7 @@ function ToneCompare({ tickers, data }: { tickers: string[]; data: Array<Analysi
       ) : (
         <LineChart series={series} height={230} baseline={0} endLabels yFormat={(v) => signed(v, 1)} valueFormat={(v) => signed(v)} ariaLabel="News tone comparison" />
       )}
-      {missing.length > 0 && <p className="mt-2 text-2xs text-muted">No GDELT series for {missing.join(", ")}.</p>}
+      {missing.length > 0 && <p className="mt-2 text-2xs text-muted">No GDELT series for {missing.join(", ")} in this run — GDELT allows one request every 5 s, so tone can lag behind; refresh later.</p>}
     </Panel>
   );
 }
@@ -287,7 +304,7 @@ function StatsTable({ tickers, data }: { tickers: string[]; data: Array<Analysis
   return (
     <Panel title="Key stats" flush>
       <div className="overflow-x-auto">
-        <table className="w-full text-xs num" style={{ minWidth: 128 + tickers.length * 84 }}>
+        <table className="w-full text-xs num" style={{ minWidth: 104 + tickers.length * 76 }}>
           <thead>
             <tr className="hairline-t hairline-b">
               <th className="py-2 pl-4 text-left font-normal text-muted sm:w-40" />
