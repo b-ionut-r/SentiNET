@@ -660,7 +660,7 @@ METRICS: dict[str, Metric] = {
                "order intake", "order book", "backlog", "bookings", "deliveries", "shipments", "production",
                "output", "volume", "volumes", "demand", "market share", "share price", "stock price",
                "share prices", "stock prices", "shares", "stock", "stocks", "equities", "price target",
-               "target price", "target", "targets", "guidance", "outlook", "forecast", "forecasts",
+               "target price", "guidance", "outlook", "forecast", "forecasts",
                "estimates", "estimate", "dividend", "dividends", "payout", "buyback", "cash flow",
                "free cash flow", "operating cash flow", "same store sales", "comparable sales",
                "comparable store sales", "comp sales", "comps", "users", "subscribers", "customers",
@@ -668,7 +668,7 @@ METRICS: dict[str, Metric] = {
                "market value", "value", "stake", "rating", "ratings", "credit rating", "assets",
                "assets under management", "aum", "deposits", "loans", "jobs", "employment", "payrolls",
                "nonfarm payrolls", "hiring", "headcount", "workforce", "staff", "workers", "employees",
-               "wages", "gdp", "growth", "economy", "consumer confidence", "confidence", "sentiment",
+               "wages", "salaries", "gdp", "growth", "economy", "consumer confidence", "confidence", "sentiment",
                "consumer sentiment", "pmi", "retail sales", "industrial production", "manufacturing",
                "exports", "housing starts", "home sales", "investment", "investments", "capacity",
                "efficiency", "productivity", "returns", "performance", "result", "results",
@@ -685,7 +685,8 @@ METRICS: dict[str, Metric] = {
                "industrials", "retailers", "miners", "airlines", "chipmakers", "semis", "small caps", "big tech",
                "treasuries", "dollar", "yen", "yuan", "rupee", "ruble", "lira", "peso", "loonie", "sterling",
                "greenback", "forint", "zloty", "etf", "etfs", "reits", "buybacks", "energy prices", "gas prices",
-               "gasoline prices", "fuel prices", "natural gas prices", "rig count"),
+               "gasoline prices", "fuel prices", "natural gas prices", "rig count", "silver", "platinum",
+               "palladium", "savings", "cost savings", "synergies", "cost synergies", "efficiencies"),
     **_metrics(1.0, "record run", "winning streak", intrinsic=0.6),
     **_metrics(0.6, "price", "prices"),
     **_metrics(1.0, *sorted(FOOTPRINT_METRICS)),
@@ -708,6 +709,8 @@ METRICS: dict[str, Metric] = {
                "borrowing costs", "risk premium", "claims", "complaints", "stress index", "fear index",
                "fear gauge", "misery index", "cases", "infections", "deaths", "hospitalizations",
                "consumer prices", "producer prices", "import prices", "food prices", "insolvencies", "bankruptcies",
+               "cpi", "core cpi", "ppi", "core ppi", "pce", "core pce", "core inflation", "headline inflation",
+               "cash burn rate", "net loss per share", "loss per share",
                "forbearance", "forbearance requests", "bankruptcy filings", "selloff", "sell off", "selloffs",
                "sell offs", "rout", "slide", "slump", "decline", "declines", "interest rate", "price war",
                "foreclosures", "embargo", "curbs", "lockdown", "lockdowns", "quarantine", "freeze",
@@ -735,6 +738,15 @@ METRICS: dict[str, Metric] = {
                "penalty", "penalties", "fines", "sanctions", "tariff", "ban", "restrictions",
                intrinsic=-0.8),
 }
+
+# Forecasts of these are neither good nor bad news by direction alone ("cuts capex forecast").
+FORECAST_NEUTRAL: frozenset[str] = frozenset({
+    "capex", "capital expenditure", "capital expenditures", "capital spending", "spending", "spend",
+    "investment", "investments", "tax rate", "share count", "depreciation", "r&d", "research and development"})
+
+# Metrics whose sign is ambiguous when a company moves them ("raises wages", "boosts pay"):
+# as the *object* of a verb they carry no sentiment; as the subject ("wages rise") they keep it.
+OBJECT_AMBIGUOUS: frozenset[str] = frozenset({"wages", "salaries"})
 
 # Words that are metrics when moved by another direction word but are also
 # directions themselves ("growth slowed", "gains accelerated", "rally halted", "stop the sell-off").
@@ -865,6 +877,12 @@ NEUTRALIZERS: frozenset[str] = frozenset({
     "not finished",
     "supply deal", "supply deals", "supply agreement", "supply contract", "debt relief", "tax relief",
     "relief efforts", "disaster relief",
+    # size classes, not the verb "cap" ("Small-cap stocks rally")
+    "small cap", "mid cap", "large cap", "mega cap", "micro cap", "nano cap", "smallcap", "midcap", "largecap",
+    "megacap", "microcap", "big cap",
+    # dividend mechanics, not a record high
+    "of record", "holders of record", "shareholders of record", "stockholders of record", "unitholders of record",
+    "owners of record", "record holders",
     *NEGATION_EXCEPTIONS,
 })
 
