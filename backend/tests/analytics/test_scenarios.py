@@ -255,7 +255,7 @@ def test_all_sources_down_degrades_gracefully() -> None:
     assert all(s.error for s in a.sources)
     outage = insight(a, "No news or social data")
     assert outage is not None and outage.severity == "alert" and "All 5 text sources failed" in outage.detail
-    pending = insight(a, "still loading")
+    pending = insight(a, "not loaded this run")
     assert pending is not None and pending.severity == "info"  # GDELT is slow, not down
     assert not insight(a, "Thin coverage")
     assert a.brief.summary.startswith("No read on Acme")

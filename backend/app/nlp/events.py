@@ -19,7 +19,13 @@ Events are text-level unless `detect_events(text, company)` is given the
 company the text is scored for: then events that happened to someone else
 are dropped — "Tesla rival Nikola files for bankruptcy" carries no
 bankruptcy for Tesla, and in "Burford stock jumps after jury orders Apple to
-pay" Apple keeps the lawsuit but not the price jump (see `_owned`).
+pay" Apple keeps the lawsuit but not the price jump (see `_owned`); a headline
+passive belongs to the name right before it ("Twilio downgraded, Synopsys
+upgraded" is no upgrade for Twilio).
+
+Insider sales an insider did not choose — sell-to-cover, tax withholding,
+plan-mandated sales — are no event at all: not an offering (no dilution) and
+not an insider's call on the stock.
 """
 from __future__ import annotations
 
@@ -1667,6 +1673,9 @@ _PASSIVE_AFTER_RE = re.compile(r"\s*(?:$|[,;:.!?|)\u2013\u2014-]|(?:at|by|to|fro
 # "Twilio gets downgraded".
 _RATING_FILLERS = wordset("stock stocks shares share rating ratings is was are were be been being gets get got just")
 _RATING_CONNECTORS = wordset("and or &")
+# Capitalized words right before a passive rating verb that are no name ("Analysts", "Why", "Slips").
+_NOT_RATED_NAMES = STOPWORDS | HEADLINE_VERBS | MOVE_WORDS | CALENDAR_WORDS | _RATING_FILLERS | wordset(
+    "analyst analysts wall street why how what here")
 
 
 def _passive_rating_owner(text: str, hit: _Hit, mentions: list, title_case: bool) -> bool | None:
@@ -1694,9 +1703,9 @@ def _passive_rating_owner(text: str, hit: _Hit, mentions: list, title_case: bool
         if low in _RATING_CONNECTORS:
             if not named:
                 break
-        elif not (any(m.start <= tok.start() < m.end for m in mentions) or _is_entity_word(word, title_case) or (
-                title_case and word[:1].isupper() and low not in _COMMON_VOCAB and not low.endswith(("ed", "ing")))):
-            break
+        elif not (any(m.start <= tok.start() < m.end for m in mentions) or _is_entity_word(word, title_case)
+                  or (word[:1].isupper() and low not in _NOT_RATED_NAMES and not low.endswith("ed"))):
+            break  # "Target upgraded, Moderna downgraded": a capital right before the verb names someone
         else:
             named = True
         run_start = tok.start()

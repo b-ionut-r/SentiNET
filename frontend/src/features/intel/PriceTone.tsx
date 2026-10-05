@@ -217,8 +217,12 @@ function Charts({ a, rows, showTone, daily, currency }: { a: Analysis; rows: Row
         for (const o of panes) {
           if (o === src) continue;
           const v = row && p.time != null ? o.value(row) : null;
-          if (v == null || p.time == null) o.chart.clearCrosshairPosition();
-          else o.chart.setCrosshairPosition(v, p.time, o.series);
+          // Only mirror the crosshair where that pane can place it: lightweight-charts throws
+          // ("Value is null") for a pane with no bar on screen yet — e.g. the tone pane while
+          // the 90-day history is still arriving under a hovering cursor — or a hidden pane.
+          const placeable = v != null && p.time != null && shown(o.chart) && o.series.priceToCoordinate(v) != null && o.chart.timeScale().timeToCoordinate(p.time) != null;
+          if (placeable) o.chart.setCrosshairPosition(v, p.time!, o.series);
+          else o.chart.clearCrosshairPosition();
         }
       });
     }

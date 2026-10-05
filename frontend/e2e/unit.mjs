@@ -233,5 +233,108 @@ check("single-analyst target (low == high) → one merged label", one.merged, JS
 const wide = rangeLabels(100, 200, [{ value: 150, kind: "current" }]);
 check("a real range keeps separate low/high labels", !wide.merged);
 
+/* ------------------------------------------- last follow-ups: lab limits, busy, watchlist */
+const B = await load("src/features/lab/batch.ts");
+const { parseRetryAfter, busyRetryAfter, retryWhenBusy, BUSY_RETRIES, MAX_RETRY_AFTER_S } = await load("src/api/busy.ts");
+const { priceChange } = await load("src/features/watchlist/priceChange.ts");
+
+// Characters are code points, as the backend's Python len() counts them.
+check("an emoji is one character, not two UTF-16 units", B.charCount("🚀🚀 up") === 5, String(B.charCount("🚀🚀 up")));
+check("a lone surrogate still counts once", B.charCount("a\ud800b") === 3);
+const longWords = Array.from({ length: 2000 }, (_, i) => `word${i % 10}`).join(" "); // 11,999 chars
+const clipped = B.clip(longWords);
+check("clip keeps at most 10,000 characters", B.charCount(clipped) <= B.MAX_TEXT_CHARS, String(B.charCount(clipped)));
+check("…cut at a word boundary, not mid-word", /word\d$/.test(clipped) && longWords.startsWith(clipped + " "), clipped.slice(-12));
+const astral = "🚀".repeat(B.MAX_TEXT_CHARS + 5);
+const astralCut = B.clip(astral);
+check("clip never splits a surrogate pair", B.charCount(astralCut) === B.MAX_TEXT_CHARS && astralCut.length === 2 * B.MAX_TEXT_CHARS);
+check("a text under the limit is untouched", B.clip("Apple beats") === "Apple beats");
+
+const fits = B.planBatch(["Apple beats", "Tesla recalls 120,000 vehicles"]);
+check("a small batch is sent as is, with no notes", fits.texts.length === 2 && fits.cut === 0 && fits.left === 0 && B.planNotes(fits).length === 0);
+const withLong = B.planBatch(["short", "x".repeat(12_011), "y ".repeat(6000).trim(), "also short"]);
+check("over-long texts are cut, not rejected", withLong.texts.length === 4 && withLong.cut === 2 && withLong.texts.every((t) => B.charCount(t) <= B.MAX_TEXT_CHARS), JSON.stringify({ n: withLong.texts.length, cut: withLong.cut }));
+check("…and the note says how many", B.planNotes(withLong)[0] === "2 texts are longer than 10,000 characters and will be cut to their first 10,000.", B.planNotes(withLong)[0]);
+const heavy = Array.from({ length: 30 }, (_, i) => `${i} ` + "Stock rallies on strong earnings ".repeat(300).trim()); // 30 × ~9,900 chars (the live 400 case)
+const overBudget = B.planBatch(heavy);
+check("over the 250,000-character budget: only the first texts that fit are sent", overBudget.texts.length === 25 && overBudget.chars <= B.MAX_TOTAL_CHARS && overBudget.leftBy === "budget" && overBudget.left === 5, JSON.stringify({ sent: overBudget.texts.length, chars: overBudget.chars }));
+check("…in input order", overBudget.texts.every((t, i) => t === heavy[i]));
+check("…and the note names the first N", /^Over the 250,000-character budget of one run: the first 25 of 30 items will be scored, 5 left out/.test(B.planNotes(overBudget)[0]), B.planNotes(overBudget)[0]);
+const many = B.planBatch(Array.from({ length: 620 }, (_, i) => `Item ${i + 1}: shares rose`));
+check("past 500 items: the first 500 are sent", many.texts.length === 500 && many.left === 120 && many.leftBy === "items" && many.texts[499] === "Item 500: shares rose");
+check("…and the note says so", /first 500 of 620 will be scored, 120 left out/.test(B.planNotes(many)[0]), B.planNotes(many)[0]);
+check("character budget counts what is sent after cutting", B.planBatch(Array.from({ length: 26 }, () => "z".repeat(20_000))).texts.length === 25);
+check("blank items are ignored", B.planBatch(["", "  ", "a"]).items === 1);
+
+// Busy lab: 503 + Retry-After is waited out and retried; anything else fails at once.
+check("Retry-After seconds", parseRetryAfter("5") === 5);
+check("Retry-After as an HTTP date", parseRetryAfter(new Date(Date.parse("2026-10-05T00:00:07Z")).toUTCString(), Date.parse("2026-10-05T00:00:00Z")) === 7);
+check("Retry-After is clamped to a sane wait", parseRetryAfter("3600") === MAX_RETRY_AFTER_S && parseRetryAfter("0") === 1);
+check("missing or junk Retry-After → null", parseRetryAfter(null) === null && parseRetryAfter("soon") === null);
+const busyErr = Object.assign(new Error("The sentiment lab is busy scoring other requests; retry in a few seconds."), { status: 503, retryAfter: 5 });
+const outage = Object.assign(new Error("Scoring failed (engine crashed)."), { status: 503, retryAfter: null });
+check("503 with Retry-After is busy", busyRetryAfter(busyErr) === 5);
+check("503 without Retry-After is an outage, never retried", busyRetryAfter(outage) === null);
+{
+  const waits = [];
+  const slept = [];
+  let calls = 0;
+  const res = await retryWhenBusy(
+    async () => {
+      calls++;
+      if (calls < 3) throw busyErr;
+      return "scored";
+    },
+    { onWait: (w) => waits.push(w), sleep: async (ms) => void slept.push(ms), now: () => 1000 },
+  );
+  const pending = waits.filter(Boolean);
+  check("busy twice, then scored", res === "scored" && calls === 3, `${calls} calls`);
+  check("…waits the server's Retry-After each time", slept.join() === "5000,5000", slept.join());
+  check("…and reports each pending retry for the countdown", pending.length === 2 && pending[0].retry === 1 && pending[1].retry === 2 && pending[0].until === 6000 && pending[0].retries === BUSY_RETRIES, JSON.stringify(pending));
+  check("…clearing it once the retry is under way", waits[waits.length - 1] === null);
+}
+{
+  let calls = 0;
+  const err = await retryWhenBusy(
+    async () => {
+      calls++;
+      throw busyErr;
+    },
+    { sleep: async () => undefined },
+  ).catch((e) => e);
+  check(`gives up after ${BUSY_RETRIES} retries with the busy error`, err === busyErr && calls === BUSY_RETRIES + 1, `${calls} calls`);
+}
+{
+  let calls = 0;
+  const err = await retryWhenBusy(
+    async () => {
+      calls++;
+      throw outage;
+    },
+    { sleep: async () => undefined },
+  ).catch((e) => e);
+  check("an outage fails on the first try", err === outage && calls === 1);
+}
+{
+  const ctrl = new AbortController();
+  let calls = 0;
+  const run = retryWhenBusy(
+    async () => {
+      calls++;
+      throw busyErr;
+    },
+    { signal: ctrl.signal, onWait: (w) => w && setTimeout(() => ctrl.abort(), 10) },
+  );
+  const t0 = Date.now();
+  const err = await run.catch((e) => e);
+  check("cancel during the wait stops at once (AbortError, no further request)", err?.name === "AbortError" && calls === 1 && Date.now() - t0 < 1000, `${err?.name} after ${Date.now() - t0}ms, ${calls} calls`);
+}
+
+// Watchlist: price change only between looks quoted in the same unit.
+check("price change between two USD looks", Math.abs(priceChange({ price: 333.69, currency: "USD" }, { price: 330.32, currency: "USD" }) - 1.0202) < 1e-3);
+check("a look stored before snapshots carried a currency still compares", priceChange({ price: 110, currency: "USD" }, { price: 100, currency: null }) !== null);
+check("GBp vs GBP is not a 99% crash", priceChange({ price: 1.268, currency: "GBP" }, { price: 126.8, currency: "GBp" }) === null);
+check("missing price → no change", priceChange({ price: null, currency: "USD" }, { price: 1, currency: "USD" }) === null && priceChange({ price: 1, currency: "USD" }, null) === null);
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exitCode = failed ? 1 : 0;

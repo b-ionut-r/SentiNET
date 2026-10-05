@@ -57,6 +57,10 @@ def _summary(f: Facts, verdict: Verdict) -> str:
         d = f.deal
         sentences.append(f"A pending acquisition dominates: {f.name} agreed to be acquired{d.by} (merger agreement, "
                          f"8-K {d.when}), so its share price tracks the deal terms and the odds of closing.")
+    elif f.deal_in_play is not None and f.deal_in_play.material:
+        play = f.deal_in_play
+        sentences.append(f"A deal is in play: {quote(play.lead.title)} — quoted at {play.size} "
+                         f"({count(play.articles, 'article')} from {count(play.outlets, 'outlet')}).")
     ranked = featured(f.stories)
     if ranked:
         n = ranked[0].narrative
@@ -349,6 +353,10 @@ def _watch(f: Facts, insights: list[Insight], said: set[str] | None = None) -> l
         d = f.deal
         out.append(f"Deal outcome: pending acquisition{d.by} (merger agreement, 8-K {d.when}) — the price tracks "
                    f"the deal terms until it closes or breaks")
+    elif f.deal_in_play is not None:
+        play = f.deal_in_play
+        out.append(f"Deal in play{f' ({play.size})' if play.size else ''}: {quote(play.lead.title)}"
+                   + ("" if play.size else " — no deal value quoted yet"))
     for c in f.catalysts:
         if c.upcoming and not _payment_date(c):
             out.append(f"{c.title} ({short_date(c.date)})" + (f": {c.detail}" if c.detail else ""))

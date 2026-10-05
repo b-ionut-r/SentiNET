@@ -124,8 +124,9 @@ def test_slow_gdelt_note_matches_what_momentum_actually_uses() -> None:
     inp = inputs(company(), [run(GOOGLE, [raw("Acme beats estimates", 3)]),
                              run(STOCKTWITS, [post("$ACME calls", 1, "a", "bullish")])],
                  intel_status={"tone": "error: still loading after 12s; ready on next refresh"})
-    note = insight(build_analysis(inp), "Global news tone still loading")
+    note = insight(build_analysis(inp), "Global news tone not loaded this run")
     assert note is not None and note.severity == "info"
+    assert "next refresh" not in note.detail  # the caller may already have waited for it (the CLI waits 30 s)
     assert "momentum component is n/a" in note.detail  # 1 headline: no 48h-vs-prior comparison exists
     flow = ([raw(f"Acme wins order number {i} as demand surges", 2 + 4 * i, o) for i, o in enumerate(
                 ["Reuters", "Bloomberg", "CNBC", "Barron's", "MarketWatch", "Zacks"])]
@@ -133,8 +134,8 @@ def test_slow_gdelt_note_matches_what_momentum_actually_uses() -> None:
                 ["Reuters", "Bloomberg", "CNBC", "Barron's", "MarketWatch", "Zacks"])])
     rich = inputs(company(), [run(GOOGLE, flow)],
                   intel_status={"tone": "error: still loading after 12s; ready on next refresh"})
-    note = insight(build_analysis(rich), "Global news tone still loading")
-    assert note is not None and "last 48 h of headlines (6) vs the prior days (6)" in note.detail
+    note = insight(build_analysis(rich), "Global news tone not loaded this run")
+    assert note is not None and "last 48 h of headlines (6) vs the prior days (6) instead" in note.detail
 
 
 # --------------------------------------------------------------------------- #

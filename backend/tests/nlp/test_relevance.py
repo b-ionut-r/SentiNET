@@ -457,3 +457,72 @@ def test_sister_companies_are_not_the_company(company, text):
 ])
 def test_own_names_and_units_stay_relevant(company, text):
     assert relevance(text, company) >= 0.8
+
+
+QQQ = _company(ticker="QQQ", name="Invesco QQQ Trust", short_name="Nasdaq 100",
+               aliases=["Nasdaq-100", "Invesco QQQ", "Nasdaq"], quote_type="ETF", sector="Large Growth",
+               industry="Invesco")  # live ref: the fund theme adds the bare "Nasdaq"
+
+
+@pytest.mark.parametrize("text", [
+    # live QQQ Google News (2026-10-05): an exchange named as a listing venue is no index news
+    "Sprouts Farmers Market, Inc. (NASDAQ:SFM) Stock Now Rated \"Hold\" by Sell-Side Analysts",
+    "GT Biopharma regains Nasdaq compliance: what it means for GT Biopharma stock",
+    "Dyadic International stock faces two Nasdaq compliance tests",
+    "Nextdoor to Transfer Stock Exchange Listing to Nasdaq Capital Market",
+    "Bluerock Acquisition Corp. II Rings the Nasdaq Stock Market Opening Bell",
+    "Micron: The Market Is In Disbelief. Ignore Them (NASDAQ:MU)",
+    "Payments firm OpenPayd targets year-end Nasdaq listing to fund U.S. expansion and acquisitions",
+    "Nasdaq-listed Acme jumps 20%",
+])
+def test_listing_venues_are_not_index_mentions(text):
+    result = explain_relevance(text, QQQ)
+    assert result.score == 0.0, result
+    assert any(e.startswith("listing venue") for e in result.evidence)
+
+
+@pytest.mark.parametrize(("text", "floor"), [
+    ("Invesco QQQ (NASDAQ:QQQ) shares rise", 0.95),  # the fund's own tag still counts
+    ("Nasdaq closes at record as tech rallies", 0.8),
+    ("Dow, S&P 500, Nasdaq Futures Rise After Soft Jobs Report As Markets Await Fed Minutes", 0.6),  # live
+    ("Stocks Settle Higher as Nasdaq gains", 0.6),
+])
+def test_the_index_itself_still_counts(text, floor):
+    assert relevance(text, QQQ) >= floor
+
+
+def test_listing_venue_phrases_keep_the_listed_company():
+    sfm = _company(ticker="SFM", name="Sprouts Farmers Market, Inc.", short_name="Sprouts Farmers Market",
+                   aliases=["Sprouts"])
+    assert relevance("Sprouts Farmers Market, Inc. (NASDAQ:SFM) Stock Now Rated \"Hold\"", sfm) >= 0.95
+    assert relevance("Target (NYSE: TGT) Stock Dips While Market Gains", TGT) >= 0.9
+
+
+SOFI = _company(ticker="SOFI", name="SoFi Technologies, Inc.", short_name="SoFi", aliases=[],
+                industry="Credit Services", sector="Financial Services")
+LULU = _company(ticker="LULU", name="Lululemon Athletica Inc.", short_name="Lululemon", aliases=[],
+                industry="Apparel Retail", sector="Consumer Cyclical")
+
+
+@pytest.mark.parametrize(("company", "text"), [
+    # live SOFI/LULU (2026-10-05): named only to say the peer's news passed them by; at 0.95/0.8
+    # they fronted SoFi/Lululemon stories and bull/bear points
+    (SOFI, "Nu Holdings Jumps 3% After Ruling Out Monzo Deal; SoFi and Robinhood Sit Out the Rally"),
+    (LULU, "Nike Sinks 8% as Weak Outlook and Layoffs Follow Revenue Miss; Lululemon and On Holding Remain Flat"),
+])
+def test_bystanders_of_another_companys_news_are_background(company, text):
+    result = explain_relevance(text, company)
+    assert result.bystander and result.secondary, result
+    assert 0.35 <= result.score <= 0.4, result  # kept as background, below the 0.5 stories need
+
+
+@pytest.mark.parametrize(("company", "text"), [
+    (SOFI, "SoFi Falls 3% as Rising Yields Pressure Fintech; Affirm Drops 4%, Robinhood Slips 2%"),
+    (LULU, "Lululemon flat as Nike sinks 8%"),
+    (LULU, "Lululemon cuts guidance as tariffs bite"),
+    (BTC, "📊 Receipt — HIT ✅. $BTC Bitcoin ($BTC) closes above $86,000 by Wednesday's close"),  # live: opens its sentence
+    (SPY, "Nvidia Jumps 5%; S&P 500 Flat"),  # an index fund's news is the market itself
+])
+def test_own_news_is_not_a_bystander(company, text):
+    result = explain_relevance(text, company)
+    assert not result.bystander, result

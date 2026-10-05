@@ -537,3 +537,15 @@ def test_crypto_returns_never_span_a_missing_daily_bar() -> None:
     quotes = {q.symbol: q for q in tx.indices_from_download(holed, {"SPY": "S&P 500", "BTC-USD": "Bitcoin"})}
     assert quotes["BTC-USD"].change_pct is None and quotes["BTC-USD"].price is not None
     assert quotes["SPY"].change_pct is not None
+
+
+def test_earnings_history_drops_quarters_older_than_three_years() -> None:
+    # VOD.L-style payload: Yahoo returned 2010-2012 quarters for a thin listing.
+    frame = pd.DataFrame(
+        {"EPS Estimate": [0.10, 0.12, 0.11], "Reported EPS": [0.12, 0.10, 0.13], "Surprise(%)": [20.0, -16.7, 18.2]},
+        index=pd.to_datetime(["2026-07-28", "2012-05-22", "2010-11-09"]).tz_localize("America/New_York"),
+    )
+    view = tx.earnings_from_frames(None, frame, None, today=date(2026, 10, 5))
+    assert view is not None
+    assert [e.date for e in view.history] == [date(2026, 7, 28)]
+    assert view.beat_rate is None  # one recent quarter is not a record

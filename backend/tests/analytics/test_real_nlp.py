@@ -65,3 +65,34 @@ def test_real_headlines_produce_a_sound_analysis() -> None:
     assert "buyback" in top3, top3
     buyback = next(n for n in a.narratives if dominant(n) == "buyback")
     assert buyback.count >= 5 and len(buyback.publishers) >= 4 and buyback.label == "bullish"
+
+
+def test_real_gamestop_ebay_bid_is_a_deal_in_play() -> None:
+    # Live GME (2026-10-04): the $56B eBay bid (~4.5x GameStop's cap) was the #2 story at impact 0.58,
+    # with no insight; the real NLP keeps m_and_a only when GameStop is a party.
+    from tests.analytics.factories import quote
+
+    rows = [
+        ("GME CEO Ryan Cohen May Reportedly Withdraw GameStop’s $56B eBay Bid — Here’s What He’s Considering Instead",
+         "Stocktwits", "2026-10-04T12:35"),
+        ("GME’s Ryan Cohen Isn’t Done Chasing eBay, Remains Committed To Cracking A Deal: Report",
+         "Stocktwits", "2026-10-04T09:54"),
+        ("GME Stock Rises After Hours — GameStop Shareholders Back Bigger Share Count To Support Proposed eBay "
+         "Acquisition", "Stocktwits", "2026-10-02T22:22"),
+        ("GME Reportedly Wants To Buy eBay But Retail Wonders How; eBay Stock Soars", "Stocktwits", "2026-10-03T00:29"),
+        ("GameStop Steps Up EBAY Exposure To 6.5% As Ryan Cohen Pushes $56B Takeover Vision",
+         "Stocktwits", "2026-10-02T23:06"),
+        ("The Clock Is Ticking on GameStop’s eBay Acquisition Play as Warrants Near Expiration",
+         "24/7 Wall St.", "2026-09-22T13:05"),
+        ("GameStop CEO Cohen Continues Buying Spree With $10.6 Million Stock Purchase", "Barron's", "2026-10-02T17:43"),
+        ("GameStop director Nat Turner buys $254,540 in stock", "Investing.com", "2026-10-02T02:23"),
+    ]
+    company = CompanyRef(ticker="GME", name="GameStop Corp.", short_name="GameStop")
+    raws = [RawSignal(title=t, publisher=p, timestamp=datetime.fromisoformat(ts + ":00+00:00"), url=f"https://x/{n}")
+            for n, (t, p, ts) in enumerate(rows)]
+    a = build_analysis(inputs(company, [run(GOOGLE, raws)], quote=quote(price=24.7, market_cap=12.46e9),
+                              now=datetime(2026, 10, 5, 6, 30, tzinfo=UTC)))
+    deal = next(i for i in a.insights if i.kind == "deal")
+    assert deal.severity == "alert" and deal.title == "Deal in play: $56B, 4.5× its market cap"
+    assert "eBay" in deal.detail and "$10.6 Million" not in deal.detail  # it quotes a deal article
+    assert a.verdict.headline.endswith("a $56B deal (4.5× its market cap) is in play.")

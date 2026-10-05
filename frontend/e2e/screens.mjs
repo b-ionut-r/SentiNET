@@ -14,12 +14,12 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 
-import { installMocks, NOW, ROOT, startPreview } from "./mock.mjs";
+import { installMocks, NOW, previewPort, ROOT, startPreview } from "./mock.mjs";
 
 const { chromium } = await import("playwright");
 
 const OUT = join(ROOT, "e2e", "screens");
-const PORT = 4173;
+const PORT = previewPort(4173);
 const BASE = `http://127.0.0.1:${PORT}`;
 
 const args = process.argv.slice(2);
@@ -46,6 +46,23 @@ const PAGES = [
     act: async (page) => {
       await page.getByRole("button", { name: /score/i }).first().click();
       await page.waitForTimeout(500);
+    },
+  },
+  {
+    // One run's limits: an over-long text is cut, the character budget leaves the tail for the
+    // next run, and a busy lab counts down to its automatic retry.
+    name: "lab-limits",
+    path: "/lab",
+    act: async (page) => {
+      const words = (n) => Array.from({ length: n }, (_, i) => `rally${i % 10}`).join(" ");
+      await page.locator("textarea").fill([words(2000), ...Array.from({ length: 29 }, (_, i) => `${i} ${words(1400)}`)].join("\n"));
+      await page.getByRole("button", { name: /^Score \d+$/ }).click();
+      await page.waitForSelector("text=Driver terms underlined");
+      await page.route("**/api/lab/score", (route) =>
+        route.fulfill({ status: 503, headers: { "Retry-After": "30" }, contentType: "application/json", body: JSON.stringify({ detail: "The sentiment lab is busy scoring other requests; retry in a few seconds." }) }),
+      );
+      await page.getByRole("button", { name: /^Score \d+$/ }).click();
+      await page.getByTestId("lab-busy").waitFor();
     },
   },
   {

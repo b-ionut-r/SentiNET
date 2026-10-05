@@ -14,7 +14,7 @@ from typing import Any
 from app.analytics.aggregate import Summary
 from app.analytics.composite import Composite
 from app.analytics.crowd import Tally
-from app.analytics.deals import Deal
+from app.analytics.deals import Deal, DealInPlay
 from app.analytics.inputs import AnalysisInputs
 from app.analytics.narratives import Story
 from app.analytics.prepare import Prepared
@@ -27,10 +27,10 @@ _ISO_CODE = re.compile(r"^[A-Z]{3}$")
 
 def reporting_currency(profile: Profile | None, quote_currency: str) -> str | None:
     """See `Facts.reporting_currency`."""
+    if quote_currency == "USD":
+        return "USD"  # US lines (ADRs too: TSM's per-ADR estimates are USD although TSMC reports in TWD)
     code = (profile.financial_currency or "").strip().upper() if profile is not None else ""
-    if _ISO_CODE.match(code):
-        return code
-    return "USD" if quote_currency == "USD" else None
+    return code if _ISO_CODE.match(code) else None
 
 
 def usd_rate(inputs: AnalysisInputs) -> float | None:
@@ -64,6 +64,7 @@ class Facts:
     # Market cap in USD, to size USD amounts (insider trades, quoted deal values); None when it cannot
     # be had without guessing an FX rate (see build.market_cap_usd).
     market_cap_usd: float | None = None
+    deal_in_play: DealInPlay | None = None  # fresh, corroborated M&A coverage involving the company (deals.py)
 
     @property
     def now(self) -> datetime:
@@ -86,9 +87,9 @@ class Facts:
 
     @property
     def reporting_currency(self) -> str | None:
-        """Currency of EPS/revenue estimates: the profile's reporting currency when the provider
-        gives one (Shopify on the TSX reports in USD, Vodafone in EUR); else USD for a USD
-        listing; else None (not known — shown without a symbol, never guessed)."""
+        """Currency of EPS/revenue estimates: USD for a USD listing (ADRs' estimates are per ADR, in
+        USD); otherwise the profile's reporting currency when the provider gives one (Shopify on the
+        TSX reports in USD, Vodafone in EUR); else None (not known — shown without a symbol)."""
         return reporting_currency(self.inputs.profile, self.currency)
 
     @property

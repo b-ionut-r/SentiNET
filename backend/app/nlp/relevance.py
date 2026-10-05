@@ -19,7 +19,11 @@ weighs evidence per mention instead of string-matching:
           for bankruptcy", "… after delays in AT&T deal")
     ×0.75 when another company is the subject ("Cerebras stock … on Nvidia pressure")
     0     a separately listed sister company sharing the brand ("Toyota Industries",
-          "Vodafone Idea", "Meta Materials") — not a mention of the company at all
+          "Vodafone Idea", "Meta Materials") — not a mention of the company at all;
+          likewise an exchange named as a listing venue ("(NASDAQ:SFM)", "regains Nasdaq
+          compliance" are no Nasdaq-100 news — the fund's own tag still counts)
+    ≤0.40 a bystander of another company's news ("Nike Sinks 8% ...; Lululemon and On
+          Holding Remain Flat"), as judged by the engine's subject attribution
     ≤0.40 roundups/listicles (≥ 4 cashtags, "3 AI Chip Stocks To Watch", "X, Y, Z and More"),
           unless the company leads the headline ("Bitcoin beats Gold, SPY, Silver, QQQ");
           0.30 when it is one tag in a hashtag soup
@@ -40,6 +44,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from difflib import SequenceMatcher
 from functools import lru_cache
 
 from app.nlp.events import is_known_firm
@@ -99,6 +104,10 @@ _FUND_WORDS_RE = re.compile(r"\s+(?:ETF|Trust|Fund|Index Fund|Shares|ETF Trust)\
 # Nikola files for bankruptcy"): kept as background (above the 0.35 feed cut) but
 # below the 0.5 that event insights require.
 CONTEXT_ONLY_MAX = 0.45
+# Ceiling for a bystander of another company's news: "Nike Sinks 8% as Weak Outlook ...;
+# Lululemon and On Holding Remain Flat" names Lululemon only to say nothing happened to it.
+# Background like a roundup mention: below the 0.5 that stories and event insights require.
+BYSTANDER_MAX = 0.4
 
 # Common given names: "Katrina Ford", "Priscilla Block" are people, not companies.
 FIRST_NAMES = wordset("""
@@ -700,6 +709,7 @@ class RelevanceResult:
     roundup: bool = False
     secondary: bool = False
     mentions: list[Mention] = field(default_factory=list)
+    bystander: bool = False  # named only beside another company's (or the market's) news
 
 
 def _clean_name(name: str) -> str:
@@ -1029,6 +1039,43 @@ def _broker_actor(text: str, start: int, end: int, own_people: re.Pattern[str] |
     return bool(re.search(r"[:–—-]\s*$", before) and not after.strip(" .\"'"))
 
 
+def _listing_venue_spans(text: str) -> list[tuple[int, int]]:
+    """Spans of `text` naming an exchange as *where something is listed* ("(NASDAQ: SFM)",
+    "Nasdaq-listed", "regains Nasdaq compliance", "transfer its listing to Nasdaq Capital
+    Market"). The phrases are defined once, by the search layer
+    (`app.sources.query.strip_listing_venues`), so what search filters out and what relevance
+    ignores agree; the spans are recovered by aligning the stripped text with the original."""
+    try:
+        from app.sources.query import strip_listing_venues  # local: sources must not be needed to score
+    except ImportError:
+        return []
+    stripped = strip_listing_venues(text)
+    if stripped == text:
+        return []
+    ops = SequenceMatcher(None, text, stripped, autojunk=False).get_opcodes()
+    return [(i1, i2) for tag, i1, i2, _j1, _j2 in ops if tag in ("delete", "replace") and i2 > i1]
+
+
+_SENTENCE_OPEN_RE = re.compile(r"(?:^|[.!?\n])[\s\"'\u201c\u2018(\[]*$")
+
+
+def is_bystander_text(text: str, company: CompanyRef) -> bool:
+    """Is `company` named in `text` only as a bystander of another company's (or the market's)
+    news ("Nu Holdings Jumps 3% After Ruling Out Monzo Deal; SoFi and Robinhood Sit Out the
+    Rally")? The sentiment engine's subject attribution decides (`app.nlp.rules.is_bystander`),
+    so relevance and the engine's down-weighting of peers' news agree. False when the engine is
+    unavailable or the company is not named."""
+    try:
+        from app.nlp.engine import target_terms  # local: the engine is heavier and optional here
+        from app.nlp.rules import is_bystander
+    except ImportError:
+        return False
+    try:
+        return bool(is_bystander(text, target_terms(company)))
+    except Exception:  # noqa: BLE001 - a rules bug must not take relevance (and every feed) down
+        return False
+
+
 def _other_subject_first(text: str, first_pos: int, matcher: _Matcher) -> bool:
     """True when another company is the grammatical subject before our first mention."""
     for m in _CASHTAG_RE.finditer(text):
@@ -1068,6 +1115,12 @@ def explain_relevance(text: str, company: CompanyRef) -> RelevanceResult:
     matcher = _matcher(company)
     shouting = is_mostly_upper(t)
     title_case = is_title_case(t)
+    # An exchange named as a listing venue is never the subject ("(NASDAQ:SFM)" is no Nasdaq-100
+    # news): names inside such phrases don't count, nor do they make the text market-wide.
+    venues = _listing_venue_spans(t)
+    market_text = t
+    for a, b in venues:
+        market_text = market_text[:a] + " " * (b - a) + market_text[b:]
     evidence: list[str] = []
     positions: list[int] = []
     spans: list[Mention] = []
@@ -1156,6 +1209,9 @@ def explain_relevance(text: str, company: CompanyRef) -> RelevanceResult:
             if any(s <= m.start() < e for s, e in taken):
                 continue
             taken.append(m.span())
+            if any(a <= m.start() < b for a, b in venues):
+                evidence.append(f"listing venue '{m.group(0)}'")
+                continue
             sister = None if variant.strong else _sister_issuer(t, m.end(), variant, matcher, title_case)
             if sister:
                 evidence.append(f"sister company '{sister}'")
@@ -1228,14 +1284,22 @@ def explain_relevance(text: str, company: CompanyRef) -> RelevanceResult:
             result.secondary = True
             score *= 0.75
             evidence.append("another company is the subject")
-        if matcher.index_fund and _MARKET_WIDE_RE.search(t):
+        if matcher.index_fund and _MARKET_WIDE_RE.search(market_text):
             pass  # "Dow, S&P 500, Nasdaq Futures Rise ...: NKE, NFLX In Focus" is the index's own news
         elif _is_roundup(t, subject_end):
             result.roundup = True
             only_tags = tag_hits == mentions and name_level == 0.0
             score = min(score, 0.3 if only_tags else 0.4)  # one label in a hashtag soup says little
             evidence.append("hashtag soup" if only_tags else "roundup/listicle")
-    if (matcher.index_fund and score < 0.6 and _MARKET_WIDE_RE.search(t) and not _LISTICLE_RE.search(t)
+        # A text the company leads, or a sentence it opens ("📊 Receipt — HIT ✅. $BTC closes above
+        # $86,000"), is its own news; otherwise ask whose news it is. An index fund's news is the
+        # market itself: never a bystander of it.
+        if (score > BYSTANDER_MAX and subject_end < 0 and not matcher.index_fund
+                and not _SENTENCE_OPEN_RE.search(t[:min(positions)]) and is_bystander_text(t, company)):
+            result.bystander = result.secondary = True
+            score = BYSTANDER_MAX
+            evidence.append("bystander of another company's news")
+    if (matcher.index_fund and score < 0.6 and _MARKET_WIDE_RE.search(market_text) and not _LISTICLE_RE.search(t)
             and not _OTHER_SUBJECT_RE.match(t)):
         score = 0.6
         result.secondary = False

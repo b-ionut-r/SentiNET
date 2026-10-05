@@ -5,7 +5,8 @@ Pipeline (per analysis):
 1. clean title/body, drop empty/boilerplate (incl. auto-generated 13F-holdings
    stories) and stale (> 21 d) items;
 2. relevance: drop < 0.35 unless the provider guarantees the ticker
-   (`ticker_specific`, floored at 0.7); multi-ticker roundups are capped;
+   (`ticker_specific`, floored at 0.7) — never for a title naming only a sister
+   company ("Vodafone Idea" on a VOD.L feed); multi-ticker roundups are capped;
 3. collapse syndicated near-copies into one representative (the most trusted
    outlet), keeping the copies' outlets/times as coverage evidence;
 4. score representatives with the sentiment engine (+ themes, events);
@@ -282,15 +283,20 @@ def _relevance(title: str, context: str | None, extra: dict[str, Any], raw: RawS
                company: CompanyRef) -> float:
     """Title relevance, lifted by body context, provider relevance and ticker-keyed feeds,
     then capped for multi-ticker roundups (applied last, so a roundup from a ticker-keyed
-    feed that never names the company in its title stays a roundup)."""
+    feed that never names the company in its title stays a roundup).
+
+    A title that names only a separately listed sister company ("Vodafone Idea …" on a
+    VOD.L feed) gets no provider/feed floor: the feed matched the brand, not the company."""
     title_rel = textkit.relevance(title, company)
     rel = title_rel
     if context:
         rel = max(rel, CONTEXT_DISCOUNT * textkit.relevance(f"{title}. {context[:400]}", company))
+    floors = title_rel >= MIN_RELEVANCE or textkit.sister_company(title, company) is None
     provider = extra.get("provider_relevance")
-    if isinstance(provider, (int, float)) and math.isfinite(provider) and provider >= PROVIDER_RELEVANCE_MIN:
+    if (floors and isinstance(provider, (int, float)) and math.isfinite(provider)
+            and provider >= PROVIDER_RELEVANCE_MIN):
         rel = max(rel, min(float(provider), 0.9))
-    if raw.ticker_specific:
+    if raw.ticker_specific and floors:
         rel = max(rel, SPECIFIC_RELEVANCE)
     symbols = extra.get("symbols")
     if isinstance(symbols, int) and symbols >= ROUNDUP_SYMBOLS:

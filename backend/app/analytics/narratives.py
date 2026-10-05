@@ -5,8 +5,13 @@ Only published media (news/analysis) that is clearly about the company
 
     impact = coverage × (0.5 + 0.5·intensity) × freshness  [× 0.6 for question/listicle headlines]
     coverage  = 1 − exp(−(Σ relevance·copies + 0.5·outlets) / 5)   syndicated copies count
-    intensity = max(|tone| / 0.4, 0.6 if a material event) capped at 1
+    intensity = max(|tone| / 0.4, 0.6 if a material event) capped at 1; 1 for a deal story
     freshness = 0.35 + 0.65 · 0.5^(hours since last item / 48)
+
+A *deal story* carries an M&A event of the company itself (the NLP layer keeps
+an m_and_a event only when the company is a party: bidder, target or merger
+partner — "Withdraw GameStop's $56B eBay Bid"). A deal can transform the
+company whatever the headline tone, so it gets full intensity.
 
 A story's tone is the weighted mean of *all* its members — the tone of the
 coverage its article count describes ("12 articles, tone −0.07"), never just
@@ -87,6 +92,7 @@ NEW_SHARED_IDS = 1 / 3  # shared member articles (of the smaller story) that mak
 # Events that are developments in their own right (price moves merely describe the tape).
 STORY_MIN_IMPACT = 0.35  # a story below this impact is never quoted as "the" story
 INSIDER_EVENTS = frozenset({"insider_buy", "insider_sell"})
+DEAL_EVENTS = frozenset({"m_and_a"})  # the company's own M&A (see module docstring)
 REVISION_EVENTS = frozenset({"pt_raise", "pt_cut"})
 ROUTINE_REVISION = 0.03  # |target change| below which a rating-unchanged revision is routine
 ROUTINE_REVISION_INTENSITY = 0.3
@@ -157,6 +163,11 @@ class Story:
         """The story is the price move itself ('stock craters 43% in 2026'): no material event,
         and its headline is a price recap. The technicals component already measures it."""
         return not self.material_events and price_recap(self.lead)
+
+    @property
+    def deal(self) -> bool:
+        """A deal story: the company's own M&A is one of its events (see module docstring)."""
+        return bool(DEAL_EVENTS & set(self.material_events))
 
     @property
     def insider_only(self) -> bool:
@@ -255,7 +266,7 @@ def _story(rep: Item, members: list[Item], now: datetime) -> Story | None:
     first, last = (min(times), max(times)) if times else (None, None)
     velocity = sum(1 for t in times if now - t <= timedelta(hours=24))
 
-    intensity = max(min(1.0, abs(tone) / 0.4), 0.6 if material else 0.0)
+    intensity = 1.0 if DEAL_EVENTS & set(material) else max(min(1.0, abs(tone) / 0.4), 0.6 if material else 0.0)
     focus = sum(m.coverage * m.relevance for m in members)  # coverage *of this company*
     if len(outlets) <= 1:
         focus = min(focus, SINGLE_OUTLET_MAX_FOCUS)

@@ -8,16 +8,17 @@
  * e2e/screens/live/.
  */
 import { spawn } from "node:child_process";
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-process.env.PLAYWRIGHT_BROWSERS_PATH ??= "/opt/pw-browsers";
+// This sandbox keeps Chromium in /opt/pw-browsers; elsewhere Playwright's default applies.
+if (!process.env.PLAYWRIGHT_BROWSERS_PATH && existsSync("/opt/pw-browsers")) process.env.PLAYWRIGHT_BROWSERS_PATH = "/opt/pw-browsers";
 const { chromium } = await import("playwright");
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(ROOT, "e2e", "screens", "live");
-const PORT = 4180;
+const PORT = Number(process.env.E2E_PORT) || 4180;
 const BASE = `http://127.0.0.1:${PORT}`;
 const TICKER = process.argv[2] ?? "AAPL";
 

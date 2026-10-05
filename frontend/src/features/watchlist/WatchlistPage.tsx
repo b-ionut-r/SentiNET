@@ -16,6 +16,7 @@ import { cx } from "../../lib/cx";
 import { dayTime, pct, price, timeAgo } from "../../lib/format";
 import { polarityOf100, textTone, toneVar, verdictBand } from "../../lib/sentiment";
 import { KINDS, needsThreshold, thresholdProblem } from "./alertRules";
+import { priceChange } from "./priceChange";
 
 export default function WatchlistPage() {
   useEffect(() => {
@@ -165,7 +166,7 @@ function WatchCard({ w, onOpen, onRemove }: { w: WatchItem; onOpen: () => void; 
             {s != null && <span className={cx("text-sm font-semibold", textTone[p])}>{s}</span>}
             {s != null && prev != null && <Delta value={s - prev} className="text-2xs" />}
           </div>
-          <div className="truncate text-2xs text-muted">{s != null ? `${verdictBand(s).label} · ${price(w.last?.price)} · ${timeAgo(w.last?.at)}` : "not analyzed yet"}</div>
+          <div className="truncate text-2xs text-muted">{s != null ? `${verdictBand(s).label} · ${price(w.last?.price, w.last?.currency)} · ${timeAgo(w.last?.at)}` : "not analyzed yet"}</div>
         </div>
         <div className="w-20">{w.spark.length > 1 && <Sparkline values={w.spark} height={26} domain={[0, 100]} reference={50} color={toneVar(p)} />}</div>
       </button>
@@ -180,7 +181,7 @@ function WatchRow({ w, onOpen, onRemove }: { w: WatchItem; onOpen: () => void; o
   const s = w.last?.sentinel_score ?? null;
   const prev = w.previous?.sentinel_score ?? null;
   const p = polarityOf100(s);
-  const priceChg = w.last?.price != null && w.previous?.price ? (w.last.price / w.previous.price - 1) * 100 : null;
+  const priceChg = priceChange(w.last, w.previous);
   return (
     <tr className="group cursor-pointer hover:bg-raised/60" onClick={onOpen}>
       <td className="py-2.5 pl-4">
@@ -214,7 +215,9 @@ function WatchRow({ w, onOpen, onRemove }: { w: WatchItem; onOpen: () => void; o
       </td>
       <td className="py-2.5 pr-4">{w.spark.length > 1 ? <Sparkline values={w.spark} height={28} domain={[0, 100]} reference={50} color={toneVar(p)} ariaLabel={`${w.ticker} stored scores`} /> : <span className="text-2xs text-muted">—</span>}</td>
       <td className="py-2.5 text-right text-xs num">
-        <div className="text-ink">{price(w.last?.price)}</div>
+        <div className="text-ink" title={w.previous?.price != null ? `previous look ${price(w.previous.price, w.previous.currency ?? w.last?.currency)}` : undefined}>
+          {price(w.last?.price, w.last?.currency)}
+        </div>
         {priceChg != null && <div className={cx("text-2xs", textTone[priceChg > 0 ? "bull" : priceChg < 0 ? "bear" : "neutral"])}>{pct(priceChg)}</div>}
       </td>
       <td className="py-2.5 text-right text-2xs text-muted">{w.last ? timeAgo(w.last.at) : `added ${timeAgo(w.added_at)}`}</td>

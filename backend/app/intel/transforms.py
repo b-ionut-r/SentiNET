@@ -633,6 +633,9 @@ def _as_list(value: Any) -> list[Any]:
     return [value]
 
 
+HISTORY_MAX_AGE_DAYS = 3 * 365  # reported quarters older than this are dropped
+
+
 def earnings_from_frames(
     calendar: dict[str, Any] | None,
     earnings_dates: pd.DataFrame | None,
@@ -680,7 +683,10 @@ def earnings_from_frames(
     future = sorted(d for d in upcoming if d >= today and d not in reported)
     next_date = future[0] if future else None
     history.sort(key=lambda e: e.date, reverse=True)
-    history = history[:max_history]
+    # Yahoo can return decade-old quarters for thinly covered listings (VOD.L: 2010-2012);
+    # a "beat record" built from those says nothing about the company today.
+    cutoff = today - timedelta(days=HISTORY_MAX_AGE_DAYS)
+    history = [e for e in history if e.date >= cutoff][:max_history]
     scored = [e for e in history if e.eps_estimate is not None and e.eps_actual is not None]
     beat_rate = (
         round(sum(e.eps_actual > e.eps_estimate for e in scored) / len(scored), 3)  # type: ignore[operator]

@@ -2,6 +2,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { type BusyWait, retryWhenBusy } from "./busy";
 import { api, streamAnalysis } from "./client";
 import { TONE_FOLLOW_UP_MS, tonePending } from "./pending";
 import type { AlertRuleIn, Analysis, PriceRange, ProgressEvent, ScoreRequest, WatchItem } from "./types";
@@ -220,8 +221,33 @@ export function useAlertDelete() {
   });
 }
 
+/**
+ * Sentiment-lab run. A busy lab (503 + Retry-After) is waited out and retried up to
+ * `BUSY_RETRIES` times; `busy` describes the pending retry for a countdown, and
+ * `cancel()` stops the wait (or the request) and returns the hook to idle. A newer run
+ * or leaving the page aborts the older one.
+ */
 export function useLabScore() {
-  return useMutation({ mutationFn: (req: ScoreRequest) => api.labScore(req) });
+  const [busy, setBusy] = useState<BusyWait | null>(null);
+  const ctrl = useRef<AbortController | null>(null);
+  const mutation = useMutation({
+    mutationFn: (req: ScoreRequest) => {
+      ctrl.current?.abort();
+      const own = new AbortController();
+      ctrl.current = own;
+      const mine = (w: BusyWait | null) => ctrl.current === own && setBusy(w);
+      return retryWhenBusy((signal) => api.labScore(req, signal), { signal: own.signal, onWait: mine }).finally(() => mine(null));
+    },
+  });
+  const { reset } = mutation;
+  const cancel = useCallback(() => {
+    ctrl.current?.abort();
+    ctrl.current = null;
+    setBusy(null);
+    reset();
+  }, [reset]);
+  useEffect(() => () => ctrl.current?.abort(), []);
+  return { ...mutation, busy, cancel };
 }
 
 export type { Analysis };

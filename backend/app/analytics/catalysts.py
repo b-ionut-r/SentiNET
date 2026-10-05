@@ -11,7 +11,7 @@ from datetime import date, datetime, time, timedelta, UTC
 from app.analytics import textkit
 from app.analytics.facts import Facts
 from app.analytics.narratives import PRICE_EVENTS
-from app.analytics.util import count, filing_parts, money, pct, signed, tone_polarity, trim
+from app.analytics.util import count, filing_parts, money, pct, quote, signed, tone_polarity, trim
 from app.schemas import AnalystAction, Catalyst, EarningsView, Polarity
 
 ANALYST_WINDOW = timedelta(days=30)
@@ -50,6 +50,7 @@ def build_catalysts(f: Facts) -> list[Catalyst]:
     if earnings is not None:
         upcoming.append(earnings)
     upcoming.extend(c for c in f.inputs.calendar_catalysts if c.upcoming and c.date.date() >= today)
+    upcoming.extend(_deal_deadlines(f))
 
     recent: list[Catalyst] = []
     if f.inputs.analysts is not None:
@@ -201,20 +202,32 @@ def last_report_date(e: EarningsView | None, today: date) -> date | None:
     return max(reported) if reported else None
 
 
+def _deal_deadlines(f: Facts) -> list[Catalyst]:
+    """Explicit, dated deadlines stated in the deal-in-play coverage (see deals.py)."""
+    play = f.deal_in_play
+    if play is None:
+        return []
+    return [Catalyst(date=noon_utc(d.when), kind="news", title=f"Deal deadline: {d.what.lower()}",
+                     detail=f"{d.item.publisher or 'Coverage'}: {quote(d.item.title, 110)}", upcoming=True,
+                     url=d.item.url) for d in play.deadlines]
+
+
 def _news(f: Facts) -> list[Catalyst]:
-    """High-impact stories carrying a material development.
+    """High-impact stories carrying a material development, and the deal in play whatever its impact.
 
     Skipped: analyst stories when the rating actions are already listed,
     insider and price-only events, and results/guidance stories that first
     appeared more than a week after the last report (retrospectives)."""
     has_actions = f.inputs.analysts is not None and bool(f.inputs.analysts.actions)
     last_report = last_report_date(f.inputs.earnings, f.now.date())
+    play = f.deal_in_play
     out: list[Catalyst] = []
     for story in f.stories:
         n = story.narrative
         when = n.first_seen or n.last_seen
         events = [k for k in story.material_events if k not in NOT_NEWS_CATALYSTS]
-        if not events or n.impact < NEWS_MIN_IMPACT or when is None:
+        in_play = play is not None and play.story is story
+        if not events or (n.impact < NEWS_MIN_IMPACT and not in_play) or when is None:
             continue
         if has_actions and (ANALYST_EVENTS & set(story.lead.event_keys) or set(events) <= ANALYST_EVENTS):
             continue
@@ -223,6 +236,8 @@ def _news(f: Facts) -> list[Catalyst]:
             if not events:
                 continue
         labels = ", ".join(textkit.event_label(k) for k in events[:2])
+        size = play.size if in_play and play is not None else None
+        labels += f" · quoted {size}" if size else ""
         out.append(Catalyst(
             date=when, kind="news", title=n.headline,
             detail=f"{labels} · {count(n.count, 'article')}, tone {signed(n.score)}",

@@ -5,11 +5,11 @@
  *
  *   npm run build && node e2e/smoke.mjs
  */
-import { fixture, installMocks, NOW, startPreview } from "./mock.mjs";
+import { fixture, installMocks, NOW, previewPort, startPreview } from "./mock.mjs";
 
 const { chromium } = await import("playwright");
 
-const PORT = 4174;
+const PORT = previewPort(4174);
 const BASE = `http://127.0.0.1:${PORT}`;
 const failures = [];
 let passed = 0;
@@ -44,6 +44,7 @@ const since = () => {
   return () => calls.slice(mark);
 };
 const settle = (ms = 300) => page.waitForTimeout(ms);
+const fix = (name) => JSON.parse(JSON.stringify(fixture(name)));
 
 try {
   console.log("global chrome");
@@ -254,18 +255,104 @@ try {
   check("phones get a remove button per watched ticker", (await page.getByRole("button", { name: /^Remove / }).filter({ visible: true }).count()) > 0);
   await page.setViewportSize({ width: 1440, height: 900 });
 
-  // Lab: an oversized upload loads what one run can score, and Score works.
+  // Lab: an oversized upload loads in full; one run scores what fits and offers the rest next.
   await page.goto(`${BASE}/lab`);
   const big = Array.from({ length: 620 }, (_, i) => `Item ${i + 1}: shares rose after earnings beat`).join("\n");
   await page.locator('input[type="file"]').setInputFiles({ name: "big.txt", mimeType: "text/plain", buffer: Buffer.from(big) });
   await settle(200);
   const loaded = (await page.locator("textarea").inputValue()).split("\n").filter(Boolean).length;
-  check("a 620-line upload loads the first 500", loaded === 500, `${loaded} lines`);
-  check("…and Score stays enabled", await page.getByRole("button", { name: /^Score$/ }).isEnabled());
+  check("a 620-line upload loads all 620", loaded === 620, `${loaded} lines`);
+  check("…the notice says only the first 500 are scored", await page.getByTestId("lab-limits").getByText("the first 500 of 620 will be scored, 120 left out").isVisible());
+  const labBodies = [];
+  await page.route("**/api/lab/score", (route) => {
+    labBodies.push(JSON.parse(route.request().postData() ?? "{}"));
+    return route.fallback();
+  });
+  await page.getByRole("button", { name: "Score 500" }).click();
+  await page.waitForSelector("text=Driver terms underlined");
+  check("…and Score sends exactly the first 500", labBodies.at(-1)?.texts?.length === 500 && labBodies.at(-1).texts[499] === "Item 500: shares rose after earnings beat", `${labBodies.at(-1)?.texts?.length}`);
+  await page.getByRole("button", { name: "Load the other 120" }).click();
+  const rest = (await page.locator("textarea").inputValue()).split("\n");
+  check("'Load the other 120' queues the next batch", rest.length === 120 && rest[0] === "Item 501: shares rose after earnings beat", `${rest.length}: ${rest[0]}`);
+
+  // Over-long texts are cut and the 250,000-character budget is respected, said up front.
+  const words = (n) => Array.from({ length: n }, (_, i) => `rally${i % 10}`).join(" ");
+  const heavy = [words(2000), ...Array.from({ length: 29 }, (_, i) => `${i} ${words(1400)}`)].join("\n"); // first ~14k chars, then 29 × ~9.8k
+  await page.locator("textarea").fill(heavy);
+  const notes = await page.getByTestId("lab-limits").locator("li").allTextContents();
+  check("lab says an over-long text will be cut", notes.some((n) => n.startsWith("1 text is longer than 10,000 characters")), notes.join(" | "));
+  check("…and that only the first texts within budget are scored", notes.some((n) => /^Over the 250,000-character budget of one run: the first 25 of 30 items/.test(n)), notes.join(" | "));
+  await page.getByRole("button", { name: "Score 25" }).click();
+  await page.waitForSelector("text=Driver terms underlined");
+  const sent = labBodies.at(-1)?.texts ?? [];
+  const sentChars = sent.reduce((n, t) => n + [...t].length, 0);
+  check("…the request fits the backend's limits", sent.length === 25 && sent.every((t) => [...t].length <= 10_000) && sentChars <= 250_000, `${sent.length} texts, ${sentChars} chars`);
+  await page.unroute("**/api/lab/score");
+
+  // A busy lab (503 + Retry-After) is waited out with a countdown, then retried.
+  await page.locator("textarea").fill("Nvidia beats and raises\nTesla recalls 120,000 vehicles");
+  let tries = 0;
+  await page.route("**/api/lab/score", (route) => {
+    tries++;
+    return tries === 1
+      ? route.fulfill({ status: 503, headers: { "Retry-After": "2" }, contentType: "application/json", body: JSON.stringify({ detail: "The sentiment lab is busy scoring other requests; retry in a few seconds." }) })
+      : route.fallback();
+  });
+  await page.getByRole("button", { name: /^Score$/ }).click();
+  const busy = page.getByTestId("lab-busy");
+  await busy.waitFor({ timeout: 3000 }).catch(() => null);
+  const busyText = (await busy.textContent().catch(() => "")) ?? "";
+  check("busy lab shows 'retrying in Ns' with the attempt", /Lab busy — retrying in [12]s… \(retry 1 of 3\)/.test(busyText), busyText);
+  check("…not an error", (await page.getByText("Scoring failed").count()) === 0);
+  await busy.waitFor({ state: "detached", timeout: 6000 }).catch(() => null);
+  await page.waitForSelector("text=Driver terms underlined");
+  check("…then retries on its own and scores", tries === 2 && (await busy.count()) === 0, `${tries} tries`);
+  await page.unroute("**/api/lab/score");
+
+  // Cancel stops the wait: no error, no further request, previous results stay.
+  tries = 0;
+  await page.route("**/api/lab/score", (route) => {
+    tries++;
+    return route.fulfill({ status: 503, headers: { "Retry-After": "5" }, contentType: "application/json", body: JSON.stringify({ detail: "The sentiment lab is busy scoring other requests; retry in a few seconds." }) });
+  });
+  await page.getByRole("button", { name: /^Score$/ }).click();
+  await busy.waitFor({ timeout: 3000 }).catch(() => null);
+  await busy.getByRole("button", { name: "Cancel" }).click();
+  await page.waitForTimeout(5800);
+  check("Cancel stops the retry (one request, no error, Score enabled)", tries === 1 && (await busy.count()) === 0 && (await page.getByText("Scoring failed").count()) === 0 && (await page.getByRole("button", { name: /^Score$/ }).isEnabled()), `${tries} tries`);
+  check("…and the last results stay on screen", await page.getByText("Driver terms underlined").isVisible());
+  // Still busy after every retry: say so, offer to try again.
+  tries = 0;
+  await page.unroute("**/api/lab/score");
+  await page.route("**/api/lab/score", (route) => {
+    tries++;
+    return route.fulfill({ status: 503, headers: { "Retry-After": "1" }, contentType: "application/json", body: JSON.stringify({ detail: "The sentiment lab is busy scoring other requests; retry in a few seconds." }) });
+  });
+  await page.getByRole("button", { name: /^Score$/ }).click();
+  await page.waitForSelector("text=Lab still busy", { timeout: 8000 }).catch(() => null);
+  check("gives up after 3 retries with 'Lab still busy'", tries === 4 && (await page.getByText("Lab still busy").isVisible()), `${tries} tries`);
+  await page.unroute("**/api/lab/score");
+
+  // Watchlist prices carry the snapshot's quote currency.
+  await page.goto(`${BASE}/watchlist`);
+  await page.waitForSelector("text=Alert rules");
+  const usd = page.locator("tbody").getByText("$333.69", { exact: true });
+  await usd.waitFor({ timeout: 5000 }).catch(() => null);
+  check("watchlist prices show their currency", await usd.isVisible());
+  const vod = fix("watchlist.json");
+  Object.assign(vod[0], { ticker: "VOD.L", name: "Vodafone Group Plc" });
+  vod[0].last = { ...vod[0].last, ticker: "VOD.L", price: 126.8, currency: "GBp" };
+  vod[0].previous = { ...vod[0].previous, ticker: "VOD.L", price: 124.1, currency: "GBp" };
+  await page.route("**/api/watchlist", (route) => (route.request().method() === "GET" ? route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(vod) }) : route.fallback()));
+  await page.reload();
+  const pence = page.locator("tbody").getByText("126.80p", { exact: true });
+  await pence.waitFor({ timeout: 5000 }).catch(() => null);
+  check("a pence listing reads in pence", await pence.isVisible());
+  check("…with its move between looks", await page.locator("tbody tr").filter({ hasText: "VOD.L" }).getByText("+2.2%").isVisible());
+  await page.unroute("**/api/watchlist");
 
   console.log("final review fixes");
   const sse = (a) => `event: result\ndata: ${JSON.stringify(a)}\n\n`;
-  const fix = (name) => JSON.parse(JSON.stringify(fixture(name)));
 
   // Price chart: the axis follows the bars on screen. Switching 5D → a daily range keeps the
   // intraday bars up while the new range loads; they must never be keyed by date. Real clock
@@ -387,9 +474,19 @@ try {
   const pricePanel = page.locator("#price section").filter({ hasText: "Price × news tone" }).first();
   await page.locator("#price canvas").first().waitFor();
   const w0 = (await pricePanel.boundingBox())?.width;
+  // Hover the candles while the tone history is still on its way: the crosshair is mirrored
+  // only onto panes that can place it (lightweight-charts throws "Value is null" otherwise).
+  const pbox = await page.locator("#price canvas").first().boundingBox();
+  const hoverErrors = errors.length;
+  for (let i = 0; i < 12 && pbox; i++) {
+    await page.mouse.move(pbox.x + 20 + (i * (pbox.width - 40)) / 12, pbox.y + pbox.height / 2);
+    await page.waitForTimeout(60);
+  }
   await settle(2000);
   const w1 = (await pricePanel.boundingBox())?.width;
   check("price chart keeps its width when the lead/lag column arrives", w0 != null && w0 === w1, `${w0} → ${w1}`);
+  check("hovering the chart while tone history loads throws nothing", errors.length === hoverErrors, errors.slice(hoverErrors).join(" | "));
+  await page.mouse.move(5, 5);
   await page.unroute("**/api/history/NVDA*");
   check("tone-less result still draws GDELT tone from the 90-day history", await page.locator("#price").getByText("Daily global news tone (GDELT) in its own pane below").isVisible());
   check("…the insights rail says tone is still loading", await page.locator("#insights").getByText("Global news tone still loading").isVisible());

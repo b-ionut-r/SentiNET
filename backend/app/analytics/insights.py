@@ -18,14 +18,19 @@ Checks (thresholds):
                each side; a mere return toward typical is never a "turn"); otherwise the
                momentum component itself when it reads <= 35 or >= 65 and moves the score
                >= 1 point (not when a GDELT sign flip already tells the story)
-* smart_money  >= 2 upgrades/downgrades or >= 3 PT raises/cuts in 30d; >= 2 insider
-               buyers in 90d or an officer buy >= $500K; insider sales >= 0.5% of market cap
+* smart_money  >= 2 upgrades/downgrades or >= 3 PT raises/cuts in 30d; >= 2 insiders each
+               buying >= $25K in 90d, together >= $100K (or 0.5 bp of the USD market cap), and
+               not dwarfed (> 10×) by discretionary insider sales — or an officer buy >= $500K;
+               insider sales >= 0.5% of the USD market cap
 * catalyst     earnings <= 14 days; ex-dividend <= 7 days
 * deal         a pending acquisition of the company (signed merger agreement in its 8-Ks,
-               see deals.py) — always an alert, ranked first
+               see deals.py) — always an alert, ranked first; else a deal in play: fresh,
+               corroborated M&A coverage involving the company (deals.py) — an alert when the
+               quoted value is >= 10% of the USD market cap, none under 1%, else watch
 * risk         lawsuit/probe/regulatory-setback events (>= 3 articles — or 2 incl. a major
                outlet — from >= 2 outlets, tone <= -0.1); red-flag 8-Ks; bankruptcy/going
-               concern, delisting, short reports (corroborated); dilution. A listing-rule
+               concern, delisting, short reports (corroborated); dilution (incl. new shares
+               reported inside the deal-in-play coverage). A listing-rule
                notice is not raised once a later filing reports regained compliance or
                while the company is being acquired; a compliance notice is not a red flag
 * quality      no relevant text at all (whatever the source statuses); < 8 relevant items;
@@ -102,7 +107,7 @@ class _Cand:
 
 
 InsightKind = Literal["divergence", "attention", "reversal", "crowding", "catalyst", "smart_money", "risk",
-                      "momentum", "quality"]
+                      "momentum", "quality", "deal"]
 Severity = Literal["info", "watch", "alert"]
 
 
@@ -393,7 +398,7 @@ def _smart_money(f: Facts) -> Iterator[_Cand]:
             if rev.upgrades_30d:
                 bits.append(f"{count(rev.upgrades_30d, 'upgrade')} ({_firms(rev.upgrade_firms)})")
             if rev.cuts_30d or rev.downgrades_30d:
-                bits.append(f"vs {rev.cuts_30d} cuts / {rev.downgrades_30d} downgrades")
+                bits.append(f"vs {count(rev.cuts_30d, 'cut')} / {count(rev.downgrades_30d, 'downgrade')}")
             yield _make("smart_money", "watch", "bull", "Analysts turning more bullish",
                         f"{'; '.join(bits)} in the last 30 days.", rev.upgrades_30d + 0.5 * rev.raises_30d)
         if rev.downgrades_30d >= 2 or rev.cuts_30d >= 3:
@@ -442,7 +447,6 @@ def _smart_money(f: Facts) -> Iterator[_Cand]:
                     f"market cap, well above routine levels.", bps / 50)
 
 
-
 # --------------------------------------------------------------------------- #
 # Catalysts
 # --------------------------------------------------------------------------- #
@@ -478,14 +482,28 @@ def _catalysts(f: Facts) -> Iterator[_Cand]:
 # --------------------------------------------------------------------------- #
 def _deals(f: Facts) -> Iterator[_Cand]:
     d = f.deal
-    if d is None:
+    if d is not None:
+        items = f" (item {', '.join(d.items)})" if d.items else ""
+        said = d.excerpt.rstrip(".") + ("" if d.excerpt.endswith("…") else ".")
+        yield _make("deal", "alert", "neutral", f"Pending acquisition: merger agreement ({d.when})",
+                    f"Form {d.form}{items}: {said} {f.name} is the company being acquired{d.by}, so its share price "
+                    f"now tracks the deal terms and the odds of closing; analyst targets and the price trend are "
+                    f"discounted in the score.", 20)
         return
-    items = f" (item {', '.join(d.items)})" if d.items else ""
-    said = d.excerpt.rstrip(".") + ("" if d.excerpt.endswith("…") else ".")
-    yield _make("risk", "alert", "neutral", f"Pending acquisition: merger agreement ({d.when})",
-                f"Form {d.form}{items}: {said} {f.name} is the company being acquired{d.by}, so its share price "
-                f"now tracks the deal terms and the odds of closing; analyst targets and the price trend are "
-                f"discounted in the score.", 20)
+    play = f.deal_in_play
+    if play is None:
+        return
+    size = play.size
+    title = "Deal in play" + (f": {size}" if size else "")
+    stakes = (" — a deal this size would transform the company" if play.ratio is not None and play.ratio >= 1
+              else " — material for the company" if play.material else "")
+    value = (f" Quoted deal value {size}{stakes}." if size
+             else " No deal value is quoted yet.")
+    when = f", latest {short_date(play.latest)}" if play.latest else ""
+    yield _make("deal", "alert" if play.material else "watch", "neutral", title,
+                f"{count(play.articles, 'article')} from {count(play.outlets, 'outlet')} on M&A involving {f.name}"
+                f"{when}: {quote(play.lead.title, 100)}.{value}",
+                10 + min(play.ratio or 0.0, 10.0) if play.material else 4)
 
 
 # --------------------------------------------------------------------------- #
@@ -549,7 +567,17 @@ def _risks(f: Facts) -> Iterator[_Cand]:
             yield _make("risk", "alert", "bear", title,
                         f"{count(sum(it.coverage for it in hits), 'article')} — top: {quote(top.title, 90)}"
                         + (f" ({top.publisher})" if top.publisher else "") + ".", 5 + len(hits))
-    offering = [it for it in news if "offering" in it.event_keys]
+    play = f.deal_in_play
+    funding = [m for m in play.dilution if not m.press_release] if play is not None else []
+    if funding:  # new shares to pay for the deal ("Shareholders Back Bigger Share Count To Support … Acquisition")
+        top = max(funding, key=lambda it: it.weight)
+        source = ", ".join(x for x in (top.publisher, short_date(top.timestamp) if top.timestamp else None) if x)
+        yield _make("risk", "watch", "bear", "Dilution risk: new shares to fund the deal",
+                    f"{quote(top.title, 110)}" + (f" ({source})" if source else "")
+                    + " — reported inside the deal coverage: paying with new stock would dilute holders.",
+                    len(funding) + 1)
+    used = {it.id for it in funding}
+    offering = [it for it in news if "offering" in it.event_keys and it.id not in used]
     if len(offering) >= 2 and _corroborated(offering):
         top = max(offering, key=lambda it: it.weight)
         yield _make("risk", "watch", "bear", "Dilution risk: share offering",
@@ -615,12 +643,13 @@ def _quality(f: Facts) -> Iterator[_Cand]:
                     f" left out (logged for repair); the rest of the analysis is unaffected.", 7)
     pending = f.intel_pending()
     if "tone" in pending and f.inputs.tone is None:
+        # Said as what this run used: the caller may already have waited for it (the CLI waits up to 30 s).
         momentum = f.composite.parts.get("momentum")
         flow = (f"momentum uses the last 48 h of headlines ({f.news_recent.n}) vs the prior days "
-                f"({f.news_older.n}) until the next refresh" if momentum is not None and momentum.available
-                else "the momentum component is n/a until the next refresh")
-        yield _make("quality", "info", "neutral", "Global news tone still loading",
-                    f"GDELT history is still being fetched; {flow}.", 0.5)
+                f"({f.news_older.n}) instead" if momentum is not None and momentum.available
+                else "the momentum component is n/a")
+        yield _make("quality", "info", "neutral", "Global news tone not loaded this run",
+                    f"GDELT history did not arrive in time for this read; {flow}.", 0.5)
     failed = f.intel_failed()
     if failed:
         names = {"analysts": "analyst ratings", "insiders": "insider trades", "earnings": "earnings",

@@ -38,9 +38,10 @@ def test_sentiment_price_disagreements() -> None:
 
 def test_neutral_and_partial_and_missing() -> None:
     label, detail = market_regime(fg(31, "fear", 46), [spy(0.6, -0.5), vix(15.3)])
-    assert label == "Neutral: Fear"
+    assert label == "Mixed: Fear & Greed 31 (Fear), VIX normal"  # not "Neutral: Fear"
     assert "down from 46 a month ago" in detail and "0.5% below its 1M high" in detail
     assert market_regime(None, [vix(35.0)])[0] == "Risk-off"
+    assert market_regime(None, [vix(19.0)])[0] == "Mixed: VIX normal"
     assert market_regime(None, []) == ("Unknown", "Market gauges are unavailable right now.")
 
 

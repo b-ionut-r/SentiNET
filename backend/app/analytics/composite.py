@@ -18,8 +18,11 @@ Each component maps its evidence to a signed strength x in [-1, 1]
 * analysts: ratings are judged against the typical consensus (mean 2.4 on the
   1..5 scale), target upside against the typical +10%, revisions relative to
   coverage size.
-* insiders: only open-market trades; buying by several insiders is strong,
-  selling is scaled by market cap and mild (it is routine).
+* insiders: only open-market trades (USD for every listing); buying by several
+  insiders is strong, each buyer counted by size (full weight from $25K; a $1.4K
+  dividend-reinvestment-sized buy barely counts) and discounted when
+  discretionary selling exceeds 10× the buying; selling is scaled by the USD
+  market cap (never a cap in another currency) and mild (it is routine).
 * momentum: GDELT 7d-vs-30d tone change + 90d percentile, and the last 48 h of
   headlines vs. the prior days. The headline shift is short-window evidence:
   the part of it that merely returns toward the typical tone (news-cycle decay
@@ -470,7 +473,7 @@ def analysts_part(view: AnalystView | None, now: datetime, asset: str = "EQUITY"
     if rev.raises_30d or rev.cuts_30d:
         rev_bits.append(f"30d PT: {rev.raises_30d} up / {rev.cuts_30d} down")
     if view.upgrades_90d or view.downgrades_90d:
-        rev_bits.append(f"90d: {view.upgrades_90d} upgrades / {view.downgrades_90d} downgrades")
+        rev_bits.append(f"90d: {count(view.upgrades_90d, 'upgrade')} / {count(view.downgrades_90d, 'downgrade')}")
     part.detail = " · ".join(head + rev_bits) or "coverage without ratings"
     part.facts.update(name=name, net=net, revisions=rev, upside=target)
 

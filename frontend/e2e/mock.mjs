@@ -24,7 +24,9 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-process.env.PLAYWRIGHT_BROWSERS_PATH ??= "/opt/pw-browsers";
+// This sandbox keeps Chromium in /opt/pw-browsers; elsewhere Playwright's own default
+// (where `npx playwright install chromium` puts it) must stay in charge.
+if (!process.env.PLAYWRIGHT_BROWSERS_PATH && existsSync("/opt/pw-browsers")) process.env.PLAYWRIGHT_BROWSERS_PATH = "/opt/pw-browsers";
 
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 export const FIX = join(ROOT, "e2e", "fixtures");
@@ -139,6 +141,9 @@ export async function installMocks(ctx, { hold = new Set(), calls = null } = {})
     return existsSync(file) ? route.fulfill({ path: file, contentType: "image/png" }) : route.fulfill({ status: 404 });
   });
 }
+
+/** Preview port for a script: `E2E_PORT` when set (parallel runs), else the script's default. */
+export const previewPort = (fallback) => Number(process.env.E2E_PORT) || fallback;
 
 /** Start `vite preview` on `port`; resolves with the child process once it listens. */
 export function startPreview(port) {

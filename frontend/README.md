@@ -31,16 +31,19 @@ sentiment pair (bull/bear) and status colors are reserved and always carry a gly
 verbatim output of a real AAPL run; `*.SPARSE.json` is a real backend run with every news/social
 source forced offline (the genuine degraded output). Both carry ticker AAPL, so the mock keeps a
 per-context fixture namespace once the app moves the URL to the canonical ticker. `e2e/mock.mjs`
-serves the built app with `vite preview` and answers `/api/**` from them. Chromium comes from
-`/opt/pw-browsers` (`PLAYWRIGHT_BROWSERS_PATH`).
+serves the built app with `vite preview` and answers `/api/**` from them. Chromium is wherever
+`npx playwright install chromium` put it (`PLAYWRIGHT_BROWSERS_PATH` is honoured; the scripts fall
+back to `/opt/pw-browsers` only when that directory exists). `E2E_PORT` overrides a script's preview port.
 
 ```bash
-npm run unit                       # pure chart logic vs real fixtures: tone→session alignment,
-                                   # 7-lag lead/lag reliability rule (mirrors analytics/stats.py)
+npm run unit                       # pure logic vs real fixtures: tone→session alignment, 7-lag
+                                   # lead/lag rule (mirrors analytics/stats.py), lab batch limits
+                                   # (mirror services/lab.py), busy retry, currency formatting
 npm run build && npm run screens   # every page at 1440 + 390 px, dark + light → e2e/screens/
                                    # fails on page/console errors and horizontal overflow
 npm run smoke                      # interaction checks: shortcuts, palette, filters, alerts, export,
-                                   # failed refresh/watch, sticky rail, canonical URL, lab upload…
+                                   # failed refresh/watch, sticky rail, canonical URL, lab limits
+                                   # and busy retry…
 SENTINET_API=http://127.0.0.1:8000 npm run live -- AAPL   # real backend, no mocks → e2e/screens/live/
 ```
 

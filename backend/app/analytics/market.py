@@ -7,9 +7,10 @@ Regime: a weighted risk-appetite score in [-1, 1] —
     VIX               (w 0.25)  (20 − VIX) / 10, clipped
     S&P 500 trend     (w 0.30)  tanh(1-month return / 3%)
 
->= +0.3 "Risk-on", <= −0.3 "Risk-off", else "Neutral" — except when sentiment
-and prices disagree: fearful sentiment with firm prices is a "Wall of worry",
-greedy sentiment with slipping prices is "Complacent".
+>= +0.3 "Risk-on", <= −0.3 "Risk-off", else "Mixed" (with the gauges that make it
+so: "Mixed: Fear & Greed 31 (Fear), VIX calm") — except when sentiment and prices
+disagree: fearful sentiment with firm prices is a "Wall of worry", greedy
+sentiment with slipping prices is "Complacent".
 """
 from __future__ import annotations
 
@@ -109,7 +110,11 @@ def market_regime(fg: FearGreed | None, indices: list[IndexQuote]) -> tuple[str,
         label = f"Wall of worry: {rating}, prices firm"
     elif s_fg is not None and s_trend is not None and s_fg >= 0.1 and s_trend <= -0.2:
         label = f"Complacent: {rating}, prices slipping"
-    else:
-        base = "Risk-on" if risk >= REGIME_THRESHOLD else "Risk-off" if risk <= -REGIME_THRESHOLD else "Neutral"
+    elif abs(risk) >= REGIME_THRESHOLD:
+        base = "Risk-on" if risk > 0 else "Risk-off"
         label = f"{base}: {rating}" if rating else base
+    else:  # neither side: say which gauges point where ("Neutral: Fear" read as a contradiction)
+        gauges = ([f"Fear & Greed {fg.score:.0f} ({rating})"] if fg is not None else []) + (
+            [f"VIX {_vix_state(vix.price)}"] if vix is not None and vix.price else [])
+        label = "Mixed: " + ", ".join(gauges) if gauges else "Mixed"
     return label, "; ".join(bits) + "."

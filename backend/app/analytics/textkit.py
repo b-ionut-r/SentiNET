@@ -103,6 +103,26 @@ def relevance(text: str, company: CompanyRef) -> float:
         return 0.8 if any(n and re.search(rf"\b{re.escape(n)}\b", text) for n in names) else 0.0
 
 
+_SISTER_RE = re.compile(r"^sister company '(?P<name>[^']+)'")
+SISTER_ONLY_BELOW = 0.35  # relevance under which a text naming a sister company is about the sister only
+
+
+def sister_company(text: str, company: CompanyRef) -> str | None:
+    """The separately listed sister company `text` names *instead of* `company` ("Vodafone Idea"
+    for VOD.L, "Toyota Industries" for 7203.T), or None — None too when the text also reads as
+    about the company itself, or when the NLP layer cannot tell."""
+    try:
+        from app.nlp.relevance import explain_relevance
+
+        result = explain_relevance(text, company)
+        score = float(result.score)
+        names = [m.group("name") for e in result.evidence if (m := _SISTER_RE.match(str(e)))]
+        return names[0] if names and (not math.isfinite(score) or score < SISTER_ONLY_BELOW) else None
+    except Exception as exc:  # noqa: BLE001
+        _fallback("explain_relevance", exc)
+        return None
+
+
 def publisher_name(name_or_domain: str | None) -> str | None:
     """Canonical outlet name ("Barron's on MSN" -> "Barron's")."""
     if not name_or_domain:

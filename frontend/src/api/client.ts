@@ -2,6 +2,7 @@
  * Typed fetchers for the SentiNET API (`/api/*`) plus the SSE helper used by
  * the Intel page's live scan. All functions throw `ApiError` on failure.
  */
+import { parseRetryAfter } from "./busy";
 import type {
   AlertEvent,
   AlertRule,
@@ -25,10 +26,13 @@ const BASE: string = import.meta.env.VITE_API_BASE ?? "";
 
 export class ApiError extends Error {
   readonly status: number;
-  constructor(message: string, status: number) {
+  /** Seconds the server asked us to wait before retrying (`Retry-After` on a busy 503), else null. */
+  readonly retryAfter: number | null;
+  constructor(message: string, status: number, retryAfter: number | null = null) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.retryAfter = retryAfter;
   }
 }
 
@@ -59,7 +63,7 @@ async function request<T>(path: string, init?: RequestInit & { signal?: AbortSig
     } catch {
       /* non-JSON error body */
     }
-    throw new ApiError(detailOf(body, `${res.status} ${res.statusText || "error"}`), res.status);
+    throw new ApiError(detailOf(body, `${res.status} ${res.statusText || "error"}`), res.status, parseRetryAfter(res.headers.get("Retry-After")));
   }
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
@@ -76,7 +80,8 @@ export const api = {
     request<HistoryResponse>(`/api/history/${enc(ticker)}?days=${days}`, { signal }),
   market: (signal?: AbortSignal) => request<MarketOverview>("/api/market", { signal }),
   search: (q: string, signal?: AbortSignal) => request<SymbolMatch[]>(`/api/search?q=${enc(q)}`, { signal }),
-  labScore: (body: ScoreRequest) => request<ScoreResponse>("/api/lab/score", { method: "POST", body: JSON.stringify(body) }),
+  labScore: (body: ScoreRequest, signal?: AbortSignal) =>
+    request<ScoreResponse>("/api/lab/score", { method: "POST", body: JSON.stringify(body), signal }),
   watchlist: (signal?: AbortSignal) => request<WatchItem[]>("/api/watchlist", { signal }),
   watchAdd: (ticker: string) => request<WatchItem[]>("/api/watchlist", { method: "POST", body: JSON.stringify({ ticker }) }),
   watchRemove: (ticker: string) => request<WatchItem[]>(`/api/watchlist/${enc(ticker)}`, { method: "DELETE" }),

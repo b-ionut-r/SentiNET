@@ -29,6 +29,10 @@ C = {
     "SOFI": CompanyRef(ticker="SOFI", name="SoFi Technologies, Inc.", short_name="SoFi", industry="Credit Services"),
     "GME": CompanyRef(ticker="GME", name="GameStop Corp.", short_name="GameStop", industry="Specialty Retail"),
     "EBAY": CompanyRef(ticker="EBAY", name="eBay Inc.", short_name="eBay", industry="Internet Retail"),
+    "TWLO": CompanyRef(ticker="TWLO", name="Twilio Inc.", short_name="Twilio", industry="Software - Infrastructure"),
+    "SNPS": CompanyRef(ticker="SNPS", name="Synopsys, Inc.", short_name="Synopsys", industry="Software - Application"),
+    "TGT": CompanyRef(ticker="TGT", name="Target Corporation", short_name="Target", industry="Discount Stores"),
+    "MRNA": CompanyRef(ticker="MRNA", name="Moderna, Inc.", short_name="Moderna", industry="Biotechnology"),
 }
 
 
@@ -104,6 +108,27 @@ def test_events_belong_to_their_subject(ticker, text, want):
     ("NVDA", "Nvidia stock falls as Elon Musk unveils new Tesla chip", ["price_down"]),
 ])
 def test_deals_belong_to_every_party(ticker, text, want):
+    assert sorted(e.key for e in detect_events(text, C[ticker])) == sorted(want)
+
+
+@pytest.mark.parametrize(("ticker", "text", "want"), [
+    # live TWLO/TGT (2026-10-05): CNBC's daily column title. A headline passive belongs
+    # to the name right before it in its comma clause.
+    ("TWLO", "Twilio downgraded, Synopsys upgraded: Wall Street's top analyst calls", ["analyst_downgrade"]),
+    ("SNPS", "Twilio downgraded, Synopsys upgraded: Wall Street's top analyst calls", ["analyst_upgrade"]),
+    ("TGT", "Target upgraded, Moderna downgraded: Wall Street's top analyst calls", ["analyst_upgrade"]),
+    ("MRNA", "Target upgraded, Moderna downgraded: Wall Street's top analyst calls", ["analyst_downgrade"]),
+    ("AAPL", "Apple slips as AMD stock downgraded to Sell", []),
+    # coordinated names share the call; the company's own passive and active objects stay
+    ("NVDA", "Nvidia, AMD downgraded at Citi on AI capex worries", ["analyst_downgrade"]),
+    ("AMD", "Nvidia, AMD downgraded at Citi on AI capex worries", ["analyst_downgrade"]),
+    ("TWLO", "Twilio downgraded at HSBC despite Muse-induced hype", ["analyst_downgrade"]),  # live
+    ("TWLO", "HSBC Just Downgraded Twilio Stock. Here's Why.", ["analyst_downgrade"]),  # live
+    ("TGT", "Target stock upgraded to Buy at HSBC as analyst sees traffic-driven recovery gaining momentum",
+     ["analyst_upgrade"]),  # live
+    ("TWLO", "Twilio gets downgraded to Reduce at HSBC", ["analyst_downgrade"]),
+])
+def test_passive_rating_changes_belong_to_the_name_before_them(ticker, text, want):
     assert sorted(e.key for e in detect_events(text, C[ticker])) == sorted(want)
 
 

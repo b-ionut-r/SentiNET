@@ -27,8 +27,10 @@
      piece of two different names ("Pro" of "Vision Pro" / "iPhone 18 Pro
      Max") — and some developments never share a story: different firms'
      opposite calls (Citi's Buy initiation vs Morgan Stanley's target cut),
-     insiders buying vs insiders selling. The company's multi-word name
-     ("SoFi Technologies") is the company, not a story term.
+     insiders buying vs insiders selling, the company's own news vs a
+     headline naming it only beside another company's ("Nike Sinks 8% ...;
+     Lululemon ... Remain Flat"; such stories rank last). The company's
+     multi-word name ("SoFi Technologies") is the company, not a story term.
   4. Refinement: merge close cores, move clearly misplaced members, attach
      satellites to the core whose *defining* features they share.
   5. Continuing developments (a buyback raised again, an insider's buying
@@ -54,7 +56,7 @@ from itertools import pairwise
 
 from app.nlp.events import detect_events, is_known_firm
 from app.nlp.publishers import publisher_trust
-from app.nlp.relevance import company_phrases, company_terms
+from app.nlp.relevance import company_phrases, company_terms, explain_relevance
 from app.nlp.text import (
     CALENDAR_WORDS,
     GENERIC_WORDS,
@@ -340,6 +342,7 @@ class _Doc:
     firms: frozenset[str] = frozenset()  # analyst firms acting in this headline ("citi")
     stances: frozenset[str] = frozenset()  # their actions' polarity ("bull", "bear", "neutral")
     program: frozenset[str] = frozenset()  # the company's own continuing developments ("buyback")
+    bystander: bool = False  # names the company only beside another company's news (see _bystanders)
 
 
 @dataclass
@@ -616,6 +619,24 @@ def _hub_damping(vectors: list[dict[str, float]], df: Counter[str]) -> dict[str,
     return damping
 
 
+_NAME_TOKEN_RE = re.compile(r"\$?[a-z0-9][a-z0-9&]*")
+
+
+def _bystanders(titles: list[str], company: CompanyRef | None) -> list[bool]:
+    """Per title: is the company named only beside another company's news ("Nike Sinks 8% ...;
+    Lululemon and On Holding Remain Flat")? Relevance decides (the engine's subject attribution);
+    titles that never name the company, or open with it, are skipped without asking."""
+    if company is None:
+        return [False] * len(titles)
+    own = company_terms(company)
+    out: list[bool] = []
+    for title in titles:
+        words = _NAME_TOKEN_RE.findall(fold(title).lower())
+        named = bool(own.intersection(words))
+        out.append(named and words[0] not in own and explain_relevance(title, company).bystander)
+    return out
+
+
 def _vectorize(titles: list[str], company: CompanyRef | None, times: list[float | None] | None = None
                ) -> tuple[list[_Doc], dict[str, float], frozenset[str]]:
     own = company_terms(company)
@@ -640,11 +661,11 @@ def _vectorize(titles: list[str], company: CompanyRef | None, times: list[float 
                 for r in raw]
     hubs = _hub_damping(weighted, df)
     docs: list[_Doc] = []
-    for vec, r in zip(weighted, raw, strict=True):
+    for vec, r, bystander in zip(weighted, raw, _bystanders(titles, company), strict=True):
         vec = {f: w * hubs.get(f, 1.0) for f, w in vec.items()}
         docs.append(_Doc(vec=_unit(vec), raw=vec, anchors=frozenset(a for a in r.anchors if a in vec),
                          surfaces=r.surfaces, trivial=frozenset(r.trivial), name_parts=frozenset(r.name_parts),
-                         firms=r.firms, stances=r.stances, program=r.program))
+                         firms=r.firms, stances=r.stances, program=r.program, bystander=bystander))
     return docs, idf, common
 
 
@@ -675,28 +696,36 @@ def _name_parts(group: list[int], docs: list[_Doc]) -> frozenset[str]:
     return frozenset().union(*(docs[i].name_parts for i in group))
 
 
-_Actors = tuple[frozenset[str], frozenset[str], frozenset[str]]  # (analyst firms, their stances, program events)
+# (analyst firms, their stances, program events, roles: whether the headlines are the company's
+# own news or only name it beside another company's)
+_Actors = tuple[frozenset[str], frozenset[str], frozenset[str], frozenset[str]]
 _INSIDER_SIDES = (frozenset({"insider_buy"}), frozenset({"insider_sell"}))
+_OWN, _BYSTANDER = frozenset({"own"}), frozenset({"bystander"})
 
 
 def _actors(i: int, docs: list[_Doc]) -> _Actors:
-    return docs[i].firms, docs[i].stances, docs[i].program
+    return docs[i].firms, docs[i].stances, docs[i].program, _BYSTANDER if docs[i].bystander else _OWN
 
 
 def _group_actors(group: list[int], docs: list[_Doc]) -> _Actors:
     return (frozenset().union(*(docs[i].firms for i in group)), frozenset().union(*(docs[i].stances for i in group)),
-            frozenset().union(*(docs[i].program for i in group)))
+            frozenset().union(*(docs[i].program for i in group)),
+            frozenset().union(*(_BYSTANDER if docs[i].bystander else _OWN for i in group)))
 
 
 def _merge_actors(a: _Actors, b: _Actors) -> _Actors:
-    return a[0] | b[0], a[1] | b[1], a[2] | b[2]
+    return a[0] | b[0], a[1] | b[1], a[2] | b[2], a[3] | b[3]
 
 
 def _conflict(a: _Actors, b: _Actors) -> bool:
     """Developments that cannot be one story: different firms acting in
     opposite directions (Citi initiating at Buy is not Morgan Stanley's target
-    cut), or insiders buying vs insiders selling."""
-    (firms_a, stances_a, program_a), (firms_b, stances_b, program_b) = a, b
+    cut), insiders buying vs insiders selling, or the company's own news vs a
+    headline that only names it beside another company's ("Nike Sinks 8% ...;
+    Lululemon ... Remain Flat" is no part of Lululemon's guidance-cut story)."""
+    (firms_a, stances_a, program_a, roles_a), (firms_b, stances_b, program_b, roles_b) = a, b
+    if roles_a != roles_b:
+        return True
     if (firms_a and firms_b and not firms_a & firms_b and stances_a and stances_b
             and not stances_a & stances_b):
         return True
@@ -1021,7 +1050,10 @@ def cluster_narratives(items: list[ClusterItem], company: CompanyRef | None = No
     weight), so callers can rank everything by their own impact metric;
     at most `max_clusters` clusters are returned. Each cluster's
     representative is its most central, most trusted, non-question headline;
-    `terms` are its top distinguishing features in readable form."""
+    `terms` are its top distinguishing features in readable form. With
+    `company`, headlines that name it only as a bystander of another
+    company's news form their own clusters, ranked after its own stories, so
+    one never fronts (or joins) the company's own story."""
     if not items:
         return []
     titles = [it.title or "" for it in items]
@@ -1044,7 +1076,9 @@ def cluster_narratives(items: list[ClusterItem], company: CompanyRef | None = No
         latest = max((items[i].timestamp.timestamp() for i in g if items[i].timestamp), default=0.0)
         return (-(weight + 0.25 * (len(g) - 1)), -len(g), -latest)
 
-    groups.sort(key=lambda g: (*group_key(g), g[0]))
+    # The company's own stories first: a headline naming it only beside another company's
+    # news never clusters with them (see _conflict) and never crowds them out of the list.
+    groups.sort(key=lambda g: (docs[g[0]].bystander, *group_key(g), g[0]))
     out: list[Cluster] = []
     for g in groups[:max_clusters]:
         rep = _representative(g, items, docs)

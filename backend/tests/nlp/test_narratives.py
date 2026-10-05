@@ -437,3 +437,54 @@ def test_another_companys_program_does_not_join():
                      ("Nvidia stock dips as AMD announces $12 billion buyback", 30),
                      ("Nvidia slips as AMD unveils $12 billion buyback", 31)], NVDA)
     assert ["0", "1"] in groups and ["2", "3"] in groups
+
+
+# --------------------------------------------------------------------------- #
+# Bystander headlines (live LULU, 2026-10-05): "Nike Sinks 8% ...; Lululemon and On
+# Holding Remain Flat" headed a story of six Lululemon guidance-cut items. It still
+# reaches the story pool (a Nike snippet lifts its relevance), so clustering itself
+# must keep it apart.
+# --------------------------------------------------------------------------- #
+LULU = CompanyRef(ticker="LULU", name="Lululemon Athletica Inc.", short_name="Lululemon", industry="Apparel Retail")
+NIKE_BYSTANDER = ("Nike Sinks 8% as Weak Outlook and Layoffs Follow Revenue Miss; Lululemon and On Holding "
+                  "Remain Flat")
+LULU_GUIDANCE = [
+    "Lululemon (TSX:LULU): Why Did It Cut Full-Year Guidance Again?",  # live
+    "Lululemon Athletica stock faces a lower 2026 outlook",  # live
+    "Lululemon cuts full-year outlook as tariffs bite",
+    "Lululemon shares sink after outlook cut",
+]
+
+
+def test_bystander_headlines_are_recognised():
+    from app.nlp.narratives import _bystanders
+
+    assert _bystanders([NIKE_BYSTANDER, *LULU_GUIDANCE, "Nike Sinks 8% on Weak Outlook"], LULU) == \
+        [True, False, False, False, False, False]  # a headline not naming the company is no bystander
+    assert _bystanders([NIKE_BYSTANDER], None) == [False]
+
+
+def test_a_bystander_headline_never_fronts_the_companys_story():
+    items = [ClusterItem(id=str(i), title=t, timestamp=T0 + timedelta(hours=i), publisher="Yahoo Finance",
+                         weight=6.0 if i == 0 else 1.0)  # the bystander is the most-copied, heaviest item
+             for i, t in enumerate([NIKE_BYSTANDER, *LULU_GUIDANCE])]
+    clusters = cluster_narratives(items, LULU)
+    assert [c.item_ids for c in clusters if "0" in c.item_ids] == [["0"]]
+    assert clusters[-1].item_ids == ["0"]  # the company's own stories rank first
+    assert all(c.title != NIKE_BYSTANDER for c in clusters if len(c.item_ids) > 1)
+
+
+def test_bystander_and_own_headlines_never_share_a_story(monkeypatch):
+    """Even when they share the story's words: a headline judged to be another company's
+    news is kept out of the company's story (and leads none of it)."""
+    from app.nlp import narratives
+
+    flagged = "Lululemon Outlook Cut Weighs on Peers as Nike Sinks 8%"
+    real = narratives._bystanders
+    monkeypatch.setattr(narratives, "_bystanders",
+                        lambda titles, company: [t == flagged or b for t, b in zip(titles, real(titles, company),
+                                                                                   strict=True)])
+    items = [ClusterItem(id=str(i), title=t, timestamp=T0 + timedelta(hours=i), publisher="X")
+             for i, t in enumerate([*LULU_GUIDANCE, flagged])]
+    groups = sorted(sorted(c.item_ids) for c in cluster_narratives(items, LULU))
+    assert ["4"] in groups and any(len(g) > 1 and "4" not in g for g in groups)

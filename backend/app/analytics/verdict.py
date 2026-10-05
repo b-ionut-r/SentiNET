@@ -227,6 +227,9 @@ def _headline(f: Facts, label: str, stance: str, with_story: bool) -> str:
             tail = _retail_tail(f, sign > 0)
             if tail:
                 core += f"; {tail}"
+    play = f.deal_in_play
+    if play is not None and play.material:  # a deal that would reshape the company is the news
+        core += f"; a {play.amount_text} deal ({play.share_text}) is in play"
     if f.prepared.engine_error:
         unscored = count(len(f.prepared.items), "text")
         return f"{label} from structured data only ({unscored} could not be scored): {core}."

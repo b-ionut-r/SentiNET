@@ -312,7 +312,7 @@ def test_quality_notes_distinguish_slow_from_failed() -> None:
     found = insights(run(GOOGLE, NEUTRAL_NEWS), run(STOCKTWITS, status="error", error="timeout"),
                      intel_status={"tone": "error: still loading after 12s; ready on next refresh",
                                    "analysts": "error: UpstreamError: HTTP 500", "quote": "ok"})
-    pending = titled(found, "still loading")
+    pending = titled(found, "not loaded this run")
     assert pending is not None and pending.severity == "info"
     failed = titled(found, "Some market data unavailable")
     assert failed is not None and "Analyst ratings could not be loaded" in failed.detail

@@ -42,6 +42,7 @@ EVENTS = (
     ("bankruptcy", r"bankruptcy|going concern", "bear", "legal"),
     ("short_report", r"short[- ]seller", "bear", "trading"),
     ("buyback", r"buyback", "bull", "capital_return"),
+    ("m_and_a", r"\btakeover\b|\bmerger\b|\bbid for\b", "neutral", "deals"),
     ("price_up", r"\b(soars|jumps|surges)\b", "bull", None),
     ("price_down", r"\b(plunges|falls|drops)\b", "bear", None),
 )
@@ -78,6 +79,8 @@ class FakeNLP:
 
     @staticmethod
     def relevance(text: str, company: CompanyRef) -> float:
+        sister = FakeNLP.sister(text, company)  # like the real scorer: a sister company is not a mention
+        text = text.replace(sister, " ") if sister else text
         base = re.escape(company.base_symbol)
         if re.search(rf"\${base}\b", text, re.I):
             return 1.0
@@ -85,6 +88,12 @@ class FakeNLP:
             return 0.9
         names = [company.short_name, *company.aliases]
         return 0.85 if any(n and re.search(rf"\b{re.escape(n)}\b", text, re.I) for n in names) else 0.0
+
+    @staticmethod
+    def sister(text: str, company: CompanyRef) -> str | None:
+        """A brand followed by a sister-issuer word ("Acme Industries", "Vodafone Idea")."""
+        m = re.search(rf"\b{re.escape(company.short_name or company.name)} (Industries|Idea)\b", text)
+        return m.group(0) if m else None
 
     @staticmethod
     def duplicates(titles):
@@ -154,6 +163,7 @@ def fake_nlp(request, monkeypatch):
     fake = FakeNLP()
     monkeypatch.setattr(textkit, "analyze", fake.analyze)
     monkeypatch.setattr(textkit, "relevance", fake.relevance)
+    monkeypatch.setattr(textkit, "sister_company", fake.sister)
     monkeypatch.setattr(textkit, "duplicates", fake.duplicates)
     monkeypatch.setattr(textkit, "clusters", fake.clusters)
     monkeypatch.setattr(textkit, "keywords", fake.keywords)

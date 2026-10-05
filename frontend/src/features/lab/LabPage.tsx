@@ -2,10 +2,15 @@
  * Sentiment lab: paste or upload text (one item per line, or a CSV column),
  * optionally scope to a ticker for relevance, and inspect the engine's
  * per-item scores, drivers, themes and events. Export results as CSV.
+ *
+ * One run is bounded like the backend (batch.ts): over-long texts are cut and
+ * whatever is past the item/character budget is left out — said up front, with
+ * the rest one click away for the next run. A busy lab is waited out (busy.ts).
  */
-import { Beaker, Download, FileUp, Sparkles } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Beaker, Download, FileUp, Info, ListPlus, Sparkles } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
+import { BUSY_RETRIES, type BusyWait, busyRetryAfter } from "../../api/busy";
 import { useLabScore } from "../../api/hooks";
 import type { ScoreResponse } from "../../api/types";
 import { SegmentLegend, StackedBar } from "../../components/charts/Bars";
@@ -15,11 +20,14 @@ import { MetaGroup } from "../../components/ui/MetaGroup";
 import { Empty, ErrorState } from "../../components/ui/Misc";
 import { Panel, SubHead } from "../../components/ui/Panel";
 import { cx } from "../../lib/cx";
-import { plural, signed } from "../../lib/format";
+import { int, plural, signed } from "../../lib/format";
 import { polarityOf, textTone, toneFill } from "../../lib/sentiment";
+import { useNow } from "../../lib/useNow";
 import { eventLabel, themeLabel } from "../intel/themes";
+import { type BatchPlan, MAX_ITEMS, MAX_TEXT_CHARS, planBatch, planNotes } from "./batch";
 
-const MAX_ITEMS = 500;
+/** Items an upload puts in the box: enough for many runs, bounded so the page stays responsive. */
+const MAX_LOADED = MAX_ITEMS * 20;
 
 const EXAMPLE = [
   "Morgan Stanley raises Nvidia price target to $250 from $220, keeps Overweight",
@@ -100,30 +108,42 @@ function exportCsv(res: ScoreResponse) {
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+/** The scored response plus what was sent for it (for "N of M items" and the next batch). */
+interface Shown {
+  res: ScoreResponse;
+  plan: BatchPlan;
+  /** Input items after the scored ones: the next run's batch. */
+  rest: string[];
+}
+
 export default function LabPage() {
   const [text, setText] = useState(EXAMPLE);
   const [ticker, setTicker] = useState("");
   const [fileNote, setFileNote] = useState<string | null>(null);
+  const [shown, setShown] = useState<Shown | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const score = useLabScore();
-  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-  const over = lines.length > MAX_ITEMS;
+  const lines = useMemo(() => text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean), [text]);
+  const plan = useMemo(() => planBatch(lines), [lines]);
+  const notes = planNotes(plan);
+  const trimmed = plan.cut > 0 || plan.left > 0;
 
   useEffect(() => {
     document.title = "Sentiment lab — SentiNET";
   }, []);
 
   const run = () => {
-    if (!lines.length || over) return;
-    score.mutate({ texts: lines, ticker: ticker.trim() ? ticker.trim().toUpperCase() : null });
+    if (!plan.texts.length || score.isPending) return;
+    const rest = lines.slice(plan.texts.length);
+    score.mutate({ texts: plan.texts, ticker: ticker.trim() ? ticker.trim().toUpperCase() : null }, { onSuccess: (res) => setShown({ res, plan, rest }) });
   };
 
   const onFile = async (f: File) => {
     const raw = await f.text();
     const items = /\.csv$/i.test(f.name) ? textsFromCsv(raw) : raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-    // Load at most what one run can score, and say so — the Score button must work on what's loaded.
-    setText(items.slice(0, MAX_ITEMS).join("\n"));
-    setFileNote(`${f.name}: ${plural(items.length, "item")}${items.length > MAX_ITEMS ? ` — loaded the first ${MAX_ITEMS} (the most one run scores)` : ""}`);
+    // Load the whole file (bounded); each run scores what fits and offers the rest next.
+    setText(items.slice(0, MAX_LOADED).join("\n"));
+    setFileNote(`${f.name}: ${plural(items.length, "item")}${items.length > MAX_LOADED ? ` — loaded the first ${int(MAX_LOADED)}` : ""}`);
   };
 
   return (
@@ -147,13 +167,22 @@ export default function LabPage() {
               if ((e.metaKey || e.ctrlKey) && e.key === "Enter") run();
             }}
           />
-          <div className="mt-1 flex justify-between text-2xs">
-            <span className={cx(over ? "text-critical" : "text-muted")}>
-              {plural(lines.length, "item")}
-              {over && ` — max ${MAX_ITEMS}`}
+          <div className="mt-1 flex justify-between gap-3 text-2xs">
+            <span className={cx("shrink-0 num", trimmed ? "text-ink-2" : "text-muted")} data-testid="lab-count">
+              {plural(plan.items, "item")} · {plural(plan.inputChars, "character")}
             </span>
             {fileNote && <span className="truncate text-muted">{fileNote}</span>}
           </div>
+          {notes.length > 0 && (
+            <ul className="mt-2 space-y-1 rounded-lg bg-warn/10 px-3 py-2 text-xs leading-[18px] text-ink-2" style={{ boxShadow: "inset 0 0 0 1px rgb(var(--warn) / 0.3)" }} aria-live="polite" data-testid="lab-limits">
+              {notes.map((n) => (
+                <li key={n} className="flex gap-2">
+                  <Info className="mt-0.5 size-3.5 shrink-0 text-warn" aria-hidden />
+                  <span>{n}</span>
+                </li>
+              ))}
+            </ul>
+          )}
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <input value={ticker} onChange={(e) => setTicker(e.target.value)} placeholder="Ticker (optional)" className="field w-36 uppercase placeholder:normal-case" aria-label="Optional ticker for relevance scoring" />
             <input ref={fileRef} type="file" accept=".txt,.csv,text/plain,text/csv" className="hidden" onChange={(e) => {
@@ -168,25 +197,30 @@ export default function LabPage() {
             <button className="btn" onClick={() => (setText(EXAMPLE), setFileNote(null))}>
               <Sparkles className="size-3.5" /> Example
             </button>
-            <button className="btn btn-primary ml-auto" onClick={run} disabled={!lines.length || over || score.isPending}>
-              {score.isPending ? "Scoring…" : "Score"}
+            <button className="btn btn-primary ml-auto" onClick={run} disabled={!plan.texts.length || score.isPending}>
+              {score.busy ? "Waiting…" : score.isPending ? "Scoring…" : trimmed ? `Score ${int(plan.texts.length)}` : "Score"}
             </button>
           </div>
+          {score.busy && <BusyNotice wait={score.busy} onCancel={score.cancel} />}
           <p className="mt-2 text-2xs text-muted">⌘/Ctrl + Enter to score. Add a ticker to see how clearly each item is about it.</p>
         </Panel>
         <div className="space-y-4 lg:col-span-7">
           {score.error ? (
             <Panel title="Results">
-              <ErrorState title="Scoring failed" message={score.error.message} onRetry={run} />
+              {busyRetryAfter(score.error) != null ? (
+                <ErrorState title="Lab still busy" message={`${score.error.message} Tried ${BUSY_RETRIES + 1} times; other runs are still queued.`} onRetry={run} />
+              ) : (
+                <ErrorState title="Scoring failed" message={score.error.message} onRetry={run} />
+              )}
             </Panel>
-          ) : !score.data ? (
+          ) : !shown ? (
             <Panel title="Results">
-              <Empty icon={<Beaker />} title="Nothing scored yet">
+              <Empty icon={<Beaker />} title={score.isPending ? `Scoring ${plural(plan.texts.length, "item")}…` : "Nothing scored yet"}>
                 Press Score to run the engine. Every result shows the terms that moved it.
               </Empty>
             </Panel>
           ) : (
-            <Results res={score.data} stale={score.isPending} />
+            <Results shown={shown} stale={score.isPending} onNext={() => (setText(shown.rest.join("\n")), setFileNote(null))} />
           )}
         </div>
       </div>
@@ -194,7 +228,25 @@ export default function LabPage() {
   );
 }
 
-function Results({ res, stale }: { res: ScoreResponse; stale: boolean }) {
+/** The lab is busy with other runs: count down to the automatic retry, cancellable. */
+function BusyNotice({ wait, onCancel }: { wait: BusyWait; onCancel: () => void }) {
+  const now = useNow(250);
+  const left = Math.max(0, Math.ceil((wait.until - now) / 1000));
+  return (
+    <div role="status" className="mt-3 flex items-center gap-3 rounded-lg bg-raised px-3 py-2 text-xs text-ink-2" data-testid="lab-busy">
+      <span className="min-w-0 flex-1">
+        <span className="font-medium text-ink">Lab busy</span> — {left > 0 ? `retrying in ${left}s…` : "retrying…"}
+        <span className="text-muted"> (retry {wait.retry} of {wait.retries})</span>
+      </span>
+      <button className="btn h-7 text-xs" onClick={onCancel}>
+        Cancel
+      </button>
+    </div>
+  );
+}
+
+function Results({ shown, stale, onNext }: { shown: Shown; stale: boolean; onNext: () => void }) {
+  const { res, plan, rest } = shown;
   const s = res.summary;
   const weightedByRelevance = res.results.some((r) => r.relevance != null);
   const segs = [
@@ -206,11 +258,24 @@ function Results({ res, stale }: { res: ScoreResponse; stale: boolean }) {
     <div className={cx("space-y-4", stale && "is-refetching")}>
       <Panel
         title="Summary"
-        subtitle={`engine ${res.engine} · ${plural(s.n, "item")}`}
+        subtitle={[
+          `engine ${res.engine}`,
+          plan.left ? `${int(s.n)} of ${plural(plan.items, "item")}` : plural(s.n, "item"),
+          plan.cut ? `${int(plan.cut)} cut to ${int(MAX_TEXT_CHARS)} characters` : null,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
         actions={
-          <button className="btn h-7 text-xs" onClick={() => exportCsv(res)}>
-            <Download className="size-3.5" /> CSV
-          </button>
+          <>
+            {rest.length > 0 && (
+              <button className="btn h-7 text-xs" onClick={onNext} title="Replace the input with the items this run left out">
+                <ListPlus className="size-3.5" /> Load the other {int(rest.length)}
+              </button>
+            )}
+            <button className="btn h-7 text-xs" onClick={() => exportCsv(res)}>
+              <Download className="size-3.5" /> CSV
+            </button>
+          </>
         }
       >
         <div className="grid gap-5 sm:grid-cols-2">

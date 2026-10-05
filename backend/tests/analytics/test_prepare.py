@@ -40,6 +40,28 @@ def test_ticker_specific_items_survive_with_a_relevance_floor() -> None:
     assert len(p.items) == 1 and p.items[0].relevance == pytest.approx(0.7)
 
 
+def test_ticker_keyed_feeds_cannot_lift_a_sister_company_back_in() -> None:
+    # Live VOD.L: a ticker-keyed feed's 'Vodafone Idea …' items were floored at 0.7 although the title
+    # names only the separately listed Indian affiliate.
+    sister = "Acme Industries shares slump on forklift recall"
+    p = kept([run(FINNHUB, [raw(sister, ticker_specific=True),
+                            raw(sister + " again", extra={"provider_relevance": 0.9}),
+                            raw("Acme Industries and Acme both rally", ticker_specific=True),
+                            raw("Company reports steady quarter", ticker_specific=True)])])
+    assert sorted(it.title for it in p.items) == ["Acme Industries and Acme both rally",
+                                                  "Company reports steady quarter"]
+    assert p.dropped["irrelevant"] == 2
+
+
+@pytest.mark.real_nlp
+def test_real_sister_company_titles_get_no_feed_floor() -> None:
+    pytest.importorskip("app.nlp.relevance")
+    vod = company("VOD.L", "Vodafone Group Plc", "Vodafone")
+    titles = ["Vodafone Idea shares slump as funding talks drag on", "Vodafone shares rise after Q1 trading update"]
+    p = kept([run(FINNHUB, [raw(t, ticker_specific=True) for t in titles])], vod)
+    assert [it.title for it in p.items] == [titles[1]]
+
+
 def test_snippet_mention_counts_but_less_than_title_mention() -> None:
     p = kept([run(GOOGLE, [raw("Chip stocks rally on AI demand", body="Acme shares rose 4% after the report")])])
     assert len(p.items) == 1 and p.items[0].relevance == pytest.approx(0.8 * 0.85, abs=1e-3)

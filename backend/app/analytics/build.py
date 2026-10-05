@@ -4,7 +4,8 @@ Pure, synchronous and deterministic given its inputs (no network, no clock:
 `inputs.now` is the only notion of time). Steps:
 
     sanitize structured intel → prepare items → tone summaries → narratives → themes/keywords/timeline →
-    crowd & attention → pending-deal check → six components → composite verdict → catalysts →
+    crowd & attention → deal checks (8-K pending acquisition; else a deal in play in the news) →
+    six components → composite verdict → catalysts →
     delta vs previous snapshot → insights → brief → ranked signals
 
 One bad provider value must never cost the user the whole analysis: structured
@@ -38,7 +39,7 @@ from app.analytics.composite import (
     technicals_part,
 )
 from app.analytics.crowd import as_float, as_int, attention_view, crowd_view, merged_metrics, stocktwits_tally
-from app.analytics.deals import pending_deal
+from app.analytics.deals import deal_in_play, pending_deal
 from app.analytics.delta import build_delta
 from app.analytics.facts import Facts, usd_rate
 from app.analytics.inputs import AnalysisInputs
@@ -85,6 +86,9 @@ def build_analysis(inputs: AnalysisInputs) -> Analysis:
     failed: list[str] = []
 
     deal = _guard("Deal detection", lambda: pending_deal(inputs.filings, company, now.date()), lambda: None, failed)
+    # Deal coverage in the news, unless the company's own 8-Ks already show it agreed to be acquired.
+    in_play = None if deal is not None else _guard(
+        "Deal coverage", lambda: deal_in_play(stories, cap_usd, now), lambda: None, failed)
 
     def part(key: ComponentKey, make: Callable[[], Part]) -> Part:
         built = _guard(LABELS[key], make, lambda: Part(key, detail="could not be computed"), failed)
@@ -106,6 +110,7 @@ def build_analysis(inputs: AnalysisInputs) -> Analysis:
         inputs=inputs, prepared=prepared, overall=overall, news=news, social=social, news_recent=recent,
         news_older=older, stories=stories, themes=themes, metrics=metrics, crowd=crowd, stocktwits=tally,
         attention=attention, composite=composite, failed=failed, deal=deal, market_cap_usd=cap_usd,
+        deal_in_play=in_play,
     )
     verdict = build_verdict(facts)
     facts.catalysts = _guard("Catalysts", lambda: build_catalysts(facts), list, failed)

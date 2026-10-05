@@ -66,6 +66,33 @@ def test_catalyst_ordering_and_filters() -> None:
     assert not any("vote" in t or "Quarterly" in t for t in titles)
 
 
+def test_money_follows_what_each_figure_is_denominated_in() -> None:
+    # Live: SHOP.TO (reports in USD) and VOD.L (in EUR) printed EPS estimates without a symbol, and every
+    # non-USD listing printed insider values bare ("6 buys (240K)") although they are USD from every source.
+    from app.schemas import Profile, Quote
+
+    def run_for(currency: str, reporting: str | None):
+        profile = Profile(symbol="X", name="X Corp", financial_currency=reporting)
+        return build_analysis(inputs(ACME, [run(GOOGLE, NEWS)], profile=profile, earnings=earnings(days_until=12),
+                                     quote=Quote(price=215.0, market_cap=280e9, currency=currency),
+                                     analysts=analysts(actions=[action(2, "Wedbush", "main", "Outperform", 176, 160)]),
+                                     insiders=insiders([insider(5, "Ann Lee", "buy", 250_000, "Director")])))
+
+    shop = run_for("CAD", "USD")
+    cat = {c.kind: c for c in shop.catalysts}
+    assert cat["earnings"].detail.startswith("EPS est. $1.25 (range $1.10–$1.40) · revenue est. $5.2B")
+    assert cat["insider"].title == "Ann Lee (Director) bought $250K"  # USD whatever the listing
+    # Broker *action* targets on a cross-listed company quote its US line ($176 vs a C$215 price): % only.
+    assert cat["analyst"].title == "Wedbush raises target (+10%) · Outperform"
+    vod = run_for("GBp", "eur")
+    assert {c.kind: c for c in vod.catalysts}["earnings"].detail.startswith("EPS est. €1.25")
+    unknown = run_for("GBp", None)
+    assert {c.kind: c for c in unknown.catalysts}["earnings"].detail.startswith("EPS est. 1.25 (range")  # never guessed
+    assert "1 buy ($250K) / 0 sells ($0)" in next(c.detail for c in unknown.verdict.components if c.key == "insiders")
+    adr = run_for("USD", "TWD")  # an ADR (TSM): per-ADR estimates are USD although the company reports in TWD
+    assert {c.kind: c for c in adr.catalysts}["earnings"].detail.startswith("EPS est. $1.25")
+
+
 def verdict(score: int, stance: str) -> Verdict:
     return Verdict(score=score, label="x", stance=stance, confidence="medium", confidence_value=0.5,  # type: ignore[arg-type]
                    headline="h")
@@ -115,7 +142,7 @@ def _news_catalysts(stories, analyst_view=None, earnings_view=None):
     from tests.analytics.factories import NOW
 
     facts = SimpleNamespace(inputs=SimpleNamespace(analysts=analyst_view, earnings=earnings_view), now=NOW,
-                            stories=stories)
+                            stories=stories, deal_in_play=None)
     return _news(facts)  # type: ignore[arg-type]
 
 

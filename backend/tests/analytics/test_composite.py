@@ -168,6 +168,12 @@ def test_buy_consensus_with_no_upside_left_is_mixed_not_cautious() -> None:
     assert p.reason.startswith("Analysts mixed: Buy consensus (mean 1.90 from 30 analysts), but mean target")
 
 
+def test_revision_counts_are_pluralized() -> None:
+    # Live TGT: '90d: 1 upgrades / 0 downgrades'.
+    one = analysts(mean=2.2, total=20, upside=12.0, up90=1, actions=[action(10, "UBS", "up", "Buy", 120, 100)])
+    assert "90d: 1 upgrade / 0 downgrades" in analysts_part(one, NOW).detail
+
+
 def test_targets_are_written_in_the_quote_currency() -> None:
     # Live VOD.L (GBp) read 'mean target $121.82'; 7203.T (JPY) 'mean target $3,698.63'.
     from app.analytics.util import money
@@ -201,6 +207,24 @@ def test_insider_selling_is_mild_and_scaled_by_market_cap() -> None:
     assert 44 <= mega.score < 50 and "routine-sized" in mega.reason
     assert small.score < mega.score and small.score >= 30  # 5% of market cap sold: bearish, not catastrophic
     assert "5.00% of market cap" in small.reason
+
+
+def test_insider_buys_count_by_size_and_against_the_selling() -> None:
+    # Live VOD.L read 67 ("Insider buying") on $240K bought vs $20.2M sold: every buyer counted in full.
+    material = insiders_part(insiders([insider(10, "A", "buy", 60_000), insider(12, "B", "buy", 60_000)]), 5e9, NOW)
+    dribs = insiders_part(insiders([insider(10, "A", "buy", 1_500), insider(12, "B", "buy", 4_500)]), 5e9, NOW)
+    assert material.score > dribs.score > 50
+    assert material.facts["material_buyers"] == 2 and dribs.facts["material_buyers"] == 0
+    dwarfed = insiders_part(insiders([insider(10, "A", "buy", 60_000), insider(12, "B", "buy", 60_000),
+                                      insider(20, "C", "sell", 12e6)]), 5e9, NOW)
+    assert dwarfed.score < 50 and dwarfed.facts["token"] == pytest.approx(0.1)
+    assert dwarfed.reason.startswith("Net insider selling: 2 open-market purchases ($120K) by 2 insiders")
+    assert "token-sized next to $12M of discretionary sales" in dwarfed.reason
+    # Pre-arranged (10b5-1) sales do not make discretionary buying token.
+    plan = insiders([insider(10, "A", "buy", 60_000), insider(12, "B", "buy", 60_000),
+                     insider(20, "C", "sell", 12e6).model_copy(update={"text": "Sale under a 10b5-1 trading plan"})])
+    assert insiders_part(plan, 5e9, NOW).facts["token"] == 1.0
+    assert "1 buy ($60K) / 0 sells" in insiders_part(insiders([insider(10, "A", "buy", 60_000)]), 5e9, NOW).detail
 
 
 def test_old_buys_decay() -> None:
