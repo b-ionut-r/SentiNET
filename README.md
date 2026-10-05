@@ -108,6 +108,8 @@ single-flight, so ten users opening the same ticker cost one upstream request.
 
 ## Quick start
 
+Requirements: Docker, or Python 3.11+ and Node 20+ (CI uses 3.11 and 22).
+
 **Docker** (one container serves the API and the web app):
 
 ```bash
@@ -126,7 +128,8 @@ make serve      # production build of the web app, served by the API on :8000
 
 ```bash
 cd backend && source .venv/bin/activate
-python -m app analyze NVDA          # rich terminal brief (add --json for the full payload)
+python -m app analyze NVDA          # rich terminal brief (--json for the full payload; waits up
+                                    # to 30 s for slow GDELT tone, --no-wait skips that)
 python -m app market                # regime, fear & greed, indices, trending
 python -m app sources               # which sources are on, and which need a key
 ```
@@ -180,6 +183,15 @@ attention, market overview), `resolve` (tickers and names), `nlp` (engine, relev
 events, story clustering), `analytics` (the verdict, insights, brief, history and market regime),
 `services` (orchestrator, monitor), `storage` (SQLite), `api`. Frontend: `frontend/src/features/*`
 (intel, market, compare, lab, watchlist).
+
+## Security
+
+SentiNET has no user accounts or authentication. It is meant to run on your own machine, and it
+listens on localhost by default: `docker compose` binds `127.0.0.1` unless you set `SENTINET_BIND`.
+To expose it, put it behind an authenticating reverse proxy and set `SENTINET_ALLOWED_HOSTS` (and
+`FORWARDED_ALLOW_IPS` for the proxy). Requests are size-capped, Lab scoring runs on its own worker
+with admission control, provider links are restricted to http(s), and API keys never appear in
+logs or responses.
 
 ## Honest limits
 
