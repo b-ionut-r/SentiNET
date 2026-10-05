@@ -718,7 +718,7 @@ METRICS: dict[str, Metric] = {
                "consumer sentiment", "pmi", "retail sales", "industrial production", "manufacturing",
                "exports", "housing starts", "home sales", "investment", "investments", "capacity",
                "efficiency", "productivity", "returns", "performance", "result", "results",
-               "operating result", "net result", "cash", "reserves", "liquidity", "index", "indexes", "indices", "dow",
+               "operating result", "net result", "cash", "reserves", "index", "indexes", "indices", "dow",
                "nasdaq", "s&p", "s&p 500", "futures", "market", "markets", "wall street", "ftse", "dax",
                "nikkei", "stoxx", "hang seng", "sensex", "russell", "tsx", "asx", "kospi", "cac", "bitcoin",
                "ether", "crypto", "gold", "oil", "crude", "copper", "commodities", "inflows", "net inflows",

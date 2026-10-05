@@ -2512,6 +2512,11 @@ def _title_case(norm: str, tokens: list[Token]) -> bool:
     return len(words) >= 3 and sum(norm[t.start: t.start + 1].isupper() for t in words) >= 0.6 * len(words)
 
 
+_ASSET_GAP = 2  # "Ethereum liquidity drops", "Solana network activity slumps": the asset's own noun phrase
+_ASSET_GAP_STOP = frozenset({"and", "or", "but", "nor", "to", "of", "for", "with", "by", "from", "on", "in", "at",
+                             "into", "the", "a", "an", "than", "that", "this", "if", "not", "no"})
+
+
 def _company_like(norm: str, tokens: list[Token], lo: int, hi: int, h: Hit, title: bool,
                   assets: frozenset[str]) -> bool:
     """Is the name run tokens[lo:hi] a company acting as the subject of ``h``? Without NER we ask for
@@ -2526,9 +2531,12 @@ def _company_like(norm: str, tokens: list[Token], lo: int, hi: int, h: Hit, titl
             hi < len(tokens) and tokens[hi].text in ("stock", "stocks", "shares")):
         return True
     stop = h.anchor if h.start < hi else min(h.start, h.anchor)  # the evidence's own metric is no gap
-    if not all(t.text in _AUX for t in tokens[hi:stop]):
+    gap = [t for t in tokens[hi:stop] if t.text not in _AUX]
+    asset = any(t.text in assets for t in tokens[lo:hi])
+    if gap and not (asset and len(gap) <= _ASSET_GAP and all(
+            t.kind == "w" and t.text not in _ASSET_GAP_STOP for t in gap)):
         return False
-    if not title or any(t.text in assets for t in tokens[lo:hi]):
+    if not title or asset:
         return True
     numbered = any(tokens[j].kind in ("pct", "num") for j in range(h.start, h.end))
     opens = lo == 0 or tokens[lo - 1].kind == "sep" or tokens[lo - 1].text == ","  # "...; NVIDIA Ticks Up, AMD Slips"
