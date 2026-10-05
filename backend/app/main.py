@@ -102,8 +102,9 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
     app.add_middleware(GZipMiddleware, minimum_size=1024)  # SSE (text/event-stream) is never compressed
+    # Retry-After is exposed so a cross-origin UI can wait out a busy lab (503).
     app.add_middleware(CORSMiddleware, allow_origins=web_settings.cors_origin_list,
-                       allow_methods=["*"], allow_headers=["*"])
+                       allow_methods=["*"], allow_headers=["*"], expose_headers=["Retry-After"])
     app.add_middleware(BodySizeLimitMiddleware, default=DEFAULT_MAX_BODY,
                        overrides={"/api/lab/score": LAB_MAX_BODY})
     # Outermost: requests for other Host names (DNS rebinding, LAN scans) never reach the API.
