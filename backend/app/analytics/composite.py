@@ -22,7 +22,8 @@ Each component maps its evidence to a signed strength x in [-1, 1]
 
 Composite = Σ w_eff·score / Σ w_eff with w_eff = nominal weight ×
 (0.35 + 0.65·confidence), renormalized over available components, then pulled
-toward 50 when little of the nominal weight is available.
+toward 50 when little of the nominal weight is available:
+50 + (raw − 50)·(0.35 + 0.65·min(1, available weight / 0.6)).
 """
 from __future__ import annotations
 
@@ -55,6 +56,7 @@ STOCKTWITS_MIN_TAGGED = 5
 RATING_BASELINE = 2.4  # typical consensus mean (1 strong buy … 5 strong sell)
 UPSIDE_BASELINE = 10.0  # typical upside to the mean target, percent
 FULL_COVERAGE = 0.6  # nominal weight available for an unshrunk composite
+MIN_PULL = 0.35  # with almost no evidence, only 35% of the raw distance from 50 survives
 PHRASE_MARGIN = 0.15  # |x| of a clear signal (named as a driver in the headline)
 MILD_MARGIN = 0.05  # |x| of a mild lean (named only as a counterweight)
 
@@ -156,20 +158,21 @@ def news_part(s: Summary, av_sentiment: float | None = None, av_articles: int | 
     part.score, part.confidence = to_100(x), conf
     shown = s.shrunk
     bits = []
+    articles = count(s.coverage or s.n, "article")
     if s.n:
-        bits.append(f"{signed(shown)} across {count(s.n, 'article')} ({s.bullish} bullish / {s.bearish} bearish)")
+        bits.append(f"{signed(shown)} across {articles} ({s.bullish} bullish / {s.bearish} bearish)")
     if has_av:
         bits.append(f"Alpha Vantage {signed(av_sentiment or 0.0)} ({av_articles} articles)")
     part.detail = " · ".join(bits)
-    part.facts.update(tone=shown, n=s.n, outlets=s.outlets)
+    part.facts.update(tone=shown, n=s.n, outlets=s.outlets, articles=s.coverage or s.n)
     if s.n:
         soft = abs(shown) < 0.1
         lead = _pick(x, "News flow positive" if not soft else "News flow warmer than usual",
                      "News flow negative" if not soft else "News flow softer than usual", "News flow mixed")
         typical = f"; typical is {signed(NEWS_BASELINE)}" if soft and abs(x) >= 0.1 else ""
-        part.reason = (f"{lead}: {signed(shown)} average tone across {count(s.n, 'article')} from "
+        part.reason = (f"{lead}: {signed(shown)} average tone across {articles} from "
                        f"{count(s.outlets, 'outlet')} ({s.bullish} bullish vs {s.bearish} bearish{typical})")
-        size = f"{signed(shown)} across {count(s.n, 'article')}"
+        size = f"{signed(shown)} across {articles}"
         part.phrase, part.strong = _phrase(x, f"{'upbeat' if shown >= 0.15 else 'positive'} news ({size})",
                                            f"{'negative' if shown <= -0.1 else 'soft'} news ({size})")
     return part
@@ -340,7 +343,10 @@ def analysts_part(view: AnalystView | None, now: datetime) -> Part:
         bull = f"bullish analysts ({to_target})"
     else:
         bull = f"a {name} consensus" if name else "bullish analyst revisions"
-    if up is not None and up < UPSIDE_BASELINE / 2:
+    if up is not None and up < 0:
+        bear = (f"a {name} consensus with targets {pct(abs(up), sign=False)} below the price" if name
+                else f"analyst targets {pct(abs(up), sign=False)} below the price")
+    elif up is not None and up < UPSIDE_BASELINE / 2:
         bear = f"limited analyst upside ({to_target}" + (f", {name})" if name else ")")
     elif rev.cuts_30d + view.downgrades_90d > rev.raises_30d + view.upgrades_90d:
         bear = f"analyst downgrades ({view.downgrades_90d} in 90d, {rev.cuts_30d} PT cuts in 30d)"
@@ -500,7 +506,7 @@ def technicals_part(t: Technicals | None) -> Part:
         x *= 1 - min(0.5, (25 - rsi) / 30)
     part.score = to_100(x)
     part.confidence = clamp(0.9 * sum(w for _, _, w in avail))
-    bits = [t.trend] if t.trend else []
+    bits: list[str] = [t.trend] if t.trend else []
     if t.return_3m is not None:
         bits.append(f"3M {pct(t.return_3m)}")
     elif t.return_1m is not None:
@@ -562,7 +568,7 @@ def compose(parts: list[Part]) -> Composite:
     total = sum(eff.values())
     raw = sum(eff[p.key] * (p.score or 50.0) for p in avail) / total
     coverage = sum(WEIGHTS[p.key] for p in avail)
-    pull = 0.5 + 0.5 * min(1.0, coverage / FULL_COVERAGE)
+    pull = MIN_PULL + (1 - MIN_PULL) * min(1.0, coverage / FULL_COVERAGE)
     final = 50.0 + (raw - 50.0) * pull
     contributions = {p.key: eff[p.key] / total * ((p.score or 50.0) - 50.0) * pull for p in avail}
     return Composite(

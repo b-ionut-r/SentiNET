@@ -120,7 +120,11 @@ _BOILERPLATE_RE = re.compile(
     r"stock forecast and price target 20\d\d|insider trading activity 20\d\d|"
     r"^\W*\$?[A-Za-z.]{1,8}\s*\([A-Z.: ]{1,16}\)\W*$|stock quote (?:&|and) (?:chart|summary)|"
     r"live (?:stock )?price (?:chart|today)|real-time (?:stock )?quote|"
-    r"\bfor sale in\b|\b[A-HJ-NPR-Z0-9]{17}\b|\bup for auction\b",
+    r"\bfor sale in\b|\b[A-HJ-NPR-Z0-9]{17}\b|\bup for auction\b|"
+    # option-chain pages ("SOFI261106P00019000") and automated price ticks
+    r"\b[A-Z]{1,6}\d{6}[CP]\d{8}\b|\binteractive stock chart\b|"
+    r"\b(?:after-hours|pre-?market|intraday|closing) at (?:eur|usd|gbp|chf|cad|\$|€|£)\s?[\d.,]+|"
+    r"\bversus (?:the )?prior close\b",
     re.IGNORECASE,
 )
 _CONTENT_WORD_RE = re.compile(r"(?<![$#@\w])[A-Za-z][A-Za-z'&-]*[A-Za-z]")

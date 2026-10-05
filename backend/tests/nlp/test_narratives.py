@@ -270,6 +270,11 @@ def test_find_duplicates_is_a_partition_with_lowest_index_first():
      "Amazon Just Joined Goldman Sachs’ Conviction List: 5 New Top Stock Picks With Massive Upside"),
     ("Meridian Mining applies for block admission of 1.6M shares",
      "Meridian Mining Applies For Block Admission Of 1.6 Million Ordinary Shares To LSE"),
+    # the same story from Google News and Bing News (casing differs by outlet)
+    ("Amazon Stock Pays $0 in Dividends. Here's Why Long-Term Investors Should Own It Anyway.",
+     "Amazon stock pays $0 in dividends. Here's why long-term investors should own it anyway."),
+    ("What a 20-Year Deal With Amazon Means for Constellation Energy Stock",
+     "What a 20-year deal with Amazon means for Constellation Energy stock"),
 ])
 def test_real_syndicated_copies_are_duplicates(pair):
     assert find_duplicates(list(pair)) == [[0, 1]]

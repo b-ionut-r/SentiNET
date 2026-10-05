@@ -75,7 +75,7 @@ def test_query_short_names_only_inside_phrases() -> None:
 def test_no_query_term_is_too_short_for_gdelt() -> None:
     """GDELT rejects quoted words under 5 characters and silently ignores bare ones."""
     assert gdelt.fallback_query(ref("META", "Meta", ["Meta Platforms"])) == '"Meta Platforms" sourcelang:english'
-    assert build_query(ref("ZZ", "Kora")) == '("Kora shares" OR "Kora stock" OR "Kora CEO") sourcelang:english'
+    assert build_query(ref("ZZ", "Kora")) == '("Kora Inc" OR "Kora shares" OR "Kora stock" OR "Kora CEO") sourcelang:english'
     assert build_query(ref("XX", "X")) == '("X Inc" OR "X Corp" OR "X CEO" OR "X shares" OR "X stock") sourcelang:english'
     queries = [*gdelt.CURATED.values(), build_query(ref("IBM", "IBM")), build_query(ref("U", "Unity")),
                build_query(ref("NKE", "Nike")), build_query(ref("CHWY", "Chewy"))]
@@ -386,3 +386,20 @@ async def test_unsearchable_company_returns_none_without_a_request() -> None:
         route = mock.get(gdelt.API_URL).mock(return_value=httpx.Response(200, json={}))
         assert await gdelt.get_tone_trend(ref("BNB-USD", "BNB", qtype="CRYPTOCURRENCY")) is None
         assert route.call_count == 0
+
+
+async def test_empty_answers_are_rechecked_soon(monkeypatch: pytest.MonkeyPatch) -> None:
+    """GDELT sometimes answers {} under load: an empty result must not stick for hours."""
+    payload = load_json("gdelt/nvidia_timelinetone.json")
+    with respx.mock as mock:
+        mock.get(gdelt.API_URL).mock(return_value=httpx.Response(200, json={}))
+        assert await gdelt.get_tone_trend(ref("NVDA", "Nvidia")) is None
+        await gdelt.drain()
+    monkeypatch.setattr(gdelt, "EMPTY_TTL", 0.0)
+    monkeypatch.setattr(gdelt, "REFRESH_GAP", 0.0)
+    with respx.mock as mock:
+        mock.get(gdelt.API_URL).mock(return_value=httpx.Response(200, json=payload))
+        assert await gdelt.get_tone_trend(ref("NVDA", "Nvidia")) is None  # served from cache, refresh started
+        await gdelt.drain()
+        trend = await gdelt.get_tone_trend(ref("NVDA", "Nvidia"))
+    assert trend is not None and trend.tone_30d is not None

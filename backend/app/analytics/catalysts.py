@@ -90,6 +90,7 @@ def _earnings(e: EarningsView | None, today: date) -> Catalyst | None:
 def describe_action(a: AnalystAction) -> tuple[str, str | None, Polarity]:
     """(title, detail, polarity) for one rating/target action."""
     grade = a.to_grade or ""
+    pol: Polarity
     pt_change = None
     if a.price_target and a.prior_target and a.prior_target > 0 and a.action != "init":
         pt_change = a.price_target / a.prior_target - 1
@@ -112,7 +113,7 @@ def describe_action(a: AnalystAction) -> tuple[str, str | None, Polarity]:
             detail = f"PT {money(a.prior_target, price=True)} → {money(a.price_target, price=True)} ({pct(pt_change * 100)})"
     if a.action in ("up", "down") and a.from_grade:
         detail = f"from {a.from_grade}" + (f" · {detail}" if detail else "")
-    return title, detail, pol  # type: ignore[return-value]
+    return title, detail, pol
 
 
 def _analyst_actions(actions: list[AnalystAction], now: datetime) -> list[Catalyst]:
@@ -172,11 +173,19 @@ def _shares(shares: float | None) -> str | None:
     return f"{shares:,.0f} shares, open market" if shares else "open market"
 
 
+ANALYST_EVENTS = frozenset({"analyst_upgrade", "analyst_downgrade", "analyst_initiate", "analyst_top_pick",
+                            "pt_raise", "pt_cut"})
+
+
 def _news(f: Facts) -> list[Catalyst]:
+    """High-impact stories with a material event (analyst-only stories are already listed as actions)."""
+    has_actions = f.inputs.analysts is not None and bool(f.inputs.analysts.actions)
     out: list[Catalyst] = []
     for story in f.stories:
         n = story.narrative
         if not story.material_events or n.impact < NEWS_MIN_IMPACT:
+            continue
+        if has_actions and set(story.material_events) <= ANALYST_EVENTS:
             continue
         when = n.first_seen or n.last_seen
         if when is None:

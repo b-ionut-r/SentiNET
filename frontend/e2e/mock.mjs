@@ -8,8 +8,10 @@
  * News headlines, StockTwits/Bluesky/HN posts, ApeWisdom, Tradestie, CNN and
  * crypto Fear & Greed, SEC submissions, yfinance prices/analysts/earnings/
  * insiders, Oct 2026); derived fields (scores, narratives, verdicts) and GDELT
- * tone series are illustrative. *.LIVE.json is verbatim backend output (a real
- * AAPL run and its SSE progress stream, captured 2026-10-04).
+ * tone series are illustrative. Verbatim backend output: *.LIVE.json (a real
+ * AAPL run, its SSE progress stream and 90-day history), market.json, sources.json,
+ * health.json (monitor flag switched on)
+ * and the BTC-USD / MSFT price series (captured 2026-10-04).
  */
 import { spawn } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
@@ -21,7 +23,7 @@ process.env.PLAYWRIGHT_BROWSERS_PATH ??= "/opt/pw-browsers";
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 export const FIX = join(ROOT, "e2e", "fixtures");
 /** Frozen "now" for every page so relative times in fixtures stay meaningful. */
-export const NOW = new Date("2026-10-04T21:45:00Z");
+export const NOW = new Date("2026-10-05T00:05:00Z");
 
 export const fixture = (name) => {
   const p = join(FIX, name);

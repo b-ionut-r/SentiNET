@@ -68,13 +68,19 @@ _FINANCE_NOUN = re.compile(
     r"banks|miners|homebuilders|equities|caps)\b"
 )
 _CRYPTO_NOUN = re.compile(r"(?i)(coin|token|protocol|swap|chain|network)\b")
-_VENUE = r"(?:Stadium|Arena|Center|Centre|Field|Park|Bowl|Theat(?:er|re)|Tukker|Hall|Amphitheat(?:er|re)|Pavilion|Plaza|Dome|Garden)"
+_VENUE = (  # "SoFi Stadium", "Sofi Tukker": the name followed by one of these is not the company
+    r"(?:Stadium|Arena|Center|Centre|Field|Park|Bowl|Theat(?:er|re)|Tukker|Hall|Amphitheat(?:er|re)|Pavilion"
+    r"|Plaza|Dome|Garden)"
+)
 # Phrases where a brand name means something else (seen in live results: "Nikola Tesla – The
 # Laboratory of Lightning" on HN, "This Maine Apple Orchard Took The Top Spot" on Bing).
-_NOT_THE_COMPANY = (
-    r"\bBig Apple\b|\bNikola Tesla\b|\b(?:Harrison|Henry) Ford\b|\bAmazon (?:rainforest|river|basin|jungle)\b"
-    r"|\bApple (?:orchards?|pies?|cider|picking)\b|\bTarget (?:audiences?|dates?)\b"
-)
+_NOT_THE_COMPANY: dict[str, str] = {  # brand word -> its other-meaning phrases
+    "apple": r"\bBig Apple\b|\bApple (?:orchards?|pies?|cider|picking)\b",
+    "tesla": r"\bNikola Tesla\b",
+    "ford": r"\b(?:Harrison|Henry) Ford\b",
+    "amazon": r"\bAmazon (?:rainforest|river|basin|jungle)\b",
+    "target": r"\bTarget (?:audiences?|dates?)\b",
+}
 
 # Market vocabulary. `_MARKET_WORDS` is enough to keep a post that *names* the asset;
 # a bare symbol or hashtag needs `_STRONG_WORDS` ("ICE shares about detentions" must fail).
@@ -85,6 +91,11 @@ _STRONG = (
     r"options|ticker|quarter(?:ly)?|q[1-4]|premarket|pre-market|after-hours|wall street|hedge funds?"
 )
 _STRONG_WORDS = re.compile(rf"(?i)\b(?:{_STRONG})\b")
+# Next to a properly-cased *name*, "shares" moving is market talk too ("Apple shares rise").
+_SHARES_MOVE = re.compile(
+    r"(?i)\bshares (?:of\b|up\b|down\b|(?:rose|rise|fell|fall|jump|surge|slump|slid|slide|drop|gain|climb|sink|sank"
+    r"|tumble|soar|plunge|rall|edge|trade|hit|close|open|extend|pare)\w*)"
+)
 _MARKET_WORDS = re.compile(
     rf"(?i)\b(?:{_STRONG}|shares|shareholders?|investing|investment|trad(?:e|es|ing|ers?)|portfolio|fiscal|"
     r"profits?|margins?|deliveries|outlook|forecast|market|futures|prices?|yields?|bonds?|etfs?|s&p 500)\b"
@@ -93,6 +104,11 @@ _CRYPTO_WORDS = re.compile(
     r"(?i)\b(?:crypto\w*|tokens?|coins?|memecoins?|meme ?coins?|altcoins?|blockchain|defi|nfts?|on-?chain|"
     r"wallets?|binance|coinbase|kraken|hodl|airdrops?|staking|mainnet|whales?|halving|btc|eth|sol|usdt|usdc|"
     r"stablecoins?|dex|satoshis?|sats)\b"
+)
+# Strong evidence for commodity/rates themes ("gold" alone + "price" is "Gold Editions… Final Price").
+_THEME_WORDS = re.compile(
+    r"(?i)\b(?:futures|ounces?|oz|bullion|spot|xau\w*|xag\w*|brent|wti|barrels?|opec|central banks?|fed|"
+    r"yields?|treasur\w*|rate (?:cut|hike)s?|inflation|safe[- ]haven|etfs?|miners)\b"
 )
 _RETAIL_STOCK = re.compile(r"(?i)\b(?:back |now )?(?:in|out of|low on) stock\b|\bstock (?:photos?|images?|footage)\b")
 _EXCHANGES = r"(?:NYSE|NASDAQ|Nasdaq|NasdaqGS|NasdaqGM|NasdaqCM|AMEX|NYSEARCA|NYSE American|OTC|TSX|LSE|CBOE)"
@@ -251,8 +267,9 @@ class Mentions:
 
     * `$SYM` (any case) always counts.
     * A name counts when it appears with the right casing outside venue and
-      other-meaning phrases ("SoFi Stadium", "Nikola Tesla"); in `social` mode it also needs market
-      vocabulary unless the name is self-evident ("S&P 500", "Bitcoin").
+      other-meaning phrases ("SoFi Stadium", "Nikola Tesla"); in `social` mode it also
+      needs market vocabulary unless self-evident ("S&P 500", "Bitcoin") — strong market
+      words for word-like brands and themes ("SoFi tickets… new price" is a concert).
     * Exchange notation ("NYSE: TGT") counts; a bare upper-case symbol or `#SYM`
       needs strong market vocabulary ("ICE shares about detentions" fails).
     """
@@ -265,19 +282,23 @@ class Mentions:
         self._listed = re.compile(rf"\b{_EXCHANGES}\s*:\s*{symbol}\b")
         self._bare = re.compile(rf"(?<![\w$#.-]){symbol}(?![\w])") if terms.symbol_searchable else None
         case = {n: _case_sensitive(n, terms) for n in terms.names}
+        self._case = case
         self._names = [(n, re.compile(_name_pattern(n, case[n]))) for n in terms.names]
         self._loose = [re.compile(_name_pattern(n, False)) for n in terms.names if case[n]]
         alts = "|".join(re.escape(n) for n in terms.names)
-        self._venue = re.compile(rf"(?i:(?:{alts})\s+{_VENUE}|{_NOT_THE_COMPANY})")
+        words = {w for n in terms.names for w in n.lower().split()}
+        other = [pattern for word, pattern in _NOT_THE_COMPANY.items() if word in words]
+        self._venue = re.compile(rf"(?i:(?:{alts})\s+{_VENUE}{''.join('|' + p for p in other)})")
         self._crypto = terms.asset == "crypto"
 
     def cashtag(self, text: str) -> bool:
         return bool(self._cashtag.search(text))
 
     def named(self, text: str) -> str | None:
-        """The first name found (venue phrases removed), else None."""
+        """The name found (venue phrases removed; self-evident names win), else None."""
         cleaned = self._venue.sub(" ", text)
-        return next((n for n, pattern in self._names if pattern.search(cleaned)), None)
+        found = [n for n, pattern in self._names if pattern.search(cleaned)]
+        return next((n for n in found if n in self.terms.self_evident), found[0] if found else None)
 
     def homonym_only(self, text: str) -> bool:
         """True when the name appears only in the wrong casing ("price target", "apple pie") or in an
@@ -289,7 +310,9 @@ class Mentions:
     def _intent(self, text: str, strong: bool) -> bool:
         text = _RETAIL_STOCK.sub(" ", text)  # "Back in Stock! Apple Desktop Bus mouse" is not market talk
         words = _STRONG_WORDS if strong else _MARKET_WORDS
-        return bool(words.search(text) or (self._crypto and _CRYPTO_WORDS.search(text)))
+        if words.search(text) or (self._crypto and _CRYPTO_WORDS.search(text)):
+            return True
+        return strong and self.terms.asset == "etf" and bool(_THEME_WORDS.search(text))
 
     def about(self, text: str, *, social: bool = False) -> bool:
         if not text:
@@ -297,7 +320,11 @@ class Mentions:
         if self.cashtag(text) or self._listed.search(text):
             return True
         name = self.named(text)
-        if name is not None and (not social or name in self.terms.self_evident or self._intent(text, strong=False)):
-            return True
+        if name is not None:
+            if not social or name in self.terms.self_evident:
+                return True
+            # Word-like brands and themes ("SoFi" concerts, "gold" panning) need strong market words.
+            if self._intent(text, strong=self._case[name] or self.terms.asset == "etf") or _SHARES_MOVE.search(text):
+                return True
         symbol_hit = self._hashtag.search(text) or (self._bare is not None and self._bare.search(text))
         return bool(symbol_hit and self._intent(text, strong=True))

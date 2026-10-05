@@ -8,8 +8,8 @@ from __future__ import annotations
 from app.analytics.composite import consensus_name
 from app.analytics.crowd import reddit_move
 from app.analytics.facts import Facts
-from app.analytics.verdict import story_points
 from app.analytics.util import count, join_and, pct, polarity_of, quote, short_date, signed
+from app.analytics.verdict import story_points
 from app.schemas import Brief, Insight, Verdict
 
 MAX_POINTS = 5
@@ -27,8 +27,6 @@ def build_brief(f: Facts, verdict: Verdict, insights: list[Insight]) -> Brief:
 def _evidence_base(f: Facts) -> str:
     n = f.overall.n
     sources = len({it.source for it in f.prepared.items})
-    texts = (f"{count(n, 'relevant news and social item')} from {count(sources, 'source')}" if n
-             else "structured data only (no relevant news or social items)")
     extra = []
     a = f.inputs.analysts
     if f.composite.parts["analysts"].available and a is not None:
@@ -39,10 +37,16 @@ def _evidence_base(f: Facts) -> str:
         extra.append("GDELT global tone")
     if f.composite.parts["technicals"].available:
         extra.append("price action")
-    return texts + (f", plus {join_and(extra)}" if extra and n else "")
+    if n:
+        texts = f"{count(n, 'relevant news and social item')} from {count(sources, 'source')}"
+        return texts + (f", plus {join_and(extra)}" if extra else "")
+    return f"{join_and(extra)} only (no relevant news or social items)" if extra else "no data"
 
 
 def _summary(f: Facts, verdict: Verdict) -> str:
+    if not f.composite.available():
+        return (f"No read on {f.name}: every news, social and market-data feed failed or came back empty this run "
+                f"— retry shortly.")
     sentences = [f"{f.name} reads {verdict.label} at {verdict.score}/100 with {verdict.confidence} confidence, "
                  f"based on {_evidence_base(f)}."]
     if f.stories:
@@ -64,10 +68,11 @@ def _smart_vs_crowd(f: Facts) -> str | None:
     a = f.inputs.analysts
     if a is not None and f.composite.parts["analysts"].available:
         name = consensus_name(a)
-        bit = f"analysts rate it {name}" if name else "analysts cover it"
-        if a.upside_pct is not None:
-            bit += f" with {pct(a.upside_pct)} to the mean target"
-        smart.append(bit)
+        if name:
+            smart.append(f"analysts rate it {name}" + (
+                f" with {pct(a.upside_pct)} to the mean target" if a.upside_pct is not None else ""))
+        elif a.upside_pct is not None:
+            smart.append(f"the mean analyst target implies {pct(a.upside_pct)}")
     ins = f.inputs.insiders
     if ins is not None and f.composite.parts["insiders"].available:
         if ins.buys:
@@ -98,8 +103,8 @@ def _next_catalyst(f: Facts) -> str | None:
     if not upcoming:
         return None
     c = upcoming[0]
-    detail = f" ({c.detail})" if c.detail else ""
-    return f"Next catalyst: {c.title[0].lower() + c.title[1:]} — {short_date(c.date)}{detail}."
+    detail = f" — {c.detail}" if c.detail else ""
+    return f"Next catalyst: {c.title[0].lower() + c.title[1:]} ({short_date(c.date)}){detail}."
 
 
 # --------------------------------------------------------------------------- #

@@ -306,6 +306,22 @@ DATASET_INFO: dict[str, dict[str, str]] = {
 TUNING_SETS = ("twitter_train", "stocktwits_even")
 
 
+def _summary(results: dict[str, dict[str, object]]) -> dict[str, dict[str, dict[str, float]]]:
+    """Headline numbers per dataset and engine (the full metrics follow in the payload)."""
+    keys = ("accuracy", "macro_f1", "coverage", "accuracy_covered", "balanced_accuracy_covered")
+    out: dict[str, dict[str, dict[str, float]]] = {}
+    for d, per in results.items():
+        out[d] = {}
+        for e, m in per.items():
+            row = {k: m[k] for k in keys if k in m}  # type: ignore[operator,index]
+            polar = m.get("polar") if isinstance(m, dict) else None
+            if polar:
+                row["polar_coverage"] = polar["coverage"]
+                row["polar_accuracy_committed"] = polar["accuracy_covered"]
+            out[d][e] = row
+    return out
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--engines", default="vader,sentinel,finbert-api")
@@ -345,10 +361,15 @@ def main(argv: list[str] | None = None) -> int:
         for ename, engine in engines.items():
             preds = predict(engine, data)
             m = metrics([e.gold for e in data], preds)
+            # on the polar (bullish/bearish) gold items: how often it commits, how right when it does
+            polar = [(e.gold, p) for e, p in zip(data, preds, strict=True) if e.gold != "neutral"]
+            d = directional_metrics([g for g, _ in polar], [p for _, p in polar])
+            m["polar"] = {k: d[k] for k in ("n", "coverage", "accuracy_covered", "flipped")}
             results[dname][ename] = m
             pc = m["per_class"]  # type: ignore[index]
             print(f"  {ename:12s} acc {m['accuracy']:.3f}  macro-F1 {m['macro_f1']:.3f}   " +
-                  "  ".join(f"{c[:4]} F1 {pc[c]['f1']:.2f}" for c in pc))  # type: ignore[index]
+                  "  ".join(f"{c[:4]} F1 {pc[c]['f1']:.2f}" for c in pc) +  # type: ignore[index]
+                  f"   | polar: commits {d['coverage']:.2f}, right when committed {d['accuracy_covered']:.3f}")
             if dname == "twitter_train" and args.errors and isinstance(engine, SentinelEngine):
                 print_errors(engine, data, preds, args.errors)
     for dname, data in binary.items():
@@ -374,9 +395,12 @@ def main(argv: list[str] | None = None) -> int:
                 "engine.label_for (NEUTRAL_BAND=0.05); VADER uses its standard +-0.05 compound thresholds. "
                 "Caveat: the first build session inspected some PhraseBank AllAgree and Twitter-valid sentences "
                 "(a few appeared verbatim in unit tests; replaced), so those two numbers may be mildly optimistic. "
-                "FiQA was never inspected (only label counts) and is the cleanest held-out estimate; it is ~92% "
-                "polar, which penalizes an engine calibrated to abstain (neutral) on weak evidence."),
+                "FiQA texts and errors were never inspected (only label counts and aggregate scores at a few "
+                "checkpoints; no setting was chosen on them), so it is the cleanest held-out estimate. FiQA is "
+                "~88% polar, which penalizes an engine calibrated to abstain (neutral) on weak evidence: see "
+                "'polar' (share of polar items the engine commits on, and its accuracy when it does)."),
             "datasets": {k: {**DATASET_INFO[k], "n": sizes[k]} for k in results},
+            "summary": _summary(results),
             "held_out": {k: v for k, v in results.items() if k not in TUNING_SETS},
             "tuning": {k: v for k, v in results.items() if k in TUNING_SETS} or None,
             "throughput_texts_per_s": speeds,

@@ -201,6 +201,12 @@ def _p(p: float) -> str:
     return "p < 0.001" if p < 0.001 else f"p = {p:.3f}" if p < 0.01 else f"p = {p:.2f}"
 
 
+def _lag_meaning(k: int) -> str:
+    if k == 0:
+        return "same day"
+    return f"tone leading price by {_days(k)}" if k > 0 else f"price leading tone by {_days(k)}"
+
+
 def _days(k: int) -> str:
     k = abs(k)
     return f"{k} trading day{'s' if k != 1 else ''}"
@@ -218,11 +224,12 @@ def interpret(lags: list[LagStat], best: LagStat | None, has_tone: bool, has_pri
     reliable = (best.n >= MIN_RELIABLE_PAIRS and abs(best.r) >= MIN_R
                 and best.p_value * len(LAGS) < ALPHA)
     if not reliable:
+        where = f"lag {best.lag_days:+d}, {_lag_meaning(best.lag_days)}"
         if best.p_value < ALPHA and abs(best.r) >= 0.15:
-            return (f"Only a weak hint: the strongest link is at lag {best.lag_days:+d} ({stats}), but it does not "
-                    f"survive testing {len(LAGS)} lags — treat it as noise.")
-        return (f"No reliable relationship: the strongest link is r = {signed(best.r)} at lag {best.lag_days:+d} "
-                f"({_p(best.p_value)}, n = {best.n}).")
+            return (f"Only a weak hint: the strongest link ({where}) has {stats}, but it does not survive testing "
+                    f"{len(LAGS)} lags — treat it as noise.")
+        return (f"No reliable relationship: the strongest link is r = {signed(best.r)} ({where}; "
+                f"{_p(best.p_value)}, n = {best.n}).")
     k, positive = best.lag_days, best.r > 0
     if k > 0:
         if positive:

@@ -25,6 +25,7 @@ from tests.intel.helpers import info, load_json
         ("#tsla", "TSLA"),
         ("brk.b", "BRK-B"),
         ("BF/B", "BF-B"),
+        ("brk b", "BRK-B"),
         ("BRK-B", "BRK-B"),
         ("NASDAQ:AAPL", "AAPL"),
         ("nyse: brk.a", "BRK-A"),

@@ -8,12 +8,15 @@ this company*?".
 Two hard parts live here:
 
 * **Query precision.** GDELT matches full article text case-insensitively, so
-  `"Apple"` drags in orchards and pies (~15% of a 3-day artlist sample was about
-  the company; the curated query below: ~75%). Common-word brands get curated
-  context (`"Apple" (iPhone OR iPad OR …)`), any other common-word name is
-  anchored to company phrases (`"X Inc" OR "X shares" …`), funds search their
-  theme ("regional banks"), and short words are never quoted (GDELT rejects
-  quoted phrases under 5 characters).
+  `"Apple"` drags in orchards and pies. Measured on 3-day artlist samples
+  (2026-10-04, share of titles naming the company): "Apple" 17% -> curated 62%
+  (Nvidia, a distinctive name: 55%); a Meta query built on Instagram/WhatsApp
+  1% -> 34%; Target with "at Target"/"Target shares" 6% (stock-rating spam:
+  "price target on shares…") -> precise phrases only. Homonym brands get curated
+  context (`"Apple" (iPhone OR "Tim Cook" OR …)`), other everyday-word names are
+  anchored to their legal form ("Chewy Inc", "Chewy CEO"), short names appear only
+  inside longer phrases ("IBM shares"), funds search their theme ("regional
+  banks"); when nothing searchable remains the trend is None, never noise.
 * **Politeness.** GDELT allows one request per 5 s per IP and answers
   violations with a plain-text "Please limit requests…" body (HTTP 429 or even
   200) after a 10-15 s wait. Requests are serialized and spaced, a refusal
@@ -61,7 +64,7 @@ CURATED: dict[str, str] = {
     "GOOG": '("Alphabet Inc" OR "Sundar Pichai" OR "Google parent" OR "Google CEO" OR "Google antitrust" '
             'OR "Google Gemini")',
     "AMZN": '("Amazon.com" OR "Andy Jassy" OR "Amazon Web Services" OR "Amazon CEO" OR Bezos)',
-    "TGT": '("Target Corp" OR "Target Corporation" OR "retailer Target" OR "Target CEO")',
+    "TGT": '("Target Corp" OR "Target Corporation" OR "retailer Target" OR "Target CEO" OR "Target Circle" OR Fiddelke)',
     # Not bare "Cash App": event listings say "pay via Cash App" (most of a 3-day sample).
     "XYZ": '("Block Inc" OR "Jack Dorsey" OR Afterpay OR "Square payments" OR "Cash App owner" OR "Block CEO")',
     "SQ": '("Block Inc" OR "Jack Dorsey" OR Afterpay OR "Square payments" OR "Cash App owner" OR "Block CEO")',
@@ -165,7 +168,7 @@ def build_query(company: CompanyRef) -> str | None:
     else:
         terms = [short, *(a for a in company.aliases if short.lower() not in a.lower())]
         if not searchable(short) and company.quote_type == "EQUITY":
-            terms += [f"{short} shares", f"{short} stock", f"{short} CEO"]
+            terms += [f"{short} Inc", f"{short} shares", f"{short} stock", f"{short} CEO"]
     query = _or(terms)
     return f"{query} {LANG}" if query else None
 
@@ -353,6 +356,7 @@ COOLDOWN_MAX = 300.0
 STALE_MAX_SECONDS = 24 * 3600
 REQUEST_TIMEOUT = 25.0
 REFRESH_GAP = 120.0  # min seconds between background refreshes of one query (failing volume…)
+EMPTY_TTL = 900.0  # an empty answer ({}) is re-checked after 15 min
 TONE, VOLUME = "timelinetone", "timelinevolraw"
 
 
@@ -474,7 +478,9 @@ class _Payload:
     fetched: float  # time.monotonic()
 
     def fresh(self) -> bool:
-        return time.monotonic() - self.fetched < settings.history_cache_ttl
+        # An empty answer may be a soft refusal rather than "no coverage": re-check it soon.
+        ttl = settings.history_cache_ttl if self.data else EMPTY_TTL
+        return time.monotonic() - self.fetched < ttl
 
 
 _payloads = TTLStore(ttl=STALE_MAX_SECONDS, maxsize=1024)  # (query, mode, span) -> _Payload

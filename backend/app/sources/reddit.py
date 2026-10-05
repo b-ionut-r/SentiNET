@@ -70,9 +70,10 @@ def parse_listing(payload: Any, mentions: Mentions | None = None) -> list[RawSig
         title = clean_plain(post.get("title"))
         if not title or post.get("over_18") or post.get("stickied"):
             continue
-        body = clean_plain(post.get("selftext"), limit=600) or None
-        if mentions is not None and not mentions.about(f"{title} {body or ''}"):
+        selftext = clean_plain(post.get("selftext"))
+        if mentions is not None and not mentions.about(f"{title} {selftext}"):
             continue
+        body = clean_plain(selftext, limit=600) or None
         permalink = post.get("permalink")
         out.append(
             RawSignal(

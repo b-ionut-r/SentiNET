@@ -27,11 +27,16 @@ const segmentsOf = (c: RatingCounts): Segment[] => BUCKETS.map((b) => ({ key: b.
 
 const CONSENSUS: Record<string, string> = { strong_buy: "Strong Buy", buy: "Buy", hold: "Hold", sell: "Sell", strong_sell: "Strong Sell", underperform: "Underperform", outperform: "Outperform" };
 
+/** Whether each smart-money block has anything to show (the page collapses all-empty sets). */
+export const hasAnalysts = (a: Analysis): boolean => !!a.analysts && (a.analysts.total > 0 || a.analysts.actions.length > 0 || a.analysts.target_mean != null);
+export const hasInsiders = (a: Analysis): boolean => !!a.insiders;
+export const hasEarnings = (a: Analysis): boolean => !!a.earnings && (!!a.earnings.next_date || a.earnings.history.length > 0);
+
 export function AnalystsPanel({ a }: { a: Analysis }) {
   const v = a.analysts;
   const cur = a.quote?.price ?? null;
   const ccy = a.quote?.currency;
-  if (!v || (v.total === 0 && v.actions.length === 0 && v.target_mean == null)) {
+  if (!v || !hasAnalysts(a)) {
     return (
       <Panel title="Analysts" icon={<Briefcase />}>
         <Empty title="No analyst coverage">{a.profile?.quote_type === "CRYPTOCURRENCY" ? "Crypto assets aren't covered by sell-side analysts." : "No ratings, targets or rating changes were found."}</Empty>
@@ -273,7 +278,7 @@ export function InsidersPanel({ a }: { a: Analysis }) {
 
 export function EarningsPanel({ a }: { a: Analysis }) {
   const e = a.earnings;
-  if (!e || (!e.next_date && e.history.length === 0)) {
+  if (!e || !hasEarnings(a)) {
     return (
       <Panel title="Earnings" icon={<CalendarClock />}>
         <Empty title="No earnings calendar">{a.profile?.quote_type === "CRYPTOCURRENCY" || a.profile?.quote_type === "ETF" ? "This asset doesn't report earnings." : "No upcoming date or reported history found."}</Empty>

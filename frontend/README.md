@@ -34,7 +34,7 @@ of a real backend run. `e2e/mock.mjs` serves the built app with `vite preview` a
 ```bash
 npm run build && npm run screens   # every page at 1440 + 390 px, dark + light → e2e/screens/
                                    # fails on page/console errors and horizontal overflow
-npm run smoke                      # 26 interaction checks: shortcuts, palette, filters, alerts, export…
+npm run smoke                      # interaction checks: shortcuts, palette, filters, alerts, export…
 SENTINET_API=http://127.0.0.1:8000 npm run live -- AAPL   # real backend, no mocks → e2e/screens/live/
 ```
 

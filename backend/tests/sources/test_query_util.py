@@ -172,6 +172,11 @@ def test_crowd_symbol_gate_is_about_words_not_length(symbol, ambiguous):
         ("GLD", "panning for gold in the creek", True, False),
         ("GLD", "Gold Tone Coffee Filter", True, False),
         ("GLD", "gold prices hit a record as the dollar slips", True, True),
+        ("GLD", "Originally $29.99 $15.99 Final Price #ad Resident Evil 7 Gold Editions", True, False),
+        ("GLD", "Gold rallies to $4,200 an ounce as yields fall", True, True),
+        ("SOFI", "THE BRUNO MARS TICKET MARKET HAS A TWIN SoFi tickets appear. Gone. New price.", True, False),
+        ("SOFI", "Five stock picks for Thursday: TLRY (up), SNDL (up), F (up), SOFI (up)", True, True),
+        ("NVDA", "Nvidia is the market right now", True, True),  # distinctive name: any market word
         ("BTC-USD", "bitcoin is digital gold", True, True),
         ("TSLA", "Nikola Tesla – The Laboratory of Lightning", False, False),
         ("AAPL", "This Maine Apple Orchard Took The Top Spot In America", False, False),

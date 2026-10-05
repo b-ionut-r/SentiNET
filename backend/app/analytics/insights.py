@@ -2,9 +2,10 @@
 evidence clears a threshold, and always with the numbers behind it.
 
 Checks (thresholds):
-* divergence   news vs crowd on opposite sides (|x| >= 0.12 each, gap >= 0.35);
-               price vs news (news tone >= +0.12 / <= -0.12 on >= 10 articles while
-               the 1M or 5D move is >= 1σ / 1.5σ the other way)
+* divergence   news vs crowd leaning opposite ways vs their norms (news tone ±0.08 off
+               typical on >= 6 articles; crowd: StockTwits tags >= 1.64 SE off 62%, social
+               text ±0.10, WSB ±0.15); price vs news (the 1M / 5D move >= 1σ / 1.5σ against
+               the news lean)
 * attention    GDELT volume z >= 2, Reddit mentions >= +100% (>= 10 mentions),
                Wikipedia views z >= 2, Reddit mentions collapsing <= -60% (>= 15 before)
 * crowding     StockTwits bull share >= 85% or <= 35% with >= 15 tagged; top-5 WSB ticker
@@ -26,8 +27,10 @@ from collections import Counter
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from datetime import timedelta
+from typing import Literal
 
 from app.analytics.composite import NEWS_BASELINE, SOCIAL_BASELINE
+from app.analytics.composite import STOCKTWITS_BASELINE as STOCKTWITS_NORM
 from app.analytics import textkit
 from app.analytics.crowd import reddit_change_pct
 from app.analytics.facts import Facts
@@ -49,7 +52,7 @@ from app.schemas import DeltaView, Insight, Polarity, Verdict
 MAX_INSIGHTS = 8
 _SEVERITY_RANK = {"alert": 0, "watch": 1, "info": 2}
 _OFFICER = ("chief", "ceo", "cfo", "president", "chair", "founder", "coo")
-STOCKTWITS_NORM = 0.62
+MIN_NEWS_FOR_DIVERGENCE = 6
 LEGAL_EVENTS = frozenset({"lawsuit", "investigation", "regulatory_setback", "data_breach"})
 MAJOR_TRUST = 1.1  # wires and majors (Reuters, Bloomberg, WSJ …)
 RED_FLAG_EVENTS = {
@@ -69,9 +72,14 @@ class _Cand:
     priority: float
 
 
-def _make(kind: str, severity: str, polarity: Polarity, title: str, detail: str, priority: float) -> _Cand:
-    return _Cand(Insight(kind=kind, severity=severity, polarity=polarity, title=title, detail=detail),  # type: ignore[arg-type]
-                 priority)
+InsightKind = Literal["divergence", "attention", "reversal", "crowding", "catalyst", "smart_money", "risk",
+                      "momentum", "quality"]
+Severity = Literal["info", "watch", "alert"]
+
+
+def _make(kind: InsightKind, severity: Severity, polarity: Polarity, title: str, detail: str,
+          priority: float) -> _Cand:
+    return _Cand(Insight(kind=kind, severity=severity, polarity=polarity, title=title, detail=detail), priority)
 
 
 def build_insights(f: Facts, verdict: Verdict, delta: DeltaView) -> list[Insight]:
@@ -124,8 +132,8 @@ def crowd_lean(f: Facts) -> tuple[int, str] | None:
 
 
 def news_lean(f: Facts) -> int:
-    """+1 / -1 when news tone is clearly off its typical level (>= 10 articles), else 0."""
-    if f.news.n < 10 or f.news.mean is None:
+    """+1 / -1 when news tone is clearly off its typical level (>= 6 articles), else 0."""
+    if f.news.n < MIN_NEWS_FOR_DIVERGENCE or f.news.mean is None:
         return 0
     rel = f.news.mean - NEWS_BASELINE
     return 1 if rel >= 0.08 else -1 if rel <= -0.08 else 0
@@ -142,7 +150,7 @@ def _divergences(f: Facts) -> Iterator[_Cand]:
         text = crowd[1]
         yield _make("divergence", "watch", "bear" if crowd_bull else "bull", title,
                     f"{text[0].upper() + text[1:]} while news tone is {signed(f.news.shrunk)} across "
-                    f"{count(f.news.n, 'article')} — {tail}.", abs(parts["news"].x - parts["social"].x) + 0.5)
+                    f"{count(f.news.coverage or f.news.n, 'article')} — {tail}.", abs(parts["news"].x - parts["social"].x) + 0.5)
 
     t = f.inputs.technicals
     if t is not None and news:
@@ -158,12 +166,12 @@ def _divergences(f: Facts) -> Iterator[_Cand]:
             if news > 0 and z <= -need:
                 yield _make("divergence", "watch", "bear", "Price falling despite upbeat news",
                             f"{f.name} is {text} ({abs(z):.1f}σ) while news tone is {signed(tone)} across "
-                            f"{count(f.news.n, 'article')} — the tape is not confirming the headlines.", abs(z))
+                            f"{count(f.news.coverage or f.news.n, 'article')} — the tape is not confirming the headlines.", abs(z))
                 break
             if news < 0 and z >= need:
                 yield _make("divergence", "watch", "bull", "Price rising despite negative news",
                             f"{f.name} is {text} ({z:.1f}σ) while news tone is {signed(tone)} across "
-                            f"{count(f.news.n, 'article')} — buyers are looking through the headlines.", abs(z))
+                            f"{count(f.news.coverage or f.news.n, 'article')} — buyers are looking through the headlines.", abs(z))
                 break
 
 
@@ -178,10 +186,12 @@ def _attention(f: Facts) -> Iterator[_Cand]:
         recent = sum(vols[-2:]) / 2
         base = sorted(vols[-30:-2])
         typical = base[len(base) // 2] if base else 0
-        sev = "alert" if att.news_volume_z >= 3.5 else "watch"
+        sev: Severity = "alert" if att.news_volume_z >= 3.5 else "watch"
+        multiple = f"{recent / typical:.1f}× its" if typical else "far above its"
+        sigma = "≥ 10σ" if att.news_volume_z >= 10 else f"{att.news_volume_z:.1f}σ"
         yield _make("attention", sev, recent_pol, "Global news volume spiking",
-                    f"GDELT article count is {att.news_volume_z:.1f}σ above its 4-week norm "
-                    f"({recent:,.0f}/day over the last 2 days vs {typical:,.0f} typical).", att.news_volume_z)
+                    f"GDELT article count is {multiple} 4-week norm ({recent:,.0f}/day over the last 2 days vs "
+                    f"{typical:,.0f} typical; {sigma}).", min(att.news_volume_z, 10.0))
     change = reddit_change_pct(crowd)
     if crowd is not None and change is not None and crowd.reddit_mentions is not None:
         rank = ""
@@ -378,6 +388,7 @@ def _risks(f: Facts) -> Iterator[_Cand]:
     legal = [it for it in news if LEGAL_EVENTS & set(it.event_keys) and not it.press_release]
     solicitations = [it for it in news if it.press_release and "legal" in it.themes]
     outlets = {o for it in legal for o in it.outlets()}
+    articles = sum(it.coverage for it in legal)
     tone, _ = weighted_mean((it.score, it.weight) for it in legal)
     enough = len(legal) >= 3 or (len(legal) >= 2 and any(it.trust >= MAJOR_TRUST for it in legal))
     if enough and len(outlets) >= 2 and tone is not None and tone <= -0.1:
@@ -389,7 +400,7 @@ def _risks(f: Facts) -> Iterator[_Cand]:
         extra = (f" Plus {count(len(solicitations), 'law-firm solicitation')} — usually a sign a securities "
                  f"class action is being assembled." if len(solicitations) >= 2 else "")
         yield _make("risk", "alert" if severe else "watch", "bear", "Legal/regulatory overhang",
-                    f"{count(len(legal), 'article')} from {count(len(outlets), 'outlet')} on {about} "
+                    f"{count(articles, 'article')} from {count(len(outlets), 'outlet')} on {about} "
                     f"(tone {signed(tone)}); top: {quote(top.title, 80)}.{extra}", len(legal) / 3 + abs(tone))
     elif len(solicitations) >= 3:
         yield _make("risk", "watch", "bear", "Class-action solicitations",
@@ -401,13 +412,14 @@ def _risks(f: Facts) -> Iterator[_Cand]:
         if hits and _corroborated(hits):
             top = max(hits, key=lambda it: it.weight)
             yield _make("risk", "alert", "bear", title,
-                        f"{count(len(hits), 'article')} — top: {quote(top.title, 90)}"
+                        f"{count(sum(it.coverage for it in hits), 'article')} — top: {quote(top.title, 90)}"
                         + (f" ({top.publisher})" if top.publisher else "") + ".", 5 + len(hits))
     offering = [it for it in news if "offering" in it.event_keys]
     if len(offering) >= 2 and _corroborated(offering):
         top = max(offering, key=lambda it: it.weight)
         yield _make("risk", "watch", "bear", "Dilution risk: share offering",
-                    f"{count(len(offering), 'article')} on a share offering — top: {quote(top.title, 90)}.",
+                    f"{count(sum(it.coverage for it in offering), 'article')} on a share offering — top: "
+                    f"{quote(top.title, 90)}.",
                     len(offering))
 
     for filing in f.inputs.filings:
@@ -433,12 +445,15 @@ def _quality(f: Facts) -> Iterator[_Cand]:
                     f"verdict rests on structured data only.", 10)
     n = f.overall.n
     sources = sum(1 for r in f.inputs.source_runs if r.status == "ok")
-    if not f.prepared.engine_error and n < 8:
+    if not f.prepared.engine_error and n < 8 and sources:
         yield _make("quality", "watch" if n < 3 else "info", "neutral", "Thin coverage",
                     f"Only {count(n, 'relevant item')} from {count(sources, 'source')} — text scores are shrunk "
                     f"toward neutral; weigh the structured data more.", 8 - n)
     down = f.sources_down
-    if len(down) >= 3:
+    if down and not sources:
+        yield _make("quality", "alert", "neutral", "No news or social data this run",
+                    f"All {count(len(down), 'text source')} failed ({join_and(down)}); retry shortly.", 9)
+    elif len(down) >= 3:
         yield _make("quality", "watch", "neutral", f"{len(down)} sources failed",
                     f"{join_and(down)} returned errors; the read uses the remaining {count(sources, 'source')}.",
                     len(down))

@@ -1,0 +1,199 @@
+"""Component calibration and the composite: monotonic, shrunk, baseline-aware, renormalized."""
+from __future__ import annotations
+
+import pytest
+
+from app.analytics.aggregate import Summary
+from app.analytics.composite import (
+    NEWS_BASELINE,
+    WEIGHTS,
+    Part,
+    analysts_part,
+    compose,
+    insiders_part,
+    momentum_part,
+    news_part,
+    social_part,
+    technicals_part,
+    text_strength,
+)
+from app.schemas import CrowdView
+from tests.analytics.factories import NOW, action, analysts, insider, insiders, technicals, tone_trend
+
+
+def summary(mean: float | None, n: int, spread: float = 0.3, conf: float = 0.7) -> Summary:
+    return Summary(mean=mean, n=n, n_eff=n * 0.7, weight=float(n), bullish=n // 2, bearish=n // 5,
+                   neutral=n - n // 2 - n // 5, spread=spread, mean_confidence=conf, outlets=max(1, n // 2),
+                   coverage=n)
+
+
+# --------------------------------------------------------------------------- #
+# Text components
+# --------------------------------------------------------------------------- #
+def test_text_strength_shrinks_small_samples_and_respects_baseline() -> None:
+    assert text_strength(0.4, 2) < text_strength(0.4, 50)
+    assert text_strength(NEWS_BASELINE, 100, NEWS_BASELINE) == 0
+    assert text_strength(0.0, 100, NEWS_BASELINE) < 0  # flat headlines are below the typical +0.04
+    assert -1 < text_strength(-5.0, 1000) < 0
+
+
+def test_news_part_scores_and_explains() -> None:
+    upbeat = news_part(summary(0.3, 60))
+    flat = news_part(summary(0.04, 60))
+    bad = news_part(summary(-0.3, 60))
+    assert upbeat.score > 70 and bad.score < 30 and 48 <= flat.score <= 52
+    assert "+0.29 across 60 articles" in upbeat.detail  # shown tone is lightly shrunk: 0.3 · 60 / 62 and upbeat.reason.startswith("News flow positive")
+    assert upbeat.phrase.startswith("upbeat news") and upbeat.strong
+    assert not news_part(summary(None, 0)).available
+    with_av = news_part(summary(0.3, 60), av_sentiment=-0.4, av_articles=30)
+    assert with_av.score < upbeat.score and "Alpha Vantage" in with_av.detail
+
+
+def test_soft_news_is_called_soft_not_negative() -> None:
+    soft = news_part(summary(-0.04, 80))
+    assert soft.score < 45 and soft.reason.startswith("News flow softer than usual")
+    assert soft.phrase.startswith("soft news") and "typical is +0.04" in soft.reason
+
+
+def test_stocktwits_judged_against_its_bullish_baseline() -> None:
+    def crowd(bull: int, bear: int) -> CrowdView:
+        return CrowdView(stocktwits_bullish=bull, stocktwits_bearish=bear, stocktwits_bull_ratio=bull / (bull + bear))
+
+    typical = social_part(summary(None, 0), crowd(62, 38))
+    euphoric = social_part(summary(None, 0), crowd(95, 5))
+    bearish = social_part(summary(None, 0), crowd(30, 70))
+    tiny = social_part(summary(None, 0), crowd(3, 0))  # < 5 tagged: ignored
+    assert 47 <= typical.score <= 53
+    assert euphoric.score > 80 and bearish.score < 20
+    assert not tiny.available
+    assert "95% of 100 tagged" in euphoric.reason and "62% is typical" in euphoric.reason
+
+
+def test_wsb_sentiment_counts_with_volume() -> None:
+    quiet = social_part(summary(None, 0), CrowdView(wsb_sentiment=0.6, wsb_comments=2, wsb_label="bullish"))
+    busy = social_part(summary(None, 0), CrowdView(wsb_sentiment=0.6, wsb_comments=900, wsb_label="bullish"))
+    assert busy.score > quiet.score > 50
+
+
+# --------------------------------------------------------------------------- #
+# Analysts
+# --------------------------------------------------------------------------- #
+def test_analysts_rating_and_upside_are_monotonic() -> None:
+    scores = [analysts_part(analysts(mean=m, total=30, upside=15.0), NOW).score for m in (1.2, 2.0, 2.6, 3.4, 4.2)]
+    assert scores == sorted(scores, reverse=True)
+    ups = [analysts_part(analysts(mean=2.2, total=30, upside=u), NOW).score for u in (-20, 0, 10, 30, 60)]
+    assert ups == sorted(ups)
+
+
+def test_analysts_revisions_and_mixed_reads() -> None:
+    raising = analysts(mean=2.2, total=20, upside=12.0, up90=3, actions=[
+        action(3, "Goldman Sachs", "up", "Buy", 120, 100), action(8, "UBS", "main", "Buy", 125, 110),
+        action(12, "Citigroup", "main", "Buy", 118, 105)])
+    flat = analysts(mean=2.2, total=20, upside=12.0, actions=[action(200, "UBS", "reit", "Buy", 100, 100)])
+    assert analysts_part(raising, NOW).score > analysts_part(flat, NOW).score + 5
+    assert "30d PT: 3 up / 0 down" in analysts_part(raising, NOW).detail
+    hold_upside = analysts_part(analysts(mean=2.9, total=25, upside=35.0), NOW)
+    assert hold_upside.reason.startswith("Analysts mixed:") and ", but mean target" in hold_upside.reason
+
+
+def test_analysts_without_ratings_or_recent_actions_are_unavailable() -> None:
+    stale = analysts(mean=2.0, total=0, upside=None, actions=[action(400, "Wedbush", "reit", "Underperform", 10, 10)])
+    stale.mean_rating = None
+    stale.consensus = None
+    assert not analysts_part(stale, NOW).available
+    assert not analysts_part(None, NOW).available
+
+
+def test_analyst_downside_phrase() -> None:
+    p = analysts_part(analysts(mean=4.0, total=6, upside=-45.0), NOW)
+    assert p.phrase == "a Sell consensus with targets 45% below the price"
+
+
+# --------------------------------------------------------------------------- #
+# Insiders
+# --------------------------------------------------------------------------- #
+def test_insider_cluster_buying_beats_single_buy_beats_nothing() -> None:
+    cluster = insiders_part(insiders([insider(10, "A", "buy", 400_000, "Chief Executive Officer"),
+                                      insider(15, "B", "buy", 250_000), insider(20, "C", "buy", 150_000)]),
+                            5e9, NOW)
+    single = insiders_part(insiders([insider(10, "A", "buy", 100_000)]), 5e9, NOW)
+    assert cluster.score > single.score > 50
+    assert "by 3 insiders" in cluster.reason
+    assert not insiders_part(insiders([]), 5e9, NOW).available
+
+
+def test_insider_selling_is_mild_and_scaled_by_market_cap() -> None:
+    sells = insiders([insider(10, "A", "sell", 50e6), insider(30, "B", "sell", 50e6)])
+    mega = insiders_part(sells, 3e12, NOW)
+    small = insiders_part(sells, 2e9, NOW)
+    assert 44 <= mega.score < 50 and "routine-sized" in mega.reason
+    assert small.score < mega.score and small.score >= 30  # 5% of market cap sold: bearish, not catastrophic
+    assert "5.00% of market cap" in small.reason
+
+
+def test_old_buys_decay() -> None:
+    fresh = insiders_part(insiders([insider(5, "A", "buy", 300_000)]), 5e9, NOW)
+    old = insiders_part(insiders([insider(170, "A", "buy", 300_000)]), 5e9, NOW)
+    assert fresh.score > old.score > 50
+
+
+# --------------------------------------------------------------------------- #
+# Momentum & technicals
+# --------------------------------------------------------------------------- #
+def test_momentum_from_gdelt_and_headline_shift() -> None:
+    improving = momentum_part(tone_trend(base=0.0, recent=1.0), summary(None, 0), summary(None, 0))
+    worsening = momentum_part(tone_trend(base=0.5, recent=-0.5), summary(None, 0), summary(None, 0))
+    assert improving.score > 75 and worsening.score < 25
+    assert worsening.reason.startswith("Sentiment deteriorating")
+    cooling = momentum_part(None, summary(0.10, 40, spread=0.2), summary(0.40, 40, spread=0.2))
+    assert cooling.score < 45 and cooling.reason.startswith("Sentiment cooling")  # still positive, just less so
+    noisy = momentum_part(None, summary(0.10, 6, spread=0.6), summary(0.30, 6, spread=0.6))
+    assert noisy.score > cooling.score  # a small, noisy shift is damped
+    assert not momentum_part(None, summary(0.1, 3), summary(0.2, 3)).available
+
+
+def test_technicals_are_volatility_scaled_and_rsi_dampened() -> None:
+    calm = technicals_part(technicals(r1m=5, r3m=10, vs50=4, vs200=8, rsi=60, vol=12))
+    wild = technicals_part(technicals(r1m=5, r3m=10, vs50=4, vs200=8, rsi=60, vol=90))
+    assert calm.score > wild.score > 50  # +10% in 3M means more for a 12%-vol stock
+    hot = technicals_part(technicals(r1m=40, r3m=80, vs50=30, vs200=60, rsi=88, vol=60))
+    cool = technicals_part(technicals(r1m=40, r3m=80, vs50=30, vs200=60, rsi=65, vol=60))
+    assert hot.score < cool.score and "overbought" in hot.reason
+    down = technicals_part(technicals(r1m=-15, r3m=-25, vs50=-12, vs200=-20, rsi=30, vol=40))
+    assert down.score < 25 and down.phrase.startswith("a weak tape")
+    assert not technicals_part(None).available
+
+
+# --------------------------------------------------------------------------- #
+# Composite
+# --------------------------------------------------------------------------- #
+def part(key: str, score: float | None, conf: float = 0.8) -> Part:
+    return Part(key, score=score, confidence=conf)  # type: ignore[arg-type]
+
+
+def test_compose_renormalizes_and_contributions_add_up() -> None:
+    parts = [part("news", 80), part("social", 60), part("analysts", 70), part("insiders", None),
+             part("momentum", 55), part("technicals", 75)]
+    c = compose(parts)
+    assert 60 < c.score < 80
+    assert sum(c.contributions.values()) == pytest.approx(c.score - 50, abs=0.5)
+    assert set(c.contributions) == {"news", "social", "analysts", "momentum", "technicals"}
+    assert c.coverage == pytest.approx(1 - WEIGHTS["insiders"])
+
+
+def test_compose_pulls_toward_neutral_when_coverage_is_low() -> None:
+    lone = compose([part("technicals", 90), part("news", None)])
+    full = compose([part(k, 90) for k in WEIGHTS])
+    assert full.score == 90
+    assert 60 < lone.score < 72  # 15% of the evidence: price alone cannot read "Strongly Bullish"
+
+
+def test_low_confidence_components_weigh_less() -> None:
+    sure = compose([part("news", 80, conf=0.9), part("analysts", 30, conf=0.9)])
+    unsure_news = compose([part("news", 80, conf=0.1), part("analysts", 30, conf=0.9)])
+    assert unsure_news.score < sure.score
+
+
+def test_no_components_is_exactly_neutral() -> None:
+    c = compose([part(k, None) for k in WEIGHTS])
+    assert c.score == 50 and c.contributions == {} and c.coverage == 0

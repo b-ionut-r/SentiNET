@@ -1,0 +1,709 @@
+{
+  "generated": "2026-10-04",
+  "protocol": "News lexicon/rules/blend tuned on twitter-financial-news-sentiment TRAIN only; social register on StockTwits even ids. Everything under 'held_out' was not used for tuning. Labels via engine.label_for (NEUTRAL_BAND=0.05); VADER uses its standard +-0.05 compound thresholds. Caveat: the first build session inspected some PhraseBank AllAgree and Twitter-valid sentences (a few appeared verbatim in unit tests; replaced), so those two numbers may be mildly optimistic. FiQA texts and errors were never inspected (only label counts and aggregate scores at a few checkpoints; no setting was chosen on them), so it is the cleanest held-out estimate. FiQA is ~88% polar, which penalizes an engine calibrated to abstain (neutral) on weak evidence: see 'polar' (share of polar items the engine commits on, and its accuracy when it does).",
+  "datasets": {
+    "twitter_train": {
+      "source": "huggingface.co/datasets/zeroshot/twitter-financial-news-sentiment (sent_train.csv)",
+      "license": "MIT",
+      "register": "news",
+      "role": "tuning",
+      "n": 9543
+    },
+    "twitter_valid": {
+      "source": "huggingface.co/datasets/zeroshot/twitter-financial-news-sentiment (sent_valid.csv)",
+      "license": "MIT",
+      "register": "news",
+      "n": 2388
+    },
+    "phrasebank_allagree": {
+      "source": "Financial PhraseBank v1.0 Sentences_AllAgree (Malo et al. 2014; huggingface.co/datasets/takala/financial_phrasebank)",
+      "license": "CC BY-NC-SA 3.0",
+      "register": "news",
+      "n": 2264
+    },
+    "fiqa_headlines": {
+      "source": "FiQA 2018 task 1, headlines (huggingface.co/datasets/TheFinAI/fiqa-sentiment-classification, all splits)",
+      "license": "MIT",
+      "register": "news",
+      "labels": "score >= 0.1 bullish, < -0.1 bearish, else neutral",
+      "n": 425
+    },
+    "fiqa_posts": {
+      "source": "FiQA 2018 task 1, microblog posts (same dataset, all splits)",
+      "license": "MIT",
+      "register": "social",
+      "labels": "score >= 0.1 bullish, < -0.1 bearish, else neutral",
+      "n": 675
+    },
+    "stocktwits_even": {
+      "source": "api.stocktwits.com public symbol streams; author-tagged; even message ids",
+      "register": "social",
+      "role": "tuning",
+      "n": 1190
+    },
+    "stocktwits_odd": {
+      "source": "api.stocktwits.com public symbol streams; author-tagged Bullish/Bearish; odd message ids (even ids tuned the social register)",
+      "register": "social",
+      "collected": "2026-10-04",
+      "n": 1159
+    }
+  },
+  "summary": {
+    "twitter_train": {
+      "vader": {
+        "accuracy": 0.4814,
+        "macro_f1": 0.4383,
+        "polar_coverage": 0.6053,
+        "polar_accuracy_committed": 0.7585
+      },
+      "sentinel": {
+        "accuracy": 0.8196,
+        "macro_f1": 0.7846,
+        "polar_coverage": 0.8247,
+        "polar_accuracy_committed": 0.9733
+      }
+    },
+    "twitter_valid": {
+      "vader": {
+        "accuracy": 0.4941,
+        "macro_f1": 0.447,
+        "polar_coverage": 0.6253,
+        "polar_accuracy_committed": 0.7568
+      },
+      "sentinel": {
+        "accuracy": 0.807,
+        "macro_f1": 0.7678,
+        "polar_coverage": 0.8029,
+        "polar_accuracy_committed": 0.9742
+      }
+    },
+    "phrasebank_allagree": {
+      "vader": {
+        "accuracy": 0.5711,
+        "macro_f1": 0.4872,
+        "polar_coverage": 0.7766,
+        "polar_accuracy_committed": 0.7198
+      },
+      "sentinel": {
+        "accuracy": 0.8887,
+        "macro_f1": 0.8639,
+        "polar_coverage": 0.8121,
+        "polar_accuracy_committed": 0.9563
+      }
+    },
+    "fiqa_headlines": {
+      "vader": {
+        "accuracy": 0.4776,
+        "macro_f1": 0.4574,
+        "polar_coverage": 0.632,
+        "polar_accuracy_committed": 0.7384
+      },
+      "sentinel": {
+        "accuracy": 0.5082,
+        "macro_f1": 0.5273,
+        "polar_coverage": 0.496,
+        "polar_accuracy_committed": 0.9516
+      }
+    },
+    "fiqa_posts": {
+      "vader": {
+        "accuracy": 0.3956,
+        "macro_f1": 0.3385,
+        "polar_coverage": 0.5628,
+        "polar_accuracy_committed": 0.7163
+      },
+      "sentinel": {
+        "accuracy": 0.72,
+        "macro_f1": 0.5727,
+        "polar_coverage": 0.8248,
+        "polar_accuracy_committed": 0.891
+      }
+    },
+    "stocktwits_even": {
+      "vader": {
+        "coverage": 0.5857,
+        "accuracy_covered": 0.7044,
+        "balanced_accuracy_covered": 0.6595
+      },
+      "sentinel": {
+        "coverage": 0.6042,
+        "accuracy_covered": 0.8206,
+        "balanced_accuracy_covered": 0.8165
+      }
+    },
+    "stocktwits_odd": {
+      "vader": {
+        "coverage": 0.5815,
+        "accuracy_covered": 0.7047,
+        "balanced_accuracy_covered": 0.6398
+      },
+      "sentinel": {
+        "coverage": 0.5919,
+        "accuracy_covered": 0.8338,
+        "balanced_accuracy_covered": 0.809
+      }
+    }
+  },
+  "held_out": {
+    "twitter_valid": {
+      "vader": {
+        "n": 2388,
+        "accuracy": 0.4941,
+        "macro_f1": 0.447,
+        "per_class": {
+          "bullish": {
+            "precision": 0.2783,
+            "recall": 0.4653,
+            "f1": 0.3483,
+            "support": 475
+          },
+          "bearish": {
+            "precision": 0.3394,
+            "recall": 0.4841,
+            "f1": 0.399,
+            "support": 347
+          },
+          "neutral": {
+            "precision": 0.7197,
+            "recall": 0.5051,
+            "f1": 0.5936,
+            "support": 1566
+          }
+        },
+        "confusion": {
+          "bullish": {
+            "bullish": 221,
+            "bearish": 41,
+            "neutral": 213
+          },
+          "bearish": {
+            "bullish": 84,
+            "bearish": 168,
+            "neutral": 95
+          },
+          "neutral": {
+            "bullish": 489,
+            "bearish": 286,
+            "neutral": 791
+          }
+        },
+        "polar": {
+          "n": 822,
+          "coverage": 0.6253,
+          "accuracy_covered": 0.7568,
+          "flipped": 0.1521
+        }
+      },
+      "sentinel": {
+        "n": 2388,
+        "accuracy": 0.807,
+        "macro_f1": 0.7678,
+        "per_class": {
+          "bullish": {
+            "precision": 0.7262,
+            "recall": 0.7874,
+            "f1": 0.7556,
+            "support": 475
+          },
+          "bearish": {
+            "precision": 0.63,
+            "recall": 0.7752,
+            "f1": 0.6951,
+            "support": 347
+          },
+          "neutral": {
+            "precision": 0.888,
+            "recall": 0.8199,
+            "f1": 0.8526,
+            "support": 1566
+          }
+        },
+        "confusion": {
+          "bullish": {
+            "bullish": 374,
+            "bearish": 7,
+            "neutral": 94
+          },
+          "bearish": {
+            "bullish": 10,
+            "bearish": 269,
+            "neutral": 68
+          },
+          "neutral": {
+            "bullish": 131,
+            "bearish": 151,
+            "neutral": 1284
+          }
+        },
+        "polar": {
+          "n": 822,
+          "coverage": 0.8029,
+          "accuracy_covered": 0.9742,
+          "flipped": 0.0207
+        }
+      }
+    },
+    "phrasebank_allagree": {
+      "vader": {
+        "n": 2264,
+        "accuracy": 0.5711,
+        "macro_f1": 0.4872,
+        "per_class": {
+          "bullish": {
+            "precision": 0.3892,
+            "recall": 0.7368,
+            "f1": 0.5094,
+            "support": 570
+          },
+          "bearish": {
+            "precision": 0.3676,
+            "recall": 0.2244,
+            "f1": 0.2787,
+            "support": 303
+          },
+          "neutral": {
+            "precision": 0.805,
+            "recall": 0.5787,
+            "f1": 0.6734,
+            "support": 1391
+          }
+        },
+        "confusion": {
+          "bullish": {
+            "bullish": 420,
+            "bearish": 38,
+            "neutral": 112
+          },
+          "bearish": {
+            "bullish": 152,
+            "bearish": 68,
+            "neutral": 83
+          },
+          "neutral": {
+            "bullish": 507,
+            "bearish": 79,
+            "neutral": 805
+          }
+        },
+        "polar": {
+          "n": 873,
+          "coverage": 0.7766,
+          "accuracy_covered": 0.7198,
+          "flipped": 0.2176
+        }
+      },
+      "sentinel": {
+        "n": 2264,
+        "accuracy": 0.8887,
+        "macro_f1": 0.8639,
+        "per_class": {
+          "bullish": {
+            "precision": 0.9079,
+            "recall": 0.7263,
+            "f1": 0.807,
+            "support": 570
+          },
+          "bearish": {
+            "precision": 0.8516,
+            "recall": 0.8713,
+            "f1": 0.8613,
+            "support": 303
+          },
+          "neutral": {
+            "precision": 0.8905,
+            "recall": 0.959,
+            "f1": 0.9235,
+            "support": 1391
+          }
+        },
+        "confusion": {
+          "bullish": {
+            "bullish": 414,
+            "bearish": 22,
+            "neutral": 134
+          },
+          "bearish": {
+            "bullish": 9,
+            "bearish": 264,
+            "neutral": 30
+          },
+          "neutral": {
+            "bullish": 33,
+            "bearish": 24,
+            "neutral": 1334
+          }
+        },
+        "polar": {
+          "n": 873,
+          "coverage": 0.8121,
+          "accuracy_covered": 0.9563,
+          "flipped": 0.0355
+        }
+      }
+    },
+    "fiqa_headlines": {
+      "vader": {
+        "n": 425,
+        "accuracy": 0.4776,
+        "macro_f1": 0.4574,
+        "per_class": {
+          "bullish": {
+            "precision": 0.7025,
+            "recall": 0.4405,
+            "f1": 0.5415,
+            "support": 252
+          },
+          "bearish": {
+            "precision": 0.6337,
+            "recall": 0.5203,
+            "f1": 0.5714,
+            "support": 123
+          },
+          "neutral": {
+            "precision": 0.1687,
+            "recall": 0.56,
+            "f1": 0.2593,
+            "support": 50
+          }
+        },
+        "confusion": {
+          "bullish": {
+            "bullish": 111,
+            "bearish": 28,
+            "neutral": 113
+          },
+          "bearish": {
+            "bullish": 34,
+            "bearish": 64,
+            "neutral": 25
+          },
+          "neutral": {
+            "bullish": 13,
+            "bearish": 9,
+            "neutral": 28
+          }
+        },
+        "polar": {
+          "n": 375,
+          "coverage": 0.632,
+          "accuracy_covered": 0.7384,
+          "flipped": 0.1653
+        }
+      },
+      "sentinel": {
+        "n": 425,
+        "accuracy": 0.5082,
+        "macro_f1": 0.5273,
+        "per_class": {
+          "bullish": {
+            "precision": 0.9082,
+            "recall": 0.3532,
+            "f1": 0.5086,
+            "support": 252
+          },
+          "bearish": {
+            "precision": 0.8889,
+            "recall": 0.7154,
+            "f1": 0.7928,
+            "support": 123
+          },
+          "neutral": {
+            "precision": 0.1711,
+            "recall": 0.78,
+            "f1": 0.2806,
+            "support": 50
+          }
+        },
+        "confusion": {
+          "bullish": {
+            "bullish": 89,
+            "bearish": 5,
+            "neutral": 158
+          },
+          "bearish": {
+            "bullish": 4,
+            "bearish": 88,
+            "neutral": 31
+          },
+          "neutral": {
+            "bullish": 5,
+            "bearish": 6,
+            "neutral": 39
+          }
+        },
+        "polar": {
+          "n": 375,
+          "coverage": 0.496,
+          "accuracy_covered": 0.9516,
+          "flipped": 0.024
+        }
+      }
+    },
+    "fiqa_posts": {
+      "vader": {
+        "n": 675,
+        "accuracy": 0.3956,
+        "macro_f1": 0.3385,
+        "per_class": {
+          "bullish": {
+            "precision": 0.7154,
+            "recall": 0.4356,
+            "f1": 0.5415,
+            "support": 427
+          },
+          "bearish": {
+            "precision": 0.5873,
+            "recall": 0.3394,
+            "f1": 0.4302,
+            "support": 218
+          },
+          "neutral": {
+            "precision": 0.0242,
+            "recall": 0.2333,
+            "f1": 0.0439,
+            "support": 30
+          }
+        },
+        "confusion": {
+          "bullish": {
+            "bullish": 186,
+            "bearish": 44,
+            "neutral": 197
+          },
+          "bearish": {
+            "bullish": 59,
+            "bearish": 74,
+            "neutral": 85
+          },
+          "neutral": {
+            "bullish": 15,
+            "bearish": 8,
+            "neutral": 7
+          }
+        },
+        "polar": {
+          "n": 645,
+          "coverage": 0.5628,
+          "accuracy_covered": 0.7163,
+          "flipped": 0.1597
+        }
+      },
+      "sentinel": {
+        "n": 675,
+        "accuracy": 0.72,
+        "macro_f1": 0.5727,
+        "per_class": {
+          "bullish": {
+            "precision": 0.8992,
+            "recall": 0.7518,
+            "f1": 0.8189,
+            "support": 427
+          },
+          "bearish": {
+            "precision": 0.7927,
+            "recall": 0.7018,
+            "f1": 0.7445,
+            "support": 218
+          },
+          "neutral": {
+            "precision": 0.096,
+            "recall": 0.4,
+            "f1": 0.1548,
+            "support": 30
+          }
+        },
+        "confusion": {
+          "bullish": {
+            "bullish": 321,
+            "bearish": 30,
+            "neutral": 76
+          },
+          "bearish": {
+            "bullish": 28,
+            "bearish": 153,
+            "neutral": 37
+          },
+          "neutral": {
+            "bullish": 8,
+            "bearish": 10,
+            "neutral": 12
+          }
+        },
+        "polar": {
+          "n": 645,
+          "coverage": 0.8248,
+          "accuracy_covered": 0.891,
+          "flipped": 0.0899
+        }
+      }
+    },
+    "stocktwits_odd": {
+      "vader": {
+        "n": 1159,
+        "gold": {
+          "bullish": 944,
+          "bearish": 215
+        },
+        "coverage": 0.5815,
+        "accuracy_covered": 0.7047,
+        "balanced_accuracy_covered": 0.6398,
+        "recall_covered": {
+          "bullish": 0.7509,
+          "bearish": 0.5286
+        },
+        "flipped": 0.1717
+      },
+      "sentinel": {
+        "n": 1159,
+        "gold": {
+          "bullish": 944,
+          "bearish": 215
+        },
+        "coverage": 0.5919,
+        "accuracy_covered": 0.8338,
+        "balanced_accuracy_covered": 0.809,
+        "recall_covered": {
+          "bullish": 0.8475,
+          "bearish": 0.7705
+        },
+        "flipped": 0.0984
+      }
+    }
+  },
+  "tuning": {
+    "twitter_train": {
+      "vader": {
+        "n": 9543,
+        "accuracy": 0.4814,
+        "macro_f1": 0.4383,
+        "per_class": {
+          "bullish": {
+            "precision": 0.2699,
+            "recall": 0.4415,
+            "f1": 0.335,
+            "support": 1923
+          },
+          "bearish": {
+            "precision": 0.3446,
+            "recall": 0.4827,
+            "f1": 0.4021,
+            "support": 1442
+          },
+          "neutral": {
+            "precision": 0.6966,
+            "recall": 0.4935,
+            "f1": 0.5777,
+            "support": 6178
+          }
+        },
+        "confusion": {
+          "bullish": {
+            "bullish": 849,
+            "bearish": 187,
+            "neutral": 887
+          },
+          "bearish": {
+            "bullish": 305,
+            "bearish": 696,
+            "neutral": 441
+          },
+          "neutral": {
+            "bullish": 1992,
+            "bearish": 1137,
+            "neutral": 3049
+          }
+        },
+        "polar": {
+          "n": 3365,
+          "coverage": 0.6053,
+          "accuracy_covered": 0.7585,
+          "flipped": 0.1462
+        }
+      },
+      "sentinel": {
+        "n": 9543,
+        "accuracy": 0.8196,
+        "macro_f1": 0.7846,
+        "per_class": {
+          "bullish": {
+            "precision": 0.7546,
+            "recall": 0.817,
+            "f1": 0.7845,
+            "support": 1923
+          },
+          "bearish": {
+            "precision": 0.6453,
+            "recall": 0.7836,
+            "f1": 0.7078,
+            "support": 1442
+          },
+          "neutral": {
+            "precision": 0.8967,
+            "recall": 0.8287,
+            "f1": 0.8614,
+            "support": 6178
+          }
+        },
+        "confusion": {
+          "bullish": {
+            "bullish": 1571,
+            "bearish": 34,
+            "neutral": 318
+          },
+          "bearish": {
+            "bullish": 40,
+            "bearish": 1130,
+            "neutral": 272
+          },
+          "neutral": {
+            "bullish": 471,
+            "bearish": 587,
+            "neutral": 5120
+          }
+        },
+        "polar": {
+          "n": 3365,
+          "coverage": 0.8247,
+          "accuracy_covered": 0.9733,
+          "flipped": 0.022
+        }
+      }
+    },
+    "stocktwits_even": {
+      "vader": {
+        "n": 1190,
+        "gold": {
+          "bullish": 954,
+          "bearish": 236
+        },
+        "coverage": 0.5857,
+        "accuracy_covered": 0.7044,
+        "balanced_accuracy_covered": 0.6595,
+        "recall_covered": {
+          "bullish": 0.7368,
+          "bearish": 0.5822
+        },
+        "flipped": 0.1731
+      },
+      "sentinel": {
+        "n": 1190,
+        "gold": {
+          "bullish": 954,
+          "bearish": 236
+        },
+        "coverage": 0.6042,
+        "accuracy_covered": 0.8206,
+        "balanced_accuracy_covered": 0.8165,
+        "recall_covered": {
+          "bullish": 0.8232,
+          "bearish": 0.8099
+        },
+        "flipped": 0.1084
+      }
+    }
+  },
+  "throughput_texts_per_s": {
+    "vader": 28546,
+    "sentinel": 5507
+  }
+}

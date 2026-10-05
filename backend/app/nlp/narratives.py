@@ -79,7 +79,6 @@ TIME_FADE_H = 144.0
 NONANCHOR_SIM = 0.4
 ANCHOR_MAX_DF = 0.35
 # Refinement (see _refine): cores, defining features, attach/merge cut-offs.
-REFINE = True
 CORE_MIN = 3
 DEFINING_FRAC = 0.4
 DEFINING_FRAC_TIMED = 0.25
@@ -832,9 +831,8 @@ def cluster_narratives(items: list[ClusterItem], company: CompanyRef | None = No
     copies = find_duplicates(titles)
     rep_times = [times[g[0]] for g in copies]
     rep_docs, idf, common = _vectorize([titles[g[0]] for g in copies], company, rep_times)
-    rep_groups = _average_link(rep_docs, CLUSTER_THRESHOLD if threshold is None else threshold, rep_times)
-    if REFINE:
-        rep_groups = _refine(rep_groups, rep_docs, rep_times)
+    rep_groups = _refine(_average_link(rep_docs, CLUSTER_THRESHOLD if threshold is None else threshold, rep_times),
+                         rep_docs, rep_times)
     docs: list[_Doc] = [rep_docs[0]] * len(items)
     for k, g in enumerate(copies):
         for i in g:

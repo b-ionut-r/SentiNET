@@ -20,7 +20,7 @@ from tests.conftest import load_json_fixture
 
 class TestCleanText:
     def test_strips_tags_entities_urls_and_invisible_chars(self):
-        raw = ('<a href="https://x.com">Nvidia</a>&amp;#39;s &quot;record&quot;​ buyback '
+        raw = ('<a href="https://x.com">Nvidia</a>&amp;#39;s &quot;record&quot;\u200b buyback '
                "https://t.co/abc ￼  done")
         assert clean_text(raw) == "Nvidia's \"record\" buyback done"
 
@@ -143,3 +143,12 @@ class TestTokens:
         assert not is_title_case("Nvidia adds record $150 billion to stock buyback")
         assert is_mostly_upper("NVDA TO THE MOON BOYS")
         assert not is_mostly_upper("NVDA to the moon")
+
+
+@pytest.mark.parametrize("text", [
+    "SOFI Nov 2026 19.000 put (SOFI261106P00019000) Interactive Stock Chart",
+    "Visa stock after-hours at EUR 324.13: plus 0.30 percent versus prior close",
+    "Visa stock pre-market at EUR 318.35: plus 0.27 percent",
+])
+def test_quote_ticks_and_option_pages_are_not_meaningful(text):
+    assert not is_meaningful(text)

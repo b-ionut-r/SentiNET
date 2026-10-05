@@ -163,6 +163,14 @@ export function ms(n: number | null | undefined): string {
   return n >= 1000 ? `${(n / 1000).toFixed(1)}s` : `${Math.round(n)}ms`;
 }
 
+/** 1 → "1st", 12 → "12th", 23 → "23rd". */
+export function ordinal(n: number): string {
+  const r = Math.round(n);
+  const tens = Math.abs(r) % 100;
+  const suffix = tens >= 11 && tens <= 13 ? "th" : (["th", "st", "nd", "rd"][Math.abs(r) % 10] ?? "th");
+  return `${r}${suffix}`;
+}
+
 export function plural(n: number, one: string, many = `${one}s`): string {
   return `${int(n)} ${n === 1 ? one : many}`;
 }

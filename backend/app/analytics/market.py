@@ -16,14 +16,13 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Literal
 
 from app.analytics.aggregate import summarize
 from app.analytics.inputs import SourceRun
 from app.analytics.narratives import build_narratives
 from app.analytics.prepare import prepare
 from app.analytics.util import clamp, pct
-from app.schemas import FearGreed, IndexQuote, MarketOverview, TrendingTicker
+from app.schemas import FearGreed, IndexQuote, MarketOverview, SignalKind, TrendingTicker
 from app.sources.base import CompanyRef, RawSignal, SourceBatch
 
 MAX_MARKET_NARRATIVES = 8
@@ -36,7 +35,7 @@ class _HeadlineFeed:
 
     key: str = "market_headlines"
     label: str = "Market headlines"
-    kind: Literal["news"] = "news"
+    kind: SignalKind = "news"
     weight: float = 1.0
     requires_key: bool = False
     description: str = "CNBC, MarketWatch, Google News and Bing market headlines"

@@ -4,12 +4,9 @@ Why used: public, real-time, and a growing finance community that writes in
 cashtags. Limits (live-verified 2026-10-04): the unauthenticated AppView serves
 only the first page (up to 100 posts; the cursor page returns 403), and search
 ignores the "$" — "$SPY" matches spy-novel posts and "$SOFI" matches "Sofi
-Tukker". So every post goes through `Mentions` in social mode: `$SYM` counts,
-a name counts only with the right casing, outside venue phrases ("SoFi
-Stadium") and next to market vocabulary (themes like "S&P 500" excepted),
-`#SYM` needs strong market words. Hourly price bots dominate some tickers (top-3
-authors were 29-46% of posts), so templated repeats collapse and each author
-contributes at most 3 posts.
+Tukker" — so every post must pass `Mentions` in social mode (see `query.py`).
+Hourly price bots dominate some tickers (top-3 authors were 29-46% of posts):
+templated repeats collapse and each author contributes at most 3 posts.
 If BLUESKY_HANDLE/BLUESKY_APP_PASSWORD are set, requests use an authenticated
 session (token cached ~90 min); bad credentials fall back to the public AppView.
 

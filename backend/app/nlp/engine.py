@@ -225,7 +225,7 @@ class SentinelEngine:
         raw = sum(values)
         mass = sum(abs(v) for v in values)
         fin = math.tanh(raw / (p.social_scale if social else p.scale))
-        # Without finance evidence a headline's VADER share (<= 0.075) can never clear the news
+        # Without finance evidence a headline's VADER share (<= 0.04) can never clear the news
         # dead-zone, so skip it there; social posts always get VADER (caps, emoji, slang).
         need_vader = ev.text and (social or values)
         vader = self._vader.polarity_scores(_CASHTAG.sub("", ev.text))["compound"] if need_vader else 0.0

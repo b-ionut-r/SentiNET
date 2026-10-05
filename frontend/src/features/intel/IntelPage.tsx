@@ -3,7 +3,7 @@
  * verdict → insights → narratives → the case → price × tone → smart money →
  * crowd → themes → raw signals → filings & source health.
  */
-import { RefreshCw, Star } from "lucide-react";
+import { Landmark, RefreshCw, Star } from "lucide-react";
 import { lazy, Suspense, useEffect, useMemo } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
@@ -16,7 +16,7 @@ import { Panel } from "../../components/ui/Panel";
 import { cx } from "../../lib/cx";
 import { useHotkeys } from "../../lib/hotkeys";
 import { getRecent, pushRecent } from "../../lib/storage";
-import { AnalystsPanel, EarningsPanel, InsidersPanel } from "./SmartMoney";
+import { AnalystsPanel, EarningsPanel, hasAnalysts, hasEarnings, hasInsiders, InsidersPanel } from "./SmartMoney";
 import { CasePanel, WatchNext } from "./Case";
 import { CrowdPanel } from "./Crowd";
 import { FilingsPanel, SourcesPanel } from "./Health";
@@ -129,11 +129,23 @@ function IntelView({
         <PriceTone a={a} />
       </Suspense>
 
-      <section id="smart-money" className="grid scroll-mt-36 md:scroll-mt-28 gap-4 lg:grid-cols-3">
-        <AnalystsPanel a={a} />
-        <InsidersPanel a={a} />
-        <EarningsPanel a={a} />
-      </section>
+      {hasAnalysts(a) || hasInsiders(a) || hasEarnings(a) ? (
+        <section id="smart-money" className="grid scroll-mt-36 gap-4 md:scroll-mt-28 lg:grid-cols-3">
+          <AnalystsPanel a={a} />
+          <InsidersPanel a={a} />
+          <EarningsPanel a={a} />
+        </section>
+      ) : (
+        <Panel id="smart-money" title="Smart money" icon={<Landmark />}>
+          <p className="text-sm text-ink-2">
+            {a.profile?.quote_type === "CRYPTOCURRENCY"
+              ? "Crypto assets have no sell-side analyst coverage, insider filings or earnings reports — the verdict leans on news, crowd, momentum and price instead."
+              : a.profile?.quote_type === "ETF"
+                ? "ETFs have no analyst ratings, insider filings or earnings of their own — the verdict leans on news, crowd, momentum and price instead."
+                : "No analyst ratings, insider transactions or earnings calendar came back for this ticker this run."}
+          </p>
+        </Panel>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-12">
         <CrowdPanel a={a} className="lg:col-span-7" />

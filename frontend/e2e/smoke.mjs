@@ -77,7 +77,7 @@ try {
   await page.keyboard.press("Control+k");
   await page.keyboard.type("ap");
   await page.waitForTimeout(500);
-  const first = (await page.getByRole("option").first().textContent()) ?? "";
+  const first = (await page.getByRole("dialog", { name: "Command palette" }).getByRole("option").first().textContent()) ?? "";
   check("a partial query puts the best symbol match first", first.includes("AAPL"), first);
   await page.keyboard.press("Escape");
 

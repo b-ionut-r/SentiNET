@@ -1,0 +1,616 @@
+{
+ "description": "Real Google News RSS headlines (search: \"JPMorgan\" (stock OR shares OR JPM) when:7d), captured 2026-10-04 ~23:20 UTC, hand-labeled 'relevant' (about JPMorgan Chase the company/stock) BEFORE the broker-as-actor rule was written. Most noise is JPMorgan acting as an analyst/strategist on other stocks or markets, which must not count as JPM news.",
+ "company": {
+  "ticker": "JPM",
+  "name": "JPMorgan Chase & Co.",
+  "short_name": "JPMorgan Chase",
+  "aliases": [
+   "JPMorgan",
+   "Chase"
+  ],
+  "industry": "Banks - Diversified",
+  "sector": "Financial Services"
+ },
+ "items": [
+  {
+   "title": "Tesla Faces Q3 Delivery Test — JPMorgan Cuts Forecast, Flags Weakness In Two Key Markets - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-28T13:05:55+00:00",
+   "relevant": false
+  },
+  {
+   "title": "JPMorgan Stock Sits 6% Below Its High After a Record Year. Here’s What Q3 Earnings Must Prove - TIKR.com",
+   "publisher": "TIKR.com",
+   "timestamp": "2026-09-28T13:18:22+00:00",
+   "relevant": true
+  },
+  {
+   "title": "JPMorgan Stock Slips 1% as Bank Agents Get an Open Safety Layer - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-28T17:01:31+00:00",
+   "relevant": true
+  },
+  {
+   "title": "Gay JPMorgan worker claims boss warned 'DEI is not going to save you' before bank forced him to resign - New York Post",
+   "publisher": "New York Post",
+   "timestamp": "2026-09-28T20:29:00+00:00",
+   "relevant": true
+  },
+  {
+   "title": "Why JPMorgan Chase & Co. (JPM) Dipped More Than Broader Market Today - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-28T20:45:03+00:00",
+   "relevant": true
+  },
+  {
+   "title": "JPM - AI And Payments Expansion Will Drive Long-Term Undervalued Bank Opportunity - Simply Wall Street",
+   "publisher": "Simply Wall Street",
+   "timestamp": "2026-09-29T07:00:00+00:00",
+   "relevant": true
+  },
+  {
+   "title": "Baypointe Partners LLC Sells 5,000 Shares of JPMorgan Chase & Co. $JPM - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-09-29T07:09:01+00:00",
+   "relevant": true
+  },
+  {
+   "title": "22,514 Shares in JPMorgan Chase & Co. $JPM Acquired by Markowski Investments - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-09-29T07:23:01+00:00",
+   "relevant": true
+  },
+  {
+   "title": "Maloon Powers Pitre Higgins & Dennehy LLC Buys 5,870 Shares of JPMorgan Chase & Co. $JPM - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-09-29T07:23:01+00:00",
+   "relevant": true
+  },
+  {
+   "title": "Old Mission Investment Co LLC Makes New $4.82 Million Investment in JPMorgan Chase & Co. $JPM - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-09-29T07:23:13+00:00",
+   "relevant": true
+  },
+  {
+   "title": "Tenet Wealth Partners LLC Purchases 3,118 Shares of JPMorgan Chase & Co. $JPM - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-09-29T07:35:33+00:00",
+   "relevant": true
+  },
+  {
+   "title": "Tudor Financial Inc. Sells 9,258 Shares of JPMorgan Chase & Co. $JPM - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-09-29T07:35:34+00:00",
+   "relevant": true
+  },
+  {
+   "title": "JPMorgan downgrades Pepsico stock rating on North America woes - Investing.com",
+   "publisher": "Investing.com",
+   "timestamp": "2026-09-29T07:58:14+00:00",
+   "relevant": false
+  },
+  {
+   "title": "JPMorgan upgrades Bloomin’ Brands stock rating on turnaround - Investing.com",
+   "publisher": "Investing.com",
+   "timestamp": "2026-09-29T08:56:43+00:00",
+   "relevant": false
+  },
+  {
+   "title": "JPMorgan Chase's Quarterly Earnings Preview: What You Need to Know - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-29T09:22:59+00:00",
+   "relevant": true
+  },
+  {
+   "title": "Will JPMorgan’s (JPM) New Notes and Preferred Dividend Clarify Its AI-Era Deposit Strategy? - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-29T10:06:03+00:00",
+   "relevant": true
+  },
+  {
+   "title": "JPMorgan Chase (JPM) Stock May Trade At A Discount Following Record Dealmaking News - Simply Wall Street",
+   "publisher": "Simply Wall Street",
+   "timestamp": "2026-09-29T11:40:34+00:00",
+   "relevant": true
+  },
+  {
+   "title": "PEP Stock Gets A Downgrade From JPMorgan – Firm Flags Frito-Lay Weakness - TradingView",
+   "publisher": "TradingView",
+   "timestamp": "2026-09-29T11:47:20+00:00",
+   "relevant": false
+  },
+  {
+   "title": "JPMorgan market intelligence desk goes bullish on tech stocks - qz.com",
+   "publisher": "qz.com",
+   "timestamp": "2026-09-29T11:58:47+00:00",
+   "relevant": false
+  },
+  {
+   "title": "MU Stock Gains Ahead Of Q4 Earnings: JPMorgan Sees 'Constructive' Setup Amid Netlist Legal Fight - TradingView",
+   "publisher": "TradingView",
+   "timestamp": "2026-09-29T12:58:28+00:00",
+   "relevant": false
+  },
+  {
+   "title": "JPMorgan lowers Argan stock price target to $785 on valuation - Investing.com",
+   "publisher": "Investing.com",
+   "timestamp": "2026-09-29T13:46:14+00:00",
+   "relevant": false
+  },
+  {
+   "title": "CoreWeave Stock Just Got a Jaw-Dropping Upgrade From JPMorgan - Barchart.com",
+   "publisher": "Barchart.com",
+   "timestamp": "2026-09-29T14:30:06+00:00",
+   "relevant": false
+  },
+  {
+   "title": "JPMorgan Chase & Co. Has Lowered Expectations for Starbucks (NASDAQ:SBUX) Stock Price - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-09-29T15:27:28+00:00",
+   "relevant": false
+  },
+  {
+   "title": "JPM vs. GS: The Dividend Raiser That Won’t Flinch When Markets Crack - 24/7 Wall St.",
+   "publisher": "24/7 Wall St.",
+   "timestamp": "2026-09-29T16:30:00+00:00",
+   "relevant": true
+  },
+  {
+   "title": "JPMorgan banker renews defamation countersuit against sexual assault accuser Rana - Reuters",
+   "publisher": "Reuters",
+   "timestamp": "2026-09-29T16:41:34+00:00",
+   "relevant": true
+  },
+  {
+   "title": "JPMorgan Sees Micron Positioned for Beat-and-Raise Ahead of Q4 Results - 24/7 Wall St.",
+   "publisher": "24/7 Wall St.",
+   "timestamp": "2026-09-29T16:45:00+00:00",
+   "relevant": false
+  },
+  {
+   "title": "JPMorgan appoints Mark O'Donovan as head of human resources, memo says - Reuters",
+   "publisher": "Reuters",
+   "timestamp": "2026-09-29T16:53:43+00:00",
+   "relevant": true
+  },
+  {
+   "title": "JPMorgan adds three bankers to natural resources team - Bloomberg - Investing.com",
+   "publisher": "Investing.com",
+   "timestamp": "2026-09-29T17:49:13+00:00",
+   "relevant": true
+  },
+  {
+   "title": "Monday.com Shares Fall After JPMorgan Downgrade - marketscreener.com",
+   "publisher": "marketscreener.com",
+   "timestamp": "2026-09-29T19:11:04+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Wells Fargo Hires JPMorgan’s David Harkin to Co-Lead Tech Deals - Bloomberg.com",
+   "publisher": "Bloomberg.com",
+   "timestamp": "2026-09-29T21:08:13+00:00",
+   "relevant": false
+  },
+  {
+   "title": "11,737 Shares in JPMorgan Chase & Co. $JPM Purchased by Compass Financial Management LLC - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-09-30T07:11:06+00:00",
+   "relevant": true
+  },
+  {
+   "title": "11,166 Shares of JPMorgan Chase & Co. $JPM Purchased by NBH Bank - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-09-30T07:19:26+00:00",
+   "relevant": true
+  },
+  {
+   "title": "POM Investment Strategies LLC Reduces Stock Position in JPMorgan Chase & Co. $JPM - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-09-30T07:26:54+00:00",
+   "relevant": true
+  },
+  {
+   "title": "Operose Advisors LLC Acquires New Holdings in JPMorgan Chase & Co. $JPM - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-09-30T07:26:54+00:00",
+   "relevant": true
+  },
+  {
+   "title": "Rose Capital Advisors LLC Purchases 3,234 Shares of JPMorgan Chase & Co. $JPM - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-09-30T07:30:53+00:00",
+   "relevant": true
+  },
+  {
+   "title": "JPMorgan Chase & Co. $JPM Stock Holdings Boosted by Saudi Central Bank - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-09-30T07:30:54+00:00",
+   "relevant": true
+  },
+  {
+   "title": "JPMorgan Chase (JPM) Backs Michigan LIFT As Dimon Pushes US Europe Trade Pact - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-30T09:08:51+00:00",
+   "relevant": true
+  },
+  {
+   "title": "JPMorgan Trades Below 50-Day SMA: Buy, Sell or Hold the Stock? - Zacks Investment Research",
+   "publisher": "Zacks Investment Research",
+   "timestamp": "2026-09-30T14:51:56+00:00",
+   "relevant": true
+  },
+  {
+   "title": "JPMorgan Chase names next HR chief - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-30T15:15:45+00:00",
+   "relevant": true
+  },
+  {
+   "title": "JPMorgan Reinitiates London Stock Exchange Group at Overweight - Moomoo",
+   "publisher": "Moomoo",
+   "timestamp": "2026-09-30T15:57:58+00:00",
+   "relevant": false
+  },
+  {
+   "title": "JPMorgan’s Sundar Sees ‘Healthy’ Tumult of Two AI Cycles at Once - Bloomberg.com",
+   "publisher": "Bloomberg.com",
+   "timestamp": "2026-09-30T16:36:31+00:00",
+   "relevant": false
+  },
+  {
+   "title": "JPMorgan Trades Below 50-Day SMA: Buy, Sell or Hold the Stock? - The Globe and Mail",
+   "publisher": "The Globe and Mail",
+   "timestamp": "2026-09-30T16:56:00+00:00",
+   "relevant": true
+  },
+  {
+   "title": "JPMorgan Stocks Edge Lower as Bank Joins Open Agent-Safety Project - TradingView",
+   "publisher": "TradingView",
+   "timestamp": "2026-09-30T16:58:28+00:00",
+   "relevant": true
+  },
+  {
+   "title": "JPMorgan revamps Micron stock price target before earnings - thestreet.com",
+   "publisher": "thestreet.com",
+   "timestamp": "2026-09-30T17:11:15+00:00",
+   "relevant": false
+  },
+  {
+   "title": "JPM vs. BAC: The Bank Built to Sustain Dividend Growth When Markets Turn - 24/7 Wall St.",
+   "publisher": "24/7 Wall St.",
+   "timestamp": "2026-09-30T18:15:00+00:00",
+   "relevant": true
+  },
+  {
+   "title": "JPMorgan sends a strong message to Mag-7 stock investors - thestreet.com",
+   "publisher": "thestreet.com",
+   "timestamp": "2026-09-30T18:33:00+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Why This JPMorgan Global Stock ETF is a Standout Option - Morningstar",
+   "publisher": "Morningstar",
+   "timestamp": "2026-09-30T19:56:57+00:00",
+   "relevant": false
+  },
+  {
+   "title": "JPMorgan Chase (JPM) CEO Pushes US Europe Trade Pact As Bank Backs Michigan LIFT - Simply Wall Street",
+   "publisher": "Simply Wall Street",
+   "timestamp": "2026-09-30T20:02:22+00:00",
+   "relevant": true
+  },
+  {
+   "title": "JPMorgan Chase & Co. (NYSE:JPM) Stock Price Down 1.1% - Should You Sell? - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-09-30T21:31:02+00:00",
+   "relevant": true
+  },
+  {
+   "title": "JCDecaux (ENXTPA:DEC) Stock Fair Value Edges Higher After JPMorgan Target Increases - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-09-30T23:11:16+00:00",
+   "relevant": false
+  },
+  {
+   "title": "JPMorgan Elevated Doug Petno and Troy Rohrbaugh to Co-Presidents as Jamie Dimon's Board Accelerates Succession Planning. Here's What That Reshuffle Signals for JPMorgan's Next Chapter. - The Motley Fool",
+   "publisher": "The Motley Fool",
+   "timestamp": "2026-10-01T01:15:00+00:00",
+   "relevant": true
+  },
+  {
+   "title": "RBC Capital Maintains JPMorgan(JPM.US) With Buy Rating, Maintains Target Price $370 - Moomoo",
+   "publisher": "Moomoo",
+   "timestamp": "2026-10-01T02:31:00+00:00",
+   "relevant": true
+  },
+  {
+   "title": "Giverny Capital Inc. Sells 4,422 Shares of JPMorgan Chase & Co. $JPM - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-01T07:08:13+00:00",
+   "relevant": true
+  },
+  {
+   "title": "JPMorgan Chase & Co. $JPM Stock Sold by HighTower Advisors LLC - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-01T07:08:15+00:00",
+   "relevant": true
+  },
+  {
+   "title": "JPMorgan Chase & Co. $JPM Stock Position Raised by Kintra Wealth LLC - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-01T07:16:15+00:00",
+   "relevant": true
+  },
+  {
+   "title": "JPMorgan Chase & Co. $JPM Stock Purchased by Ameritas Advisory Services LLC - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-01T07:34:21+00:00",
+   "relevant": true
+  },
+  {
+   "title": "Wedmont Private Capital Purchases 3,424 Shares of JPMorgan Chase & Co. $JPM - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-01T07:34:21+00:00",
+   "relevant": true
+  },
+  {
+   "title": "JPMorgan Chase & Co. $JPM Shares Newly Acquired by VIRGINIA RETIREMENT SYSTEMS ET Al - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-01T07:34:21+00:00",
+   "relevant": true
+  },
+  {
+   "title": "Amundi Boosts Stake in JPMorgan Chase & Co. $JPM - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-01T07:34:21+00:00",
+   "relevant": true
+  },
+  {
+   "title": "JPMorgan Chase & Co. $JPM Shares Bought by Vancity Investment Management Ltd - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-01T07:34:22+00:00",
+   "relevant": true
+  },
+  {
+   "title": "JPMorgan initiates Spyre stock with Overweight on IBD pipeline - Investing.com",
+   "publisher": "Investing.com",
+   "timestamp": "2026-10-01T07:59:36+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Enliven Therapeutics stock initiated at Overweight by JPMorgan - Investing.com",
+   "publisher": "Investing.com",
+   "timestamp": "2026-10-01T08:00:13+00:00",
+   "relevant": false
+  },
+  {
+   "title": "JPMorgan upgrades First Hawaiian stock rating on rate outlook - Investing.com",
+   "publisher": "Investing.com",
+   "timestamp": "2026-10-01T10:40:32+00:00",
+   "relevant": false
+  },
+  {
+   "title": "JPMorgan upgrades Forbright stock rating on rate hike benefit - Investing.com",
+   "publisher": "Investing.com",
+   "timestamp": "2026-10-01T11:06:10+00:00",
+   "relevant": false
+  },
+  {
+   "title": "JPMorgan downgrades Ethos Technologies stock rating to neutral - Investing.com",
+   "publisher": "Investing.com",
+   "timestamp": "2026-10-01T11:06:12+00:00",
+   "relevant": false
+  },
+  {
+   "title": "JPMorgan downgrades Baldwin Insurance stock rating on buyout deal - Investing.com",
+   "publisher": "Investing.com",
+   "timestamp": "2026-10-01T11:06:12+00:00",
+   "relevant": false
+  },
+  {
+   "title": "JPMorgan Strategists See Higher Volatility Into US Midterm Vote - Bloomberg.com",
+   "publisher": "Bloomberg.com",
+   "timestamp": "2026-10-01T12:01:25+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Elevated equity positioning, leverage could challenge stocks in Q4: JPMorgan - Investing.com",
+   "publisher": "Investing.com",
+   "timestamp": "2026-10-01T12:11:19+00:00",
+   "relevant": false
+  },
+  {
+   "title": "GOOGL Stock Rises After Gemini 4 Argon Launch, But JPMorgan Says Google Must Reclaim AI Leadership - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-01T12:52:40+00:00",
+   "relevant": false
+  },
+  {
+   "title": "REG - JPMorgan ETFs (Ire.) JPM (Ire) ICAV UST$ - Dividend Declaration - TradingView",
+   "publisher": "TradingView",
+   "timestamp": "2026-10-01T13:00:00+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Will JPMorgan Chase & Co. (JPM) Beat Estimates Again in Its Next Earnings Report? - Yahoo Finance Australia",
+   "publisher": "Yahoo Finance Australia",
+   "timestamp": "2026-10-01T15:10:02+00:00",
+   "relevant": true
+  },
+  {
+   "title": "AON (NYSE:AON) Stock Price Target Lowered at JPMorgan Chase & Co. - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-01T15:31:16+00:00",
+   "relevant": false
+  },
+  {
+   "title": "JPMorgan dealmaker Hernan Cristerna to retire at end of 2026 - Reuters",
+   "publisher": "Reuters",
+   "timestamp": "2026-10-01T15:36:14+00:00",
+   "relevant": true
+  },
+  {
+   "title": "SouthState Bank (NYSE:SSB) Stock Price Target Cut by JPMorgan Chase & Co. - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-01T15:45:34+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Bank Stocks Slide as Money-Center Names Lead Financials Lower: Citigroup Falls 4%, Bank of America Drops 3%, JPMorgan Chase Slips - 24/7 Wall St.",
+   "publisher": "24/7 Wall St.",
+   "timestamp": "2026-10-01T15:51:00+00:00",
+   "relevant": true
+  },
+  {
+   "title": "Will JPMorgan Chase & Co. (JPM) Beat Estimates Again in Its Next Earnings Report? - Zacks Investment Research",
+   "publisher": "Zacks Investment Research",
+   "timestamp": "2026-10-01T16:26:39+00:00",
+   "relevant": true
+  },
+  {
+   "title": "JPMorgan Chase (JPM) Taps Bond Markets, Is The Stock Still Undervalued? - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-01T18:09:42+00:00",
+   "relevant": true
+  },
+  {
+   "title": "JPMorgan's global M&A chief is retiring after 30 years at the bank - qz.com",
+   "publisher": "qz.com",
+   "timestamp": "2026-10-01T18:11:38+00:00",
+   "relevant": true
+  },
+  {
+   "title": "ON (NYSE:ONON) Stock Price Target Raised at JPMorgan Chase & Co. - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-01T18:54:25+00:00",
+   "relevant": false
+  },
+  {
+   "title": "RBC Capital Keeps Their Buy Rating on JPMorgan Chase (JPM) - The Globe and Mail",
+   "publisher": "The Globe and Mail",
+   "timestamp": "2026-10-02T02:01:57+00:00",
+   "relevant": true
+  },
+  {
+   "title": "JPMorgan Chase (JPM) Taps Bond Markets, Is The Stock Fully Priced? - Simply Wall Street",
+   "publisher": "Simply Wall Street",
+   "timestamp": "2026-10-02T03:54:51+00:00",
+   "relevant": true
+  },
+  {
+   "title": "JPMorgan Chase & Co. (NYSE:JPM) Stock Has Average Price Target of $363.29 - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-02T06:32:04+00:00",
+   "relevant": true
+  },
+  {
+   "title": "JPMorgan Chase & Co. $JPM Shares Acquired by Baird Financial Group Inc. - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-02T07:06:33+00:00",
+   "relevant": true
+  },
+  {
+   "title": "JPMorgan Chase & Co. $JPM Stock Holdings Decreased by Anchor Capital Advisors LLC - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-02T07:06:34+00:00",
+   "relevant": true
+  },
+  {
+   "title": "JPMorgan Chase & Co. $JPM Position Raised by Empirical Finance LLC - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-02T07:14:36+00:00",
+   "relevant": true
+  },
+  {
+   "title": "20,510 JPMorgan Chase & Co. $JPM Shares Purchased by NewEdge Advisors LLC - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-02T07:28:40+00:00",
+   "relevant": true
+  },
+  {
+   "title": "JPMorgan Chase & Co. $JPM Stock Bought by West Family Investments Inc. - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-02T07:30:44+00:00",
+   "relevant": true
+  },
+  {
+   "title": "114,144 JPMorgan Chase & Co. $JPM Shares Acquired by Waverly Advisors LLC - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-02T07:30:44+00:00",
+   "relevant": true
+  },
+  {
+   "title": "JPMorgan Chase & Co. $JPM Stock Bought by RFG Advisory LLC - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-02T07:30:44+00:00",
+   "relevant": true
+  },
+  {
+   "title": "JPMorgan initiates Graham stock with Overweight on defense growth - Investing.com",
+   "publisher": "Investing.com",
+   "timestamp": "2026-10-02T07:46:11+00:00",
+   "relevant": false
+  },
+  {
+   "title": "JPMorgan downgrades Hess Midstream stock rating on contract risks - Investing.com",
+   "publisher": "Investing.com",
+   "timestamp": "2026-10-02T07:46:11+00:00",
+   "relevant": false
+  },
+  {
+   "title": "JPMorgan sets Google stock price target - Finbold",
+   "publisher": "Finbold",
+   "timestamp": "2026-10-02T09:26:07+00:00",
+   "relevant": false
+  },
+  {
+   "title": "JPMorgan Chase & Co. (JPM) Is a Trending Stock: Facts to Know Before Betting on It - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-02T12:00:04+00:00",
+   "relevant": true
+  },
+  {
+   "title": "This Senator Just Sold Up To $145K In JPMorgan Chase Stock - Benzinga",
+   "publisher": "Benzinga",
+   "timestamp": "2026-10-02T15:00:24+00:00",
+   "relevant": true
+  },
+  {
+   "title": "$JPMorgan (JPM.US)$ - Moomoo",
+   "publisher": "Moomoo",
+   "timestamp": "2026-10-02T16:27:34+00:00",
+   "relevant": false
+  },
+  {
+   "title": "JPMorgan Chase & Co. Has Lowered Expectations for Citigroup (NYSE:C) Stock Price - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-02T16:53:44+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Fifth Third Bancorp (NASDAQ:FITB) Stock Price Target Cut by JPMorgan Chase & Co. - MarketBeat",
+   "publisher": "MarketBeat",
+   "timestamp": "2026-10-02T16:53:44+00:00",
+   "relevant": false
+  },
+  {
+   "title": "Better Small-Cap ETF: State Street SPSM vs. JPMorgan BBSC - The Motley Fool",
+   "publisher": "The Motley Fool",
+   "timestamp": "2026-10-03T22:08:00+00:00",
+   "relevant": false
+  },
+  {
+   "title": "JPMorgan’s best stock ideas heading into October - CNBC",
+   "publisher": "CNBC",
+   "timestamp": "2026-10-04T13:17:14+00:00",
+   "relevant": false
+  },
+  {
+   "title": "JPMorgan Chase Has One of Banking’s Best Moats. Here’s What the Stock is Worth - Yahoo Finance",
+   "publisher": "Yahoo Finance",
+   "timestamp": "2026-10-04T22:58:31+00:00",
+   "relevant": true
+  }
+ ]
+}

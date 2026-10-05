@@ -103,3 +103,35 @@ def test_with_the_configured_engine():
         assert r.label in {"bullish", "bearish", "neutral"}
     assert {"all_time_high", "buyback"} <= {e.key for e in results[0].events}
     assert "competition" in results[1].themes and not any(e.key == "pt_cut" for e in results[1].events)
+
+
+@pytest.mark.live
+def test_live_google_news_end_to_end():
+    """Live smoke: today's Google News feed through relevance, dedup,
+    scoring, clustering and keywords (run with `pytest -m live`)."""
+    from urllib.parse import quote_plus
+
+    import feedparser
+    import httpx
+
+    from app.nlp.keywords import extract_keywords
+    from app.nlp.narratives import cluster_narratives, find_duplicates
+    from app.nlp.relevance import relevance
+    from app.nlp.text import is_meaningful, strip_publisher_suffix
+    from app.nlp.types import ClusterItem
+    from app.sources.base import CompanyRef
+
+    company = CompanyRef(ticker="NVDA", name="NVIDIA Corporation", short_name="Nvidia", industry="Semiconductors")
+    query = quote_plus('"Nvidia" (stock OR shares OR NVDA) when:7d')
+    response = httpx.get(f"https://news.google.com/rss/search?q={query}&hl=en-US&gl=US&ceid=US:en",
+                         headers={"User-Agent": "Mozilla/5.0"}, timeout=25, follow_redirects=True)
+    entries = feedparser.parse(response.content).entries
+    titles = [strip_publisher_suffix(e.title, getattr(getattr(e, "source", None), "title", None)) for e in entries]
+    kept = [t for t in titles if is_meaningful(t) and relevance(t, company) >= 0.35]
+    assert len(kept) >= 20
+    analyses = pipeline.analyze_texts(kept, ["news"] * len(kept))
+    items = [ClusterItem(id=str(i), title=t, score=a.score) for i, (t, a) in enumerate(zip(kept, analyses, strict=True))]
+    clusters = cluster_narratives(items, company, max_clusters=8)
+    assert clusters and len(clusters[0].item_ids) >= 3
+    assert sum(len(g) for g in find_duplicates(kept)) == len(kept)
+    assert extract_keywords(kept, [a.score for a in analyses], company)

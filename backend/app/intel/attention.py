@@ -55,7 +55,8 @@ _COMPANY_WORDS = re.compile(
     r"airline|brand|holding|firm|maker|provider|developer|operator|producer|platform|"
     r"insurer|insurance|semiconductor|automaker|pharmaceutical|biotechnology|software|"
     r"technology|media|restaurant|cruise|railroad|utility|trust|reit|exchange|distributor|"
-    r"supplier|wholesaler|publisher|carrier|lender|e-commerce|streaming|business|enterprise)\b",
+    r"supplier|wholesaler|publisher|carrier|lender|e-commerce|streaming|business|enterprise|contractor|"
+    r"subsidiary|marketplace|app)\b",
     re.IGNORECASE,
 )
 _FUND_WORDS = re.compile(r"\b(index|fund|etf|exchange-traded|stock market|commodity|bond|metal|futures?|"

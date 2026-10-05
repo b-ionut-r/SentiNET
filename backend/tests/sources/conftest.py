@@ -6,6 +6,12 @@ Fixture provenance (tests/fixtures/sources/):
   stocktwits_*, apewisdom_*, tradestie_* (two dates, evidencing the frozen sentiment),
   bluesky_nvda_cashtag / bluesky_sofi_name, alphavantage_news_aapl_demo (public
   "demo" key payload) and alphavantage_demo_key_refusal.
+* REAL payloads captured 2026-10-04 23:33 UTC for the review fixes (slimmed to the fields
+  the parsers read): seeking_alpha_googl, nasdaq_googl, yahoo_search_news_googl /
+  _alphabet (share classes), bing_news_att_shares (half-ignored query),
+  hackernews_mar_symbol_noise, bluesky_health_care_name / bluesky_trump_cashtag
+  (homonym floods), stocktwits_tgt_p1/p2 (quiet name, 16-day span),
+  tradestie_2026-10-04_sunday (thin weekend board), apewisdom_stocks_p1_live (word tickers).
 * HANDMADE (no key available), shaped per provider docs with obviously synthetic
   "Example: ..." text: *_handmade.json (Finnhub, Marketaux, Reddit, yfinance
   get_news shape, Bluesky session).
@@ -93,6 +99,6 @@ def frozen_now(monkeypatch):
     from app.sources import util
 
     monkeypatch.setattr(util, "utc_now", lambda: CAPTURE_NOW)
-    for module in ("bluesky", "finnhub", "marketaux", "alphavantage", "tradestie"):
+    for module in ("bluesky", "bing_news", "stocktwits", "finnhub", "marketaux", "alphavantage", "tradestie"):
         monkeypatch.setattr(f"app.sources.{module}.utc_now", lambda: CAPTURE_NOW, raising=False)
     return CAPTURE_NOW

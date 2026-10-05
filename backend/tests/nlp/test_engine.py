@@ -3,8 +3,10 @@
 The labelled cases cover the constructions the engine must get right in market
 text: analyst actions (direction from ratings/numbers), earnings vs. estimates,
 guidance, price moves with magnitude, compositional metrics ("loss narrowed"),
-negation, contrast/concession, hedges/questions/listicles, legal and corporate
-events, macro, the social register, and neutral "false friends".
+negation, contrast/concession/context clauses, hedges/questions/listicles, legal
+and corporate events, insider and options flow, macro surprises, the social
+register, and neutral "false friends". All cases are hand-written (or from the
+Twitter *train* split); none come from the held-out benchmark sets.
 """
 from __future__ import annotations
 

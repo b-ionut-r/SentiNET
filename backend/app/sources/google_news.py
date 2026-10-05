@@ -3,8 +3,8 @@
 Why trusted: aggregates thousands of outlets (wires, majors, trade press) with
 a real publisher on every item. Limits: max 100 items per query, ranked by
 *relevance* (a 7-day query misses most of the last 24 h), no snippets, links
-are Google redirect URLs. So we run two queries — a 24-hour one for freshness
-and a 7-day one for context — and merge them.
+are Google redirect URLs. So we run a 24-hour name query for freshness, a
+7-day one for context and, when the ticker is safe, a 7-day ticker query.
 
 Query design (see `app.sources.query`): the asset's name(s) must appear in the
 headline (`intitle:`), anchored by finance context words in the article text;
@@ -15,6 +15,8 @@ everyday-word names ("Target") are anchored on the ticker/legal name instead
 into the name query let in "TGT 147800" commodity calls and teacher-exam posts.
 Known quote/option-chain page phrases are excluded server-side, so they don't
 eat the 100-result cap (GME: ~60 of 100 raw results were option pages).
+`intitle:` is case-insensitive, so headlines where a word-like name appears only
+in lower case ("target stock price of 73,000 won") are dropped (`Mentions`).
 Docs: https://news.google.com (RSS search endpoint, unofficial but stable).
 """
 from __future__ import annotations

@@ -37,7 +37,7 @@ EVENTS = (
     ("earnings_beat", r"\bbeats?\b|\btops\b", "bull", "earnings"),
     ("earnings_miss", r"\bmiss(es)?\b", "bear", "earnings"),
     ("lawsuit", r"lawsuit|\bsues\b|\bsued\b", "bear", "legal"),
-    ("investigation", r"\bprobe\b|investigation", "bear", "legal"),
+    ("investigation", r"\bprobe\b|investigat", "bear", "legal"),
     ("offering", r"offering|dilution", "bear", "trading"),
     ("bankruptcy", r"bankruptcy|going concern", "bear", "legal"),
     ("short_report", r"short[- ]seller", "bear", "trading"),
@@ -45,7 +45,8 @@ EVENTS = (
     ("price_up", r"\b(soars|jumps|surges)\b", "bull", None),
     ("price_down", r"\b(plunges|falls|drops)\b", "bear", None),
 )
-THEME_WORDS = (("ai", r"\bAI\b"), ("earnings", r"earnings|revenue|quarter"), ("product", r"launch|product|chip"))
+THEME_WORDS = (("ai", r"\bAI\b"), ("earnings", r"earnings|revenue|quarter"), ("product", r"launch|product|chip"),
+               ("regulatory", r"\bSEC\b|regulat"))
 TRUST = {"Reuters": 1.25, "Bloomberg": 1.25, "CNBC": 1.2, "MarketWatch": 1.2, "Barron's": 1.2,
          "The Motley Fool": 0.9, "Benzinga": 0.95, "Yahoo Finance": 1.0, "Zacks": 0.9, "TipRanks": 0.9,
          "Seeking Alpha": 0.95, "Investopedia": 0.95, "PR Newswire": 0.55, "GlobeNewswire": 0.55}

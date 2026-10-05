@@ -11,7 +11,13 @@ Guarantees
 * A caller that goes away (closed SSE stream) does not abort the shared run;
   the result is still stored and cached.
 * Fresh results are cached for `settings.analyze_cache_ttl` and served with
-  `cached=True`.
+  `cached=True`; a cached result is superseded as soon as a provider call it
+  had to skip (see `TAIL_GRACE`) lands with data.
+* Cold runs stay under ~12 s: one budget from the start (resolution included)
+  plus a tail rule, so slow name-search intel never idles the run.
+* Unknown symbols (typos, delisted) fail fast with 404 — decided only from
+  symbol-keyed evidence, never from keyword-search hits — and are negatively
+  cached for `UNKNOWN_TTL`.
 
 Provider modules are imported inside functions so this module imports cleanly
 even while those packages are being edited; tests replace them with fakes.
@@ -67,7 +73,7 @@ TONE_DAYS = 90  # keep in sync with the history endpoint so both share GDELT's c
 LATEST_KEEP = 64
 # Time budget of a cold run, counted from the start (symbol resolution
 # included) to synthesis, which then takes well under a second: < 12 s total.
-RUN_BUDGET = 11.0
+RUN_BUDGET = 10.5
 RESOLVE_TIMEOUT = 8.0
 MIN_TIME_BOX = 1.0
 # Tail rule: once every source and every core intel task has answered, the slow

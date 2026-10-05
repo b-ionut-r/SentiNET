@@ -38,7 +38,7 @@ export function HeaderStrip({ a, watched, onWatch, onRefresh, refreshing, progre
             <h1 className="truncate text-[22px] font-semibold leading-7 tracking-[-0.01em] text-ink">{p?.name ?? a.ticker}</h1>
             <span className="shrink-0 font-mono text-sm font-medium text-ink-2">{a.ticker}</span>
           </div>
-          <p className="mt-0.5 truncate text-xs text-muted">
+          <p className="mt-0.5 truncate text-xs text-muted" title={meta.join(" · ") || undefined}>
             {meta.length ? meta.join(" · ") : "Profile unavailable"}
           </p>
         </div>

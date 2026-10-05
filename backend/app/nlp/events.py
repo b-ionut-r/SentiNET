@@ -383,13 +383,23 @@ def _is_hypothetical(text: str, start: int, end: int | None = None) -> bool:
             and end is not None and end.group(0) == "?")
 
 
+_ANALYST_VERB_AFTER_RE = re.compile(
+    r"^(?:'s)?\s+(?:analysts?\s+)?(?:maintains?|reiterates?|keeps?|raises?|lifts?|boosts?|hikes?|cuts?|lowers?|trims?|"
+    r"slashes?|sets?|upgrades?|downgrades?|initiates?|resumes?|assumes?|reinstates?|starts?|names?|adds?)\b",
+    re.IGNORECASE,
+)
+
+
 def _firm_near(text: str, start: int, end: int, allow_actor: bool = False) -> str | None:
-    """The brokerage acting in [start, end): inside it, just before it (same
-    clause) or right after it ("at/by/from Citi"). With `allow_actor`, an
-    unknown one-word actor opening the clause also counts ("Wood lifts price
-    target") — only safe for price-target phrasing, where the subject of
-    "raises price target" is always the broker."""
-    best: tuple[int, str] | None = None
+    """The brokerage acting in [start, end): inside it, right after it ("at/by/
+    from Citi"), or before it in the same clause — preferring a firm followed
+    by an analyst verb ("RBC Maintains Goldman Sachs ..., Raises Target" is
+    RBC's note), else the nearest. With `allow_actor`, an unknown one-word
+    actor opening the clause also counts ("Wood lifts price target") — only
+    safe for price-target phrasing, where the subject of "raises price
+    target" is always the broker."""
+    nearest: tuple[int, str] | None = None
+    subject: str | None = None
     for m in _FIRM_RE.finditer(text):
         name = m.group(0)
         if m.start() >= start and m.end() <= end:
@@ -398,14 +408,16 @@ def _firm_near(text: str, start: int, end: int, allow_actor: bool = False) -> st
             gap = text[m.end():start]
             if len(gap) <= 90 and not re.search(r"[.;!?]\s|\s[-|]\s", gap):
                 dist = start - m.end()
-                if best is None or dist < best[0]:
-                    best = (dist, canonical_firm(name))
+                if nearest is None or dist < nearest[0]:
+                    nearest = (dist, canonical_firm(name))
+                if subject is None and _ANALYST_VERB_AFTER_RE.match(text[m.end():m.end() + 40]):
+                    subject = canonical_firm(name)
         elif m.start() >= end:
             gap = text[end:m.start()]
             if len(gap) <= 50 and re.search(r"\b(?:by|at|from|with|via)\s+(?:\w+\s+){0,1}$", gap, re.IGNORECASE):
                 return canonical_firm(name)
-    if best:
-        return best[1]
+    if subject or nearest:
+        return subject or nearest[1]  # type: ignore[index]
     if not allow_actor:
         return None
     m = re.search(r"(?:^|[:;]\s*|\b(?:as|after|amid|following|when|while)\s+)((?:[A-Z][\w.&'-]*\s){1,3})$",

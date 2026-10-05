@@ -26,7 +26,7 @@ import { Meter } from "../../components/charts/Bars";
 import { Empty, Segmented, Skeleton } from "../../components/ui/Misc";
 import { Panel, SubHead } from "../../components/ui/Panel";
 import { cx } from "../../lib/cx";
-import { longDate, MINUS, pct, price as fmtPrice, signed } from "../../lib/format";
+import { longDate, MINUS, ordinal, pct, price as fmtPrice, signed } from "../../lib/format";
 import { textTone } from "../../lib/sentiment";
 import { tokenColor, useTheme } from "../../lib/theme";
 
@@ -401,7 +401,7 @@ function ToneLeadPanel({ a, history, loading, error, className }: { a: Analysis;
             <div className="mt-3">
               <div className="mb-1 flex justify-between text-2xs text-muted">
                 <span>7-day tone within its 90-day range</span>
-                <span className="font-medium text-ink-2">{Math.round(t.percentile_7d * 100)}th pct</span>
+                <span className="font-medium text-ink-2">{ordinal(t.percentile_7d * 100)} pct</span>
               </div>
               <Meter value={t.percentile_7d} color="rgb(var(--ink-2))" height={6} />
               <div className="mt-1 flex justify-between text-2xs text-faint">

@@ -1,15 +1,16 @@
 """Verdict = composite score + label + honest confidence + ranked reasons + one-line headline.
 
 Reasons are ranked by how many points they move the score: a component's
-contribution (its share of the effective weight × its distance from 50), or
-for a story, 10 × impact × tone strength. Every reason and headline clause is
-built from the evidence numbers carried by the components and narratives.
+contribution (its share of the effective weight × its distance from 50); the
+top story claims a share of the news component's contribution (see
+`story_points`). Every reason and headline clause is built from the evidence
+numbers carried by the components and narratives.
 """
 from __future__ import annotations
 
 import math
 
-from app.analytics.composite import LABELS, ComponentKey
+from app.analytics.composite import LABELS, WEIGHTS, ComponentKey
 from app.analytics.crowd import reddit_change_pct, reddit_move
 from app.analytics.facts import Facts
 from app.analytics.narratives import Story
@@ -42,7 +43,7 @@ def build_verdict(f: Facts) -> Verdict:
     conf_label, conf_value = confidence(f)
     return Verdict(
         score=comp.score, label=label, stance=stance, confidence=conf_label,
-        confidence_value=round(conf_value, 3), headline=headline(f, label, stance, conf_label),
+        confidence_value=round(conf_value, 3), headline=headline(f, label, stance),
         reasons=reasons(f), components=[p.component() for p in comp.parts.values()],
     )
 
@@ -53,9 +54,10 @@ def build_verdict(f: Facts) -> Verdict:
 def confidence(f: Facts) -> tuple[Confidence, float]:
     """data quality (coverage, volume, freshness) × (0.5 + 0.5 · component agreement).
 
-    Coverage is the nominal weight of available components; agreement is 1 minus
-    the effective-weighted spread of component strengths (a lone component
-    cannot corroborate itself: 0.5)."""
+    Coverage is the nominal weight of available components, each counted in
+    proportion to its own confidence (full at >= 0.6); agreement is 1 minus the
+    effective-weighted spread of component strengths (a lone component cannot
+    corroborate itself: 0.5)."""
     comp = f.composite
     volume = f.overall.n_eff / (f.overall.n_eff + 12.0)
     avail = comp.available()
@@ -70,7 +72,9 @@ def confidence(f: Facts) -> tuple[Confidence, float]:
         fresh = sum(1 for it in scored if (it.age_hours(f.now) or 1e9) <= 72) / len(scored)
     else:
         fresh = 0.3
-    data = 0.45 * comp.coverage + 0.35 * volume + 0.20 * fresh
+    # A component counts fully once its own confidence reaches 0.6 (two headlines are not "news coverage").
+    coverage = sum(WEIGHTS[p.key] * min(1.0, p.confidence / 0.6) for p in avail)
+    data = 0.45 * coverage + 0.35 * volume + 0.20 * fresh
     value = data * (0.5 + 0.5 * agreement)
     if f.prepared.engine_error:
         value *= 0.6
@@ -91,12 +95,14 @@ def reasons(f: Facts) -> list[Reason]:
         part = comp.parts[key]
         if part.reason and abs(points) >= MIN_REASON_POINTS and abs((part.score or 50) - 50) >= 4:
             cands.append((abs(points), Reason(text=part.reason, polarity=polarity_of(part.score), weight=0, ref=key)))
+    shown: bool | None = None  # tone sign of the story already given as a reason
     for i, story in enumerate(f.stories[:2]):
         n = story.narrative
         points = story_points(f, story)
-        if points <= 0:
-            continue
-        lead = "Top story" if i == 0 else "Story"
+        if points <= 0 or shown == (n.score > 0):
+            continue  # a second story only when it runs against the first
+        lead = "Top story" if i == 0 else "Counter-story" if shown is not None else "Story"
+        shown = n.score > 0
         text = (f"{lead}: {quote(n.headline)} — {count(n.count, 'article')} from "
                 f"{count(len(n.publishers), 'outlet')}, tone {signed(n.score)}")
         cands.append((points, Reason(text=text, polarity=tone_polarity(n.score, 0.1), weight=0, ref=n.id)))
@@ -141,11 +147,21 @@ def _retail_tail(f: Facts, bullish: bool) -> str | None:
     return None
 
 
-def headline(f: Facts, label: str, stance: str, conf_label: str) -> str:
+MAX_HEADLINE = 200
+
+
+def headline(f: Facts, label: str, stance: str) -> str:
     """One crisp, number-backed sentence: what drives the read and what pushes back.
 
     Drivers must be clear signals (strong phrases); counterweights may be mild
-    leans. Components that move the score by < 1 point are never named."""
+    leans. Components that move the score by < 1 point are never named. The
+    dominant story is named when it drives the news read and the sentence
+    stays short enough to scan."""
+    text = _headline(f, label, stance, with_story=True)
+    return text if len(text) <= MAX_HEADLINE else _headline(f, label, stance, with_story=False)
+
+
+def _headline(f: Facts, label: str, stance: str, with_story: bool) -> str:
     comp = f.composite
     if not comp.available():
         return "No read: every source and data feed came back empty or failed — retry shortly."
@@ -156,7 +172,11 @@ def headline(f: Facts, label: str, stance: str, conf_label: str) -> str:
         return [k for k, c in ranked if c * sign >= MIN_PHRASE_POINTS and parts[k].phrase
                 and (parts[k].strong or not strong_only)]
 
+    lead_story = _news_story_phrase(f) if with_story else None
+
     def text(key: ComponentKey) -> str:
+        if key == "news" and lead_story:
+            return lead_story
         return parts[key].phrase or LABELS[key].lower()
 
     thin = f.overall.n < THIN_ITEMS and comp.coverage < 0.5
@@ -188,6 +208,18 @@ def headline(f: Facts, label: str, stance: str, conf_label: str) -> str:
     if thin:
         return f"{label} on thin evidence ({count(f.overall.n, 'relevant item')}): {core}."
     return f"{label}: {core}."
+
+
+def _news_story_phrase(f: Facts) -> str | None:
+    """'negative news led by ‘Nimbus hit with $1.05B lawsuit…’ (8 articles, −0.58)' when one story drives the tone."""
+    part = f.composite.parts["news"]
+    if not f.stories or not part.phrase or part.x == 0:
+        return None
+    n = f.stories[0].narrative
+    if n.impact < 0.5 or abs(n.score) < 0.15 or (n.score > 0) != (part.x > 0):
+        return None
+    adj = part.phrase.split(" news", 1)[0]
+    return f"{adj} news led by {quote(n.headline, 64)} ({count(n.count, 'article')}, {signed(n.score)})"
 
 
 def _muted(f: Facts) -> str:

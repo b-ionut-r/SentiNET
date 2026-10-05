@@ -3,7 +3,7 @@
 Only published media (news/analysis) that is clearly about the company
 (relevance >= 0.5) is clustered; crowd chatter is summarized elsewhere.
 
-    impact = coverage × (0.3 + 0.7·intensity) × freshness            (0..1)
+    impact = coverage × (0.5 + 0.5·intensity) × freshness  [× 0.6 for question/listicle headlines]
     coverage  = 1 − exp(−(Σ relevance·copies + 0.5·outlets) / 5)   syndicated copies count
     intensity = max(|tone| / 0.4, 0.6 if a material event) capped at 1
     freshness = 0.35 + 0.65 · 0.5^(hours since last item / 48)
@@ -38,6 +38,8 @@ SINGLETON_MIN_TRUST = 0.9
 SINGLETON_MIN_RELEVANCE = 0.8
 SINGLETON_MIN_TONE = 0.3
 SINGLE_OUTLET_MAX_FOCUS = 2.0  # a story only one outlet covers counts as at most 2 items
+SINGLETON_FILL = 5  # single-outlet stories are listed only while fewer than this many stories are kept
+WEAK_TITLE_DISCOUNT = 0.6
 
 # Events that are developments in their own right (price moves merely describe the tape).
 PRICE_EVENTS = frozenset({"price_up", "price_down", "all_time_high", "low_52w"})
@@ -91,7 +93,13 @@ def build_narratives(items: list[Item], company: CompanyRef | None, now: datetim
             stories.append(story)
 
     stories.sort(key=lambda s: (-s.narrative.impact, -s.narrative.count, s.narrative.id))
-    stories = stories[:limit]
+    # Single-outlet stories only fill out a thin list; they never crowd out corroborated ones.
+    kept: list[Story] = []
+    for story in stories:
+        if story.outlets <= 1 and len(kept) >= SINGLETON_FILL:
+            continue
+        kept.append(story)
+    stories = kept[:limit]
     prev_tokens = [_tokens(h) for h in previous.narratives] if previous is not None else None
     for story in stories:
         if prev_tokens is not None:
@@ -128,7 +136,9 @@ def _story(rep: Item, members: list[Item], now: datetime) -> Story | None:
     coverage = 1.0 - math.exp(-(focus + 0.5 * len(outlets)) / 5.0)
     age_h = (now - last).total_seconds() / 3600.0 if last else 48.0
     freshness = 0.35 + 0.65 * 0.5 ** (max(age_h, 0.0) / 48.0)
-    impact = coverage * (0.3 + 0.7 * intensity) * freshness
+    impact = coverage * (0.5 + 0.5 * intensity) * freshness
+    if WEAK_TITLE_RE.search(rep.title):
+        impact *= WEAK_TITLE_DISCOUNT  # "X vs Y: which is the better buy?" is opinion, not a development
 
     theme_counts = Counter(t for m in members for t in m.themes)
     need = max(1, math.ceil(len(members) / 3))

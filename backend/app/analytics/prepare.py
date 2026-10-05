@@ -2,7 +2,8 @@
 
 Pipeline (per analysis):
 
-1. clean title/body, drop empty/boilerplate and stale (> 21 d) items;
+1. clean title/body, drop empty/boilerplate (incl. auto-generated 13F-holdings
+   stories) and stale (> 21 d) items;
 2. relevance: drop < 0.35 unless the provider guarantees the ticker
    (`ticker_specific`, floored at 0.7); multi-ticker roundups are capped;
 3. collapse syndicated near-copies into one representative (the most trusted
@@ -17,6 +18,7 @@ Pipeline (per analysis):
 from __future__ import annotations
 
 import math
+import re
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -46,6 +48,22 @@ UNDATED_RECENCY = 0.5
 MAX_BODY = 600
 MAX_DRIVERS = 5
 DIVERSITY_FREE = 4  # items an outlet/author contributes before its items are down-weighted
+
+# Auto-generated 13F-holdings stories ("Apple Inc. $AAPL Stock Acquired by Natural
+# Investments LLC", "Acme Wealth LLC Trims Stake in …"): templated filings noise
+# with no sentiment content. The actor must look like a fund ("… LLC",
+# "… Advisors", "… Capital Management"), so "Berkshire Hathaway buys stake" survives.
+_FUND = (r"(?:[A-Z][\w&.'-]*\s+){0,5}(?:LLC|L\.L\.C\.|LP|L\.P\.|Ltd\.?|Advisors?|Advisers?|Capital(?: Management)?|"
+         r"Management|Wealth(?: Management)?|Partners|Investments?|Financial(?: Group| Services)?|Asset Management|"
+         r"Trust(?: Co\.?| Company)?|Bank|Group|Holdings)")
+HOLDINGS_RE = re.compile(
+    rf"\b(?:Stock|Shares?|Stake|Position|Holdings)\s+(?:Sold|Acquired|Bought|Purchased|Raised|Lowered|Trimmed|"
+    rf"Boosted|Increased|Decreased|Reduced|Cut)\s+by\s+{_FUND}\b|"
+    rf"\b(?:Stake|Position|Holdings)\s+in\s+.{{2,80}}?\s+(?:Raised|Lowered|Trimmed|Boosted|Increased|Decreased|"
+    rf"Reduced|Cut)\s+by\s+{_FUND}\b|"
+    rf"\b{_FUND}\s+(?:Acquires|Buys|Sells|Trims|Lowers|Raises|Boosts|Cuts|Increases|Decreases|Reduces|Takes|Grows|"
+    rf"Purchases|Invests\s+\$?[\d.,]+\s*\w*\s+in)\s+(?:(?:a\s+)?New\s+)?(?:[\d,]+\s+)?(?:Stake|Position|Holdings|"
+    rf"Shares)\b")
 
 
 @dataclass
@@ -198,6 +216,8 @@ def _candidate(raw: RawSignal, run: SourceRun, company: CompanyRef | None, now: 
         title = textkit.strip_suffix(title, raw.publisher)
     if not title or not textkit.meaningful(title):
         return "empty"
+    if HOLDINGS_RE.search(title):
+        return "boilerplate"
 
     ts = raw.timestamp
     if ts is not None and ts.tzinfo is None:

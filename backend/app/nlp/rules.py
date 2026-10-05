@@ -335,7 +335,8 @@ _DNV = (r"cut(?:s|ting)?|lower(?:s|ed|ing)?|slash(?:es|ed|ing)?|trim(?:s|med|min
         r"lop(?:s|ped)?|halv(?:e|es|ed|ing)|reel(?:s|ed|ing)?\s+in|rein(?:s|ed|ing)?\s+in")
 _PT = r"(?:price\s+targets?|target\s+price|price\s+objective|price\s+tgt|pt|tgt|targets?)"
 # "beats by $0.04" / "misses on revenue" (not "Top Executive Calls on Government")
-_BY_ON = (r"(?:by\s+(?:[$€£¥]\s?)?\d[\d,]*(?:\.\d+)?(?:\s?(?:cents?|c|%|percent)\b)?|on\s+(?:the\s+)?(?:top\s+line|bottom\s+line|revenues?|revs?|sales|eps|earnings|"
+_BY_ON = (r"(?:by\s+(?:[$€£¥]\s?)?\d[\d,]*(?:\.\d+)?(?:\s?(?:cents?|c|%|percent)\b)?|"
+          r"on\s+(?:the\s+)?(?:top\s+line|bottom\s+line|revenues?|revs?|sales|eps|earnings|"
           r"profits?|estimates|expectations|both|the\s+top|the\s+bottom|ebitda|margins?|guidance))")
 
 
@@ -538,7 +539,8 @@ _RULES: list[tuple[str, re.Pattern[str], Callable[[re.Match[str]], Optional[Rule
     ("analyst", re.compile(
         r"\b(?P<verb>upgrade[sd]?|downgrade[sd]?|raise[sd]?|lift(?:s|ed)?|boost(?:s|ed)?|bump(?:s|ed)?|"
         r"hike[sd]?|mov(?:e|es|ed|ing)|cut(?:s|ting)?|lower(?:s|ed|ing)?|trim(?:s|med)?|reduce[sd]?|"
-        r"slash(?:es|ed)?|ups|upped|take[sn]?|took|raising|upgrading|downgrading)\b(?:(?!\bto\b)(?:\$[a-z]{1,6}\b|[^.;!?$\d])){0,50}?\bto\s+(?:an?\s+)?['\"]?(?P<new>" + RATING + r")\b"
+        r"slash(?:es|ed)?|ups|upped|take[sn]?|took|raising|upgrading|downgrading)\b"
+        r"(?:(?!\bto\b)(?:\$[a-z]{1,6}\b|[^.;!?$\d])){0,50}?\bto\s+(?:an?\s+)?['\"]?(?P<new>" + RATING + r")\b"
         r"(?:[^.;!?$]{0,40}?\bfrom\s+(?:an?\s+)?['\"]?(?P<old>" + RATING + r")\b)?"), _analyst_change),
     ("analyst", re.compile(
         r"(?P<verb>)\b(?P<new>" + RATING + r")\s+from\s+(?P<old>" + RATING + r")\b"), _analyst_change),
@@ -613,7 +615,8 @@ _RULES: list[tuple[str, re.Pattern[str], Callable[[re.Match[str]], Optional[Rule
     ("guidance", re.compile(
         r"\b(?:" + _DNV + r"|withdraw(?:s|n|ing)?|withdrew|pull(?:s|ed|ing)?|suspend(?:s|ed|ing)?|"
         r"scrap(?:s|ped|ping)?|scal(?:e|es|ed|ing)\s+back|temper(?:s|ed|ing)?|dial(?:s|ed|ing)?\s+back|"
-        r"rein(?:s|ed|ing)?\s+in|reel(?:s|ed|ing)?\s+in|walk(?:s|ed|ing)?\s+back)\b(?:\s+[^\s.;!?$]+){0,4}?\s+" + _GUID + r"\b" + _RANGE_TAIL),
+        r"rein(?:s|ed|ing)?\s+in|reel(?:s|ed|ing)?\s+in|walk(?:s|ed|ing)?\s+back)\b(?:\s+[^\s.;!?$]+){0,4}?\s+"
+        + _GUID + r"\b" + _RANGE_TAIL),
      _guidance(-1)),
     ("guidance", re.compile(r"\b(?:guidance|outlook|forecast|view)\s+(?:\S+\s+){0,2}?(?:raised|lifted|boosted|"
                             r"increased|hiked|upped|improved)\b"), _guidance(1)),
@@ -633,7 +636,8 @@ _RULES: list[tuple[str, re.Pattern[str], Callable[[re.Match[str]], Optional[Rule
         r"(?:are\s+|were\s+|is\s+|have\s+been\s+|keep\s+|continue\s+to\s+|have\s+|just\s+|still\s+|"
         r"arent\s+done\s+|aren't\s+done\s+|not\s+done\s+)*"
         r"(?P<act>buying|accumulating|piling\s+into|snapping\s+up|loading\s+up|adding|scooping\s+up|pouring\s+into|"
-        r"rushing\s+into|flocking\s+to|betting\s+(?:big\s+)?on|bet\s+on|bullish\s+on|bought|selling|dumping|unloading|bailing|fleeing|exiting|abandoning|"
+        r"rushing\s+into|flocking\s+to|betting\s+(?:big\s+)?on|bet\s+on|bullish\s+on|bought|selling|dumping|"
+        r"unloading|bailing|fleeing|exiting|abandoning|"
         r"shorting|cashing\s+out|trimming|sold|dumped|fled|souring\s+on|soured\s+on|cooling\s+on|warming\s+up)\b"),
      _flows),
     # --- results & outlook idioms
@@ -748,8 +752,9 @@ _RULES: list[tuple[str, re.Pattern[str], Callable[[re.Match[str]], Optional[Rule
 ]
 # Cheap pre-filter: a rule family runs only if one of its trigger substrings occurs.
 _TRIGGERS: dict[str, tuple[str, ...]] = {
-    "analyst": ("grade", " to ", " from "), "analyst_init": ("initiat", "start", "coverage", "launch", "resum",
-                                                          "assum", "reinstat", "pick", "began", "begin"),
+    "analyst": ("grade", " to ", " from "),
+    "analyst_init": ("initiat", "start", "coverage", "launch", "resum", "assum", "reinstat", "pick", "began",
+                     "begin"),
     "analyst_reiterate": ("reiterat", "maintain", "keep", "kept", "affirm", "retain", "repeat", "stick", "stay",
                           "remain"),
     "price_target": ("target", "pt", "tgt", "objective"),
@@ -759,23 +764,35 @@ _TRIGGERS: dict[str, tuple[str, ...]] = {
              "reach", "hit ", "beat", "top"),
     "above_exp": ("above", "ahead", "better", "exceeding", "topping", "beating", "stronger", "surpassing"),
     "below_exp": ("below", "under", "short", "worse", "weaker", "behind", "softer", "missing"),
-    "vs_exp": ("than",), "inline": ("line", "match", "meet", "met "),
+    "vs_exp": ("than",),
+    "inline": ("line", "match", "meet", "met "),
     "guidance": ("guid", "outlook", "forecast", "view", "projection", "target", "estimate", "expectation"),
     "flows": ("fund", "investor", "insider", "institution", "whale", "trader", "money", "billionaire", "manager",
               "activist"),
-    "offering": ("offering", "placement", "sale of"), "legal_relief": ("suit", "case", "probe", "investigation",
-                                                                        "charges", "claim", "complaint", "inquiry",
-                                                                        "trial"),
-    "settlement": ("settl", "resolv"), "going_concern": ("going concern",), "swing": (" from ",),
-    "eps_loss": ("eps", "per share"), "job_cuts": ("job", "position", "worker", "employee", "staff", "role",
-                                                   "headcount", "workforce"), "fine": ("fine", "penalty"),
-    "bankruptcy": ("bankruptcy", "insolvency", "creditor protection", "chapter 11"), "superlative": ("never been",),
-    "fast_enough": ("fast enough",), "out_of_slump": ("out of",), "good_buy": (" buy",),
+    "offering": ("offering", "placement", "sale of"),
+    "legal_relief": ("suit", "case", "probe", "investigation", "charges", "claim", "complaint", "inquiry", "trial"),
+    "settlement": ("settl", "resolv"),
+    "going_concern": ("going concern",),
+    "swing": (" from ",),
+    "eps_loss": ("eps", "per share"),
+    "job_cuts": ("job", "position", "worker", "employee", "staff", "role", "headcount", "workforce"),
+    "fine": ("fine", "penalty"),
+    "bankruptcy": ("bankruptcy", "insolvency", "creditor protection", "chapter 11"),
+    "superlative": ("never been",),
+    "fast_enough": ("fast enough",),
+    "out_of_slump": ("out of",),
+    "good_buy": (" buy",),
     "imperative": ("buy", "sell"),
-    "vs_consensus": ("consensus", "estimate", "expectation", "est"), "charge": ("charge",), "top_pick": ("pick",), "streak": ("streak",), "metric_hit": (" hit",),
+    "vs_consensus": ("consensus", "estimate", "expectation", "est"),
+    "charge": ("charge",),
+    "top_pick": ("pick",),
+    "streak": ("streak",),
+    "metric_hit": (" hit",),
     "pct_loss": ("% loss", "% gain", "% return", "%loss", "%gain"),
-    "trend_end": ("end", "over", "fizzle", "fade", "steam", "stall"), "options_flow": ("calls", "puts"), "insider": ("ceo", "cfo", "coo", "chair", "founder", "director", "insider", "exec",
-                                       "president", "chief", "board"),
+    "trend_end": ("end", "over", "fizzle", "fade", "steam", "stall"),
+    "options_flow": ("calls", "puts"),
+    "insider": ("ceo", "cfo", "coo", "chair", "founder", "director", "insider", "exec", "president", "chief",
+                "board"),
     "license": ("licen", "approval", "clearance", "permit", "patent", "authori", "certification", "designation",
                 "orphan"),
     "returns": ("made", "gained", "earned", "returned"),

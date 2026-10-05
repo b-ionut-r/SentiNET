@@ -1,0 +1,84 @@
+"""Dated catalyst list and the delta vs. the previous snapshot."""
+from __future__ import annotations
+
+import pytest
+
+from app.analytics.build import build_analysis
+from app.analytics.catalysts import describe_action, grade_polarity
+from app.analytics.delta import build_delta
+from app.schemas import SentimentStat, Verdict
+from tests.analytics.factories import (
+    GOOGLE,
+    action,
+    analysts,
+    company,
+    earnings,
+    ex_dividend,
+    filing,
+    inputs,
+    insider,
+    insiders,
+    news_flow,
+    quote,
+    run,
+    snapshot,
+)
+
+ACME = company()
+NEWS = news_flow([f"Acme schedules investor day number {i}" for i in range(6)])
+
+
+def test_describe_action() -> None:
+    assert describe_action(action(1, "UBS", "up", "Buy", 120, 100, "Neutral")) == (
+        "UBS upgrades to Buy", "from Neutral · PT $100.00 → $120.00 (+20%)", "bull")
+    assert describe_action(action(1, "Barclays", "main", "Equal-Weight", 90, 100))[0] == \
+        "Barclays cuts target to $90.00 · Equal-Weight"
+    assert describe_action(action(1, "Loop Capital", "init", "Hold", 22))[2] == "neutral"
+    assert describe_action(action(1, "Loop Capital", "init", "Outperform", 22))[2] == "bull"
+    assert grade_polarity("Market Perform") == "neutral" and grade_polarity("Underperform") == "bear"
+    assert grade_polarity("Sector Outperform") == "bull"
+
+
+def test_catalyst_ordering_and_filters() -> None:
+    a = build_analysis(inputs(
+        ACME, [run(GOOGLE, NEWS)], quote=quote(),
+        earnings=earnings(days_until=12), calendar_catalysts=[ex_dividend(3)],
+        analysts=analysts(actions=[action(2, "UBS", "up", "Buy", 120, 100, "Neutral"),
+                                   action(4, "Bernstein", "reit", "Outperform", 130, 130),  # flat: skipped
+                                   action(45, "Jefferies", "down", "Hold", 90, 110, "Buy")]),  # > 30 days
+        insiders=insiders([insider(5, "Ann Lee", "buy", 250_000, "Director"),
+                           insider(8, "Bo Chan", "sell", 4e6, "Chief Executive Officer"),
+                           insider(9, "Cy Dee", "sell", 200_000)]),  # small sale: not a catalyst
+        filings=[filing(6, "8-K", "Entered a material agreement", ["1.01"], "medium"),
+                 filing(3, "8-K", "Shareholder vote results", ["5.07"], "low"),
+                 filing(4, "10-Q", "Quarterly report", [], "medium")],
+    ))
+    kinds = [(c.kind, c.upcoming) for c in a.catalysts]
+    assert kinds[:2] == [("dividend", True), ("earnings", True)]  # soonest upcoming first
+    recent = [c for c in a.catalysts if not c.upcoming]
+    assert [c.date for c in recent] == sorted((c.date for c in recent), reverse=True)
+    titles = [c.title for c in a.catalysts]
+    assert "UBS upgrades to Buy" in titles
+    assert not any("Bernstein" in t or "Jefferies" in t for t in titles)
+    assert "Ann Lee (Director) bought $250K" in titles
+    assert "Bo Chan (Chief Executive Officer) sold $4M" in titles and not any("Cy Dee" in t for t in titles)
+    assert "Entered a material agreement" in titles
+    assert not any("vote" in t or "Quarterly" in t for t in titles)
+
+
+def verdict(score: int, stance: str) -> Verdict:
+    return Verdict(score=score, label="x", stance=stance, confidence="medium", confidence_value=0.5,  # type: ignore[arg-type]
+                   headline="h")
+
+
+def test_delta_notes() -> None:
+    prev = snapshot(20, 50, 0.0, "neutral", price=100.0)
+    sharp = build_delta(prev, verdict(64, "bullish"), SentimentStat(score=0.2), quote(price=104.0), [])
+    assert sharp.sentinel_change == 14 and sharp.score_change == pytest.approx(0.2)
+    assert sharp.note.startswith("Sentiment improved sharply (+14: 50 → 64), now bullish (was neutral) since")
+    assert "price +4.0%" in sharp.note
+    small = build_delta(prev, verdict(48, "neutral"), SentimentStat(score=-0.01), None, [])
+    assert small.note.startswith("Little changed (−2)") and small.price_change_pct is None
+    soft = build_delta(prev, verdict(43, "bearish"), SentimentStat(), quote(price=100.0), [])
+    assert soft.note.startswith("Sentiment softened (−7: 50 → 43), now bearish")
+    assert build_delta(None, verdict(60, "bullish"), SentimentStat(), None, []).note is None

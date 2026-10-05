@@ -1,0 +1,138 @@
+"""Raw items -> kept, de-duplicated, scored and weighted items."""
+from __future__ import annotations
+
+from datetime import timedelta
+
+import pytest
+
+from app.analytics import textkit
+from app.analytics.build import build_analysis
+from app.analytics.prepare import item_weight, prepare
+from tests.analytics.factories import (
+    FINNHUB,
+    GOOGLE,
+    NOW,
+    STOCKTWITS,
+    company,
+    inputs,
+    post,
+    raw,
+    run,
+)
+
+ACME = company()
+
+
+def kept(runs, comp=ACME):
+    return prepare(comp, runs, NOW)
+
+
+def test_relevance_filter_drops_unrelated_items() -> None:
+    p = kept([run(GOOGLE, [raw("Acme beats estimates"), raw("Oil prices climb on supply worries"),
+                           raw("$ACME breakout on volume")])])
+    assert [it.title for it in sorted(p.items, key=lambda i: i.title)] == ["$ACME breakout on volume",
+                                                                            "Acme beats estimates"]
+    assert p.dropped["irrelevant"] == 1 and p.fetched["google_news"] == 3 and p.kept["google_news"] == 2
+
+
+def test_ticker_specific_items_survive_with_a_relevance_floor() -> None:
+    p = kept([run(FINNHUB, [raw("Company reports steady quarter", ticker_specific=True)])])
+    assert len(p.items) == 1 and p.items[0].relevance == pytest.approx(0.7)
+
+
+def test_snippet_mention_counts_but_less_than_title_mention() -> None:
+    p = kept([run(GOOGLE, [raw("Chip stocks rally on AI demand", body="Acme shares rose 4% after the report")])])
+    assert len(p.items) == 1 and p.items[0].relevance == pytest.approx(0.8 * 0.85, abs=1e-3)
+
+
+def test_roundups_are_capped() -> None:
+    p = kept([run(GOOGLE, [raw("Five chip stocks to watch including Acme", extra={"symbols": 5})])])
+    assert p.items[0].relevance == pytest.approx(0.85 * 0.85, abs=1e-3)  # title names Acme: mild cut
+    p = kept([run(GOOGLE, [raw("Chip stocks to watch this week", body="Acme, Bolt, Core, Dyna", extra={"symbols": 5})])])
+    assert p.items[0].relevance <= 0.4
+
+
+def test_stale_empty_and_future_items() -> None:
+    old = raw("Acme announces dividend", hours=24 * 30)
+    future = raw("Acme to report earnings soon", hours=-30)
+    p = kept([run(GOOGLE, [old, future, raw("$ACME", hours=1)])])
+    assert p.dropped["stale"] == 1 and p.dropped["empty"] == 1
+    assert len(p.items) == 1 and p.items[0].timestamp is None  # future-dated -> undated, never trusted
+
+
+def test_syndicated_copies_collapse_into_the_most_trusted_outlet() -> None:
+    title = "Acme beats quarterly estimates as demand surges"
+    p = kept([run(GOOGLE, [raw(title, 5, "Benzinga"), raw(title, 3, "Reuters"), raw(title, 4, "Zacks")])])
+    assert len(p.items) == 1
+    rep = p.items[0]
+    assert rep.publisher == "Reuters" and rep.duplicates == 2 and rep.coverage == 3
+    assert set(rep.outlets()) == {"Reuters", "Benzinga", "Zacks"}
+    assert p.dropped["duplicate"] == 2
+
+
+def test_weight_components() -> None:
+    p = kept([run(GOOGLE, [raw("Acme beats estimates", 1, "Reuters"), raw("Acme beats estimates again", 1, "Zacks"),
+                           raw("Acme wins contract", 96, "Reuters")])])
+    by_title = {it.title: it for it in p.items}
+    fresh, older = by_title["Acme beats estimates"], by_title["Acme wins contract"]
+    zacks = by_title["Acme beats estimates again"]
+    assert fresh.weight > zacks.weight  # same age, more trusted outlet
+    assert fresh.weight > older.weight  # 96 h old: decayed by the 72 h half-life
+    older.timestamp = NOW - timedelta(days=20)
+    assert item_weight(older, NOW) > 0  # floored, never zero
+
+
+def test_engagement_and_social_half_life() -> None:
+    quiet = post("$ACME looking strong today", 1, "a", likes=0)
+    loud = post("$ACME breaking out on heavy volume", 1, "b", likes=400)
+    stale = post("$ACME looking strong this week", 72, "c", likes=0)
+    p = kept([run(STOCKTWITS, [quiet, loud, stale])])
+    w = {it.author: it.weight for it in p.items}
+    assert w["b"] > w["a"] > w["c"]
+    assert w["c"] / w["a"] < 0.3  # 72 h is two social half-lives
+
+
+def test_prolific_voices_are_down_weighted() -> None:
+    spam = [raw(f"Acme stock position increased by Fund {i} LLC", 2, "MarketBeat") for i in range(16)]
+    p = kept([run(GOOGLE, spam + [raw("Acme beats estimates", 2, "Reuters")])])
+    mb = [it for it in p.items if it.publisher == "MarketBeat"]
+    assert len(mb) == 16
+    single = item_weight(mb[0], NOW)
+    assert mb[0].weight == pytest.approx(single * 0.5, rel=1e-3)  # sqrt(4 / 16)
+
+
+def test_engine_failure_is_reported_never_faked(monkeypatch) -> None:
+    def broken(texts, kinds=None):
+        raise RuntimeError("model file missing")
+
+    monkeypatch.setattr(textkit, "analyze", broken)
+    a = build_analysis(inputs(ACME, [run(GOOGLE, [raw("Acme beats estimates"), raw("Acme wins contract")])]))
+    assert all(s.confidence == 0 and s.score == 0 for s in a.signals) and len(a.signals) == 2
+    assert a.sentiment.n == 0
+    news = next(c for c in a.verdict.components if c.key == "news")
+    assert not news.available
+    alert = next(i for i in a.insights if i.title == "Sentiment engine failed")
+    assert alert.severity == "alert" and "model file missing" in alert.detail
+    assert a.verdict.confidence == "low"
+
+
+def test_signal_ids_are_stable_and_unique() -> None:
+    items = [raw("Acme beats estimates", url="https://x.com/a"), raw("Acme beats estimates (updated)",
+                                                                     url="https://x.com/a")]
+    a1 = prepare(ACME, [run(GOOGLE, items)], NOW)
+    a2 = prepare(ACME, [run(GOOGLE, items)], NOW)
+    assert [i.id for i in a1.items] == [i.id for i in a2.items]
+    assert len({i.id for i in a1.items}) == 2
+
+
+@pytest.mark.parametrize(("title", "noise"), [
+    ("Acme Corporation $ACME Stock Sold by Addison Advisors LLC", True),
+    ("Natural Investments LLC Buys 1,234 Shares of Acme Corporation $ACME", True),
+    ("Position in Acme Corp. $ACME Raised by Smith Capital Management", True),
+    ("Berkshire Hathaway buys stake in Acme", False),
+    ("Acme CEO buys 450K shares of Acme stock", False),
+    ("SoftBank sells entire Acme stake", False),
+])
+def test_auto_generated_holdings_stories_are_dropped(title: str, noise: bool) -> None:
+    p = kept([run(GOOGLE, [raw(title, 2, "MarketBeat")])])
+    assert (p.dropped["boilerplate"] == 1) is noise and (len(p.items) == 0) is noise

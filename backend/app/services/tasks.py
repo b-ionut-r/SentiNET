@@ -98,8 +98,8 @@ def _retrieve(task: asyncio.Task[Any]) -> None:
 
 def _reap(task: asyncio.Task[Any]) -> None:
     _background.discard(task)
-    if not task.cancelled() and task.exception() is not None:
-        logger.debug("background task %s failed: %s", task.get_name(), task.exception())
+    if not task.cancelled() and (exc := task.exception()) is not None:
+        logger.debug("background task %s failed: %s", task.get_name(), describe_error(exc))
 
 
 async def _await_task(task: asyncio.Task[T], timeout: float, until: asyncio.Event | None, grace: float) -> T:

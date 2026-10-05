@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 # Ticker normalization
 # --------------------------------------------------------------------------- #
 _VALID = re.compile(r"^\^?[A-Z0-9][A-Z0-9.\-=]{0,14}$")
-_CLASS_SHARE = re.compile(r"^([A-Z]{1,5})[./]([ABC])$")  # BRK.B, BF/B -> BRK-B, BF-B
+_CLASS_SHARE = re.compile(r"^([A-Z]{1,5})[./ ]([ABC])$")  # BRK.B, BF/B, "BRK B" -> BRK-B, BF-B
 _CRYPTO_PAIR = re.compile(r"^([A-Z0-9]{2,10})[-/]?(USD|USDT|USDC)$")
 _CRYPTO_STOCKTWITS = re.compile(r"^([A-Z0-9]{2,10})\.X$")  # StockTwits style: BTC.X
 _EXCHANGE_PREFIX = re.compile(

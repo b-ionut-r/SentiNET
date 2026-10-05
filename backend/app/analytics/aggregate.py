@@ -34,6 +34,7 @@ class Summary:
     spread: float  # weighted standard deviation of item scores
     mean_confidence: float
     outlets: int
+    coverage: int = 0  # items including syndicated copies
 
     @property
     def shrunk(self) -> float:
@@ -73,7 +74,7 @@ def summarize(items: Iterable[Item]) -> Summary:
         neutral=sum(it.label == "neutral" for it in scored),
         spread=spread,
         mean_confidence=(sum(it.confidence for it in scored) / len(scored)) if scored else 0.0,
-        outlets=len(outlets),
+        outlets=len(outlets), coverage=sum(it.coverage for it in scored),
     )
 
 

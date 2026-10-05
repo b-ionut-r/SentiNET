@@ -390,18 +390,32 @@ type TrendSort = "mentions" | "risers";
 
 function TrendingPanel({ trending, className }: { trending: TrendingTicker[]; className?: string }) {
   const [sort, setSort] = useState<TrendSort>("mentions");
+  // Reddit (ApeWisdom) carries mention counts and ranks the table; other feeds are rank-only lists.
+  const reddit = useMemo(() => trending.filter((t) => t.source === "reddit"), [trending]);
+  const lists = useMemo(() => {
+    const by = new Map<string, TrendingTicker[]>();
+    for (const t of trending) if (t.source !== "reddit") by.set(t.source, [...(by.get(t.source) ?? []), t]);
+    return [...by.entries()].map(([src, items]) => [src, [...items].sort((a, b) => (a.rank ?? 1e9) - (b.rank ?? 1e9))] as const);
+  }, [trending]);
+  const elsewhere = useMemo(() => {
+    const m = new Map<string, Array<{ source: string; rank: number | null }>>();
+    for (const t of trending) if (t.source !== "reddit") m.set(t.symbol, [...(m.get(t.symbol) ?? []), { source: t.source, rank: t.rank }]);
+    return m;
+  }, [trending]);
+  const redditSymbols = useMemo(() => new Set(reddit.map((t) => t.symbol)), [reddit]);
   const rows = useMemo(() => {
-    const list = [...trending];
+    const list = [...reddit];
     if (sort === "risers") list.sort((a, b) => (b.change_pct ?? -Infinity) - (a.change_pct ?? -Infinity) || (b.mentions ?? 0) - (a.mentions ?? 0));
     else list.sort((a, b) => (a.rank ?? 1e9) - (b.rank ?? 1e9));
     return list.slice(0, 15);
-  }, [trending, sort]);
-  const maxM = Math.max(1, ...trending.map((t) => t.mentions ?? 0));
+  }, [reddit, sort]);
+  const maxM = Math.max(1, ...reddit.map((t) => t.mentions ?? 0));
+  const hasWsb = reddit.some((t) => t.sentiment != null); // WallStreetBets tone, when Tradestie covers the name
   return (
     <Panel
-      title="Trending on Reddit"
+      title="Trending"
       icon={<Flame />}
-      subtitle="ApeWisdom mentions, last 24h · WSB tone where available"
+      subtitle={`Reddit mentions (ApeWisdom, 24h)${hasWsb ? " · WSB tone" : ""}${lists.length ? ` · ${lists.map(([src]) => SOURCE_NAME[src] ?? src).join(" & ")} trending lists` : ""}`}
       className={className}
       flush
       actions={
@@ -418,7 +432,7 @@ function TrendingPanel({ trending, className }: { trending: TrendingTicker[]; cl
       }
     >
       {rows.length === 0 ? (
-        <Empty title="Nothing trending" className="hairline-t">ApeWisdom returned no rankings.</Empty>
+        <Empty title="No Reddit rankings" className="hairline-t">ApeWisdom returned no rankings this time.</Empty>
       ) : (
         <table className="w-full text-xs">
           <thead>
@@ -426,8 +440,8 @@ function TrendingPanel({ trending, className }: { trending: TrendingTicker[]; cl
               <th className="py-1.5 pl-4 text-left font-normal">#</th>
               <th className="py-1.5 pl-1 text-left font-normal">Ticker</th>
               <th className="py-1.5 text-right font-normal sm:text-left">Mentions</th>
-              <th className="py-1.5 pl-2 text-right font-normal">24h</th>
-              <th className="py-1.5 pr-4 text-right font-normal">WSB</th>
+              <th className={cx("py-1.5 pl-2 text-right font-normal", !hasWsb && "pr-4")}>24h</th>
+              {hasWsb && <th className="py-1.5 pr-4 text-right font-normal">WSB</th>}
             </tr>
           </thead>
           <tbody className="divide-hair">
@@ -446,6 +460,16 @@ function TrendingPanel({ trending, className }: { trending: TrendingTicker[]; cl
                   <td className="max-w-[150px] py-1.5 pl-1">
                     <Link to={`/t/${encodeURIComponent(t.symbol)}`} className="flex min-w-0 items-baseline gap-1.5" title={t.name ?? t.symbol}>
                       <span className="font-mono font-semibold text-ink group-hover:underline">{t.symbol}</span>
+                      {elsewhere.get(t.symbol)?.map((e) => (
+                        <span
+                          key={e.source}
+                          className="shrink-0 rounded bg-raised px-1 text-[9.5px] font-semibold leading-4 text-ink-2"
+                          style={{ boxShadow: "0 0 0 1px var(--hairline-strong)" }}
+                          title={`Also #${e.rank ?? "?"} on ${SOURCE_NAME[e.source] ?? e.source}'s trending list — attention across communities`}
+                        >
+                          {SOURCE_TAG[e.source] ?? e.source.slice(0, 2).toUpperCase()} #{e.rank ?? "?"}
+                        </span>
+                      ))}
                       <span className="hidden truncate text-2xs text-muted sm:inline">{t.name}</span>
                     </Link>
                   </td>
@@ -457,17 +481,45 @@ function TrendingPanel({ trending, className }: { trending: TrendingTicker[]; cl
                       <span className="w-7 text-right text-ink-2 num">{int(t.mentions)}</span>
                     </div>
                   </td>
-                  <td className={cx("whitespace-nowrap py-1.5 pl-2 text-right font-medium num", t.change_pct == null ? "text-faint" : t.change_pct > 0 ? "text-ink" : "text-muted")}>{t.change_pct != null ? pct(t.change_pct, 0) : "new"}</td>
-                  <td className="py-1.5 pr-4 text-right">{t.sentiment != null ? <ScoreChip score={t.sentiment} /> : <span className="text-faint">—</span>}</td>
+                  <td className={cx("whitespace-nowrap py-1.5 pl-2 text-right font-medium num", !hasWsb && "pr-4", t.change_pct == null ? "text-faint" : t.change_pct > 0 ? "text-ink" : "text-muted")}>{t.change_pct != null ? pct(t.change_pct, 0) : "new"}</td>
+                  {hasWsb && <td className="py-1.5 pr-4 text-right">{t.sentiment != null ? <ScoreChip score={t.sentiment} /> : <span className="text-faint">—</span>}</td>}
                 </tr>
               );
             })}
           </tbody>
         </table>
       )}
+      {lists.map(([src, items]) => (
+        <div key={src} className="px-4 py-3 hairline-t">
+          <div className="mb-2 flex items-baseline justify-between gap-2">
+            <h3 className="eyebrow">Trending on {SOURCE_NAME[src] ?? src}</h3>
+            <span className="text-2xs text-muted">rank order · bright = also trending on Reddit</span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {items.slice(0, 18).map((t) => (
+              <Link
+                key={t.symbol}
+                to={`/t/${encodeURIComponent(t.symbol)}`}
+                title={`#${t.rank ?? "?"} ${t.name ?? t.symbol}`}
+                className={cx(
+                  "inline-flex h-6 items-center gap-1 rounded-md px-1.5 font-mono text-2xs font-semibold transition-colors hover:bg-raised",
+                  redditSymbols.has(t.symbol) ? "text-ink" : "text-muted hover:text-ink-2",
+                )}
+                style={{ boxShadow: `0 0 0 1px ${redditSymbols.has(t.symbol) ? "var(--hairline-strong)" : "var(--hairline)"}` }}
+              >
+                <span className="font-sans font-normal text-muted">{t.rank}</span>
+                {t.symbol}
+              </Link>
+            ))}
+          </div>
+        </div>
+      ))}
     </Panel>
   );
 }
+
+const SOURCE_NAME: Record<string, string> = { reddit: "Reddit", stocktwits: "StockTwits", yahoo: "Yahoo Finance" };
+const SOURCE_TAG: Record<string, string> = { stocktwits: "ST", yahoo: "YF" };
 
 /* ------------------------------------------------------------------------- */
 
