@@ -11,9 +11,10 @@ Each component maps its evidence to a signed strength x in [-1, 1]
 * StockTwits tags (one vote per account when available) are judged against
   their structural baseline (62% bullish) on a wide scale (0.35) and shrink
   with sample size; beyond the crowding thresholds (>= 85% / <= 35%) the
-  signal folds back (contrarian) and the whole social component is capped at
-  the threshold's strength, so a one-sided crowd never adds points in its own
-  direction. WSB sentiment is judged against 0.
+  signal folds back (contrarian: a unanimous crowd reads like the norm) and the
+  whole social component is capped at the threshold's strength, so a one-sided
+  crowd never adds points in its own direction (the crowding insight carries
+  the risk). WSB sentiment is judged against 0.
 * analysts: ratings are judged against the typical consensus (mean 2.4 on the
   1..5 scale), target upside against the typical +10%, revisions relative to
   coverage size.
@@ -22,9 +23,11 @@ Each component maps its evidence to a signed strength x in [-1, 1]
 * momentum: GDELT 7d-vs-30d tone change + 90d percentile, and the last 48 h of
   headlines vs. the prior days (damped unless the shift is ~2 standard errors).
 * technicals: x = tanh(0.35 · mean z) where each z is a return or DMA
-  distance in units of its 30d-volatility-implied spread (clipped at ±3σ): a
-  1σ broad trend reads ~67, a 2σ trend ~80 — price confirms sentiment, it does
-  not outshout it. Dampened at RSI extremes (contrarian).
+  distance, net of the typical market drift (+0.8%/month — an ordinary uptrend
+  is the baseline, as +0.04 is for news tone), in units of its
+  30d-volatility-implied spread (clipped at ±3σ): a 1σ broad trend reads ~67,
+  a 2σ trend ~80 — price confirms sentiment, it does not outshout it.
+  Dampened at RSI extremes (contrarian).
 
 Composite = Σ w_eff·score / Σ w_eff with w_eff = nominal weight ×
 (0.35 + 0.65·confidence), renormalized over available components, then pulled
@@ -42,7 +45,7 @@ from typing import Any, Literal
 
 from app.analytics.aggregate import Summary
 from app.analytics.crowd import Tally
-from app.analytics.util import clamp, count, join_and, money, ordinal, pct, signed, squash, to_100
+from app.analytics.util import cap_share, clamp, count, join_and, money, ordinal, pct, signed, squash, to_100
 from app.schemas import AnalystView, Component, CrowdView, InsiderView, Technicals, ToneTrend
 
 ComponentKey = Literal["news", "social", "analysts", "insiders", "momentum", "technicals"]
@@ -65,9 +68,11 @@ STOCKTWITS_MIN_TAGGED = 5
 STOCKTWITS_SCALE = 0.35
 CROWDED_LONG = 0.85  # bull share beyond which retail positioning is one-sided (contrarian)
 CROWDED_SHORT = 0.35
+CROWDED_FOLD = 1.5  # slope of the contrarian fold-back above CROWDED_LONG
 CROWDING_MIN_TAGGED = 15
 TECH_Z_SCALE = 0.35
 TECH_Z_CLIP = 3.0
+DRIFT_MONTH = 0.8  # typical equity drift, % per month (~10%/yr): a normal uptrend is the baseline
 STRONG_TREND = 0.45  # |x| of a strong (not merely positive) price trend
 DEGRADED_MAX_DISTANCE = 11.0  # engine failure: at most "Leaning" (39..61)
 RATING_BASELINE = 2.4  # typical consensus mean (1 strong buy … 5 strong sell)
@@ -76,6 +81,8 @@ FULL_COVERAGE = 0.6  # nominal weight available for an unshrunk composite
 MIN_PULL = 0.35  # with almost no evidence, only 35% of the raw distance from 50 survives
 PHRASE_MARGIN = 0.15  # |x| of a clear signal (named as a driver in the headline)
 MILD_MARGIN = 0.05  # |x| of a mild lean (named only as a counterweight)
+
+ASSET_NAMES = {"CRYPTOCURRENCY": "crypto", "ETF": "ETFs", "INDEX": "indices", "MUTUALFUND": "funds"}
 
 CONSENSUS_NAMES = {
     "strong_buy": "Strong Buy", "buy": "Buy", "hold": "Hold", "sell": "Sell", "strong_sell": "Strong Sell",
@@ -133,8 +140,11 @@ def _blend(subs: list[Sub]) -> tuple[float, float] | None:
     return clamp(x, -1, 1), clamp(conf)
 
 
-def text_strength(mean: float, n: int, baseline: float = 0.0) -> float:
-    """Shrunk, saturating strength of a weighted mean tone over n items vs its typical level."""
+def text_strength(mean: float, n: float, baseline: float = 0.0) -> float:
+    """Shrunk, saturating strength of a weighted mean tone vs its typical level.
+
+    `n` is the effective number of items (Kish n_eff of the weights), so a
+    sample dominated by a few heavy items shrinks like the small sample it is."""
     return squash((mean - baseline) * n / (n + TEXT_PRIOR), TEXT_SCALE)
 
 
@@ -167,7 +177,7 @@ def news_part(s: Summary, av_sentiment: float | None = None, av_articles: int | 
         return part
     subs = []
     if s.n and s.mean is not None:
-        subs.append(Sub(text_strength(s.mean, s.n, NEWS_BASELINE), s.confidence, 0.8))
+        subs.append(Sub(text_strength(s.mean, s.n_eff, NEWS_BASELINE), s.confidence, 0.8))
     if has_av:
         assert av_sentiment is not None and av_articles is not None
         subs.append(Sub(text_strength(av_sentiment, av_articles), av_articles / (av_articles + 10), 0.2))
@@ -175,19 +185,21 @@ def news_part(s: Summary, av_sentiment: float | None = None, av_articles: int | 
     part.score, part.confidence = to_100(x), conf
     shown = s.shrunk
     bits = []
-    articles = count(s.coverage or s.n, "article")
+    articles = count(s.n, "article")  # unique articles: the base of the bullish/bearish counts
+    copies = s.coverage - s.n if s.coverage > s.n else 0
     if s.n:
         bits.append(f"{signed(shown)} across {articles} ({s.bullish} bullish / {s.bearish} bearish)")
     if has_av:
         bits.append(f"Alpha Vantage {signed(av_sentiment or 0.0)} ({av_articles} articles)")
     part.detail = " · ".join(bits)
-    part.facts.update(tone=shown, n=s.n, outlets=s.outlets, articles=s.coverage or s.n)
+    part.facts.update(tone=shown, n=s.n, outlets=s.outlets, articles=s.n, coverage=s.coverage or s.n)
     if s.n:
         soft = abs(shown) < 0.1
         lead = _pick(x, "News flow positive" if not soft else "News flow warmer than usual",
                      "News flow negative" if not soft else "News flow softer than usual", "News flow mixed")
         typical = f"; typical is {signed(NEWS_BASELINE)}" if soft and abs(x) >= 0.1 else ""
-        part.reason = (f"{lead}: {signed(shown)} average tone across {articles} from "
+        syndicated = f" (+{count(copies, 'syndicated copy', 'syndicated copies')})" if copies else ""
+        part.reason = (f"{lead}: {signed(shown)} average tone across {articles}{syndicated} from "
                        f"{count(s.outlets, 'outlet')} ({s.bullish} bullish vs {s.bearish} bearish{typical})")
         size = f"{signed(shown)} across {articles}"
         part.phrase, part.strong = _phrase(x, f"{'upbeat' if shown >= 0.15 else 'positive'} news ({size})",
@@ -202,11 +214,12 @@ def stocktwits_strength(ratio: float, n: int) -> float:
     """Signed strength of a StockTwits bull share vs its 62% norm, shrunk for small n.
 
     Beyond the crowding thresholds the effective share folds back (contrarian):
-    above 85% it mirrors (100% bullish reads like 70%); below 35% it folds at
-    half slope (0% reads like 52.5%, still mildly bearish against the norm)."""
+    above 85% at 1.5× slope (95% reads like 70%, a unanimous 100% like the 62.5%
+    norm — extreme one-sidedness is a positioning risk, not more conviction);
+    below 35% at half slope (0% reads like 52.5%, still mildly bearish)."""
     r = ratio
     if r > CROWDED_LONG:
-        r = CROWDED_LONG - (r - CROWDED_LONG)
+        r = CROWDED_LONG - CROWDED_FOLD * (r - CROWDED_LONG)
     elif r < CROWDED_SHORT:
         r = CROWDED_SHORT + 0.5 * (CROWDED_SHORT - r)
     return squash((r - STOCKTWITS_BASELINE) * n / (n + 10), STOCKTWITS_SCALE)
@@ -226,7 +239,7 @@ def social_part(s: Summary, crowd: CrowdView | None, tally: Tally | None = None)
     bits: list[str] = []
     reason_bits: list[str] = []
     if s.n and s.mean is not None:
-        subs.append(Sub(text_strength(s.mean, s.n, SOCIAL_BASELINE), s.confidence, 0.45))
+        subs.append(Sub(text_strength(s.mean, s.n_eff, SOCIAL_BASELINE), s.confidence, 0.45))
         bits.append(f"posts {signed(s.shrunk)} ({s.n})")
         reason_bits.append(f"social posts average {signed(s.shrunk)} across {s.n}")
     ratio = tally.ratio if tally is not None else None
@@ -235,7 +248,9 @@ def social_part(s: Summary, crowd: CrowdView | None, tally: Tally | None = None)
         subs.append(Sub(stocktwits_strength(ratio, tagged), tagged / (tagged + 15), 0.40))
         bits.insert(0, f"StockTwits {ratio:.0%} bullish ({tally.sample})")
         side = crowded(tally)
-        crowd_note = " — crowded, read as contrarian" if side else ""
+        crowd_note = (f"; past {CROWDED_LONG:.0%} it is crowding, which adds no further conviction" if side > 0
+                      else f"; under {CROWDED_SHORT:.0%} it is capitulation, which adds no further weight"
+                      if side < 0 else "")
         reason_bits.insert(0, f"{ratio:.0%} of {tally.described} are bullish "
                               f"({STOCKTWITS_BASELINE:.0%} is typical{crowd_note})")
     else:
@@ -267,6 +282,8 @@ def social_part(s: Summary, crowd: CrowdView | None, tally: Tally | None = None)
         bear = f"{'capitulating' if side < 0 else 'bearish'} retail ({base})"
         part.phrase, part.strong = _phrase(x, bull, bear, f"mildly bullish retail ({base})",
                                            f"mildly bearish retail ({base})")
+        if side:  # a crowded book is a caveat, never a headline driver of the read
+            part.strong = False
     elif s.n:
         part.phrase, part.strong = _phrase(x, f"upbeat social chatter ({signed(s.shrunk)})",
                                            f"bearish social chatter ({signed(s.shrunk)})")
@@ -320,10 +337,17 @@ def consensus_name(view: AnalystView) -> str | None:
     return CONSENSUS_NAMES.get(view.consensus or "")
 
 
-def analysts_part(view: AnalystView | None, now: datetime) -> Part:
+def not_applicable(asset: str) -> str | None:
+    """'n/a for crypto' for assets without analyst ratings / insider filings (None for equities)."""
+    name = ASSET_NAMES.get(asset.upper())
+    return f"n/a for {name}" if name else None
+
+
+def analysts_part(view: AnalystView | None, now: datetime, asset: str = "EQUITY") -> Part:
     """Consensus rating vs typical, upside to the mean target, revision momentum."""
     part = Part("analysts", detail="no analyst coverage")
     if view is None:
+        part.detail = not_applicable(asset) or part.detail
         return part
     subs: list[Sub] = []
     total = view.total
@@ -407,10 +431,15 @@ def analysts_part(view: AnalystView | None, now: datetime) -> Part:
 # --------------------------------------------------------------------------- #
 # Insiders
 # --------------------------------------------------------------------------- #
-def insiders_part(view: InsiderView | None, market_cap: float | None, now: datetime) -> Part:
+def insiders_part(view: InsiderView | None, market_cap: float | None, now: datetime,
+                  asset: str = "EQUITY") -> Part:
     """Open-market insider flow: clustered buying is strong, selling is routine-scaled."""
     part = Part("insiders", detail="no open-market insider trades")
     if view is None or (view.buys == 0 and view.sells == 0):
+        if view is None:
+            part.detail = not_applicable(asset) or "insider data unavailable"
+        else:
+            part.detail = f"no open-market insider trades in {view.window_days}d"
         return part
     today = now.date()
     buys = [t for t in view.transactions if t.kind == "buy"]
@@ -435,7 +464,7 @@ def insiders_part(view: InsiderView | None, market_cap: float | None, now: datet
     buyers = len(latest_by_buyer) or None
     part.facts.update(buyers=buyers, sell_bps=sell_bps, buy_signal=buy_signal)
     who = f" by {count(buyers, 'insider')}" if buyers else ""
-    share = f", {sell_bps / 100:.2f}% of market cap" if sell_bps is not None else ""
+    share = f", {cap_share(sell_bps)} of market cap" if sell_bps is not None else ""
     days = f"{view.window_days} days"
     if view.buys:
         lead = "Insider buying" if x >= 0 else "Net insider selling"
@@ -534,13 +563,15 @@ def technicals_part(t: Technicals | None) -> Part:
     if t is None:
         return part
     sigma = max((t.volatility_30d or 0.0) / math.sqrt(12), 1.5) if t.volatility_30d else 8.0  # monthly %
-    pieces: list[tuple[float | None, float, float]] = [
-        (t.return_1m, sigma, 0.25),
-        (t.return_3m, sigma * math.sqrt(3), 0.30),
-        (t.vs_50dma_pct, sigma, 0.20),  # distance from an N-day mean spreads like ~sqrt(N/3) days of moves
-        (t.vs_200dma_pct, sigma * math.sqrt(3), 0.25),
+    # (value, spread, weight, typical level under normal drift). A price drifting up at the
+    # market's usual pace sits ~(N−1)/2 days of drift above its N-day average.
+    pieces: list[tuple[float | None, float, float, float]] = [
+        (t.return_1m, sigma, 0.25, DRIFT_MONTH),
+        (t.return_3m, sigma * math.sqrt(3), 0.30, 3 * DRIFT_MONTH),
+        (t.vs_50dma_pct, sigma, 0.20, DRIFT_MONTH * 24.5 / 21),  # distance from an N-day mean spreads like
+        (t.vs_200dma_pct, sigma * math.sqrt(3), 0.25, DRIFT_MONTH * 99.5 / 21),  # ~sqrt(N/3) days of moves
     ]
-    avail = [(v, sd, w) for v, sd, w in pieces if v is not None]
+    avail = [(v - drift, sd, w) for v, sd, w, drift in pieces if v is not None]
     if not avail:
         return part
     z = sum(w * clamp(v / sd, -TECH_Z_CLIP, TECH_Z_CLIP) for v, sd, w in avail) / sum(w for _, _, w in avail)

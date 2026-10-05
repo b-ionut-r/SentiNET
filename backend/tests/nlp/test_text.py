@@ -152,3 +152,56 @@ class TestTokens:
 ])
 def test_quote_ticks_and_option_pages_are_not_meaningful(text):
     assert not is_meaningful(text)
+
+
+@pytest.mark.parametrize(("text", "kept"), [
+    # real live Bluesky posts: "<" and ">" are comparisons, "->" a link arrow
+    ("Weekly: bond rout blinked (10Y <5.25%) - AI admitted a financing problem: Amazon offloads ~$8bn of NVDA "
+     "chips. h -> more", "Amazon offloads ~$8bn of NVDA chips"),
+    ("RSI 42.67 <65, MACD positive, price above Ichimoku cloud -> Zacks", "MACD positive"),
+    ("$TSLA <300 is a gift, >400 by EOY", "<300 is a gift, >400 by EOY"),
+    ("Revenue growth <5% while margins >20% beat", "<5% while margins >20% beat"),
+    ("&lt;5% growth", "<5% growth"),
+])
+def test_comparison_signs_are_not_markup(text, kept):
+    assert kept in clean_text(text)
+
+
+def test_markup_and_comments_are_still_stripped_and_emoji_sequences_survive():
+    assert clean_text("a<br/>b <!-- tracking --> <p class='x'>c</p>") == "a b c"
+    assert clean_text("&lt;b&gt;Nvidia&lt;/b&gt;'s chips") == "Nvidia's chips"
+    assert "‍" in clean_text("dev \U0001F468‍\U0001F4BB rocks")  # zero-width joiner keeps the emoji whole
+
+
+@pytest.mark.parametrize(("title", "publisher"), [
+    # live non-Google titles whose last segment is content, not the outlet
+    ("Jack Dorsey Says 'Turn It on' as Block's Cash App Introduces 'Bitcoin Bonus' Feature - What You Should Know",
+     "Benzinga"),
+    ("Elon Musk's Big Nvidia Bet Takes Center Stage After SpaceX Earnings - NVDA Gains While SPCX Falls", "Stocktwits"),
+    ("Notable ETF Inflow Detected - XLP, MO, TGT, CL", "BNK Invest"),
+    ("Stocktwits Wall Street Wrap: Stocks Mixed - Liquidia And FICO Face Downgrades", None),
+])
+def test_content_tails_are_not_publishers(title, publisher):
+    assert strip_publisher_suffix(title, publisher) == title
+
+
+@pytest.mark.parametrize(("title", "publisher"), [
+    ("Nvidia stock rises - Reuters", "Reuters"),
+    ("Nvidia stock rises - Key Context by Tae Kim", None),
+    ("Nvidia stock rises - WGAU Radio", None),
+    ("Nvidia stock rises - finance.yahoo.com", "Yahoo Finance"),
+])
+def test_outlet_tails_are_stripped(title, publisher):
+    assert strip_publisher_suffix(title, publisher) == "Nvidia stock rises"
+
+
+@pytest.mark.parametrize(("text", "meaningful"), [
+    ("Intel puts Altera stake up for auction, sources say", True),  # real divestiture news
+    ("Boeing's Wichita plant for sale in bid to raise cash", True),
+    ("Target Corporation", False),  # live Google News stub: a bare legal name
+    ("Target Corporation lowers prices as Target stock trades EUR 138.70 versus EUR 138.70", False),
+    ("2021 Ford F-150 XLT for sale in Dallas, TX", False),
+    ("Used Tesla Model 3 for sale in Austin - 32,000 miles", False),
+])
+def test_listing_and_stub_detection(text, meaningful):
+    assert is_meaningful(text) is meaningful

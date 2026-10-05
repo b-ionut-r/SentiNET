@@ -20,7 +20,7 @@ import re
 import unicodedata
 from dataclasses import dataclass, field
 
-from app.resolve.words import COMMON_WORDS
+from app.resolve.words import COMMON_WORDS, NAMESAKES
 
 # --------------------------------------------------------------------------- #
 # Curated brands: ticker -> (short_name, aliases)
@@ -152,6 +152,9 @@ BRANDS: dict[str, Brand] = {
     "AMC": Brand("AMC Entertainment", ("AMC Theatres",)),
     "BB": Brand("BlackBerry"),
     "MSTR": Brand("Strategy", ("MicroStrategy",)),
+    "DJT": Brand("Trump Media", ("Trump Media & Technology Group",)),  # not "Truth Social": every Trump post
+    "HIMS": Brand("Hims & Hers", ("Hims & Hers Health",)),
+    "MARA": Brand("MARA Holdings", ("Marathon Digital",)),
     "DELL": Brand("Dell"),
     "HPQ": Brand("HP Inc", ("HP",)),
     "HPE": Brand("Hewlett Packard Enterprise", ("HPE",)),
@@ -296,6 +299,7 @@ _GENERIC_HEADS = {"news", "public", "general", "first", "national", "american", 
                   "pacific", "atlantic", "central", "security", "union", "liberty", "federal"}
 _STATE_SUFFIX = re.compile(r"(?:\s*/\s*(?:ADR|ADS|[A-Z]{2,3})\b/?)+\s*$|\s*/\s*$", re.IGNORECASE)  # "/DE/", "/ ADR"
 _VOWELS = set("AEIOUY")
+_MC = re.compile(r"^(Mc)([a-z]{3,})")  # Scottish/Irish prefix: McKesson, McCormick (not "Mac": Macy's, Macom)
 
 _SHARE_CLASS = re.compile(
     r"\b(?:class|cl\.?|series)\s+[a-z]\b|\bcommon\s+stock\b|\bordinary\s+shares?\b"
@@ -306,6 +310,9 @@ _SHARE_CLASS = re.compile(
 )
 _PARENS = re.compile(r"\s*\([^)]*\)?\s*$")  # trailing "(The)", "(CAD HEDGED)", truncated "(T"
 _DASH_TAIL = re.compile(r"\s+[-–—]\s+.*$")  # "ASML Holding N.V. - New York Re…"
+# Brands whose ".com" is part of the name because the bare head is an everyday word.
+_DOTCOM_BRANDS = {"trip", "monday", "hotels", "cars", "realtor", "booking", "match"}
+_PLC_SPELLED = re.compile(r",?\s+public\s+(?:limited\s+company|company\s+limited)\b\.?", re.IGNORECASE)
 _TOKEN_SPLIT = re.compile(r"[\s,]+")
 
 
@@ -363,8 +370,11 @@ def _fix_case_token(tok: str, *, all_caps_name: bool) -> str:
         return tok  # acronym-sized: "AMC", "CVS"
     if len(letters) == 4 and not _wordlike(bare.upper()):
         return tok  # "ASML", "INTL", "TSLA": no word shape
-    # Word-shaped: title-case each hyphenated part ("COCA-COLA" -> "Coca-Cola", "LOWE'S" -> "Lowe's").
-    return "-".join(part[:1].upper() + part[1:].lower() for part in tok.split("-"))
+    # Word-shaped: title-case each hyphenated part ("COCA-COLA" -> "Coca-Cola", "LOWE'S" -> "Lowe's",
+    # "MCKESSON" -> "McKesson").
+    return "-".join(_MC.sub(lambda m: m.group(1) + m.group(2)[:1].upper() + m.group(2)[1:],
+                            part[:1].upper() + part[1:].lower())
+                    for part in tok.split("-"))
 
 
 def fix_case(name: str) -> str:
@@ -399,8 +409,11 @@ def _base_clean_with_tail(raw: str) -> tuple[list[str], list[str]]:
     name = _DASH_TAIL.sub("", name)
     name = _PARENS.sub("", name)
     name = _SHARE_CLASS.sub(" ", name)
-    # "Amazon.com" -> "Amazon", but keep "JD.com" (the bare head would be too short).
-    name = re.sub(r"\b([A-Za-z][\w&'-]{2,})\.com\b", r"\1", name, flags=re.IGNORECASE)
+    name = _PLC_SPELLED.sub(" plc", name)  # "ICON Public Limited Company" -> "ICON plc"
+    # "Amazon.com" -> "Amazon", but keep "JD.com" (too short) and "Trip.com" (bare head is a word).
+    name = re.sub(r"\b([A-Za-z][\w&'-]{2,})\.com\b",
+                  lambda m: m.group(0) if m.group(1).lower() in _DOTCOM_BRANDS else m.group(1),
+                  name, flags=re.IGNORECASE)
     name = re.sub(r"\s+", " ", name).strip(" ,.-")
     tokens = [t for t in _TOKEN_SPLIT.split(name) if t]
     if tokens and tokens[0].lower() == "the" and len(tokens) > 1:
@@ -549,6 +562,9 @@ def derive_names(
     elif quote_type == "FUTURE":
         short = clean_future_name(short_name or long_name or ticker)
         aliases = []
+    elif quote_type == "CURRENCY":
+        short = (long_name or short_name or ticker.removesuffix("=X")).strip()  # "EUR/USD" is the name
+        aliases = []
     elif quote_type in {"ETF", "MUTUALFUND"}:
         source = long_name or short_name or registry_name or ticker
         short = clean_fund_name(source)
@@ -556,6 +572,12 @@ def derive_names(
     else:
         if _sane_display_name(display_name):
             short = clean_company_name(display_name or "")
+            # Yahoo's displayName can be the bare everyday word ("Motorola", "Tyler"); the
+            # press writes these with their descriptor, which the legal name still carries.
+            if candidates and len(short.split()) == 1 and short.lower() in COMMON_WORDS:
+                fuller = clean_company_name(candidates[0])
+                if fuller.lower().startswith(f"{short.lower()} "):
+                    short = fuller
         elif candidates:
             short = clean_company_name(candidates[0])
         else:
@@ -584,6 +606,10 @@ def derive_names(
 
 
 def is_common_word_name(short_name: str) -> bool:
-    """True when the brand is also an ordinary word (search needs disambiguation)."""
+    """True when a one-word brand collides with ordinary text (full-text search needs anchoring).
+
+    Everyday words ("Target"), namesakes the press still writes bare ("Axon", "Nasdaq")
+    and tiny heads ("IBM", "On") all qualify.
+    """
     head = short_name.split()[0].lower().strip(".,") if short_name else ""
-    return len(short_name.split()) == 1 and (head in COMMON_WORDS or len(head) <= 3)
+    return len(short_name.split()) == 1 and (head in COMMON_WORDS or head in NAMESAKES or len(head) <= 3)

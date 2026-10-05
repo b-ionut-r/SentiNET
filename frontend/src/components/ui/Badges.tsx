@@ -73,12 +73,15 @@ export function Delta({
   digits = 0,
   suffix = "",
   invert = false,
+  plain = false,
   className,
 }: {
   value: number | null | undefined;
   digits?: number;
   suffix?: string;
   invert?: boolean;
+  /** Direction only, in neutral ink — for changes that aren't sentiment (ranks, attention). */
+  plain?: boolean;
   className?: string;
 }) {
   if (value == null || !Number.isFinite(value)) return <span className={cx("text-muted", className)}>—</span>;
@@ -86,7 +89,7 @@ export function Delta({
   const p: Polarity = r === 0 ? "neutral" : (r > 0) !== invert ? "bull" : "bear";
   const g = r === 0 ? "●" : r > 0 ? "▲" : "▼";
   return (
-    <span className={cx("inline-flex items-center gap-1 whitespace-nowrap font-medium", textTone[p], className)}>
+    <span className={cx("inline-flex items-center gap-1 whitespace-nowrap font-medium", plain ? "text-ink-2" : textTone[p], className)}>
       <span className="text-[0.65em] leading-none">{g}</span>
       {Math.abs(r).toFixed(digits)}
       {suffix}
@@ -136,4 +139,13 @@ export function SeverityBadge({ severity, className }: { severity: Severity; cla
 
 export function Kbd({ children }: { children: ReactNode }) {
   return <kbd className="kbd">{children}</kbd>;
+}
+
+/** "New" marker for stories/narratives: a neutral outlined tag (accent stays reserved for interaction). */
+export function NewBadge({ className }: { className?: string }) {
+  return (
+    <span className={cx("inline-block rounded px-1 py-px align-middle text-2xs font-semibold uppercase tracking-wider text-ink", className)} style={{ boxShadow: "inset 0 0 0 1px var(--hairline-strong)" }}>
+      New
+    </span>
+  );
 }

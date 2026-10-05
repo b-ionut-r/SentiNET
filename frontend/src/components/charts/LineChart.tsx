@@ -13,7 +13,8 @@ export interface LineSeries {
   key: string;
   label: string;
   color: string;
-  points: Array<{ x: number; y: number | null }>;
+  /** `note` is extra tooltip context for that point (e.g. the raw daily value behind a smoothed line). */
+  points: Array<{ x: number; y: number | null; note?: string }>;
   area?: boolean;
 }
 
@@ -74,6 +75,7 @@ export function LineChart({
   }, [series]);
 
   const lookup = useMemo(() => series.map((s) => new Map(s.points.map((p) => [p.x, p.y]))), [series]);
+  const notes = useMemo(() => series.map((s) => new Map(s.points.filter((p) => p.note).map((p) => [p.x, p.note as string]))), [series]);
 
   const ys = series.flatMap((s) => s.points.map((p) => p.y));
   const ext = yDomain ?? extent(baseline != null ? [...ys, baseline] : ys) ?? [0, 1];
@@ -85,8 +87,9 @@ export function LineChart({
   const x = linear(xs[0] ?? 0, xs[xs.length - 1] ?? 1, M.left, M.left + innerW);
   const y = linear(y0, y1, M.top + innerH, M.top);
 
-  const xTickCount = Math.max(2, Math.min(6, Math.floor(innerW / 110)));
-  const xTicks = xs.length > 1 ? Array.from({ length: xTickCount }, (_, i) => xs[Math.round((i * (xs.length - 1)) / (xTickCount - 1))]) : xs;
+  // Evenly spaced date ticks, never more than there are dates (no duplicate labels on short series).
+  const xTickCount = Math.min(xs.length, Math.max(2, Math.min(6, Math.floor(innerW / 110))));
+  const xTicks = xs.length > 1 ? [...new Set(Array.from({ length: xTickCount }, (_, i) => Math.round((i * (xs.length - 1)) / (xTickCount - 1))))].map((i) => xs[i]) : xs;
 
   const showLegend = legend ?? series.length >= 2;
 
@@ -102,6 +105,7 @@ export function LineChart({
               <span className="h-0.5 w-3 shrink-0 rounded-full" style={{ background: s.color }} />
               <span className="font-semibold text-ink num">{v == null ? "—" : fmtV(v)}</span>
               <span className="text-muted">{s.label}</span>
+              {notes[i].get(t) && <span className="text-muted">· {notes[i].get(t)}</span>}
             </div>
           );
         })}
@@ -132,11 +136,12 @@ export function LineChart({
   };
 
   const onKey = (e: React.KeyboardEvent<SVGSVGElement>) => {
-    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
-    e.preventDefault();
+    if (!xs.length) return;
     const cur = hover ?? xs.length - 1;
-    const next = Math.max(0, Math.min(xs.length - 1, cur + (e.key === "ArrowRight" ? 1 : -1)));
-    place(next, e.currentTarget);
+    const next: Record<string, number> = { ArrowLeft: cur - 1, ArrowRight: cur + 1, Home: 0, End: xs.length - 1 };
+    if (!(e.key in next)) return;
+    e.preventDefault();
+    place(Math.max(0, Math.min(xs.length - 1, next[e.key])), e.currentTarget);
   };
 
   const leave = () => {
@@ -173,9 +178,9 @@ export function LineChart({
           <svg
             width={width}
             height={height}
-            className="block touch-none outline-none"
+            className="block touch-none"
             role="img"
-            aria-label={ariaLabel}
+            aria-label={`${ariaLabel} — use arrow keys to read each date`}
             tabIndex={0}
             onPointerMove={onMove}
             onPointerLeave={leave}

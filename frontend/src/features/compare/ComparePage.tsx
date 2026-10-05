@@ -272,13 +272,28 @@ function ComponentMatrix({ tickers, colors, data }: { tickers: string[]; colors:
   );
 }
 
-/** One point per calendar day; days GDELT didn't report become gaps (null) instead of being bridged by a line. */
-function dailyPoints(series: Array<{ date: string; tone: number | null }>): Array<{ x: number; y: number | null }> {
-  const byDay = new Map(series.map((p) => [Date.parse(`${p.date}T12:00:00Z`), p.tone]));
+const SMOOTH_DAYS = 7;
+const SMOOTH_MIN = 3;
+
+/**
+ * One point per calendar day carrying a 7-day trailing mean of GDELT tone (needs ≥ 3
+ * reported days in the window, so long outages stay gaps instead of being bridged).
+ * The raw daily value rides along as a tooltip note.
+ */
+function smoothedDaily(series: Array<{ date: string; tone: number | null }>): Array<{ x: number; y: number | null; note?: string }> {
+  const byDay = new Map(series.filter((p) => p.tone != null).map((p) => [Date.parse(`${p.date}T12:00:00Z`), p.tone as number]));
   const days = [...byDay.keys()].filter(Number.isFinite).sort((x, y) => x - y);
-  if (days.length < 2) return days.map((x) => ({ x, y: byDay.get(x) ?? null }));
-  const out: Array<{ x: number; y: number | null }> = [];
-  for (let x = days[0]; x <= days[days.length - 1]; x += 864e5) out.push({ x, y: byDay.get(x) ?? null });
+  if (!days.length) return [];
+  const out: Array<{ x: number; y: number | null; note?: string }> = [];
+  for (let x = days[0]; x <= days[days.length - 1]; x += 864e5) {
+    const win: number[] = [];
+    for (let k = 0; k < SMOOTH_DAYS; k++) {
+      const v = byDay.get(x - k * 864e5);
+      if (v != null) win.push(v);
+    }
+    const day = byDay.get(x);
+    out.push({ x, y: win.length >= SMOOTH_MIN ? win.reduce((s, v) => s + v, 0) / win.length : null, note: day != null ? `day ${signed(day)}` : "no report that day" });
+  }
   return out;
 }
 
@@ -287,14 +302,14 @@ function ToneCompare({ tickers, colors, data }: { tickers: string[]; colors: str
     () =>
       data.flatMap((a, i) =>
         a?.tone?.series.length
-          ? [{ key: tickers[i], label: tickers[i], color: colors[i], points: dailyPoints(a.tone.series) }]
+          ? [{ key: tickers[i], label: tickers[i], color: colors[i], points: smoothedDaily(a.tone.series) }]
           : [],
       ),
     [data, tickers, colors],
   );
   const missing = tickers.filter((_, i) => data[i] && !data[i]?.tone?.series.length);
   return (
-    <Panel title="Global news tone" subtitle="GDELT average tone per day — one shared axis, same unit for every ticker">
+    <Panel title="Global news tone" subtitle={`GDELT tone, ${SMOOTH_DAYS}-day trailing mean — one shared axis, same unit for every ticker; hover for the daily value`}>
       {series.length === 0 ? (
         <Empty title="No tone history">GDELT returned no series for these tickers.</Empty>
       ) : (

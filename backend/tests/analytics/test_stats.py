@@ -112,3 +112,15 @@ def test_missing_series_are_explained() -> None:
     assert build_history("X", 30, None, closes, [], None, {}).interpretation.startswith("No GDELT tone history")
     empty = build_history("X", 30, None, [], [], None, {"tone": "error: x"})
     assert empty.points == [] and empty.best_lag is None and empty.status == {"tone": "error: x"}
+
+
+def test_temporarily_missing_tone_is_not_called_absent() -> None:
+    # Live: GDELT rate-limited / still loading, yet the text said the data did not exist.
+    closes = [(END - timedelta(days=i), 10.0 + i % 3) for i in range(40)]
+    for status in ("error: still loading after 23s; ready on next refresh",
+                   "error: GDELT is rate-limiting this server's IP"):
+        h = build_history("NVDA", 30, None, closes, [], None, {"tone": status, "price": "ok"})
+        assert h.interpretation.startswith("Global news tone (GDELT) is temporarily unavailable")
+        assert "reload" in h.interpretation
+    h = build_history("NVDA", 30, None, closes, [], None, {"tone": "empty", "price": "ok"})
+    assert h.interpretation.startswith("No GDELT tone history")

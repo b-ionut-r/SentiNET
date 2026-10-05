@@ -312,6 +312,8 @@ export interface CrowdView {
   stocktwits_bullish: number | null;
   stocktwits_bearish: number | null;
   stocktwits_bull_ratio: number | null;
+  stocktwits_bull_authors: number | null;
+  stocktwits_bear_authors: number | null;
   stocktwits_messages: number | null;
   stocktwits_watchers: number | null;
   reddit_mentions: number | null;

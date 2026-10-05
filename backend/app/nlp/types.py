@@ -12,6 +12,7 @@ The pipeline calls (all synchronous, CPU-only, deterministic):
 """
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Literal, Optional, Protocol
@@ -43,9 +44,16 @@ class TextAnalysis:
 class SentimentEngine(Protocol):
     name: str
 
-    def score(self, texts: list[str], kinds: Optional[list[str]] = None) -> list[TextAnalysis]:
+    def score(
+        self,
+        texts: list[str],
+        kinds: Optional[list[str]] = None,
+        targets: Optional[Sequence[Optional[Sequence[str]]]] = None,
+    ) -> list[TextAnalysis]:
         """Score a batch. `kinds[i]` is "news" | "social" | … and lets the engine
-        adapt to register (headline vs. slang). Must return len(texts) results."""
+        adapt to register (headline vs. slang). `targets[i]` (optional) is the
+        ticker plus names of the company text i is analysed for, so moves
+        attributed to a rival weigh less. Must return len(texts) results."""
         ...
 
 

@@ -31,6 +31,18 @@ async def test_resolve_quote_technicals(ticker: str) -> None:
         assert price.available and price.candles, (ticker, rng, price.error)
 
 
+@pytest.mark.parametrize(
+    ("ticker", "short"),
+    [("NVDA", "Nvidia"), ("AAPL", "Apple"), ("GOOGL", "Alphabet"), ("BRK-B", "Berkshire Hathaway"),
+     ("QSR", "Restaurant Brands"), ("DGX", "Quest Diagnostics"), ("MSI", "Motorola Solutions"),
+     ("TSN", "Tyson Foods"), ("TCOM", "Trip.com"), ("MCK", "McKesson"), ("CARR", "Carrier"),
+     ("SPY", "S&P 500"), ("BTC-USD", "Bitcoin"), ("EURUSD=X", "EUR/USD")],
+)
+async def test_short_names_from_the_live_registries(ticker: str, short: str) -> None:
+    """Audited 2026-10-05: everyday-word heads keep their descriptor, namesakes stay bare."""
+    assert (await resolve_company(ticker)).short_name == short
+
+
 @pytest.mark.parametrize("ticker", ["NVDA", "AAPL", "SOFI"])
 async def test_equity_smart_money(ticker: str) -> None:
     company = await resolve_company(ticker)

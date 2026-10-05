@@ -12,6 +12,7 @@ from app.core.ratelimit import HostLimiter
 from app.intel import attention
 from app.intel.attention import (
     candidate_titles,
+    lookup_order,
     pick_article,
     search_query,
     views_from_page,
@@ -24,7 +25,7 @@ TARGET = CompanyRef(ticker="TGT", name="Target Corporation", short_name="Target"
                     aliases=["Target Corp", "Target Corporation"])
 APPLE = CompanyRef(ticker="AAPL", name="Apple Inc.", short_name="Apple", aliases=["Apple Inc"])
 
-Handler = Callable[[str, dict[str, Any] | None], tuple[int, Any]]
+Handler = Callable[[str, dict[str, Any] | None], tuple[Any, ...]]  # (status, body[, retry_after])
 
 
 @pytest.fixture
@@ -36,10 +37,10 @@ def wiki(monkeypatch: pytest.MonkeyPatch) -> Callable[[Handler], list[tuple[str,
     calls: list[tuple[str, dict[str, Any]]] = []
 
     def install(handler: Handler) -> list[tuple[str, dict[str, Any]]]:
-        async def fake(url: str, params: dict[str, Any] | None) -> tuple[int, str]:
+        async def fake(url: str, params: dict[str, Any] | None) -> tuple[int, str, float | None]:
             calls.append((url, dict(params or {})))
-            status, body = handler(url, params)
-            return status, body if isinstance(body, str) else json.dumps(body)
+            status, body, *hint = handler(url, params)
+            return status, body if isinstance(body, str) else json.dumps(body), (hint[0] if hint else None)
 
         monkeypatch.setattr(attention, "_http_get", fake)
         return calls
@@ -79,6 +80,25 @@ def test_title_lookup_never_takes_the_namesake() -> None:
     disamb = [{"title": "Target", "description": "Topics referred to by the same term",
                "pageprops": {"disambiguation": ""}}]
     assert pick_article(disamb, TARGET) is None
+
+
+def test_official_name_beats_a_product_alias() -> None:
+    """Real answer for SNAP: "Snapchat" (an app, also matches) must lose to "Snap Inc."."""
+    data = load_json("wiki/snap_titles.json")
+    query = data["query"]
+    snap = CompanyRef(ticker="SNAP", name="Snap Inc.", short_name="Snap", aliases=["Snap Inc", "Snapchat"])
+    titles = candidate_titles(snap)
+    order = lookup_order(query, titles)
+    assert order["Snap Inc."] == 0 and order["Snapchat"] == titles.index("Snapchat")
+    for pages in (query["pages"], list(reversed(query["pages"]))):  # API order must not matter
+        best = pick_article(pages, snap, require_kind=True, order=order)
+        assert best is not None and best["title"] == "Snap Inc."
+
+
+def test_lookup_order_follows_normalization_and_redirects() -> None:
+    query = {"normalized": [{"from": "nvidia corporation", "to": "Nvidia corporation"}],
+             "redirects": [{"from": "Nvidia corporation", "to": "Nvidia"}, {"from": "NVDA", "to": "Nvidia"}]}
+    assert lookup_order(query, ["nvidia corporation", "NVDA", "Other"]) == {"Nvidia": 0, "Other": 2}
 
 
 def test_pick_article_prefers_the_company_not_its_namesakes() -> None:
@@ -171,6 +191,37 @@ async def test_refusal_pauses_the_host_and_fails_fast(wiki) -> None:
     with pytest.raises(UpstreamError, match=r"next try in \d+ s"):
         await attention.get_wiki_pageviews(APPLE, days=60)
     assert len(calls) == 1  # no retry, nothing sent while paused
+
+
+async def test_short_retry_after_is_honored_once(wiki, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(attention, "_sleep", _no_sleep)
+    answers = iter([(429, "Too many requests", 4.0), (200, _titles_payload(_target_page()))])
+    calls = wiki(lambda url, params: next(answers))
+    assert await attention.get_wiki_pageviews(TARGET, days=60)
+    assert len(calls) == 2
+
+
+async def test_long_retry_after_sets_the_pause(wiki, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(attention, "_sleep", _no_sleep)
+    calls = wiki(lambda url, params: (429, "Too many requests", 46.0))
+    with pytest.raises(UpstreamError, match=r"pausing 46 s"):
+        await attention.get_wiki_pageviews(TARGET, days=60)
+    assert len(calls) == 1 and 40 < attention._pause_left("en.wikipedia.org") <= 46
+
+
+async def _no_sleep(_seconds: float) -> None:
+    """Skip Retry-After waits in tests."""
+
+
+async def test_recent_series_is_reused_across_restarts(wiki) -> None:
+    from app.core import cache
+
+    calls = wiki(lambda url, params: (200, _titles_payload(_target_page())))
+    fresh = await attention.get_wiki_pageviews(TARGET, days=60)
+    cache.clear_all()
+    attention.reset_state()  # memory gone, disk copy stays
+    assert await attention.get_wiki_pageviews(TARGET, days=60) == fresh
+    assert len(calls) == 1  # no second request
 
 
 async def test_no_article_is_none(wiki) -> None:

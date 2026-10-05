@@ -1,11 +1,12 @@
 /** Global chrome: sticky top bar, nav, palette, help overlay, shortcuts. */
 import { Keyboard, Moon, Search, Sun, X } from "lucide-react";
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 
 import { cx } from "../../lib/cx";
 import { modKey, useHotkeys } from "../../lib/hotkeys";
 import { useTheme } from "../../lib/theme";
+import { useRestoreFocus } from "../../lib/useRestoreFocus";
 import { Kbd } from "../ui/Badges";
 import { CommandPalette } from "./CommandPalette";
 import { useCommands } from "./commands";
@@ -119,12 +120,14 @@ const SHORTCUTS: Array<[string[], string]> = [
 ];
 
 function HelpOverlay({ onClose }: { onClose: () => void }) {
+  const closeRef = useRef<HTMLButtonElement>(null);
+  useRestoreFocus(closeRef);
   return (
     <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/50 px-4 backdrop-blur-[2px] animate-fade-in" onMouseDown={onClose}>
       <div role="dialog" aria-modal="true" aria-label="Keyboard shortcuts" className="w-full max-w-sm rounded-xl bg-panel p-4 shadow-pop" onMouseDown={(e) => e.stopPropagation()}>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold">Keyboard shortcuts</h2>
-          <button className="btn btn-ghost size-7 px-0" onClick={onClose} aria-label="Close">
+          <button ref={closeRef} className="btn btn-ghost size-7 px-0" onClick={onClose} aria-label="Close">
             <X className="size-4" />
           </button>
         </div>

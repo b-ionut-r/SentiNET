@@ -16,7 +16,7 @@ import { Empty, ErrorState } from "../../components/ui/Misc";
 import { Panel, SubHead } from "../../components/ui/Panel";
 import { cx } from "../../lib/cx";
 import { plural, signed } from "../../lib/format";
-import { divergingFill, polarityOf, textTone } from "../../lib/sentiment";
+import { polarityOf, textTone, toneFill } from "../../lib/sentiment";
 import { eventLabel, themeLabel } from "../intel/themes";
 
 const MAX_ITEMS = 500;
@@ -121,8 +121,9 @@ export default function LabPage() {
   const onFile = async (f: File) => {
     const raw = await f.text();
     const items = /\.csv$/i.test(f.name) ? textsFromCsv(raw) : raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-    setText(items.join("\n"));
-    setFileNote(`${f.name}: ${plural(items.length, "item")}${items.length > MAX_ITEMS ? ` (only the first ${MAX_ITEMS} can be scored)` : ""}`);
+    // Load at most what one run can score, and say so — the Score button must work on what's loaded.
+    setText(items.slice(0, MAX_ITEMS).join("\n"));
+    setFileNote(`${f.name}: ${plural(items.length, "item")}${items.length > MAX_ITEMS ? ` — loaded the first ${MAX_ITEMS} (the most one run scores)` : ""}`);
   };
 
   return (
@@ -155,7 +156,12 @@ export default function LabPage() {
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <input value={ticker} onChange={(e) => setTicker(e.target.value)} placeholder="Ticker (optional)" className="field w-36 uppercase placeholder:normal-case" aria-label="Optional ticker for relevance scoring" />
-            <input ref={fileRef} type="file" accept=".txt,.csv,text/plain,text/csv" className="hidden" onChange={(e) => e.target.files?.[0] && void onFile(e.target.files[0])} />
+            <input ref={fileRef} type="file" accept=".txt,.csv,text/plain,text/csv" className="hidden" onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = ""; // picking the same file again must re-trigger
+                if (file) void onFile(file);
+              }}
+            />
             <button className="btn" onClick={() => fileRef.current?.click()}>
               <FileUp className="size-3.5" /> Upload
             </button>
@@ -228,7 +234,7 @@ function Results({ res, stale }: { res: ScoreResponse; stale: boolean }) {
                 {res.themes.slice(0, 6).map((t) => (
                   <li key={t.theme} className="grid grid-cols-[132px_minmax(0,1fr)_44px] items-center gap-2 text-xs">
                     <span className="truncate text-ink-2">{t.label}</span>
-                    <div className="h-1.5 rounded-r-[3px]" style={{ width: `${Math.max(4, t.share * 100)}%`, background: divergingFill(t.score / 0.4) }} />
+                    <div className="h-1.5 rounded-r-[3px]" style={{ width: `${Math.max(4, t.share * 100)}%`, background: toneFill(t.score, 0.4) }} />
                     <span className={cx("text-right font-medium num", textTone[polarityOf(t.score)])}>{signed(t.score)}</span>
                   </li>
                 ))}

@@ -1,100 +1,43 @@
 /**
  * Price × tone: candlesticks (TradingView lightweight-charts) with catalyst
- * markers, and daily GDELT news tone in a SEPARATE synced pane below — same
- * time axis, its own value scale (never a dual axis). Beside it, the
- * tone→return lead/lag readout from /api/history.
+ * markers, then volume and daily GDELT news tone in SEPARATE synced panes
+ * below — same time axis, each with its own value scale (never a dual axis).
+ * Beside it, the tone→return lead/lag readout from /api/history.
  */
 import {
   ColorType,
   CrosshairMode,
   createChart,
   type IChartApi,
+  type IPriceLine,
   type ISeriesApi,
   type LogicalRange,
   type MouseEventParams,
   type SeriesMarker,
   type Time,
-  type UTCTimestamp,
   type WhitespaceData,
 } from "lightweight-charts";
+import { Loader2, RotateCw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useHistory, usePrice } from "../../api/hooks";
-import type { Analysis, Candle, HistoryResponse, LagStat, PriceRange, TonePoint } from "../../api/types";
+import type { Analysis, HistoryResponse, PriceRange } from "../../api/types";
 import { Columns } from "../../components/charts/Columns";
 import { Meter } from "../../components/charts/Bars";
 import { Empty, Segmented, Skeleton } from "../../components/ui/Misc";
 import { Panel, SubHead } from "../../components/ui/Panel";
 import { cx } from "../../lib/cx";
-import { longDate, MINUS, ordinal, pct, price as fmtPrice, signed } from "../../lib/format";
+import { compact, longDate, MINUS, ordinal, pct, price as fmtPrice, signed } from "../../lib/format";
 import { textTone } from "../../lib/sentiment";
 import { tokenColor, useTheme } from "../../lib/theme";
+import { criticalR, fmtP, LAGS_TESTED, lagVerdict, MIN_RELIABLE_N, reliableLag } from "./lagRule";
+import { buildRows, type Row, TZ_SHIFT } from "./priceRows";
 
 const RANGES: PriceRange[] = ["1D", "5D", "1M", "3M", "6M", "1Y", "5Y"];
 /** Ranges with one bar per session or week (date-keyed time axis). */
 const DAILY: ReadonlySet<PriceRange> = new Set(["1M", "3M", "6M", "1Y", "5Y"]);
 /** Ranges where the daily tone pane is meaningful (GDELT history is ~90 days). */
 const TONE_RANGES: ReadonlySet<PriceRange> = new Set(["1M", "3M", "6M", "1Y"]);
-const TZ_SHIFT = -new Date().getTimezoneOffset() * 60;
-
-interface Row {
-  time: Time;
-  candle: Candle | null;
-  tone: number | null;
-  volume: number | null;
-}
-
-/**
- * Calendar day of a daily candle. Bars are stamped at local midnight of the
- * exchange (04:00Z for New York, 15:00Z the day before for Tokyo); shifting by
- * 12h lands every exchange from UTC−12 to UTC+12 on its own session date.
- */
-function sessionDay(t: string): string {
-  const ms = Date.parse(t);
-  return Number.isFinite(ms) ? new Date(ms + 12 * 3600_000).toISOString().slice(0, 10) : t.slice(0, 10);
-}
-
-/**
- * Build one shared time index for both panes (trading days + trailing news-only days).
- * Tone from a weekend/holiday rolls into the next session, volume-weighted like the
- * backend's alignment; tone dated before the first candle is dropped so the first
- * bar never silently averages weeks of history.
- */
-function buildRows(candles: Candle[], tone: TonePoint[], daily: boolean): Row[] {
-  if (!daily) {
-    return candles.map((c) => ({ time: (Math.floor(new Date(c.t).getTime() / 1000) + TZ_SHIFT) as UTCTimestamp, candle: c, tone: null, volume: null }));
-  }
-  const rows: Row[] = candles.map((c) => ({ time: sessionDay(c.t), candle: c, tone: null, volume: null }));
-  const days = rows.map((r) => r.time as string);
-  const acc = new Map<string, { sum: number; w: number; vol: number }>();
-  const trailing: TonePoint[] = [];
-  for (const p of tone) {
-    if (p.tone == null || !days.length || p.date < days[0]) continue;
-    const target = days.find((d) => d >= p.date);
-    if (!target) {
-      trailing.push(p);
-      continue;
-    }
-    const w = p.volume != null && p.volume > 0 ? p.volume : 1;
-    const a = acc.get(target) ?? { sum: 0, w: 0, vol: 0 };
-    acc.set(target, { sum: a.sum + p.tone * w, w: a.w + w, vol: a.vol + (p.volume ?? 0) });
-  }
-  for (const r of rows) {
-    const a = acc.get(r.time as string);
-    if (a && a.w > 0) {
-      r.tone = a.sum / a.w;
-      r.volume = a.vol || null;
-    }
-  }
-  // News-only days after the last session; the chart needs strictly ascending, unique times.
-  const tail = new Map(trailing.map((p) => [p.date, p]));
-  for (const d of [...tail.keys()].sort()) {
-    const p = tail.get(d)!;
-    rows.push({ time: d, candle: null, tone: p.tone, volume: p.volume });
-  }
-  return rows;
-}
-
 export default function PriceTone({ a }: { a: Analysis }) {
   const [range, setRange] = useState<PriceRange>("3M");
   const priceQ = usePrice(a.ticker, range);
@@ -105,6 +48,13 @@ export default function PriceTone({ a }: { a: Analysis }) {
   const rows = useMemo(() => buildRows(priceQ.data?.candles ?? [], withTone ? toneSeries : [], daily), [priceQ.data, toneSeries, daily, withTone]);
   const showTone = withTone && toneSeries.length > 0;
   const currency = priceQ.data?.currency ?? a.quote?.currency;
+
+  // The lead/lag column only earns its space when it has something to show; otherwise the
+  // price chart takes the full width and one honest line explains what's missing.
+  const t = a.tone;
+  const hasLags = !!history.data && history.data.lags.length > 0;
+  const hasToneSummary = !!t && [t.tone_7d, t.tone_30d, t.tone_90d].some((v) => v != null);
+  const side = hasLags || hasToneSummary;
 
   return (
     <div className="grid gap-4 lg:grid-cols-12">
@@ -118,7 +68,7 @@ export default function PriceTone({ a }: { a: Analysis }) {
               : "Tone is daily — switch to 1M–1Y to see it under the price"
         }
         actions={<Segmented options={RANGES.map((r) => ({ value: r, label: r }))} value={range} onChange={setRange} size="xs" label="Price range" />}
-        className="lg:col-span-8"
+        className={side ? "lg:col-span-8" : "lg:col-span-12"}
         footer={
           <div className="flex flex-wrap items-center justify-between gap-2">
             <MarkerLegend />
@@ -140,7 +90,11 @@ export default function PriceTone({ a }: { a: Analysis }) {
           </div>
         )}
       </Panel>
-      <ToneLeadPanel a={a} history={history.data} loading={history.isPending} error={history.error} className="lg:col-span-4" />
+      {side ? (
+        <ToneLeadPanel a={a} history={history.data} loading={history.isPending} error={history.error} onRetry={() => history.refetch()} className="lg:col-span-4" />
+      ) : (
+        <LeadLagNotice a={a} history={history.data} loading={history.isPending} error={history.error} onRetry={() => history.refetch()} className="lg:col-span-12" />
+      )}
     </div>
   );
 }
@@ -167,88 +121,114 @@ function timeKey(t: Time): string {
 
 const MARK_CODE: Record<string, string> = { analyst: "A", earnings: "E", filing: "F", insider: "I", news: "N", dividend: "D" };
 
+/** Axis decimals for a price level: none for ≥ 1,000 (BTC reads 88,000), cents above 1, more for sub-dollar. */
+function axisDigits(ref: number): number {
+  const v = Math.abs(ref);
+  return v >= 1000 ? 0 : v >= 1 ? 2 : v >= 0.01 ? 4 : 6;
+}
+
+interface Pane {
+  chart: IChartApi;
+  series: ISeriesApi<"Candlestick"> | ISeriesApi<"Histogram">;
+  value: (r: Row) => number | null;
+}
+
+/**
+ * Three synced panes on one time index: candles (+ catalyst markers), volume, and
+ * daily news tone. Separate panes keep every value scale honest — the price axis
+ * never labels the volume band, and tone has its own zero-centred scale.
+ */
 function Charts({ a, rows, showTone, daily, currency }: { a: Analysis; rows: Row[]; showTone: boolean; daily: boolean; currency?: string | null }) {
   const priceEl = useRef<HTMLDivElement>(null);
+  const volEl = useRef<HTMLDivElement>(null);
   const toneEl = useRef<HTMLDivElement>(null);
-  const charts = useRef<{ price?: IChartApi; tone?: IChartApi; candles?: ISeriesApi<"Candlestick">; vol?: ISeriesApi<"Histogram">; toneBars?: ISeriesApi<"Histogram"> }>({});
+  const charts = useRef<{ price?: IChartApi; vol?: IChartApi; tone?: IChartApi; candles?: ISeriesApi<"Candlestick">; volBars?: ISeriesApi<"Histogram">; toneBars?: ISeriesApi<"Candlestick">; zero?: IPriceLine }>({});
   const { theme } = useTheme();
   const [hover, setHover] = useState<Row | null>(null);
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
+  const showVol = rows.some((r) => r.candle?.v != null && r.candle.v > 0);
 
-  // Create both charts once; wire range + crosshair sync.
+  // Create the panes once; wire range + crosshair sync across all of them.
   useEffect(() => {
-    if (!priceEl.current || !toneEl.current) return;
+    if (!priceEl.current || !volEl.current || !toneEl.current) return;
     const common = {
       autoSize: true,
       layout: { background: { type: ColorType.Solid, color: "transparent" }, fontFamily: "Inter Variable, Inter, system-ui, sans-serif", fontSize: 11, attributionLogo: false },
       rightPriceScale: { borderVisible: false, minimumWidth: 64 },
-      timeScale: { borderVisible: false, rightOffset: 2, fixLeftEdge: true, fixRightEdge: true },
+      // No edge clamps: each pane would clamp to its OWN last non-empty bar (tone can run past the
+      // last session), which shifts the panes against each other. One shared range, applied as-is.
+      timeScale: { borderVisible: false, rightOffset: 1 },
       crosshair: { mode: CrosshairMode.Normal },
       handleScale: { axisPressedMouseMove: false },
       // Pin the locale: some environments report tags Intl rejects (e.g. "en-US@posix").
       localization: { locale: "en-US" },
     };
-    const price = createChart(priceEl.current, { ...common, rightPriceScale: { ...common.rightPriceScale, scaleMargins: { top: 0.08, bottom: 0.2 } } });
+    const price = createChart(priceEl.current, { ...common, rightPriceScale: { ...common.rightPriceScale, scaleMargins: { top: 0.08, bottom: 0.06 } } });
+    const vol = createChart(volEl.current, { ...common, rightPriceScale: { ...common.rightPriceScale, scaleMargins: { top: 0.18, bottom: 0 } } });
     const tone = createChart(toneEl.current, { ...common, rightPriceScale: { ...common.rightPriceScale, scaleMargins: { top: 0.12, bottom: 0.08 } } });
     const candles = price.addCandlestickSeries({ borderVisible: false, priceLineVisible: false, lastValueVisible: true });
-    const vol = price.addHistogramSeries({ priceScaleId: "vol", priceFormat: { type: "volume" }, lastValueVisible: false, priceLineVisible: false });
-    price.priceScale("vol").applyOptions({ scaleMargins: { top: 0.84, bottom: 0 }, visible: false });
-    const toneBars = tone.addHistogramSeries({ priceLineVisible: false, lastValueVisible: false, base: 0, priceFormat: { type: "price", precision: 2, minMove: 0.01 } });
-    charts.current = { price, tone, candles, vol, toneBars };
+    const volBars = vol.addHistogramSeries({ priceFormat: { type: "volume" }, lastValueVisible: false, priceLineVisible: false });
+    // Tone as zero-based candle bodies: diverging bars whose width tracks the price candles at every range.
+    const toneBars = tone.addCandlestickSeries({ borderVisible: false, wickVisible: false, priceLineVisible: false, lastValueVisible: false, priceFormat: { type: "price", precision: 2, minMove: 0.01 } });
+    const zero = toneBars.createPriceLine({ price: 0, color: tokenColor("axis"), lineWidth: 1, lineStyle: 0, axisLabelVisible: false });
+    charts.current = { price, vol, tone, candles, volBars, toneBars, zero };
 
+    const all = [price, vol, tone];
+    const hosts = new Map<IChartApi, HTMLElement>([
+      [price, priceEl.current],
+      [vol, volEl.current],
+      [tone, toneEl.current],
+    ]);
+    // A hidden pane (0px wide) computes a degenerate range on fitContent; it must never drive the others.
+    const shown = (c: IChartApi) => (hosts.get(c)?.clientWidth ?? 0) > 0;
     let syncing = false;
-    const sync = (target: IChartApi) => (r: LogicalRange | null) => {
-      if (syncing || !r) return;
-      syncing = true;
-      target.timeScale().setVisibleLogicalRange(r);
-      syncing = false;
-    };
-    const toTone = sync(tone);
-    const toPrice = sync(price);
-    price.timeScale().subscribeVisibleLogicalRangeChange(toTone);
-    tone.timeScale().subscribeVisibleLogicalRangeChange(toPrice);
+    for (const src of all) {
+      src.timeScale().subscribeVisibleLogicalRangeChange((r: LogicalRange | null) => {
+        if (syncing || !r || !shown(src)) return;
+        syncing = true;
+        for (const c of all) if (c !== src) c.timeScale().setVisibleLogicalRange(r);
+        syncing = false;
+      });
+    }
 
     const rowAt = (t: Time | undefined) => {
       if (t == null) return null;
       const k = timeKey(t);
       return rowsRef.current.find((r) => timeKey(r.time) === k) ?? null;
     };
-    const onMove = (src: "price" | "tone") => (p: MouseEventParams) => {
-      const row = rowAt(p.time);
-      setHover(row);
-      const other = src === "price" ? tone : price;
-      const series = src === "price" ? toneBars : candles;
-      if (!row || p.time == null) {
-        other.clearCrosshairPosition();
-        return;
-      }
-      const v = src === "price" ? row.tone : row.candle?.c;
-      if (v == null) other.clearCrosshairPosition();
-      else other.setCrosshairPosition(v, p.time, series);
-    };
-    const mp = onMove("price");
-    const mt = onMove("tone");
-    price.subscribeCrosshairMove(mp);
-    tone.subscribeCrosshairMove(mt);
+    const panes: Pane[] = [
+      { chart: price, series: candles, value: (r) => r.candle?.c ?? null },
+      { chart: vol, series: volBars, value: (r) => r.candle?.v ?? null },
+      { chart: tone, series: toneBars, value: (r) => r.tone },
+    ];
+    for (const src of panes) {
+      src.chart.subscribeCrosshairMove((p: MouseEventParams) => {
+        const row = rowAt(p.time);
+        setHover(row);
+        for (const o of panes) {
+          if (o === src) continue;
+          const v = row && p.time != null ? o.value(row) : null;
+          if (v == null || p.time == null) o.chart.clearCrosshairPosition();
+          else o.chart.setCrosshairPosition(v, p.time, o.series);
+        }
+      });
+    }
 
     return () => {
-      price.unsubscribeCrosshairMove(mp);
-      tone.unsubscribeCrosshairMove(mt);
-      price.remove();
-      tone.remove();
+      for (const c of all) c.remove(); // also drops every subscription
       charts.current = {};
     };
   }, []);
 
   // Theme colors (re-applied when the theme flips).
   useEffect(() => {
-    const { price, tone, candles, toneBars } = charts.current;
-    if (!price || !tone || !candles || !toneBars) return;
+    const { price, vol, tone, candles, toneBars, zero } = charts.current;
+    if (!price || !vol || !tone || !candles || !toneBars) return;
     const text = tokenColor("muted");
     const grid = tokenColor("grid");
     const cross = tokenColor("ink-2", 0.45);
-    for (const c of [price, tone]) {
+    for (const c of [price, vol, tone]) {
       c.applyOptions({
         layout: { textColor: text },
         grid: { vertLines: { visible: false }, horzLines: { color: grid } },
@@ -258,20 +238,28 @@ function Charts({ a, rows, showTone, daily, currency }: { a: Analysis; rows: Row
         },
       });
     }
+    vol.applyOptions({ grid: { horzLines: { visible: false } } });
     candles.applyOptions({ upColor: tokenColor("bull"), downColor: tokenColor("bear"), wickUpColor: tokenColor("bull"), wickDownColor: tokenColor("bear") });
+    toneBars.applyOptions({ upColor: tokenColor("bull", 0.85), downColor: tokenColor("bear", 0.85) });
+    zero?.applyOptions({ color: tokenColor("axis") });
   }, [theme]);
 
   // Data + markers.
   useEffect(() => {
-    const { price, tone, candles, vol, toneBars } = charts.current;
-    if (!price || !tone || !candles || !vol || !toneBars) return;
+    const { price, vol, tone, candles, volBars, toneBars } = charts.current;
+    if (!price || !vol || !tone || !candles || !volBars || !toneBars) return;
     const bull = tokenColor("bull");
     const bear = tokenColor("bear");
-    const volColor = tokenColor("muted", 0.28);
+    const volColor = tokenColor("muted", 0.4);
+    const lastClose = [...rows].reverse().find((r) => r.candle)?.candle?.c ?? 1;
+    const digits = axisDigits(lastClose);
+    candles.applyOptions({
+      priceFormat: { type: "custom", minMove: 10 ** -digits, formatter: (v: number) => v.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits }) },
+    });
     candles.setData(rows.map((r) => (r.candle ? { time: r.time, open: r.candle.o, high: r.candle.h, low: r.candle.l, close: r.candle.c } : ({ time: r.time } as WhitespaceData))));
-    vol.setData(rows.map((r) => (r.candle?.v != null ? { time: r.time, value: r.candle.v, color: volColor } : ({ time: r.time } as WhitespaceData))));
+    volBars.setData(rows.map((r) => (r.candle?.v != null ? { time: r.time, value: r.candle.v, color: volColor } : ({ time: r.time } as WhitespaceData))));
     toneBars.setData(
-      rows.map((r) => (r.tone != null ? { time: r.time, value: r.tone, color: r.tone >= 0 ? tokenColor("bull", 0.85) : tokenColor("bear", 0.85) } : ({ time: r.time } as WhitespaceData))),
+      rows.map((r) => (r.tone != null ? { time: r.time, open: 0, close: r.tone, high: Math.max(0, r.tone), low: Math.min(0, r.tone) } : ({ time: r.time } as WhitespaceData))),
     );
 
     // Catalyst + past-earnings markers, snapped to the nearest bar at/after the event.
@@ -311,11 +299,13 @@ function Charts({ a, rows, showTone, daily, currency }: { a: Analysis; rows: Row
     });
     candles.setMarkers(markers);
 
-    price.applyOptions({ timeScale: { visible: !showTone, timeVisible: !daily, secondsVisible: false } });
+    // Only the lowest visible pane carries the date axis.
+    price.applyOptions({ timeScale: { visible: !showVol && !showTone, timeVisible: !daily, secondsVisible: false } });
+    vol.applyOptions({ timeScale: { visible: showVol && !showTone, timeVisible: !daily, secondsVisible: false } });
     tone.applyOptions({ timeScale: { visible: showTone, timeVisible: false } });
+    // Fit the price pane; the sync carries its range to the visible panes below.
     price.timeScale().fitContent();
-    tone.timeScale().fitContent();
-  }, [rows, showTone, daily, a.catalysts, a.earnings, theme]);
+  }, [rows, showTone, showVol, daily, a.catalysts, a.earnings, theme]);
 
   const last = [...rows].reverse().find((r) => r.candle) ?? null;
   const shown = hover ?? last;
@@ -326,6 +316,7 @@ function Charts({ a, rows, showTone, daily, currency }: { a: Analysis; rows: Row
     return null;
   }, [shown, rows]);
   const chg = shown?.candle && prevClose ? (shown.candle.c / prevClose - 1) * 100 : null;
+  const crypto = a.profile?.quote_type === "CRYPTOCURRENCY";
 
   return (
     <div>
@@ -348,6 +339,11 @@ function Charts({ a, rows, showTone, daily, currency }: { a: Analysis; rows: Row
                   C <span className="font-semibold text-ink">{fmtPrice(shown.candle.c, currency)}</span>
                 </span>
                 {chg != null && <span className={cx("font-medium", textTone[chg > 0 ? "bull" : chg < 0 ? "bear" : "neutral"])}>{pct(chg, 2)}</span>}
+                {shown.candle.v != null && shown.candle.v > 0 && (
+                  <span className="text-muted">
+                    Vol <span className="text-ink-2">{compact(shown.candle.v)}</span>
+                  </span>
+                )}
               </>
             )}
             {!shown.candle && <span className="text-muted">market closed</span>}
@@ -359,11 +355,15 @@ function Charts({ a, rows, showTone, daily, currency }: { a: Analysis; rows: Row
           </>
         ) : null}
       </div>
-      <div ref={priceEl} className="h-[300px] w-full max-sm:h-[240px]" role="img" aria-label="Candlestick price chart" />
+      <div ref={priceEl} className={cx("w-full", showVol ? "h-[248px] max-sm:h-[196px]" : "h-[300px] max-sm:h-[240px]")} role="img" aria-label="Candlestick price chart" />
+      <div className={cx("relative mt-1", !showVol && "hidden")}>
+        <span className="pointer-events-none absolute left-0 top-0 z-[1] text-2xs text-muted">Volume</span>
+        <div ref={volEl} className="h-[56px] w-full max-sm:h-[48px]" role="img" aria-label="Daily volume" />
+      </div>
       <div className={cx("mt-1", !showTone && "hidden")}>
         <div className="mb-0.5 flex items-center justify-between text-2xs text-muted">
           <span>News tone · GDELT avg (≈ {MINUS}3 … +3)</span>
-          <span className="hidden sm:inline">weekend news rolls into the next session</span>
+          {!crypto && <span className="hidden sm:inline">weekend news rolls into the next session</span>}
         </div>
         <div ref={toneEl} className="h-[92px] w-full" role="img" aria-label="Daily news tone histogram" />
       </div>
@@ -373,17 +373,65 @@ function Charts({ a, rows, showTone, daily, currency }: { a: Analysis; rows: Row
 
 /* ------------------------------------------------------------------------- */
 
-function ToneLeadPanel({ a, history, loading, error, className }: { a: Analysis; history?: HistoryResponse; loading: boolean; error: Error | null; className?: string }) {
+interface LeadLagProps {
+  a: Analysis;
+  history?: HistoryResponse;
+  loading: boolean;
+  error: Error | null;
+  onRetry: () => void;
+  className?: string;
+}
+
+/** Why there is no lead/lag readout, in one line (rate limit, no series, or too little overlap). */
+function lagMissingReason(a: Analysis, history: HistoryResponse | undefined, error: Error | null): string {
+  if (error) return `Couldn't load the tone/price history (${error.message}).`;
+  const st = history?.status?.tone ?? "";
+  if (st.startsWith("error")) return `GDELT tone couldn't be fetched this run (${st.replace(/^error:\s*/, "")}) — GDELT rate-limits hard; refresh in a minute.`;
+  if (st === "empty") return `GDELT has no daily tone series for ${a.ticker}, so there is nothing to correlate with price.`;
+  return history?.interpretation || "Not enough overlapping tone and price days to test a lead/lag link yet.";
+}
+
+/** Compact stand-in for the lead/lag panel when there is nothing to chart. */
+function LeadLagNotice({ a, history, loading, error, onRetry, className }: LeadLagProps) {
+  return (
+    <div className={cx("panel flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 text-xs", className)}>
+      <span className="font-semibold text-ink">Does news tone lead {a.ticker}?</span>
+      {loading ? (
+        <span className="inline-flex items-center gap-1.5 text-muted">
+          <Loader2 className="size-3.5 animate-spin" aria-hidden />
+          Checking 90 days of GDELT tone against returns — GDELT is rate-limited, this can take a few seconds.
+        </span>
+      ) : (
+        <>
+          <span className="min-w-0 flex-1 text-muted">{lagMissingReason(a, history, error)}</span>
+          <button className="btn h-7 text-xs" onClick={onRetry}>
+            <RotateCw className="size-3.5" /> Retry
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
+function ToneLeadPanel({ a, history, loading, error, onRetry, className }: LeadLagProps) {
   const t = a.tone;
   return (
     <Panel title={`Does news tone lead ${a.ticker}?`} subtitle="Pearson r of daily tone vs. returns at −3…+3 day lags (90d)" className={className}>
       {loading ? (
         <div>
-          <Skeleton className="h-40 w-full" />
-          <p className="mt-2 text-2xs text-muted">Loading 90 days of GDELT tone and prices — GDELT is rate-limited, this can take a few seconds.</p>
+          <Skeleton className="h-[84px] w-full" />
+          <p className="mt-2 inline-flex items-center gap-1.5 text-2xs text-muted">
+            <Loader2 className="size-3 animate-spin" aria-hidden />
+            Loading 90 days of GDELT tone and prices — GDELT is rate-limited, this can take a few seconds.
+          </p>
         </div>
       ) : error || !history || history.lags.length === 0 ? (
-        <Empty title="Lead/lag unavailable">{error?.message ?? "Not enough overlapping tone and price history yet."}</Empty>
+        <div className="flex items-start justify-between gap-3 rounded-md bg-sunken px-3 py-2.5 text-xs text-muted">
+          <span>{lagMissingReason(a, history, error)}</span>
+          <button className="btn h-7 shrink-0 text-xs" onClick={onRetry}>
+            <RotateCw className="size-3.5" /> Retry
+          </button>
+        </div>
       ) : (
         <LagView h={history} />
       )}
@@ -427,46 +475,6 @@ function ToneLeadPanel({ a, history, loading, error, className }: { a: Analysis;
       )}
     </Panel>
   );
-}
-
-/**
- * The backend's reliability rule (analytics/stats.py): seven lags are tested,
- * so a link only counts when it survives Bonferroni (p × 7 < 0.05) with
- * |r| ≥ 0.2 on at least 20 paired days. The chart mirrors it exactly so the
- * bars can never contradict the sentence above them.
- */
-const LAGS_TESTED = 7;
-const ALPHA = 0.05;
-const MIN_R = 0.2;
-const MIN_RELIABLE_N = 20;
-/** Two-sided normal quantile for α / 7: Φ⁻¹(1 − 0.05 / 14). */
-const Z_BONF = 2.6901;
-
-function reliableLag(l: LagStat): boolean {
-  return l.n >= MIN_RELIABLE_N && Math.abs(l.r) >= MIN_R && l.p_value * LAGS_TESTED < ALPHA;
-}
-
-/**
- * Smallest |r| that survives the 7-lag correction for n paired points:
- * r = t / sqrt(df + t²), Student-t quantile from the Cornish–Fisher expansion
- * of Z_BONF (matches the exact p within 0.1% for n ≥ 10). Never below MIN_R.
- */
-function criticalR(n: number): number {
-  const df = n - 2;
-  const z = Z_BONF;
-  const t = z + (z ** 3 + z) / (4 * df) + (5 * z ** 5 + 16 * z ** 3 + 3 * z) / (96 * df ** 2) + (3 * z ** 7 + 19 * z ** 5 + 17 * z ** 3 - 15 * z) / (384 * df ** 3);
-  return Math.max(MIN_R, t / Math.sqrt(df + t * t));
-}
-
-/** p-value at the precision the backend's sentence uses. */
-function fmtP(p: number): string {
-  return p < 0.001 ? "<0.001" : p < 0.01 ? p.toFixed(3) : p.toFixed(2);
-}
-
-function lagVerdict(l: LagStat): string {
-  if (reliableLag(l)) return `survives correction for ${LAGS_TESTED} tested lags`;
-  if (l.p_value < ALPHA) return `p < 0.05 alone, but not after correcting for ${LAGS_TESTED} tested lags — noise`;
-  return "not significant — noise";
 }
 
 function LagView({ h }: { h: HistoryResponse }) {

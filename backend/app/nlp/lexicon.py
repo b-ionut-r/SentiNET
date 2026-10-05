@@ -151,6 +151,7 @@ POSITIVE: dict[str, float] = {
     "biggest gainers": 0.6, "gainers": 0.5, "red to green": 0.7, "bull of the day": 0.8, "new orders": 0.5,
     "cheapest": 0.4, "comeback": 0.6, "roaring back": 0.9, "upsides": 0.6, "bulls": 0.35,
     "regaining steam": 0.6, "gaining steam": 0.5, "gathers steam": 0.5, "gathering steam": 0.5,
+    "picks up steam": 0.6, "picking up steam": 0.6, "picked up steam": 0.6, "pick up steam": 0.5,
     "stabilizing": 0.4, "stabilize": 0.4, "stabilizes": 0.4, "stabilized": 0.4, "stabilising": 0.4,
     "unusual calls": 0.6, "unusual call activity": 0.6, "call buying": 0.5, "call buyers": 0.4,
     "bullish options": 0.6, "bullish bets": 0.7, "bullish bet": 0.6, "to shame": 0.5, "discovery": 0.4,
@@ -179,6 +180,8 @@ POSITIVE: dict[str, float] = {
     "take flight": 0.7, "best is yet to come": 0.8, "build a position": 0.5, "building a position": 0.5,
     "initiate a position": 0.5, "sigh of relief": 0.6, "relief rally": 0.8, "breathe easier": 0.5,
     "full steam ahead": 0.7, "room to run": 0.6, "last laugh": 0.5, "relief": 0.3,
+    # capped risk is the bull's argument ("limited downside")
+    "limited downside": 0.4, "downside limited": 0.4, "downside is limited": 0.4, "little downside": 0.4,
     # legal relief
     "acquitted": 0.8, "acquittal": 0.8, "exonerated": 0.8, "vindicated": 0.7, "wins lawsuit": 0.8,
     "wins case": 0.7, "lawsuit dismissed": 0.7, "case dismissed": 0.6, "charges dropped": 0.7,
@@ -202,6 +205,10 @@ NEGATIVE: dict[str, float] = {
     "expensive": -0.3, "pricey": -0.4, "frothy": -0.6, "bubble": -0.7, "unsustainable": -0.6,
     "negative surprise": -0.9, "downside surprise": -0.9, "cautious": -0.4, "caution": -0.3,
     "skeptical": -0.5, "sceptical": -0.5, "death cross": -0.8,
+    # capped upside is a bearish analyst argument, not a bullish word ("PT cut on limited upside")
+    "limited upside": -0.7, "upside limited": -0.7, "upside is limited": -0.7, "upside may be limited": -0.6,
+    "upside could be limited": -0.6, "little upside": -0.6, "not much upside": -0.6, "capped upside": -0.6,
+    "upside capped": -0.6, "upside is capped": -0.6, "less upside": -0.5, "value trap": -0.7,
     # results quality
     "miss": -0.8, "misses": -0.8, "missed": -0.8, "disappoint": -0.9, "disappoints": -0.9,
     "disappointed": -0.8, "disappointing": -0.9, "disappointment": -0.9, "letdown": -0.7,
@@ -231,8 +238,7 @@ NEGATIVE: dict[str, float] = {
     "losing streak": -0.8, "worst day": -1.1, "worst week": -1.0, "worst month": -1.0, "worst year": -1.0,
     "worst quarter": -1.0, "worst performer": -0.9, "worst performing": -0.8, "losers": -0.5,
     "loser": -0.5, "laggard": -0.6, "laggards": -0.5, "lag": -0.4, "lags": -0.4, "lagging": -0.5,
-    "lagged": -0.4, "underwater": -0.6, "wipe out": -1.0, "wiped out": -1.0, "wipes out": -1.0,
-    "in the red": -0.7, "into the red": -0.7,
+    "lagged": -0.4, "underwater": -0.6, "in the red": -0.7, "into the red": -0.7,
     "negative territory": -0.6, "profit taking": -0.3, "swung to a loss": -1.0, "swings to a loss": -1.0,
     "swung to loss": -1.0, "swings to loss": -1.0, "turned to a loss": -1.0, "slipped into the red": -0.9,
     "fell into the red": -0.9, "swung into the red": -1.0, "posted a loss": -0.6, "reported a loss": -0.6,
@@ -273,6 +279,13 @@ NEGATIVE: dict[str, float] = {
     "came in light": -0.6, "on the light side": -0.6, "apocalypse": -1.0, "ousts": -0.6, "oust": -0.5,
     "clash": -0.5, "clashes": -0.5, "idled": -0.6, "down day": -0.6, "misstep": -0.6, "missteps": -0.6,
     "black swan": -0.8, "headache": -0.5, "headaches": -0.5,
+    "grounded": -0.8, "grounding": -0.6, "groundings": -0.6, "blocks deal": -0.8, "blocked deal": -0.8,
+    # crash idioms
+    "black monday": -0.9, "black tuesday": -0.9, "black thursday": -0.9, "flash crash": -1.1,
+    "circuit breaker triggered": -0.9, "circuit breakers triggered": -0.9, "triggers circuit breaker": -0.9,
+    "triggered circuit breakers": -0.9, "circuit breaker tripped": -0.9, "limit down": -0.9,
+    "market crash": -1.0, "stock market crash": -1.1,
+    "crash incoming": -0.9, "crash coming": -0.9, "panic selling": -1.0, "blood in the streets": -0.9,
     "departs abruptly": -0.7, "abruptly departs": -0.7, "abrupt departure": -0.7, "abrupt exit": -0.7,
     "abruptly resigns": -0.8, "abruptly quits": -0.8, "abrupt resignation": -0.8,
     # macro
@@ -382,7 +395,9 @@ SOCIAL: dict[str, float] = {
     "going long": 0.6, "going short": -0.6, "gap up": 0.7, "gapped up": 0.7, "gapping up": 0.7,
     "broke down": -0.5, "bottom is in": 0.8, "top is in": -0.8, "topped out": -0.6,
     "blow off top": -0.7, "parabolic": 0.5, "diamond hands": 0.8, "paper hands": -0.4, "guh": -0.8,
-    "killing it": 0.8, "crushing it": 0.8, "no brainer": 0.7,
+    "killing it": 0.8, "crushing it": 0.8, "no brainer": 0.7, "cant stop wont stop": 0.7,
+    "going to zero": -1.0, "headed to zero": -1.0, "heading to zero": -1.0, "goes to zero": -1.0,
+    "go to zero": -0.9, "dead money": -0.7, "is cooked": -0.6, "is toast": -0.6,
     # chart patterns / tape talk
     "double top": -0.7, "triple top": -0.8, "double bottom": 0.7, "triple bottom": 0.7, "head and shoulders": -0.6,
     "inverse head and shoulders": 0.6, "bull flag": 0.6, "bear flag": -0.6, "cup and handle": 0.5,
@@ -408,7 +423,8 @@ SOCIAL_ONLY: dict[str, float] = {
     "bulls": 0.0, "fly": 0.4, "flying": 0.5, "pump": 0.2, "loaded": 0.4, "holding": 0.2, "hold": 0.1, "printing": 0.5,
     "all in": 0.5, "pumped": 0.4, "breakdown": -0.6, "send it": 0.7, "sending it": 0.7, "lets go": 0.5,
     "let's go": 0.5, "ape": 0.2, "apes": 0.2, "squeeze": 0.5, "squeezed": 0.5, "getting squeezed": 0.6,
-    "squeezing": 0.5,
+    "squeezing": 0.5, "circuit breaker": -0.6, "circuit breakers": -0.6, "to zero": -0.8, "cooked": -0.6,
+    "toast": -0.6, "limit up": 0.8,
 }
 
 # --------------------------------------------------------------------------- #
@@ -464,6 +480,8 @@ def _phrasal(sign: int, verbs: tuple[str, ...], particles: tuple[str, ...], stre
 
 # "inflation persists" (-), "rally persists" (+); a price "lingering" at a level is not news
 PERSIST_VERBS: frozenset[str] = frozenset(verb_forms("persist") + verb_forms("linger"))
+CONTAIN_VERBS: frozenset[str] = frozenset(verb_forms("contain"))  # only bad things are contained
+PAUSE_VERBS: frozenset[str] = frozenset(verb_forms("pause"))  # only trends pause ("rally pauses")
 
 # Physical footprint verbs: only "opens 500 stores" / "shuts 34 stores", never "closes deal".
 FOOTPRINT_VERBS: dict[str, int] = {
@@ -525,6 +543,9 @@ _VERB_DIRECTIONS: dict[str, Direction] = {
     **_phrasal(1, ("bounce", "spring", "snap", "come", "roar"), ("back",), 0.9, 1.0),
     **_dir_verbs(-1, 1.0, "sink", "tumble", "slump", "skid", "dive", "slash", "wipe",
                  double=("skid",), extra=("sank", "sunk", "dove")),
+    # destruction takes its sign from what is destroyed: "rally wiped out" (-), "wipes out losses" (+)
+    **_phrasal(-1, ("wipe",), ("out",), 1.0, 1.0),
+    **_dir_verbs(-1, 0.8, "fizzle", default=0.9),  # "hopes fizzle" (-); bare "fizzles" stays bearish
     **_dir_verbs(-1, 1.4, "plunge", "plummet", "tank", "crater", "nosedive", "crash", "collapse", "implode",
                  "evaporate", "crumble"),
     # ---- down: evaluative (always bad) ----
@@ -903,10 +924,17 @@ NEUTRALIZERS: frozenset[str] = frozenset({
     "silver bullet", "silver lining", "silver linings", "silver medal", "silver screen", "gold standard",
     "gold medal", "golden goose", "platinum card",
     # dividend mechanics, not a record high
+    "jaw dropping", "eye popping", "eye watering", "mind blowing",
+    "within guidance", "within its guidance", "within the guidance", "within expectations", "within its outlook",
+    "within outlook",
     "of record", "holders of record", "shareholders of record", "stockholders of record", "unitholders of record",
     "owners of record", "record holders",
     *NEGATION_EXCEPTIONS,
 })
+
+# Neutralizers that are positive evidence of "no news" (a neutral label is then a finding, not a default).
+NEUTRAL_CUES: frozenset[str] = frozenset({"in line", "inline", "in line with", "line with", "little changed",
+                                          "mixed", "unchanged", "flat"})
 
 # Rule triggers for questions / listicles / roundups.
 QUESTION_STARTERS: frozenset[str] = frozenset({

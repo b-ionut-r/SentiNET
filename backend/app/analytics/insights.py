@@ -9,7 +9,8 @@ Checks (thresholds):
                the news lean)
 * attention    GDELT volume z >= 2, Reddit mentions >= +100% (>= 10 mentions),
                Wikipedia views z >= 2, Reddit mentions collapsing <= -60% (>= 15 before)
-* crowding     StockTwits bull share >= 85% or <= 35% with >= 15 tagged; top-5 WSB ticker
+* crowding     StockTwits bull share >= 85% or <= 35% with >= 15 tags (per account when
+               available); top-5 WSB ticker
 * reversal     GDELT 7d vs 30d tone sign flip (|Δ| >= 0.5); SentiNET Δ vs previous >= 12
 * momentum     GDELT tone at a 90d high/low (pct >= 0.9 / <= 0.1); 48h headline
                tone shift >= 0.2 (>= 8 items each side)
@@ -19,7 +20,9 @@ Checks (thresholds):
 * risk         lawsuit/probe/regulatory-setback events (>= 3 articles — or 2 incl. a major
                outlet — from >= 2 outlets, tone <= -0.1); red-flag 8-Ks; bankruptcy/going
                concern, delisting, short reports (corroborated); dilution
-* quality      < 8 relevant items; >= 3 sources failed; engine failure; slow/failed feeds
+* quality      no relevant text at all (whatever the source statuses); < 8 relevant items;
+               >= 3 sources failed; engine failure; a component that failed on bad data;
+               slow/failed feeds
 """
 from __future__ import annotations
 
@@ -38,6 +41,7 @@ from app.analytics.facts import Facts
 from app.analytics.prepare import Item
 from app.analytics.util import (
     count,
+    filing_parts,
     join_and,
     money,
     ordinal,
@@ -46,6 +50,7 @@ from app.analytics.util import (
     short_date,
     signed,
     tone_polarity,
+    trim,
     weighted_mean,
 )
 from app.schemas import DeltaView, Insight, Polarity, Verdict
@@ -426,12 +431,15 @@ def _risks(f: Facts) -> Iterator[_Cand]:
             continue
         age = (f.now.date() - filing.date).days
         items = f" (item {', '.join(filing.items)})" if filing.items else ""
+        label, desc = filing_parts(filing.title)
+        said = trim(desc or label, 160).rstrip(".")
+        said += "" if said.endswith("…") else "."
         if filing.importance == "high" and filing.polarity == "bear" and 0 <= age <= 120:
-            yield _make("risk", "alert", "bear", f"Red-flag filing: {filing.title.split(':')[0][:60]}",
-                        f"Form {filing.form}{items} filed {short_date(filing.date)}: {filing.title}.", 6 - age / 30)
+            yield _make("risk", "alert", "bear", f"Red-flag filing: {trim(label, 60)}",
+                        f"Form {filing.form}{items} filed {short_date(filing.date)}: {said}", 6 - age / 30)
         elif "3.02" in filing.items and 0 <= age <= 60:
             yield _make("risk", "watch", "bear", "Dilution: unregistered equity sale",
-                        f"Form {filing.form}{items} filed {short_date(filing.date)}: {filing.title}.", 2)
+                        f"Form {filing.form}{items} filed {short_date(filing.date)}: {said}", 2)
 
 
 # --------------------------------------------------------------------------- #
@@ -444,23 +452,39 @@ def _quality(f: Facts) -> Iterator[_Cand]:
                     f"verdict rests on structured data only.", 10)
     n = f.overall.n
     sources = sum(1 for r in f.inputs.source_runs if r.status == "ok")
-    if not f.prepared.engine_error and n < 8 and sources:
+    down = f.sources_down
+    all_down = bool(down) and not sources
+    if not f.prepared.engine_error and n == 0 and not all_down:
+        fetched = sum(f.prepared.fetched.values())
+        off_topic = f.prepared.dropped.get("irrelevant", 0)
+        answered = sum(1 for r in f.inputs.source_runs if r.status in ("ok", "empty"))
+        why = (f"{count(fetched, 'item')} fetched, {off_topic} off-topic" if fetched
+               else f"{count(answered, 'source')} answered with nothing" if answered else "no text source ran")
+        yield _make("quality", "watch", "neutral", "No relevant news or social items",
+                    f"Nothing about {f.name} this run ({why}) — the read rests on structured data only.", 8.5)
+    elif not f.prepared.engine_error and n < 8 and sources:
         yield _make("quality", "watch" if n < 3 else "info", "neutral", "Thin coverage",
                     f"Only {count(n, 'relevant item')} from {count(sources, 'source')} — text scores are shrunk "
                     f"toward neutral; weigh the structured data more.", 8 - n)
-    down = f.sources_down
-    if down and not sources:
+    if all_down:
         yield _make("quality", "alert", "neutral", "No news or social data this run",
                     f"All {count(len(down), 'text source')} failed ({join_and(down)}); retry shortly.", 9)
     elif len(down) >= 3:
         yield _make("quality", "watch", "neutral", f"{len(down)} sources failed",
                     f"{join_and(down)} returned errors; the read uses the remaining {count(sources, 'source')}.",
                     len(down))
+    if f.failed:
+        yield _make("quality", "watch", "neutral", "Part of the analysis could not be computed",
+                    f"{_cap(join_and(f.failed))} failed on this run's data and {'was' if len(f.failed) == 1 else 'were'}"
+                    f" left out (logged for repair); the rest of the analysis is unaffected.", 7)
     pending = f.intel_pending()
     if "tone" in pending and f.inputs.tone is None:
+        momentum = f.composite.parts.get("momentum")
+        flow = (f"momentum uses the last 48 h of headlines ({f.news_recent.n}) vs the prior days "
+                f"({f.news_older.n}) until the next refresh" if momentum is not None and momentum.available
+                else "the momentum component is n/a until the next refresh")
         yield _make("quality", "info", "neutral", "Global news tone still loading",
-                    "GDELT history is still being fetched; momentum uses headline flow only until the next "
-                    "refresh.", 0.5)
+                    f"GDELT history is still being fetched; {flow}.", 0.5)
     failed = f.intel_failed()
     if failed:
         names = {"analysts": "analyst ratings", "insiders": "insider trades", "earnings": "earnings",

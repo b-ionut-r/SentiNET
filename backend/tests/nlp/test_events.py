@@ -261,6 +261,100 @@ def test_family_recall_on_real_headlines(family, keys, floor):
     assert hits / len(titles) >= floor, f"{family}: {hits}/{len(titles)}"
 
 
+# Families added from 2026-10-05 searches. Positive floors sit under measured
+# recall; the neg_* families are traps that must not yield the trap event.
+@pytest.mark.parametrize(("family", "keys", "floor"), [
+    ("reuters_guidance_above", {"guidance_raise"}, 0.85),           # 89/98 (was 4)
+    ("reuters_guidance_below", {"guidance_cut"}, 0.85),             # 92/100 (was 2)
+    ("guidance_strong_weak", {"guidance_raise", "guidance_cut"}, 0.85),  # 92/100
+    ("exec_step_down", {"exec_departure"}, 0.82),                   # 88/100 (was 13)
+    ("exec_ousted", {"exec_departure"}, 0.9),                       # 90/94 (was 3)
+    ("exec_named", {"exec_hire"}, 0.9),                             # 94/100
+])
+def test_family_recall_on_new_real_headlines(family, keys, floor):
+    test_family_recall_on_real_headlines(family, keys, floor)
+
+
+@pytest.mark.parametrize(("family", "key", "ceiling"), [
+    ("neg_top_wall_street", "earnings_beat", 0.03),       # "Top Wall Street Analyst Research Calls" (was 85/99)
+    ("neg_payment_settlement", "settlement", 0.0),         # stablecoin/card settlement is plumbing, not legal
+    ("neg_insider_plan_units", "insider_buy", 0.05),       # RSU/deferred-unit accruals are not open-market buys
+    ("neg_preview_after_beat", "earnings_beat", 0.03),     # "heads into October 20 earnings after a Q2 beat"
+])
+def test_trap_families_stay_quiet(family, key, ceiling):
+    titles = [strip_publisher_suffix(t) for t in load_json_fixture("nlp/event_headlines.json")["families"][family]]
+    hits = [t for t in titles if key in _keys(t)]
+    assert len(hits) / len(titles) <= ceiling, hits
+
+
+@pytest.mark.parametrize(("text", "want"), [
+    # adjective "top" / Street views are not results
+    ("Here Are Wednesday's Top Wall Street Analyst Research Calls: Ally, Ciena", []),
+    ("Top Wall Street Forecasters Revamp Nvidia Price Expectations Ahead Of Q3 Earnings", []),
+    ("Apple To $355? Here Are 10 Top Analyst Forecasts For Thursday", []),
+    ("Tesla Deliveries Top Wall Street's Forecast. Its Stock is Jumping.", ["earnings_beat", "price_up"]),
+    ("Nvidia's quarterly revenue forecast beats estimates", ["guidance_raise"]),
+    ("Microsoft Stock Delivers Strongest Quarter in 26 Years as Analysts Boost Outlook", []),
+    # the canonical Reuters guidance phrasing
+    ("Nvidia forecasts third-quarter revenue above estimates on strong AI demand", ["guidance_raise"]),
+    ("Target forecasts annual profit below Wall Street estimates", ["guidance_cut"]),
+    ("Intel forecasts weak fourth-quarter revenue", ["guidance_cut"]),
+    ("Nvidia sees fourth-quarter revenue of $65 billion, above estimates", ["guidance_raise"]),
+    ("Salesforce Gives Lukewarm Outlook That Fuels Disruption Fears", ["guidance_cut"]),
+    # expectations and previews are not results
+    ("SoFi Technologies stock heads toward October 27 results after Q2 beat", []),
+    ("Nvidia Stock Heads Into Earnings With Biggest Short Position In S&P 500 — HSBC Sees 'Beat And Raise' Quarter",
+     []),
+    ("CELH Stock Heads For 16-Month Lows After Q2 Earnings Miss Sparks Massive Selloff", ["low_52w", "earnings_miss"]),
+    # payments "settlement" vs legal settlements
+    ("Should Stablecoin Card Settlement Require Action From SoFi Stock Investors?", []),
+    ("SoFi, Mastercard launch stablecoin settlement", ["product_launch"]),
+    ("Meta agrees to $725 million settlement of privacy class action", ["settlement"]),
+    ("Purchasers of CAE common shares may claim compensation from a $38.25 million class action settlement",
+     ["settlement"]),
+    # "$N deal for X": goods are supply deals, companies are M&A
+    ("AT&T, Corning Enter $3 Billion Deal for Fiber", ["partnership"]),
+    ("Amazon strikes $38 billion deal for OpenAI compute", ["partnership"]),
+    ("Raytheon nets $24.4 billion deal for SM-6 interceptors", ["contract_win"]),
+    ("Chevron clinches $53 billion deal for Hess", ["m_and_a"]),
+    ("Google's $32 billion deal for Wiz clears DOJ antitrust review", ["m_and_a"]),
+    ("Curium strikes up to $8 billion deal for radiopharma peer Lantheus", ["m_and_a"]),
+    ("Fox Shakes Up Streaming With $22 Billion Deal for Roku", ["m_and_a"]),
+    # launches that are not products
+    ("AT&T, T-Mobile, and Verizon Launch Joint Venture to expand satellite coverage", ["partnership"]),
+    ("Target Rolls Out Fresh Price Cuts on Apparel", []),
+    # plan accruals are not open-market buying
+    ("AT&T (T) COO acquires 512 stock units at $24.40 each through payroll deductions.", []),
+    ("AT&T Executive Lori M. Lee Acquires 368.852 Deferred Stock Units Under Company Benefit Plan", []),
+    ("Meta director acquires 1,000 RSUs under equity plan", []),
+    ("Ford Executive Doug Field Buys $2 Million In Company Stock", ["insider_buy"]),
+    # the common CEO-change phrasings
+    ("Apple's Tim Cook to step down as CEO; John Ternus named successor", ["exec_departure", "exec_hire"]),
+    ("Tim Cook steps down as Apple CEO", ["exec_departure"]),
+    ("Starbucks ousts CEO Laxman Narasimhan, names Brian Niccol", ["exec_departure"]),
+    ("Pat Gelsinger out as Intel CEO", ["exec_departure"]),
+    ("Kohl's fires CEO Ashley Buchanan", ["exec_departure"]),
+    ("Target CEO Brian Cornell to hand reins to Michael Fiddelke", ["exec_departure"]),
+    ("Meta's chief AI scientist Yann LeCun leaves", ["exec_departure"]),
+    ("Apple Stock Approaches Buy Point Following Launch Of New iPhone, New CEO", ["product_launch", "exec_hire"]),
+    ("Microsoft Stock Has Grown 14-Fold Since Satya Nadella Became CEO in 2014", []),
+    ("Disney cuts hundreds more jobs for third round of layoffs under new CEO", ["layoffs"]),
+    ("Founder and CEO J.W. Roth Named CEO of the Year at Business Awards", []),
+])
+def test_review_cases(text, want):
+    assert sorted(_keys(text)) == sorted(want)
+
+
+@pytest.mark.parametrize(("text", "polarity"), [
+    ("Apple wins appeal in Masimo patent case", "bull"),
+    ("Judge dismisses lawsuit against Nvidia", "bull"),
+    ("Judge refuses to dismiss lawsuit against Nvidia", "bear"),
+    ("Apple hit with $5.7 billion jury verdict over haptic patents", "bear"),
+])
+def test_lawsuit_outcome_sets_polarity(text, polarity):
+    assert _one(text, "lawsuit").polarity == polarity
+
+
 def test_vocabularies_are_consistent():
     assert set(EVENT_POLARITY) == set(EVENT_LABELS)
     assert set(EVENT_THEMES) <= set(EVENT_LABELS)

@@ -52,6 +52,14 @@ def test_news_part_scores_and_explains() -> None:
     assert with_av.score < upbeat.score and "Alpha Vantage" in with_av.detail
 
 
+def test_news_shrinks_by_effective_sample_size() -> None:
+    # 12 articles where a few heavy ones dominate the weight are worth less than 12 even ones.
+    even = summary(0.3, 12)
+    concentrated = summary(0.3, 12)
+    concentrated.n_eff = 2.5
+    assert news_part(concentrated).score < news_part(even).score - 3
+
+
 def test_soft_news_is_called_soft_not_negative() -> None:
     soft = news_part(summary(-0.04, 80))
     assert soft.score < 45 and soft.reason.startswith("News flow softer than usual")
@@ -81,8 +89,11 @@ def test_crowded_stocktwits_never_adds_bullish_points() -> None:
     ratios = [social_part(summary(None, 0), *tags(b, 100 - b)).score for b in (85, 90, 95, 100)]
     assert ratios == sorted(ratios, reverse=True)  # beyond 85% the signal tapers back
     euphoric = social_part(summary(None, 0), *tags(98, 2))
-    assert 55 < euphoric.score < 66  # reads like a ~72% bullish crowd
-    assert "crowded" in euphoric.reason and euphoric.phrase.startswith("crowded-long retail")
+    assert 50 < euphoric.score < 60  # reads like a ~65% bullish crowd: near the norm
+    assert "crowding, which adds no further conviction" in euphoric.reason
+    assert euphoric.phrase.startswith(("crowded-long retail", "mildly bullish retail")) and not euphoric.strong
+    unanimous = social_part(summary(None, 0), *tags(100, 0))
+    assert abs(unanimous.score - 50) < 2  # 100% bullish is a positioning risk, not more conviction
     # One vote per account: 34 bullish accounts out of 35 (not 63 messages from a handful of accounts).
     by_author = social_part(summary(None, 0), *tags(34, 1, per_author=True))
     assert "35 StockTwits accounts tagging a stance" in by_author.reason and "(35 accounts)" in by_author.detail
@@ -187,9 +198,14 @@ def test_technicals_are_volatility_scaled_and_rsi_dampened() -> None:
 def test_technicals_calibration_keeps_price_from_outshouting_sentiment() -> None:
     """Live finding: SPY at +3.3% in 3M (~0.55σ) read 75 and 'a strong price trend'."""
     spy = technicals_part(technicals(r1m=0.6, r3m=3.3, vs50=2.0, vs200=6.8, rsi=54, vol=12))
-    assert 55 <= spy.score <= 64 and spy.phrase.startswith("positive price action")
+    assert 51 <= spy.score <= 58 and spy.phrase.startswith("a firm tape") and not spy.strong
+    # An ordinary uptrend (the market's usual drift) is the baseline, not a bullish signal.
+    drift = technicals_part(technicals(r1m=0.8, r3m=2.4, vs50=0.9, vs200=3.8, rsi=55, vol=18))
+    assert drift.score == pytest.approx(50, abs=1) and drift.phrase is None
     one_sigma = technicals_part(technicals(r1m=8.7, r3m=15.0, vs50=8.7, vs200=15.0, rsi=60, vol=30))
-    assert 64 <= one_sigma.score <= 70
+    assert 60 <= one_sigma.score <= 68
+    slide = technicals_part(technicals(r1m=-8, r3m=-15, vs50=-7, vs200=-12, rsi=40, vol=30))
+    assert 28 <= slide.score <= 38 and slide.phrase.startswith("weak price action")
     surge = technicals_part(technicals(r1m=30, r3m=60, vs50=25, vs200=55, rsi=70, vol=45))
     assert 78 <= surge.score <= 90 and surge.phrase.startswith("a strong price trend")
 

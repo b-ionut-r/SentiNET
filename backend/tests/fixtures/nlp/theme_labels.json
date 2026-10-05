@@ -1,0 +1,930 @@
+{
+ "description": "160 real headlines (random sample, seed 7, of the per-ticker fixtures), hand-labelled with the themes a reader would accept; used for theme precision/recall.",
+ "items": [
+  {
+   "title": "AMD acquires world model developer World Labs for $8.2B",
+   "themes": [
+    "deals"
+   ]
+  },
+  {
+   "title": "Block (NYSE:XYZ) Stock Keeps Overweight Rating at Cantor Fitzgerald",
+   "themes": [
+    "analyst"
+   ]
+  },
+  {
+   "title": "AMD to buy Fei-Fei Li’s AI start-up for $8bn",
+   "themes": [
+    "ai",
+    "deals"
+   ]
+  },
+  {
+   "title": "An Apple (AAPL) CEO stock award may vest at 0% to 200% of its target, depending on shareholder returns.",
+   "themes": [
+    "management"
+   ]
+  },
+  {
+   "title": "Apple, Meta, Iovance, Carnival, Fair Isaac, Bloom Energy, SpaceX, and More Stocks That Explain Today’s Market",
+   "themes": []
+  },
+  {
+   "title": "Watch AMD Acquires Fei-Fei Li’s World Labs for $8.2 Billion",
+   "themes": [
+    "deals"
+   ]
+  },
+  {
+   "title": "Target (TGT) Upgraded to Buy with Price Target Raised to $190",
+   "themes": [
+    "analyst"
+   ]
+  },
+  {
+   "title": "Apple (NASDAQ:AAPL) SVP Jennifer Newstead Sells 2,399 Shares of Stock",
+   "themes": [
+    "insider"
+   ]
+  },
+  {
+   "title": "3 Reasons Investors Love Nvidia (NVDA)",
+   "themes": []
+  },
+  {
+   "title": "AMD acquires World Labs AI startup, upping the ante against Nvidia",
+   "themes": [
+    "ai",
+    "deals"
+   ]
+  },
+  {
+   "title": "Why Tesla Stock Jumped Today",
+   "themes": []
+  },
+  {
+   "title": "Goldman Sachs sets Amazon stock price for 12 months",
+   "themes": [
+    "analyst"
+   ]
+  },
+  {
+   "title": "Tesla shares climb 5% after sales surprise Wall Street despite AI, robotaxis pivot",
+   "themes": [
+    "ai",
+    "earnings",
+    "product"
+   ]
+  },
+  {
+   "title": "TSLA Stock Pops as Tesla Surprises on Q3 Deliveries",
+   "themes": [
+    "earnings"
+   ]
+  },
+  {
+   "title": "Tesla’s EV sales top estimates with auto business rebounding",
+   "themes": [
+    "earnings"
+   ]
+  },
+  {
+   "title": "Meta launches Muse for Small Business as Zuckerberg pushes beyond consumer AI market",
+   "themes": [
+    "ai",
+    "product"
+   ]
+  },
+  {
+   "title": "Tesla Q3 Deliveries Top Expectations; The Stock Is Rising",
+   "themes": [
+    "earnings"
+   ]
+  },
+  {
+   "title": "Nvidia Shares Jump to Record High After Strong AI Growth",
+   "themes": [
+    "ai"
+   ]
+  },
+  {
+   "title": "Meta Faces Challenge in Enterprise Market As OpenAI Launches Autonomous Dots Agents",
+   "themes": [
+    "ai",
+    "competition",
+    "product"
+   ]
+  },
+  {
+   "title": "Nvidia is trading like an oil stock — and taking advantage of the moment",
+   "themes": []
+  },
+  {
+   "title": "MongoDB Stock Crashes Nearly 20% After CEO Desai Leaves to Meta",
+   "themes": [
+    "management"
+   ]
+  },
+  {
+   "title": "Apple Inc. (AAPL) Is a Trending Stock: Facts to Know Before Betting on It",
+   "themes": []
+  },
+  {
+   "title": "These 7 Stocks Are Analyst Favorites For Magnificent Earnings Growth; Amazon In New Base",
+   "themes": [
+    "analyst",
+    "earnings"
+   ]
+  },
+  {
+   "title": "HPE Secures Its First AMD Helios Order in $1.2 Billion Deal With Vultr",
+   "themes": [
+    "deals"
+   ]
+  },
+  {
+   "title": "Institutional investors pick up Honasa shares in ₹643-crore block deal, shares in red",
+   "themes": []
+  },
+  {
+   "title": "Anthony Eisen sells $67m of Block shares as new ventures gain traction",
+   "themes": [
+    "insider"
+   ]
+  },
+  {
+   "title": "Why Meta (META) Stock Is Trading Lower Today",
+   "themes": []
+  },
+  {
+   "title": "Apple Stock Drops 1.5% as Local AI Moves Onto Desktops",
+   "themes": [
+    "ai"
+   ]
+  },
+  {
+   "title": "Stock Market Today, Oct. 2: Tesla Rises on Q3 Delivery Beat",
+   "themes": [
+    "earnings"
+   ]
+  },
+  {
+   "title": "AMD buys firm founded by AI 'godmother' Fei-Fei Li",
+   "themes": [
+    "ai",
+    "deals"
+   ]
+  },
+  {
+   "title": "Morgan Stanley Resets Okta Stock Price Target For Rest of Year",
+   "themes": [
+    "analyst"
+   ]
+  },
+  {
+   "title": "AMD’s $8.2 Billion AI Bet Comes With a $1 Trillion Valuation Problem",
+   "themes": [
+    "ai",
+    "valuation"
+   ]
+  },
+  {
+   "title": "Cathie Wood’s ARK sells AMD stock, buys Nvidia and Tesla",
+   "themes": [
+    "trading"
+   ]
+  },
+  {
+   "title": "Strategy Shares Rise 2.7% After Citi Raises Price Target to $240",
+   "themes": [
+    "analyst"
+   ]
+  },
+  {
+   "title": "Why Cathie Wood Keeps Loading Up on Meta",
+   "themes": []
+  },
+  {
+   "title": "Apple Inc. $AAPL Stock Acquired by Natural Investments LLC",
+   "themes": [
+    "trading"
+   ]
+  },
+  {
+   "title": "3,646,830 Shares of Amazon.com, Inc. $AMZN Acquired by Nykredit A S",
+   "themes": [
+    "trading"
+   ]
+  },
+  {
+   "title": "Michael Burry Warns Nvidia, AI Infrastructure Expansion Mirroring 1960s Computer Leasing Bubble",
+   "themes": [
+    "ai",
+    "valuation"
+   ]
+  },
+  {
+   "title": "Coinbase Stock Got a $200 Target From Wells Fargo. Here’s How Its CFO’s Cost Pledge Changes the Math",
+   "themes": [
+    "analyst",
+    "management"
+   ]
+  },
+  {
+   "title": "When AMD's CEO and the Chart Say the Same Thing, Pay Attention",
+   "themes": [
+    "management",
+    "trading"
+   ]
+  },
+  {
+   "title": "Meta: Muse Is Nice, But Not Enough (NASDAQ:META)",
+   "themes": []
+  },
+  {
+   "title": "Apple (AAPL)’s Premium iPhone Strategy Faces a Test Beyond Early Adopters",
+   "themes": [
+    "product"
+   ]
+  },
+  {
+   "title": "Why Tesla’s $25 Billion Credit Line Is a High-Stakes Bet on AI and Robotaxis",
+   "themes": [
+    "ai",
+    "product"
+   ]
+  },
+  {
+   "title": "Amazon Stock Is Underperforming Amid Agentic AI Fears. How to Play AMZN Here.",
+   "themes": [
+    "ai"
+   ]
+  },
+  {
+   "title": "H&R Block Officer Mark J. Darling Files Form 144 for Proposed Sale of 2,700 Shares",
+   "themes": [
+    "insider"
+   ]
+  },
+  {
+   "title": "History Says AMD Stock's $1 Trillion Milestone Isn't a Ceiling",
+   "themes": [
+    "valuation"
+   ]
+  },
+  {
+   "title": "Target's Dividend Has Survived 8 Recessions. Here's What $10,000 Earns in Dividend Income Yearly.",
+   "themes": [
+    "capital_return"
+   ]
+  },
+  {
+   "title": "Tesla shares rise as Q3 deliveries beat production",
+   "themes": [
+    "earnings",
+    "supply_chain"
+   ]
+  },
+  {
+   "title": "'So much cash': Nvidia stock jumps after largest share buyback ever",
+   "themes": [
+    "capital_return"
+   ]
+  },
+  {
+   "title": "Bet on These ETFs as AMD Agrees to Buy World Labs for $8.2B",
+   "themes": [
+    "deals"
+   ]
+  },
+  {
+   "title": "Tesla's car business back on growth path as deliveries beat forecasts",
+   "themes": [
+    "earnings"
+   ]
+  },
+  {
+   "title": "Block Inc. Q3FY26 Results: Earnings call set for November 3",
+   "themes": [
+    "earnings"
+   ]
+  },
+  {
+   "title": "Jensen Huang Press Q&A: 'Nvidia Stock Is Undervalued'",
+   "themes": [
+    "valuation"
+   ]
+  },
+  {
+   "title": "Not Cars. Not Energy Storage. Tesla's Robotics and Robotaxi Ambitions Are the Real Reason the Stock Is Priced Like a Tech Company.",
+   "themes": [
+    "product"
+   ]
+  },
+  {
+   "title": "META Eyes Best Month Since 2013 On Muse AI Strength",
+   "themes": [
+    "ai"
+   ]
+  },
+  {
+   "title": "Avalon Tech shares fall 6% after Rs 883 crore block deal; 3 promoter entities likely sellers",
+   "themes": []
+  },
+  {
+   "title": "Apple Shares Photos Shot on iPhone Duo",
+   "themes": [
+    "product"
+   ]
+  },
+  {
+   "title": "How Far Can Meta Stock Jump In The Year Ahead?",
+   "themes": []
+  },
+  {
+   "title": "3 AI Chip Stocks To Watch After Nvidia Stock Hit A Fresh All Time High",
+   "themes": [
+    "ai"
+   ]
+  },
+  {
+   "title": "Tesla Q3 deliveries better-than-expected, stock jumps on news",
+   "themes": [
+    "earnings"
+   ]
+  },
+  {
+   "title": "Block Insider Sold Shares Worth $1,360,080, According to a Recent SEC Filing",
+   "themes": [
+    "insider"
+   ]
+  },
+  {
+   "title": "Jack Dorsey's Block Is Looking to Create a National Trust Bank. Here's Why That Could Help to Send Bitcoin Higher.",
+   "themes": [
+    "regulatory"
+   ]
+  },
+  {
+   "title": "Micron stock target raised at Baird on higher DRAM pricing assumptions",
+   "themes": [
+    "analyst",
+    "supply_chain"
+   ]
+  },
+  {
+   "title": "Valvoline Inc. Stock 12‑Month Price Target Cut to $43.25, Implies 43% Upside",
+   "themes": [
+    "analyst",
+    "valuation"
+   ]
+  },
+  {
+   "title": "Apple (AAPL): 1 Number That Proves Its AI Strategy Is Different From the Hyperscalers'",
+   "themes": [
+    "ai"
+   ]
+  },
+  {
+   "title": "Meta's Stock Has Rocketed Over 30% in the Past Month. Here's How the Embattled \"Magnificent Seven\" Company Completely Flipped the Script",
+   "themes": []
+  },
+  {
+   "title": "Wells Fargo reiterates Amazon stock Overweight on AWS pricing power",
+   "themes": [
+    "analyst"
+   ]
+  },
+  {
+   "title": "Meta Stock Slides as Muse Faces OpenAI Threat",
+   "themes": [
+    "ai",
+    "competition"
+   ]
+  },
+  {
+   "title": "Billionaire Investor Ron Baron Raves About Elon Musk’s Tesla Technology: ‘The Time to Buy the Stock Is Now’",
+   "themes": []
+  },
+  {
+   "title": "Baird raises Block stock price target on Q3 beat expectations By Investing.com",
+   "themes": [
+    "analyst",
+    "earnings"
+   ]
+  },
+  {
+   "title": "AMD to Acquire World Labs to Advance the Future of AI Compute",
+   "themes": [
+    "ai",
+    "deals"
+   ]
+  },
+  {
+   "title": "Michael Burry Buys Put Options on Nvidia, Micron, and Palantir as \"The Big Short\" Investor Predicts a 1987-Style Market Crash",
+   "themes": [
+    "macro",
+    "trading"
+   ]
+  },
+  {
+   "title": "Apple stock: China’s iPhone 18 Pro surge has a catch investors should see",
+   "themes": [
+    "product"
+   ]
+  },
+  {
+   "title": "Stocks making the biggest moves midday: Tesla, Broadcom, Nike, ON Semiconductor & more",
+   "themes": []
+  },
+  {
+   "title": "AMD Is Buying World Labs for $8.2 Billion. What This Could Mean for AMD Stock.",
+   "themes": [
+    "deals"
+   ]
+  },
+  {
+   "title": "Analyst Praises Target's Turnaround As Retailer Keeps Cutting Prices. The Stock Is In A Buy Area.",
+   "themes": [
+    "analyst"
+   ]
+  },
+  {
+   "title": "An $8.2 Billion Reason to Buy AMD Stock",
+   "themes": []
+  },
+  {
+   "title": "Can AMD’s CPU Business Fund Its AI Chip Ambitions?",
+   "themes": [
+    "ai"
+   ]
+  },
+  {
+   "title": "Amazon to invest $1 billion over five years in US data center communities",
+   "themes": [
+    "ai"
+   ]
+  },
+  {
+   "title": "NVDA Stock In Focus: China Reportedly Weighs Letting ByteDance, Alibaba Buy Some Nvidia AI Chips",
+   "themes": [
+    "ai",
+    "regulatory"
+   ]
+  },
+  {
+   "title": "The S&P 500 Is Not Enough: My 3-Stock Starter Portfolio for New Investors",
+   "themes": []
+  },
+  {
+   "title": "HSBC Upgrades Target (TGT) Rating to Buy with Price Target of $1",
+   "themes": [
+    "analyst"
+   ]
+  },
+  {
+   "title": "Why AMD Stock Jumped 30% in September",
+   "themes": []
+  },
+  {
+   "title": "Should You Buy Tesla Stock Before Oct. 2?",
+   "themes": []
+  },
+  {
+   "title": "How Much Upside Is Left In Apple Stock?",
+   "themes": [
+    "valuation"
+   ]
+  },
+  {
+   "title": "AMD Stocks Slip After $8.2 Billion World Labs Deal Announcement",
+   "themes": [
+    "deals"
+   ]
+  },
+  {
+   "title": "Musk Gets $61 Billion Richer On Friday, Nearing $1 Trillion Again",
+   "themes": []
+  },
+  {
+   "title": "H&R Block (HRB) Stock May Be Undervalued As Earnings Stay In Focus",
+   "themes": [
+    "earnings",
+    "valuation"
+   ]
+  },
+  {
+   "title": "Advanced Micro Devices (NASDAQ:AMD) Stock Lifted to \"Buy\" by Wall Street Zen",
+   "themes": [
+    "analyst"
+   ]
+  },
+  {
+   "title": "Tesla Is Winning the New EV Race. Here’s How.",
+   "themes": []
+  },
+  {
+   "title": "Nvidia stock buyback plan increased by $150 billion",
+   "themes": [
+    "capital_return"
+   ]
+  },
+  {
+   "title": "SoFi's Stablecoin Push Gains Ground: Is SOFI Stock Worth Watching Now?",
+   "themes": []
+  },
+  {
+   "title": "Schumer tanks popular insider trading ban in Dem effort to derail Republican's agenda ahead of midterms",
+   "themes": [
+    "regulatory"
+   ]
+  },
+  {
+   "title": "Goldman Sachs adds Amazon stock to monthly Director’s Cut list",
+   "themes": [
+    "analyst"
+   ]
+  },
+  {
+   "title": "Meta taps Australia's Firmus for AI computing capacity in Southeast Asia",
+   "themes": [
+    "ai",
+    "supply_chain"
+   ]
+  },
+  {
+   "title": "BTIG keeps its USD 100 target for Block stock",
+   "themes": [
+    "analyst"
+   ]
+  },
+  {
+   "title": "It's incredible how far AMD has come under the leadership of Lisa Su, says Jim Cramer",
+   "themes": []
+  },
+  {
+   "title": "Intel, AMD Slide 4.2% as Nvidia Unveils N1X PC Chip [2026]",
+   "themes": [
+    "product"
+   ]
+  },
+  {
+   "title": "INTC, AMD, AVGO: Chip Stocks Lead Slide As Tech Gets Hammered Amid Renewed U.S.-Iran Tensions",
+   "themes": [
+    "macro"
+   ]
+  },
+  {
+   "title": "Nvidia CEO Jensen Huang Just Reaffirmed His Jaw-Dropping Projection for 2030",
+   "themes": [
+    "guidance",
+    "management"
+   ]
+  },
+  {
+   "title": "Arm Holdings Stock Closed Above Wall Street’s $289 Target. Here’s the Margin Math That Decides What Comes Next",
+   "themes": [
+    "analyst"
+   ]
+  },
+  {
+   "title": "Amazon.com (AMZN) Draws Senate Questions Over AI Data Center Tax Deductions",
+   "themes": [
+    "ai",
+    "regulatory"
+   ]
+  },
+  {
+   "title": "Nvidia is repurchasing its own shares—what stock buybacks mean for investors",
+   "themes": [
+    "capital_return"
+   ]
+  },
+  {
+   "title": "Meta stock rises 27% in September, best month since 2022",
+   "themes": []
+  },
+  {
+   "title": "AMD Climbs 3% as Chip Stocks Extend Their Run; Arm Jumps 8%, NVIDIA Rises 2%",
+   "themes": []
+  },
+  {
+   "title": "AMD to acquire World Labs in $8.2B all-stock deal (AMD:NASDAQ)",
+   "themes": [
+    "deals"
+   ]
+  },
+  {
+   "title": "Block stock returns 23.4% annually over the last decade",
+   "themes": []
+  },
+  {
+   "title": "Amazon AWS CEO reveals surprising risk to AI stocks and U.S. economy",
+   "themes": [
+    "ai",
+    "macro",
+    "management"
+   ]
+  },
+  {
+   "title": "Why Apple Stock Is Climbing Today",
+   "themes": []
+  },
+  {
+   "title": "This Under-the-Radar Supplier Could Be Nvidia's Secret Weapon",
+   "themes": [
+    "supply_chain"
+   ]
+  },
+  {
+   "title": "AMD Reaches a $1 Trillion Market Cap. Can It Finally Dethrone Nvidia?",
+   "themes": [
+    "competition",
+    "valuation"
+   ]
+  },
+  {
+   "title": "Morgan Stanley lowers Apple stock price target on limited upside By Investing.com",
+   "themes": [
+    "analyst",
+    "valuation"
+   ]
+  },
+  {
+   "title": "Baird raises Block stock price target on Q3 beat expectations",
+   "themes": [
+    "analyst",
+    "earnings"
+   ]
+  },
+  {
+   "title": "H&R Block (NYSE:HRB) Stock Crosses Above 200-Day Moving Average - What's Next?",
+   "themes": [
+    "trading"
+   ]
+  },
+  {
+   "title": "Bank of America says Meta’s Muse highlights a new risk for Apple’s services revenue",
+   "themes": [
+    "analyst",
+    "competition",
+    "earnings"
+   ]
+  },
+  {
+   "title": "AI Tax Assist Could Be A Game Changer For H&R Block Stock (HRB)",
+   "themes": [
+    "ai"
+   ]
+  },
+  {
+   "title": "How much AMZN stock does Amazon founder Jeff Bezos actually own?",
+   "themes": [
+    "management"
+   ]
+  },
+  {
+   "title": "Dutch eyewear chain Hans Anders halts sale of Meta glasses, citing privacy concerns",
+   "themes": [
+    "regulatory"
+   ]
+  },
+  {
+   "title": "Senate Democrats block congressional stock trading ban over voter ID ‘poison pill’",
+   "themes": [
+    "regulatory"
+   ]
+  },
+  {
+   "title": "Block (XYZ) Insider Trading Activity 2026 $XYZ",
+   "themes": [
+    "insider"
+   ]
+  },
+  {
+   "title": "Amazon stock forecast for October: the Prime Day calendar trap",
+   "themes": []
+  },
+  {
+   "title": "Best Pokémon TCG deal: 30th Celebration Tech Sticker Collection Lucario gets price cut",
+   "themes": []
+  },
+  {
+   "title": "XYZ - Block is Set to Rebound from Regulatory Challenges with 6% Revenue Growth",
+   "themes": [
+    "earnings",
+    "regulatory"
+   ]
+  },
+  {
+   "title": "What's Going On With AMD Stock Thursday?",
+   "themes": []
+  },
+  {
+   "title": "Should You Tap Meta ETFs on Muse's Success or Wait on the Sidelines?",
+   "themes": []
+  },
+  {
+   "title": "Bank of America Cut Its Fair Isaac Price Target in Half and the Stock Still Fell Below It",
+   "themes": [
+    "analyst"
+   ]
+  },
+  {
+   "title": "Apple (AAPL) Prepares A Siri Powered Smart Home Hub",
+   "themes": [
+    "product"
+   ]
+  },
+  {
+   "title": "Amazon Raised Its 2026 Capex Guide to $220 Billion. Here’s What Drove the Increase",
+   "themes": [
+    "guidance"
+   ]
+  },
+  {
+   "title": "The 2 Triggers That Can Help Nvidia Nail a Fresh Stock Milestone",
+   "themes": []
+  },
+  {
+   "title": "Is The Market Underpricing NVIDIA Stock?",
+   "themes": []
+  },
+  {
+   "title": "Apple (AAPL) Readies Siri Home Hub Push With New Devices and Bigger AI Bet",
+   "themes": [
+    "ai",
+    "product"
+   ]
+  },
+  {
+   "title": "How Walmart, Target and Dollar General Gain From Tariff Refunds",
+   "themes": [
+    "regulatory"
+   ]
+  },
+  {
+   "title": "Block stock falls 4.03 percent as director sells shares",
+   "themes": [
+    "insider"
+   ]
+  },
+  {
+   "title": "Stock Market Today, Sept. 30: Nvidia Authorizes $150B Buyback, Lifting Total to $235B",
+   "themes": [
+    "capital_return"
+   ]
+  },
+  {
+   "title": "Should Bitcoin Ad Push Require Action From Block (XYZ) Investors?",
+   "themes": []
+  },
+  {
+   "title": "Amazon is pledging $1 billion to communities near its data centers",
+   "themes": [
+    "ai"
+   ]
+  },
+  {
+   "title": "Meta reportedly calls its AI data centers ‘pilot models’ — its research tax credits jumped from $700M to $3.9B",
+   "themes": [
+    "ai",
+    "regulatory"
+   ]
+  },
+  {
+   "title": "Target Is Cutting Prices on Thousands of Products Amid a ‘Value War.’ What This Means for TGT Stock.",
+   "themes": [
+    "competition"
+   ]
+  },
+  {
+   "title": "Meta counted Mark Zuckerberg’s $4.1B stock payout as research pay to claim a $355M tax break — and the IRS wants it back",
+   "themes": [
+    "regulatory"
+   ]
+  },
+  {
+   "title": "Apple (AAPL) Could Be 30% Above Fair Value On iPhone Duo Buzz",
+   "themes": [
+    "product",
+    "valuation"
+   ]
+  },
+  {
+   "title": "Apple (AAPL) Opens the Ternus Era with a Foldable iPhone. Can Premium Devices Lift Revenue?",
+   "themes": [
+    "earnings",
+    "product"
+   ]
+  },
+  {
+   "title": "Advanced Micro Devices (AMD) Benefit from Surging CPU Demand in Autonomous AI",
+   "themes": [
+    "ai"
+   ]
+  },
+  {
+   "title": "Carnival Corporation Ltd. Stock 12‑Month Price Target Cut to $32.97, Implies 34% Upside",
+   "themes": [
+    "analyst",
+    "valuation"
+   ]
+  },
+  {
+   "title": "Dear Apple Stock Fans, Mark Your Calendars for October 13",
+   "themes": []
+  },
+  {
+   "title": "AAO 2026 Preview: Emerging Therapies for Wet AMD",
+   "themes": []
+  },
+  {
+   "title": "Nasdaq-100® Inside the Index: Tesla",
+   "themes": []
+  },
+  {
+   "title": "$Tesla (TSLA.US)$",
+   "themes": []
+  },
+  {
+   "title": "Mark Zuckerberg's Muse Could Charge You for Saving You Money — META President Reveals AI Agent's Potential Monetization Model",
+   "themes": [
+    "ai"
+   ]
+  },
+  {
+   "title": "Here's What a $10,000 Investment in Nvidia Stock Could Be Worth in 10 Years",
+   "themes": [
+    "valuation"
+   ]
+  },
+  {
+   "title": "Amazon Reportedly Seeks Investors for $8 Billion Nvidia Chip Financing Structure",
+   "themes": [
+    "deals"
+   ]
+  },
+  {
+   "title": "Block director Anthony Eisen sells $1.33 million in stock",
+   "themes": [
+    "insider"
+   ]
+  },
+  {
+   "title": "Block stock gets a USD 106 Baird target after Q2 growth",
+   "themes": [
+    "analyst",
+    "earnings"
+   ]
+  },
+  {
+   "title": "Apple plans smart-home hub launch in October: report (AAPL:NASDAQ)",
+   "themes": [
+    "product"
+   ]
+  },
+  {
+   "title": "Block Insider Sold Shares Worth $1,327,740, According to a Recent SEC Filing",
+   "themes": [
+    "insider"
+   ]
+  },
+  {
+   "title": "HSBC Upgrades Target to Buy and Raises Price Target to $190",
+   "themes": [
+    "analyst"
+   ]
+  },
+  {
+   "title": "Three sales under a trading plan: Block (XYZ) director Anthony Eisen sold shares on three dates.",
+   "themes": [
+    "insider"
+   ]
+  },
+  {
+   "title": "Keller Group (LSE:KLR) Stock Fair Value Edges Higher After Analyst Target Increases",
+   "themes": [
+    "analyst",
+    "valuation"
+   ]
+  },
+  {
+   "title": "Stock the Block mobile food drive brings the groceries to your car",
+   "themes": []
+  },
+  {
+   "title": "Amazon Looks to Offload $8B of Nvidia AI Chips From Its Balance Sheet",
+   "themes": [
+    "ai"
+   ]
+  },
+  {
+   "title": "Nvidia Boosts Share Buyback by a Record $150 Billion",
+   "themes": [
+    "capital_return"
+   ]
+  }
+ ]
+}

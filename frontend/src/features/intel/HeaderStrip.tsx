@@ -31,7 +31,10 @@ export function HeaderStrip({ a, watched, onWatch, onRefresh, refreshing, progre
   const chg = polarityOf(qt?.change_pct ?? 0, 0.005);
   const ok = a.sources.filter((s) => s.status === "ok").length;
   const live = a.sources.filter((s) => s.status !== "unconfigured" && s.status !== "disabled").length;
-  const meta = [p?.exchange, p?.quote_type === "EQUITY" ? null : p?.quote_type?.toLowerCase(), p?.sector, p?.industry].filter(Boolean);
+  // Title uses the brand name; the legal name (when different) leads the subline.
+  const title = p?.short_name || p?.name || a.ticker;
+  const legal = p?.name && p.name !== title ? p.name : null;
+  const meta = [legal, p?.exchange, p?.quote_type === "EQUITY" ? null : p?.quote_type?.toLowerCase(), p?.sector, p?.industry].filter(Boolean);
 
   return (
     <header className="intel-head">
@@ -39,7 +42,7 @@ export function HeaderStrip({ a, watched, onWatch, onRefresh, refreshing, progre
         <TickerLogo symbol={a.ticker} url={p?.logo_url} size={44} className="rounded-xl max-sm:!size-9" />
         <div className="min-w-0">
           <div className="flex items-baseline gap-2">
-            <h1 className="truncate text-lg font-semibold leading-6 tracking-[-0.01em] text-ink sm:text-[22px] sm:leading-7" title={p?.name ?? undefined}>{p?.short_name ?? p?.name ?? a.ticker}</h1>
+            <h1 className="truncate text-lg font-semibold leading-6 tracking-[-0.01em] text-ink sm:text-[22px] sm:leading-7" title={p?.name ?? undefined}>{title}</h1>
             <span className="shrink-0 font-mono text-xs font-medium text-ink-2 sm:text-sm">{a.ticker}</span>
           </div>
           <p className="mt-0.5 truncate text-xs text-muted" title={meta.join(" · ") || undefined}>
@@ -64,7 +67,7 @@ export function HeaderStrip({ a, watched, onWatch, onRefresh, refreshing, progre
       </div>
 
       {/* Phones: one swipeable line of secondary stats so the verdict lands on the first screen. */}
-      <div className="no-scrollbar -mx-4 flex items-end gap-x-6 gap-y-3 overflow-x-auto px-4 [grid-area:stats] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+      <div className="no-scrollbar scroll-fade-x -mx-4 flex items-end gap-x-6 gap-y-3 overflow-x-auto px-4 [grid-area:stats] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 lg:gap-x-8">
         <DayRange low={qt?.day_low ?? null} high={qt?.day_high ?? null} last={qt?.price ?? null} currency={qt?.currency} />
         <Stat label="Mkt cap" value={money(qt?.market_cap, qt?.currency)} />
         {a.technicals && (a.technicals.return_1m != null || a.technicals.return_ytd != null) && (
@@ -102,7 +105,7 @@ export function HeaderStrip({ a, watched, onWatch, onRefresh, refreshing, progre
 
       <div className="flex items-center gap-1.5 justify-self-end [grid-area:actions]">
         <button className={cx("btn max-sm:px-2", watched && "text-ink")} onClick={onWatch} aria-pressed={watched} aria-label={watched ? "Watching — remove from watchlist" : "Add to watchlist"} title="Watch (w)">
-          <Star className={cx("size-3.5", watched && "fill-current text-warn")} />
+          <Star className={cx("size-3.5", watched && "fill-current text-ink")} />
           <span className="hidden sm:inline">{watched ? "Watching" : "Watch"}</span>
         </button>
         <button className="btn max-sm:px-2" onClick={onRefresh} disabled={refreshing} title="Refresh (r)" aria-label="Refresh analysis">

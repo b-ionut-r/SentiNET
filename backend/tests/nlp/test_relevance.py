@@ -315,3 +315,95 @@ def test_sponsored_venues_are_places_not_companies():
                           ("Timberwolves beat Lakers at Target Center", TGT)]:
         assert relevance(text, company) < THRESHOLD, text
     assert relevance("SoFi stock jumps after record member growth", sofi) >= 0.9
+
+
+# --------------------------------------------------------------------------- #
+# Review round 2 (live 2026-10-05 feeds)
+# --------------------------------------------------------------------------- #
+SPY_LIVE = _company(ticker="SPY", name="State Street SPDR S&P 500 ETF Trust", short_name="S&P 500",
+                    aliases=["SPDR S&P 500"], quote_type="ETF")
+JPM = _company(ticker="JPM", name="JPMorgan Chase & Co.", short_name="JPMorgan Chase", aliases=["JPMorgan"],
+               industry="Banks - Diversified", sector="Financial Services")
+MS = _company(ticker="MS", name="Morgan Stanley", short_name="Morgan Stanley", aliases=[], industry="Capital Markets",
+              sector="Financial Services")
+MU = _company(ticker="MU", name="Micron Technology, Inc.", short_name="Micron", aliases=[], industry="Semiconductors")
+GE = _company(ticker="GE", name="GE Aerospace", short_name="GE Aerospace", aliases=[], industry="Aerospace & Defense")
+
+
+@pytest.mark.parametrize(("company", "text"), [
+    # legal/regulatory actions with the company as object (were 0-0.25 live)
+    (META, "New Mexico wants Meta to pay $40B in penalties after data privacy trial"),
+    (META, "New Mexico reportedly seeks up to $40B in penalties from Meta over data privacy"),
+    (META, "Eight Years On, Cambridge Analytica Scandal Catches Up with Meta in Santa Fe"),
+    (META, "EU fines Meta €1.2 billion over data transfers"),
+    (AAPL, "EU fines Apple €500 million under DMA"),
+    (META, "Jury finds Meta liable in child safety case"),
+    # the name after a reported-speech "that", a comma, a clause-leading colon
+    (META, "Cramer Warned Viewers That Meta's AI Would Crush This Stock"),
+    (AAPL, "Analysts say that Apple will raise prices"),
+    (META, "Overnight, Meta deleted all her accounts"),
+    (META, "Meta: Muse Is Nice, But Not Enough"),
+    (META, "Texas Electric Utility Only Considered Gas to Power $10B Meta Data Center"),
+    # coordinated subjects
+    (F, "Ford and JPMorganChase launch Michigan LIFT manufacturing platform"),
+    (F, "Ford, JPMorgan Chase and Michigan establish $3B manufacturing initiative"),
+    # social tags and short tickers with a stock noun
+    (BTC, "#Bitcoin to 150k by March"),
+    (BTC, "#BTC dumping hard rn"),
+    (NVDA, "#NVDA breaking out, RSI 70"),
+    (NVDA, "$NVIDIA gets $350 target from Cantor"),
+    (MU, "MU stock soars after earnings"),
+    (GE, "GE stock hits record"),
+    # a bank's own news, not its research
+    (JPM, "JPMorgan's Dimon warns of 'cockroaches' in credit markets"),
+    (JPM, "JPMorgan's Dimon says AI will cut jobs at the bank"),
+    (MS, "Morgan Stanley sets new wealth management target of $10 trillion"),
+    (MS, "Morgan Stanley's Pick says firm will keep hiring"),
+])
+def test_review_round_two_mentions(company, text):
+    assert relevance(text, company) >= 0.6, explain_relevance(text, company)
+
+
+@pytest.mark.parametrize(("company", "text"), [
+    (F, "Sylvester Stallone Shares How Francis Ford Coppola Cried Over His Film's Failure"),
+    (F, "I'm Troy Ford - a stock broker's perfect life is upended"),
+    (META, "A meta data study of clinical trials"),
+    (JPM, "JPMorgan's Kolanovic says stocks will fall 20%"),
+    (MS, "Nvidia Stock Gains After Morgan Stanley Names It a 'Top Semiconductor Pick'"),
+    (SPY_LIVE, "Why Nvidia Stock Is Down Today"),
+    (SPY_LIVE, "AMD Climbs 3% as Chip Stocks Extend Their Run; Arm Jumps 8%, NVIDIA Rises 2%"),
+    (SPY_LIVE, "A $1,000 Bet on Marvell in 2016 Crushed the Market With 2140% Returns"),
+])
+def test_review_round_two_non_mentions(company, text):
+    assert relevance(text, company) < THRESHOLD, explain_relevance(text, company)
+
+
+@pytest.mark.parametrize(("company", "text"), [
+    (T, "Is AT&T an Undervalued Dividend Stock to Buy for Passive Income Investors?"),
+    (BTC, "Bitcoin: ETF Inflows, Fed Hikes, Failed Regulation, And A Rally That Makes No Sense"),
+    (BTC, "Bitcoin beats Gold, SPY, Silver, QQQ in Iran war"),
+    (NVDA, "Nvidia Sets Record as Ali Tracks Two ETFs for AI Interest"),
+    (NVDA, "Is Nvidia a Stock to Buy Now?"),
+    (SPY_LIVE, "Dow, S&P 500, Nasdaq Futures Rise As Earnings Roll In: NKE, NFLX, TSLA In Focus"),
+])
+def test_single_stock_pieces_are_not_roundups(company, text):
+    result = explain_relevance(text, company)
+    assert not result.roundup and result.score >= 0.8, result
+
+
+@pytest.mark.parametrize("text", [
+    "Stock Futures Are Rising With Earnings Season, Fed Minutes Ahead",
+    "Wall Street's AI Party Is on Edge as Soaring Yields Raise Risks",
+    "Stocks Settle Higher as Fed Rate Hike Concerns Ease",
+    "Is a stock market correction coming? Most Americans think so",
+])
+def test_market_wide_news_is_about_an_index_fund(text):
+    assert relevance(text, SPY_LIVE) == pytest.approx(0.6)
+    assert relevance(text, NVDA) == 0.0
+
+
+def test_hashtag_lists_and_soups_stay_low():
+    assert relevance("📢 Stocks Trending NOW: #MU #ACN #LQDA #IBM #GOOG #MSFT #CTVA #ABAT", MU) < THRESHOLD
+    assert relevance("Who's hiring? #GraphicDesigner #artists #3D #NFT #Crypto #eth #Bitcoin", BTC) < THRESHOLD
+    assert relevance("🤖 AI Agent Upgrade: #AAPL is now a BUY 📈 Reason: RSI <65 #stocks #AI #trading #invest",
+                     AAPL) >= 0.8  # the company's tag leads: the post is about it

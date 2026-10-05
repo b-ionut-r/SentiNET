@@ -7,7 +7,7 @@ import { Panel, SubHead } from "../../components/ui/Panel";
 import { Tip } from "../../components/ui/Tooltip";
 import { cx } from "../../lib/cx";
 import { plural, signed } from "../../lib/format";
-import { divergingFill, glyph, polarityOf, textTone, tintFor } from "../../lib/sentiment";
+import { glyph, polarityOf, textTone, tintFor, toneFill } from "../../lib/sentiment";
 
 export function ThemesPanel({ a, className }: { a: Analysis; className?: string }) {
   const themes = a.themes.slice(0, 9);
@@ -35,7 +35,7 @@ export function ThemesPanel({ a, className }: { a: Analysis; className?: string 
                     <div className="flex items-center gap-2">
                       <div
                         className="h-2 rounded-r-[3px]"
-                        style={{ width: `${Math.max(3, (t.share / maxShare) * 100)}%`, background: divergingFill(Math.max(-1, Math.min(1, t.score / 0.4))) }}
+                        style={{ width: `${Math.max(3, (t.share / maxShare) * 100)}%`, background: toneFill(t.score, 0.4) }}
                       />
                       <span className="shrink-0 text-2xs text-muted num">{Math.round(t.share * 100)}%</span>
                     </div>

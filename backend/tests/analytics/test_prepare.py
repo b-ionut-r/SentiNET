@@ -136,3 +136,43 @@ def test_signal_ids_are_stable_and_unique() -> None:
 def test_auto_generated_holdings_stories_are_dropped(title: str, noise: bool) -> None:
     p = kept([run(GOOGLE, [raw(title, 2, "MarketBeat")])])
     assert (p.dropped["boilerplate"] == 1) is noise and (len(p.items) == 0) is noise
+
+
+@pytest.mark.parametrize(("title", "publisher", "noise"), [
+    # Real MarketBeat templates (live captures): a holdings verb plus the template's ticker tag.
+    ("Trivest Advisors Ltd Purchases 84,160 Shares of Acme Corporation $ACME", "marketbeat.com", True),
+    ("Acme Corporation $ACME Shares Sold by Denver PWM LLC", "Yahoo Finance", True),
+    ("Evoke Wealth LLC Sells 229,221 Shares of Acme Corporation (NASDAQ:ACME)", "Zacks", True),
+    # Activist and strategic stakes are material ownership news (live false drops before the fix).
+    ("SoftBank Group Sells Stake in Acme", "Reuters", False),
+    ("Acme Stake Raised by SoftBank Group", "Bloomberg", False),
+    ("Elliott Management Takes Stake in Acme", "CNBC", False),
+    ("Acme Stake Cut by Trian Partners", "Reuters", False),
+    ("Toyota Group Acquires Stake in Acme", "Reuters", False),
+    ("Saudi PIF Investments Boosts Stake in Acme", "Bloomberg", False),
+    ("Berkshire Hathaway Cuts Stake in Acme", "Reuters", False),
+])
+def test_holdings_filter_keeps_activist_and_strategic_stakes(title: str, publisher: str, noise: bool) -> None:
+    p = kept([run(GOOGLE, [raw(title, 2, publisher)])])
+    assert (p.dropped["boilerplate"] == 1) is noise
+
+
+def test_posts_sharing_a_headline_stay_social() -> None:
+    # Live META case: 4 of a story's '6 articles' were Bluesky reposts of the headline.
+    from tests.analytics.factories import BLUESKY
+
+    title = "Acme stock enjoys best month since 2022 on AI momentum"
+    p = kept([run(GOOGLE, [raw(title, 3, "Reuters"), raw(title, 4, "CNBC")]),
+              run(BLUESKY, [raw(title, 2, "Bluesky", author=f"user{i}.bsky.social") for i in range(4)])])
+    news = [it for it in p.items if it.group == "news"]
+    social = [it for it in p.items if it.group == "social"]
+    assert len(news) == 1 and news[0].coverage == 2 and set(news[0].outlets()) == {"Reuters", "CNBC"}
+    assert len(social) == 1 and social[0].coverage == 4  # the reposts collapse among themselves
+
+
+def test_ticker_keyed_roundups_stay_capped() -> None:
+    # The ticker-specific floor must not lift a multi-ticker roundup that never names the company.
+    p = kept([run(FINNHUB, [raw("Chip stocks to watch this week", ticker_specific=True, extra={"symbols": 6})])])
+    assert p.items[0].relevance <= 0.4
+    p = kept([run(FINNHUB, [raw("Acme and four peers to watch", ticker_specific=True, extra={"symbols": 5})])])
+    assert p.items[0].relevance >= 0.7  # names the company: only a mild roundup cut

@@ -173,12 +173,36 @@ def ordinal(n: int) -> str:
     return f"{n}{suffix}"
 
 
-def quote(text: str, limit: int = 90) -> str:
-    """'Headline…' trimmed on a word boundary, in single quotes."""
+def cap_share(bps: float) -> str:
+    """A share of market cap given in basis points: '0.06%', or '<0.01%' for a sliver."""
+    return "<0.01%" if bps < 1 else f"{bps / 100:.2f}%"
+
+
+def trim(text: str, limit: int = 140) -> str:
+    """`text` with whitespace collapsed, cut on a word boundary with '…' when longer than `limit`."""
     t = " ".join(text.split())
     if len(t) > limit:
         t = t[: limit - 1].rsplit(" ", 1)[0].rstrip(",;:-") + "…"
-    return f"‘{t}’"
+    return t
+
+
+def quote(text: str, limit: int = 90) -> str:
+    """'Headline…' trimmed on a word boundary, in single quotes."""
+    return f"‘{trim(text, limit)}’"
+
+
+def filing_parts(title: str) -> tuple[str, str | None]:
+    """(label, description) of a decoded 8-K title.
+
+    'Other material event: NVIDIA entered into…' -> ('Other material event', 'NVIDIA entered into…');
+    an 'Amended: ' prefix becomes ' (amended)' on the label."""
+    t = " ".join(title.split())
+    amended = t.lower().startswith("amended:")
+    if amended:
+        t = t[len("amended:"):].strip()
+    label, sep, desc = t.partition(": ")
+    label = label.strip() or "Filing"
+    return label + (" (amended)" if amended else ""), (desc.strip() or None) if sep else None
 
 
 def short_date(value: date | datetime) -> str:

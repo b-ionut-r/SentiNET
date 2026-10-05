@@ -11,7 +11,7 @@ from datetime import date, datetime, time, timedelta, UTC
 from app.analytics import textkit
 from app.analytics.facts import Facts
 from app.analytics.narratives import PRICE_EVENTS
-from app.analytics.util import count, money, pct, signed, tone_polarity
+from app.analytics.util import count, filing_parts, money, pct, signed, tone_polarity, trim
 from app.schemas import AnalystAction, Catalyst, EarningsView, Polarity
 
 ANALYST_WINDOW = timedelta(days=30)
@@ -21,6 +21,7 @@ FILING_WINDOW_MEDIUM = timedelta(days=30)
 LARGE_SELL = 1_000_000.0
 MAX_ANALYST = 8
 MAX_RECENT = 16
+FILING_DETAIL = 140  # characters of an 8-K's description shown on the timeline
 NEWS_MIN_IMPACT = 0.45
 RETROSPECTIVE_DAYS = 7  # results stories first seen this long after the last report are look-backs
 
@@ -142,8 +143,10 @@ def _filings(f: Facts) -> list[Catalyst]:
         if filing.importance == "low" or age > window or age < timedelta(days=-1):
             continue
         items = f" · items {', '.join(filing.items)}" if filing.items else ""
-        out.append(Catalyst(date=noon_utc(filing.date), kind="filing", title=filing.title,
-                            detail=f"Form {filing.form}{items}", polarity=filing.polarity, url=filing.url))
+        label, desc = filing_parts(filing.title)
+        detail = f"Form {filing.form}{items}" + (f" · {trim(desc, FILING_DETAIL)}" if desc else "")
+        out.append(Catalyst(date=noon_utc(filing.date), kind="filing", title=trim(label, 80),
+                            detail=detail, polarity=filing.polarity, url=filing.url))
     return out
 
 

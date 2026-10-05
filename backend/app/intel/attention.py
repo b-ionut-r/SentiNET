@@ -13,11 +13,15 @@ REST pageviews API.
 Transport: Wikimedia refuses HTTP/1.1 clients from cloud IPs (403 "robot
 policy" / 429, verified 2026-10-04) while answering HTTP/2 normally, so these
 hosts are called through curl_cffi (HTTP/2; already installed as yfinance's
-transport) with a contact-bearing User-Agent. A refusal pauses that host (fail
-fast with a clear message) and results from the last 24 h are served meanwhile.
+transport) with a contact-bearing User-Agent. The anonymous budget is shared by
+everyone behind this IP but refills in seconds: a 429 asking for a short wait
+(`Retry-After` <= 6 s) is retried once after it; any other refusal pauses that host
+for the advertised time (fail fast with a clear message) and results from the
+last 24 h are served meanwhile.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
@@ -31,6 +35,7 @@ from app.config import settings
 from app.core.cache import cached
 from app.core.http import UpstreamError
 from app.core.ratelimit import HostLimiter
+from app.intel.diskcache import DiskCache
 from app.resolve.names import ascii_fold
 from app.sources.base import CompanyRef
 
@@ -44,11 +49,14 @@ TIMEOUT = 10.0
 
 # en.wikipedia.org is not in the shared host table; be polite on our own.
 _limiter = HostLimiter({"en.wikipedia.org": 1.0, "wikimedia.org": 1.0})
-# After a refusal (403/429) a host is left alone for this long (seconds): the
-# anonymous per-IP budget refills within minutes, hammering it never helps.
+# After a refusal (403/429) without a Retry-After hint a host is left alone for
+# this long (seconds); hammering a refusing host never helps.
 API_PAUSE = 120.0
 REST_PAUSE = 600.0
+RETRY_AFTER_MAX = 6.0  # wait-and-retry once when Wikimedia asks for at most this long
+MIN_PAUSE = 5.0
 _paused_until: dict[str, float] = {}
+_sleep = asyncio.sleep  # indirection so tests can skip Retry-After waits
 
 _COMPANY_WORDS = re.compile(
     r"\b(company|corporation|conglomerate|multinational|manufacturer|retailer|chain|bank|"
@@ -109,15 +117,42 @@ def _kind_pattern(company: CompanyRef) -> re.Pattern[str]:
     return _COMPANY_WORDS if company.quote_type == "EQUITY" else _FUND_WORDS
 
 
-def pick_article(pages: list[dict[str, Any]], company: CompanyRef, *, require_kind: bool = False) -> dict[str, Any] | None:
+def lookup_order(query: dict[str, Any], titles: list[str]) -> dict[str, int]:
+    """Pure: resolved page title -> index of the most specific candidate that reached it.
+
+    Follows the API's `normalized` and `redirects` maps, so "NVIDIA Corporation"
+    (candidate 0) ranks the "Nvidia" page ahead of anything an alias reached.
+    """
+    hops = {str(m.get("from")): str(m.get("to")) for key in ("normalized", "redirects")
+            for m in (query.get(key) or []) if m.get("from") and m.get("to")}
+    order: dict[str, int] = {}
+    for i, title in enumerate(titles):
+        seen: set[str] = set()
+        while title in hops and title not in seen:  # normalized -> redirect chains
+            seen.add(title)
+            title = hops[title]
+        order.setdefault(title, i)
+    return order
+
+
+def pick_article(
+    pages: list[dict[str, Any]],
+    company: CompanyRef,
+    *,
+    require_kind: bool = False,
+    order: dict[str, int] | None = None,
+) -> dict[str, Any] | None:
     """Pure: choose the article that is really about this company (or None).
 
     `require_kind` (direct title lookups): the description must say what the
     asset is ("…technology company", "Exchange-traded fund"), so the "Apple"
-    fruit article never stands in for Apple Inc.
+    fruit article never stands in for Apple Inc. The official/brand name beats
+    an alias ("Snap Inc." over "Snapchat", both companies-ish); `order` (from
+    `lookup_order`) breaks the remaining ties in favour of the more specific title.
     """
-    wanted = {_norm(n) for n in [company.name, company.short_name, *company.aliases] if n}
-    wanted.discard("")
+    primary = {_norm(n) for n in (company.name, company.short_name) if n} - {""}
+    alias = {_norm(n) for n in company.aliases if n} - {""} - primary
+    wanted = primary | alias
     kind_re = _kind_pattern(company)
     best: tuple[float, dict[str, Any]] | None = None
     for page in pages:
@@ -129,9 +164,11 @@ def pick_article(pages: list[dict[str, Any]], company: CompanyRef, *, require_ki
             continue
         norm_title = _norm(title)
         score = 0.0
-        if norm_title in wanted:
+        if norm_title in primary:
             score += 3.0
-        elif any(norm_title.startswith(w) or w.startswith(norm_title) for w in wanted if w):
+        elif norm_title in alias:
+            score += 2.5
+        elif any(norm_title.startswith(w) or w.startswith(norm_title) for w in wanted):
             score += 1.0
         kind = bool(kind_re.search(desc))
         if require_kind and not kind:
@@ -139,6 +176,8 @@ def pick_article(pages: list[dict[str, Any]], company: CompanyRef, *, require_ki
         score += 1.0 if kind else 0.0
         index = int(page.get("index") or 10)
         score += max(0.0, (5 - index) * 0.2)
+        if order and title in order:
+            score += 0.2 / (1 + order[title])  # tie-break only: < the alias/primary gap
         if score >= 2.0 and (best is None or score > best[0]):
             best = (score, page)
     return best[1] if best else None
@@ -177,32 +216,54 @@ def _headers() -> dict[str, str]:
     return {"User-Agent": f"SentiNET/2.0 ({settings.contact_email})", "Accept": "application/json"}
 
 
-async def _http_get(url: str, params: dict[str, Any] | None) -> tuple[int, str]:
-    """HTTP/2 GET via curl_cffi -> (status, body). Raises UpstreamError on transport failure."""
+async def _http_get(url: str, params: dict[str, Any] | None) -> tuple[int, str, float | None]:
+    """HTTP/2 GET via curl_cffi -> (status, body, Retry-After seconds). Raises UpstreamError on transport failure."""
     from curl_cffi.requests import AsyncSession
 
     try:
         async with AsyncSession() as session:
             resp = await session.get(url, params=params, headers=_headers(), timeout=TIMEOUT)
-            return resp.status_code, resp.text
+            return resp.status_code, resp.text, _seconds(resp.headers.get("retry-after"))
     except Exception as exc:  # noqa: BLE001 - curl errors carry no stable type
         raise UpstreamError(f"{url.split('/')[2]} unreachable ({type(exc).__name__})") from exc
+
+
+def _seconds(value: str | None) -> float | None:
+    try:
+        return max(0.0, float(value)) if value else None
+    except ValueError:  # an HTTP date: treat as "unknown"
+        return None
 
 
 def _pause_left(host: str) -> float:
     return max(0.0, _paused_until.get(host, 0.0) - time.monotonic())
 
 
+def _fmt_wait(seconds: float) -> str:
+    return f"{seconds:.0f} s" if seconds < 90 else f"{seconds / 60:.0f} min"
+
+
 async def _wiki_json(url: str, params: dict[str, Any] | None = None, *, pause: float = API_PAUSE) -> Any:
-    """GET JSON from a Wikimedia host; a refusal pauses the host for `pause` seconds."""
+    """GET JSON from a Wikimedia host.
+
+    The anonymous budget is per IP and refills within seconds: a 429 that asks for a
+    short wait (`Retry-After` <= `RETRY_AFTER_MAX`) is retried once after it. Any other
+    refusal pauses the host for the advertised wait (else `pause` seconds) and fails fast.
+    """
     host = url.split("/")[2]
     if (left := _pause_left(host)) > 0:
         raise UpstreamError(f"{host} is rate-limiting this server's IP; next try in {left:.0f} s")
-    await _limiter(host)
-    status, body = await _http_get(url, params)
-    if status in (403, 429):
-        _paused_until[host] = time.monotonic() + pause
-        raise UpstreamError(f"{host} refused the request (HTTP {status}, rate limit); pausing {pause / 60:.0f} min")
+    for attempt in range(2):
+        await _limiter(host)
+        status, body, retry_after = await _http_get(url, params)
+        if status not in (403, 429):
+            break
+        if attempt == 0 and status == 429 and retry_after is not None and retry_after <= RETRY_AFTER_MAX:
+            await _sleep(retry_after + 0.25)
+            continue
+        wait = max(MIN_PAUSE, retry_after) if retry_after is not None else pause
+        _paused_until[host] = time.monotonic() + wait
+        raise UpstreamError(f"{host} refused the request (HTTP {status}, rate limit); pausing {_fmt_wait(wait)}")
     if status == 404:
         return None
     if status >= 400:
@@ -224,9 +285,11 @@ def _query_params(days: int) -> dict[str, str]:
 
 async def find_article(company: CompanyRef, days: int = ACTION_API_MAX_DAYS) -> dict[str, Any] | None:
     """The company's article (with up to 60 days of views), by title lookup, else search."""
-    data = await _wiki_json(WIKI_API, {**_query_params(days), "titles": "|".join(candidate_titles(company))})
-    pages = ((data or {}).get("query") or {}).get("pages") or []
-    page = pick_article(pages, company, require_kind=True)
+    titles = candidate_titles(company)
+    data = await _wiki_json(WIKI_API, {**_query_params(days), "titles": "|".join(titles)})
+    query = (data or {}).get("query") or {}
+    pages = query.get("pages") or []
+    page = pick_article(pages, company, require_kind=True, order=lookup_order(query, titles))
     if page is not None:
         return page
     data = await _wiki_json(WIKI_API, {**_query_params(days), "generator": "search",
@@ -260,28 +323,47 @@ async def _pageviews(
 
 _LAST_GOOD: dict[str, tuple[float, list[tuple[date, float]]]] = {}
 STALE_MAX_SECONDS = 24 * 3600
+_disk = DiskCache("wikipedia")  # restart-proof copy of the last good series per ticker/span
+
+
+def _encode(views: list[tuple[date, float]]) -> list[list[Any]]:
+    return [[d.isoformat(), v] for d, v in views]
+
+
+def _decode(raw: Any) -> list[tuple[date, float]]:
+    try:
+        return [(date.fromisoformat(str(d)), float(v)) for d, v in raw or []]
+    except (TypeError, ValueError):
+        return []
 
 
 async def get_wiki_pageviews(company: CompanyRef, days: int = 90) -> list[tuple[date, float]] | None:
     """Daily Wikipedia pageviews (oldest first) for the company's article, or None.
 
-    Raises `UpstreamError` when Wikipedia refuses unless a result from the last
-    24 h can be served instead.
+    A series fetched within `history_cache_ttl` (also by an earlier process) is
+    reused without a request. Raises `UpstreamError` when Wikipedia refuses
+    unless a result from the last 24 h can be served instead.
     """
     aliases = tuple(dict.fromkeys(a for a in (*company.aliases, ascii_fold(company.short_name)) if a))
     span = max(7, min(int(days), 365))
     key = f"{company.ticker}:{span}"
+    stored = _disk.load(key, STALE_MAX_SECONDS)
+    if stored is not None and stored[1] < settings.history_cache_ttl and (fresh := _decode(stored[0])):
+        return fresh
     try:
         views = await _pageviews(company.ticker, company.name, company.short_name, aliases, company.quote_type, span)
     except UpstreamError:
         stale = _LAST_GOOD.get(key)
         if stale and time.monotonic() - stale[0] < STALE_MAX_SECONDS:
             return stale[1]
+        if stored is not None and (older := _decode(stored[0])):
+            return older
         raise
     if views:
         if len(_LAST_GOOD) > 512:
             _LAST_GOOD.pop(next(iter(_LAST_GOOD)))
         _LAST_GOOD[key] = (time.monotonic(), views)
+        _disk.save(key, _encode(views))
     return views
 
 

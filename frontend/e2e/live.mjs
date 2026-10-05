@@ -40,6 +40,17 @@ page.on("console", (m) => m.type() === "error" && errors.push(`console: ${m.text
 
 const steps = [
   { name: "intel", path: `/t/${TICKER}`, until: "#verdict", timeout: 90_000 },
+  {
+    // The backend normalises symbols; the page must move to the canonical URL (served from cache).
+    name: "canonical",
+    path: `/t/$${TICKER.toLowerCase()}`,
+    until: "#verdict",
+    timeout: 60_000,
+    act: async () => {
+      await page.waitForURL(new RegExp(`/t/${TICKER}$`), { timeout: 10_000 });
+      console.log(`  canonical URL: ${new URL(page.url()).pathname}`);
+    },
+  },
   { name: "market", path: "/", until: "main section, main [role=alert], main p", timeout: 60_000 },
   {
     name: "compare",

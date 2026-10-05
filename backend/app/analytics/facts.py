@@ -38,6 +38,7 @@ class Facts:
     attention: AttentionView | None
     composite: Composite
     catalysts: list[Catalyst] = field(default_factory=list)
+    failed: list[str] = field(default_factory=list)  # parts that raised and were left out (data quality)
 
     @property
     def now(self) -> datetime:

@@ -502,7 +502,7 @@ def analysts_from_frames(
     total = _counts_total(current) if current else 0
     total = total or int(num(info.get("numberOfAnalystOpinions")) or 0)
 
-    targets = {k: pos(info.get(f"target{k}Price")) for k in ("Mean", "Median", "High", "Low")}
+    targets = {k: _r(pos(info.get(f"target{k}Price")), 2) for k in ("Mean", "Median", "High", "Low")}
     price = price or pos(info.get("currentPrice")) or pos(info.get("regularMarketPrice"))
     if not (total or targets["Mean"] or actions):
         return None
@@ -613,9 +613,9 @@ def earnings_from_frames(
     view = EarningsView(
         next_date=next_date,
         days_until=(next_date - today).days if next_date else None,
-        eps_estimate=num(calendar.get("Earnings Average")) if has_estimates else None,
-        eps_low=num(calendar.get("Earnings Low")) if has_estimates else None,
-        eps_high=num(calendar.get("Earnings High")) if has_estimates else None,
+        eps_estimate=_r(num(calendar.get("Earnings Average")), 4) if has_estimates else None,
+        eps_low=_r(num(calendar.get("Earnings Low")), 4) if has_estimates else None,
+        eps_high=_r(num(calendar.get("Earnings High")), 4) if has_estimates else None,
         revenue_estimate=pos(calendar.get("Revenue Average")) if has_estimates else None,
         history=history,
         beat_rate=beat_rate,

@@ -88,3 +88,26 @@ def test_captured_outlets_are_mostly_known():
             counts[item["publisher"]] += 1
     known = sum(n for name, n in counts.items() if is_known_publisher(name))
     assert known / sum(counts.values()) >= 0.9
+
+
+@pytest.mark.parametrize(("variants", "canonical"), [
+    (("CCN.com", "CCN", "ccn.com"), "CCN"),                        # live: one outlet, not two
+    (("Cryptonews.net", "Cryptonews"), "Cryptonews"),
+    (("Decrypt News", "decrypt", "decrypt.co"), "Decrypt"),
+    (("tradersunion", "Traders Union"), "Traders Union"),
+    (("MT Newswires", "mtnewswires.com"), "MT Newswires"),
+])
+def test_name_and_domain_variants_are_one_outlet(variants, canonical):
+    assert {canonical_publisher(v) for v in variants} == {canonical}
+
+
+@pytest.mark.parametrize(("publisher", "title", "expected"), [
+    ("CNBC", "Notice how Nvidia stock behaves", False),
+    ("Reuters", "Nvidia today announced record revenue", False),  # wording never demotes a major newsroom
+    ("PR Newswire", "Nvidia stock rises", True),
+    ("Unknown Blog", "SHAREHOLDER ALERT: class action filed against Acme", True),
+    ("Unknown Blog", "Notice how Nvidia stock behaves", False),
+    (None, "Notice of Annual Meeting of Shareholders", True),
+])
+def test_press_release_wording_only_for_unknown_outlets(publisher, title, expected):
+    assert is_press_release(publisher, title) is expected

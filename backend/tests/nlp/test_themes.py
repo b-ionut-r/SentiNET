@@ -112,3 +112,70 @@ def test_fast():
     for title in items:
         classify_themes(title)
     assert time.perf_counter() - start < 0.5  # ~500 headlines
+
+
+def test_precision_on_hand_labelled_headlines():
+    """160 real headlines labelled by hand: a wrong theme is as visible as a
+    missing one, so precision is held high (measured 139/142 = 0.98)."""
+    items = load_json_fixture("nlp/theme_labels.json")["items"]
+    predicted = [set(classify_themes(it["title"])) for it in items]
+    correct = sum(len(p & set(it["themes"])) for p, it in zip(predicted, items, strict=True))
+    precision = correct / sum(len(p) for p in predicted)
+    recall = correct / sum(len(it["themes"]) for it in items)
+    assert precision >= 0.93, precision
+    assert recall >= 0.8, recall  # measured 0.85
+
+
+@pytest.mark.parametrize(("text", "wrong"), [
+    # everyday senses of market words never decide a theme
+    ("President Trump says Apple will build iPhones in America", "management"),
+    ("Meta releases tools to fine-tune Llama models", "regulatory"),
+    ("Pfizer's Phase 3 trial meets primary endpoint", "legal"),
+    ("Apple's free cash flow hits $100 billion", "trading"),
+    ("Nvidia shares settle lower", "legal"),
+    ("OpenAI strikes partnership with AMD", "labor"),
+    ("iPhone 17 has broad appeal", "legal"),
+    ("Dollar General shares jump after earnings beat", "macro"),
+    ("Nvidia is a trillion-dollar company", "macro"),
+    ("Missile strikes rattle oil markets", "labor"),
+    ("Netflix free trial ends", "legal"),
+    ("Alphabet's market leadership in search", "management"),
+    ("SOFI Stock Rises After $25B Card Program Moves To Stablecoin Settlement On Mastercard Network", "legal"),
+    ("Tesla's car business back on growth path as deliveries beat forecasts", "guidance"),
+    ("3,646,830 Shares of Amazon.com, Inc. $AMZN Acquired by Nykredit A S", "deals"),
+    ("XYZ - Block is Set to Rebound from Regulatory Challenges with 6% Revenue Growth", "competition"),
+])
+def test_everyday_words_do_not_decide_themes(text, wrong):
+    assert wrong not in classify_themes(text)
+
+
+@pytest.mark.parametrize(("text", "theme"), [
+    ("EU fines Meta €1.2 billion over data transfers", "regulatory"),
+    ("Meta settles privacy lawsuit for $725 million", "legal"),
+    ("Jury trial begins in Musk fraud case", "legal"),
+    ("Apple wins appeal in Epic case", "legal"),
+    ("UAW strike at Ford plant enters second week", "labor"),
+    ("Dollar slides as Fed signals cuts", "macro"),
+    ("Options flow shows bullish bets on Nvidia", "trading"),
+    ("Apple's free cash flow hits $100 billion", "earnings"),
+    ("Nvidia is a trillion-dollar company", "valuation"),
+])
+def test_market_senses_still_count(text, theme):
+    assert theme in classify_themes(text)
+
+
+def test_literal_gating_matches_running_every_pattern():
+    """The head-gram shortcut is an optimization only: same scores as
+    searching every pattern."""
+    import re
+
+    from app.nlp import themes
+    from app.nlp.text import fold
+
+    titles = [t for ts in load_json_fixture("nlp/event_headlines.json")["families"].values() for t in ts]
+    titles += [it["title"] for it in load_json_fixture("nlp/theme_labels.json")["items"]]
+    for title in titles:
+        folded = fold(title)
+        brute = {th: n for th, pats in themes._PATTERNS.items()
+                 if (n := sum(1 for p in pats if re.search(p, folded, re.IGNORECASE)))}
+        assert theme_scores(title) == brute, title

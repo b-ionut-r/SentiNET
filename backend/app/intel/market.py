@@ -18,8 +18,9 @@ import html
 import logging
 import math
 import re
+from collections.abc import Callable
 from datetime import datetime, timedelta, UTC
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import parse_qs, urlsplit
 
 import feedparser
@@ -154,12 +155,20 @@ async def get_crypto_fear_greed() -> FearGreed | None:
 # --------------------------------------------------------------------------- #
 # Trending
 # --------------------------------------------------------------------------- #
-def parse_apewisdom(payload: Any, limit: int = 25) -> list[TrendingTicker]:
-    """Pure: ApeWisdom leaderboard -> top Reddit tickers with 24h mention change."""
+def parse_apewisdom(
+    payload: Any, limit: int = 25, skip: Callable[[str], bool] | None = None
+) -> list[TrendingTicker]:
+    """Pure: ApeWisdom leaderboard -> top Reddit tickers with 24h mention change.
+
+    `skip` drops symbols whose Reddit count measures a word, not the stock ("DTE" is
+    days-to-expiry on options subs, not DTE Energy).
+    """
     out: list[TrendingTicker] = []
-    for item in ((payload or {}).get("results") or [])[:limit] if isinstance(payload, dict) else []:
+    for item in ((payload or {}).get("results") or []) if isinstance(payload, dict) else []:
+        if len(out) >= limit:
+            break
         sym = str(item.get("ticker") or "").upper().replace(".", "-")
-        if not sym:
+        if not sym or (skip is not None and skip(sym)):
             continue
         mentions = _int(item.get("mentions"))
         prev = _int(item.get("mentions_24h_ago"))
@@ -199,6 +208,15 @@ def _int(value: Any) -> int | None:
     return int(f) if f is not None else None
 
 
+def _crowd_word() -> Callable[[str], bool] | None:
+    """The search sources' check for ticker-words on crowd boards (shared so both agree)."""
+    try:
+        from app.sources.query import crowd_symbol_ambiguous
+    except ImportError:  # sources package mid-edit: show the board unfiltered
+        return None
+    return crowd_symbol_ambiguous
+
+
 @cached(ttl=600, none_ttl=60)
 async def get_trending() -> list[TrendingTicker]:
     """Reddit (ApeWisdom) top ~25 by mentions + StockTwits trending symbols."""
@@ -209,7 +227,7 @@ async def get_trending() -> list[TrendingTicker]:
     )
     out: list[TrendingTicker] = []
     if not isinstance(ape, BaseException):
-        out += parse_apewisdom(ape)
+        out += parse_apewisdom(ape, skip=_crowd_word())
     else:
         logger.info("ApeWisdom trending failed: %s", ape)
     if not isinstance(st, BaseException):
@@ -228,15 +246,18 @@ CNBC_URL = "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrs
 # Not "Wall Street": it matches every Wall Street Journal story.
 GOOGLE_NEWS_URL = ("https://news.google.com/rss/search?q=%22stock+market%22+OR+%22S%26P+500%22+OR+%22Dow+Jones%22"
                    "+when:1d&hl=en-US&gl=US&ceid=US:en")
-FEEDS: list[tuple[str, str, str | None, bool]] = [
-    # (key, url, publisher, needs_market_filter) — most trusted first (dedupe keeps the first copy)
-    ("cnbc_top", CNBC_URL.format(id=100003114), "CNBC", True),
-    ("cnbc_finance", CNBC_URL.format(id=10000664), "CNBC", True),
-    ("cnbc_economy", CNBC_URL.format(id=20910258), "CNBC", True),
-    ("marketwatch", "https://feeds.content.dowjones.io/public/rss/mw_topstories", "MarketWatch", True),
-    ("google_news", GOOGLE_NEWS_URL, None, True),
-    ("bing_news", "https://www.bing.com/news/search?q=%22stock+market%22&format=rss", None, True),
-    ("bing_wallstreet", "https://www.bing.com/news/search?q=Wall+Street+stocks&format=rss", None, True),
+# Market-relevance filter per feed: "title" = the headline itself must be market talk
+# (general top-news feeds: politics, lifestyle); "any" = headline or summary.
+FilterMode = Literal["title", "any"] | None
+FEEDS: list[tuple[str, str, str | None, FilterMode]] = [
+    # (key, url, publisher, filter) — most trusted first (dedupe keeps the first copy)
+    ("cnbc_top", CNBC_URL.format(id=100003114), "CNBC", "title"),
+    ("cnbc_finance", CNBC_URL.format(id=10000664), "CNBC", "any"),
+    ("cnbc_economy", CNBC_URL.format(id=20910258), "CNBC", "any"),
+    ("marketwatch", "https://feeds.content.dowjones.io/public/rss/mw_topstories", "MarketWatch", "any"),
+    ("google_news", GOOGLE_NEWS_URL, None, "any"),
+    ("bing_news", "https://www.bing.com/news/search?q=%22stock+market%22&format=rss", None, "any"),
+    ("bing_wallstreet", "https://www.bing.com/news/search?q=Wall+Street+stocks&format=rss", None, "any"),
 ]
 MAX_HEADLINES = 120
 PER_FEED_CAP = 40  # keep one aggregator from drowning out the others
@@ -246,7 +267,8 @@ _MARKET_TERMS = re.compile(
     r"\b(stocks?|shares?|market|markets|wall street|s&p|nasdaq|dow|fed|federal reserve|powell|rates?|"
     r"yields?|treasur(?:y|ies)|bonds?|inflation|cpi|ppi|jobs|payrolls|unemployment|gdp|recession|"
     r"economy|economic|earnings|revenue|profit|guidance|ipo|merger|acquisition|deal|tariffs?|trade war|"
-    r"oil|crude|opec|gold|bitcoin|crypto|dollar|investors?|traders?|futures|rally|sell-?off|"
+    r"oil|crude (?:oil|prices?|futures)|opec|gold|bitcoin|crypto|dollar|investors?|traders?|futures|"
+    r"(?<!campaign )rall(?:y|ies|ied)(?! speech)|sell-?off|"
     r"bank|banks|tech|ai|chip|chips|semiconductors?|layoffs?|bankruptcy|sec|antitrust|ceo)\b",
     re.IGNORECASE,
 )
@@ -263,6 +285,22 @@ _US_MARKET = re.compile(r"\b(wall street|s&p|nasdaq|dow|fed|federal reserve|trea
                         re.IGNORECASE)
 # First-person advice columns ("I'm 71 and still working…?") are not market news.
 _ADVICE = re.compile(r"^[‘'\"“]?(?:I|I’m|I'm|I’ve|I've|My|We|We’re|We're|Our|Should I|Can I|How do I)\b")
+# SEO ticker-page farms and outlets that cover their own (non-US) market under generic
+# "stock market" headlines ("Stock market dips 0.52%" is the Nigerian Exchange).
+_BLOCKED_PUBLISHERS = re.compile(
+    r"stocktradersdaily|punchng|businessday\.ng|nairametrics|thedailystar|dawn\.com|tribune\.com\.pk|philstar|"
+    r"businessmirror|inquirer\.net|bworldonline|manila ?times|thestar\.com\.my|theedgemalaysia|vnexpress|"
+    r"bangkokpost|moneycontrol|economictimes|livemint|business-standard|financialexpress|ndtvprofit|"
+    r"the collegian",
+    re.IGNORECASE,
+)
+_NON_LATIN = re.compile(r"[^\x00-\u024f\u2000-\u206f\u20ac]")  # 매일경제, 日経: non-English outlets
+
+
+def _blocked(publisher: str | None) -> bool:
+    return bool(publisher) and bool(_BLOCKED_PUBLISHERS.search(publisher) or _NON_LATIN.search(publisher))
+
+
 _TAG = re.compile(r"<[^>]+>")
 _SUFFIX_SPLIT = re.compile(r"\s+[-–|]\s+(?=[^-–|]+$)")
 
@@ -284,8 +322,9 @@ def _publisher_from_url(url: str) -> str | None:
     return host[4:] if host.startswith("www.") else (host or None)
 
 
-def parse_feed(xml_text: str, key: str, publisher: str | None, market_filter: bool) -> list[RawSignal]:
-    """Pure: one RSS feed -> RawSignals (publisher split off, sponsored items dropped)."""
+def parse_feed(xml_text: str, key: str, publisher: str | None, market_filter: FilterMode | bool) -> list[RawSignal]:
+    """Pure: one RSS feed -> RawSignals (publisher split off; sponsored, off-topic and junk dropped)."""
+    mode: FilterMode = "any" if market_filter is True else (market_filter or None)
     feed = feedparser.parse(xml_text)
     out: list[RawSignal] = []
     for entry in feed.entries:
@@ -306,7 +345,10 @@ def parse_feed(xml_text: str, key: str, publisher: str | None, market_filter: bo
         if not title or len(title) < 12:
             continue
         body = None if key == "google_news" else (_clean(entry.get("summary")) or None)
-        if market_filter and (_ADVICE.match(title) or not _MARKET_TERMS.search(f"{title} {body or ''}")):
+        scope = title if mode == "title" else f"{title} {body or ''}"
+        if mode and (_ADVICE.match(title) or not _MARKET_TERMS.search(scope)):
+            continue
+        if _blocked(pub):
             continue
         if _FOREIGN.search(title) and not _US_MARKET.search(title):
             continue

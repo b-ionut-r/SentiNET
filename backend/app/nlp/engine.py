@@ -8,12 +8,18 @@ give VADER (caps, emphasis, emoji) more say.
 
     engine = get_engine()
     [a] = engine.score(["Nvidia price target raised to $250 from $220 at MS"], ["news"])
-    a.score, a.label, a.confidence   # 0.63, "bullish", 0.85
-    a.drivers                        # [("price target raised to $250 from $220", 0.74)]
+    a.score, a.label, a.confidence   # 0.66, "bullish", 0.86
+    a.drivers                        # [("price target raised to $250 from $220", 0.75)]
 
 Scores are in [-1, 1]; ``label_for`` maps them to labels with ``NEUTRAL_BAND``.
 Weak or self-cancelling evidence is pulled into the neutral band on purpose:
 most market text is neutral, and a single soft word should not flip a label.
+
+``score(texts, kinds, targets)`` optionally takes the analysed company per text
+(ticker + names), so a peer's move in the same headline counts as context.
+Confidence of a polar headline call is calibrated (isotonic fit on Twitter
+train); a neutral call is 0.5 when nothing was found, higher when the text
+says "in line" / "unchanged".
 """
 from __future__ import annotations
 
@@ -21,8 +27,9 @@ import logging
 import math
 import re
 import threading
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from vaderSentiment.vaderSentiment import (
     BOOSTER_DICT,
@@ -38,11 +45,23 @@ from app.nlp import rules
 from app.nlp.rules import Evidence, extract
 from app.nlp.types import Label, SentimentEngine, TextAnalysis
 
+if TYPE_CHECKING:
+    from app.sources.base import CompanyRef
+
 logger = logging.getLogger(__name__)
 
 NEUTRAL_BAND = 0.05
 """|score| <= NEUTRAL_BAND is labelled "neutral"."""
 
+# Polar (bullish/bearish) headline confidence -> observed accuracy: isotonic (PAV) fit on the
+# Twitter-financial TRAIN split (3,839 polar calls), knots at block midpoints. Raw confidence ranks
+# well but overstated mid-range calls (raw 0.6 was right 56% of the time). Social posts are not
+# remapped: their only labels (StockTwits author tags) are binary, which would inflate accuracy.
+NEWS_POLAR_CALIBRATION: tuple[tuple[float, float], ...] = (
+    (0.30, 0.33), (0.41, 0.39), (0.53, 0.51), (0.61, 0.56), (0.655, 0.58), (0.71, 0.65), (0.78, 0.78),
+    (0.86, 0.87), (0.95, 0.89), (0.98, 0.90))
+NO_EVIDENCE_CONF = 0.5  # neutral because nothing was found: a default, not a finding
+NEUTRAL_CUE_CONF = 0.75  # neutral because the text says so ("in line with estimates", "unchanged")
 MAX_DRIVERS = 5
 _CASHTAG = re.compile(r"\$[A-Za-z][A-Za-z0-9.\-]*")  # "$RIOT" is a ticker, not a riot
 SOCIAL_KINDS = frozenset({"social"})
@@ -176,6 +195,12 @@ class _FinanceVader(SentimentIntensityAnalyzer):
         return valence
 
 
+def target_terms(company: CompanyRef) -> list[str]:
+    """The names ``score(..., targets=...)`` should look for: ticker, cashtag symbol and names."""
+    terms = [company.ticker, company.base_symbol, company.short_name, company.name, *company.aliases]
+    return list(dict.fromkeys(t for t in terms if t and t.strip()))
+
+
 class VaderEngine:
     """Plain VADER (benchmark baseline). Standard +-0.05 compound thresholds."""
 
@@ -184,7 +209,9 @@ class VaderEngine:
     def __init__(self) -> None:
         self._vader = SentimentIntensityAnalyzer()
 
-    def score(self, texts: list[str], kinds: Optional[list[str]] = None) -> list[TextAnalysis]:
+    def score(self, texts: list[str], kinds: Optional[list[str]] = None,
+              targets: Optional[Sequence[Optional[Sequence[str]]]] = None) -> list[TextAnalysis]:
+        """``targets`` is accepted for interface parity and ignored (VADER reads the whole text)."""
         out = []
         for text in texts:
             c = self._vader.polarity_scores(text or "")["compound"] if text else 0.0
@@ -202,21 +229,28 @@ class SentinelEngine:
         self._vader = _FinanceVader()
 
     # ------------------------------------------------------------------ API
-    def score(self, texts: list[str], kinds: Optional[list[str]] = None) -> list[TextAnalysis]:
+    def score(self, texts: list[str], kinds: Optional[list[str]] = None,
+              targets: Optional[Sequence[Optional[Sequence[str]]]] = None) -> list[TextAnalysis]:
+        """Score a batch. ``targets[i]`` (optional) names the company text i is analysed for - its
+        ticker and names, e.g. ``["NVDA", "Nvidia", "NVIDIA Corporation"]`` - so a peer's move in the
+        same headline ("SoFi falls 3%; Affirm drops 4%") counts as context, not as its news."""
         kinds = list(kinds or [])
-        return [self.analyze(t, kinds[i] if i < len(kinds) else None) for i, t in enumerate(texts)]
+        targets = list(targets or [])
+        return [self.analyze(t, kinds[i] if i < len(kinds) else None, targets[i] if i < len(targets) else None)
+                for i, t in enumerate(texts)]
 
-    def analyze(self, text: str, kind: Optional[str] = "news") -> TextAnalysis:
-        """Score one text. ``kind`` "social" switches to the social register."""
+    def analyze(self, text: str, kind: Optional[str] = "news",
+                target: Optional[Sequence[str]] = None) -> TextAnalysis:
+        """Score one text. ``kind`` "social" switches to the social register; ``target`` see ``score``."""
         if not text or not text.strip():
             return TextAnalysis(score=0.0, label="neutral", confidence=0.0)
         social = (kind or "news") in SOCIAL_KINDS
-        ev = extract(text, social=social)
+        ev = extract(text, social=social, target=target)
         return self._from_evidence(ev, social)
 
-    def evidence(self, text: str, kind: Optional[str] = "news") -> Evidence:
+    def evidence(self, text: str, kind: Optional[str] = "news", target: Optional[Sequence[str]] = None) -> Evidence:
         """Raw evidence (for debugging / the eval script's error analysis)."""
-        return extract(text, social=(kind or "news") in SOCIAL_KINDS)
+        return extract(text, social=(kind or "news") in SOCIAL_KINDS, target=target)
 
     # ------------------------------------------------------------ internals
     def _from_evidence(self, ev: Evidence, social: bool) -> TextAnalysis:
@@ -239,12 +273,12 @@ class SentinelEngine:
         mag = max(0.0, abs(blended) - deadzone) / (1.0 - deadzone)
         score = max(-1.0, min(1.0, math.copysign(mag, blended)))
         label = label_for(score)
-        confidence = self._confidence(ev, raw, mass, fin, vader, blended, label, deadzone)
+        confidence = self._confidence(ev, raw, mass, fin, vader, blended, label, deadzone, social)
         drivers = self._drivers(ev, w_fin, w_vader, vader if not values else 0.0, social)
         return TextAnalysis(score=round(score, 4), label=label, confidence=round(confidence, 3), drivers=drivers)
 
     def _confidence(self, ev: Evidence, raw: float, mass: float, fin: float, vader: float, blended: float,
-                    label: Label, deadzone: float) -> float:
+                    label: Label, deadzone: float, social: bool) -> float:
         n_words = sum(1 for t in ev.tokens if t.kind == "w")
         shape = 1.0
         if ev.question:
@@ -258,11 +292,17 @@ class SentinelEngine:
         elif n_words > 80:
             shape *= 0.85
         if label == "neutral":
-            # certain when there is simply no evidence; less so when it is weak or cancels out
-            near = min(1.0, abs(blended) / (deadzone + NEUTRAL_BAND))
-            conf = 0.3 + 0.35 * (1.0 - near)
-            if mass > 0.6 and abs(raw) < 0.5 * mass:
-                conf *= 0.8  # mixed signals ("EPS beats, misses on revenue")
+            if not ev.hits and abs(blended) < 0.02:
+                # Nothing found. Whether that means "neutral" depends on the stream's base rate (on
+                # Twitter-train 94% of such texts are neutral, on FiQA headlines 19%), so claim no
+                # more than a coin flip - unless the text says "in line", "unchanged", ...
+                conf = NEUTRAL_CUE_CONF if ev.neutral_cues else NO_EVIDENCE_CONF
+            else:
+                # weak evidence under the dead zone: less sure the closer it gets to the edge
+                near = min(1.0, abs(blended) / (deadzone + NEUTRAL_BAND))
+                conf = 0.3 + 0.3 * (1.0 - near) + (0.1 if ev.neutral_cues else 0.0)
+                if mass > 0.6 and abs(raw) < 0.5 * mass:
+                    conf *= 0.8  # mixed signals ("EPS beats, misses on revenue")
             return max(0.05, min(0.95, conf * (0.85 + 0.15 * shape)))
         strength = 1.0 - math.exp(-abs(raw) / 0.9) if mass else 0.25 * abs(vader)
         consistency = abs(raw) / mass if mass else 0.5
@@ -271,8 +311,8 @@ class SentinelEngine:
             agree = 0.75
         elif abs(vader) >= 0.2 and fin:
             agree = 1.08
-        conf = (0.3 + 0.7 * strength) * (0.55 + 0.45 * consistency) * agree * shape
-        return max(0.05, min(0.98, conf))
+        conf = max(0.05, min(0.98, (0.3 + 0.7 * strength) * (0.55 + 0.45 * consistency) * agree * shape))
+        return conf if social else _interpolate(conf, NEWS_POLAR_CALIBRATION)
 
     def _drivers(self, ev: Evidence, w_fin: float, w_vader: float, vader_only: float,
                  social: bool) -> list[tuple[str, float]]:
@@ -299,6 +339,18 @@ class SentinelEngine:
         ranked = sorted(merged.items(), key=lambda kv: -abs(kv[1]))
         return [(term, round(max(-1.0, min(1.0, impact)), 3)) for term, impact in ranked
                 if abs(impact) >= 0.01][:MAX_DRIVERS]
+
+
+def _interpolate(x: float, knots: tuple[tuple[float, float], ...]) -> float:
+    """Piecewise-linear map through ``knots`` (proportional below the first, flat above the last)."""
+    x0, y0 = knots[0]
+    if x <= x0:
+        return x * y0 / x0
+    for x1, y1 in knots[1:]:
+        if x <= x1:
+            return y0 + (y1 - y0) * (x - x0) / (x1 - x0)
+        x0, y0 = x1, y1
+    return y0
 
 
 def _fold_nested(merged: dict[str, float]) -> None:

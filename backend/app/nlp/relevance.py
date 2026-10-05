@@ -7,13 +7,20 @@ weighs evidence per mention instead of string-matching:
 
     1.00  cashtag ($NVDA, $BTC.X)
     0.95  exchange-qualified / parenthesized ticker ("(NASDAQ: NVDA)", "(TGT)")
-    0.90  bare ticker token (never for word-like tickers: ALL, IT, ON, NOW, A, T, F …)
+    0.90  bare ticker token (never for word-like tickers: ALL, IT, ON, NOW, A, T, F …,
+          except right before "stock"/"shares": "MU stock soars")
+    0.85  social tag ("#NVDA", "#Bitcoin", "$NVIDIA")
     0.80  company name used as a company (+0.10 when it is the headline subject)
+    0.60  index funds (SPY, QQQ): market-wide news ("Stocks Settle Higher as …")
     0.55  ambiguous common-word name with finance/industry context but no
           decisive cue; 0.25 without context; ~0 when every mention is a
           non-company sense (collocations like "price target", "block party")
+    ≤0.45 named only as context for another entity ("Tesla rival Nikola files
+          for bankruptcy", "… after delays in AT&T deal")
     ×0.75 when another company is the subject ("Cerebras stock … on Nvidia pressure")
-    ≤0.40 roundups/listicles (≥ 4 cashtags, "3 AI Chip Stocks To Watch", "X, Y, Z and More")
+    ≤0.40 roundups/listicles (≥ 4 cashtags, "3 AI Chip Stocks To Watch", "X, Y, Z and More"),
+          unless the company leads the headline ("Bitcoin beats Gold, SPY, Silver, QQQ");
+          0.30 when it is one tag in a hashtag soup
 
 Common-word names (Apple, Target, Meta, Block, Snap, Visa, Shell, Amazon,
 Oracle, Ford …) are matched case-sensitively and need positive context
@@ -34,7 +41,8 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 
 from app.nlp.events import is_known_firm
-from app.nlp.text import fold, is_mostly_upper, wordset
+from app.nlp.text import COMMON_HEADLINE_WORDS, HEADLINE_VERBS, MOVE_WORDS, STOPWORDS, fold, is_mostly_upper, \
+    is_title_case, wordset
 from app.sources.base import CompanyRef
 
 # --------------------------------------------------------------------------- #
@@ -85,6 +93,11 @@ _FUND_ISSUERS_RE = re.compile(r"^(?:SPDR|iShares|Vanguard|Invesco|ProShares|Dire
                               r"WisdomTree|First Trust|Select Sector SPDR)\s+", re.IGNORECASE)
 _FUND_WORDS_RE = re.compile(r"\s+(?:ETF|Trust|Fund|Index Fund|Shares|ETF Trust)\b.*$", re.IGNORECASE)
 
+# Ceiling for a company named only as context for another entity ("Tesla rival
+# Nikola files for bankruptcy"): kept as background (above the 0.35 feed cut) but
+# below the 0.5 that event insights require.
+CONTEXT_ONLY_MAX = 0.45
+
 # Common given names: "Katrina Ford", "Priscilla Block" are people, not companies.
 FIRST_NAMES = wordset("""
 aaron adam alan albert alex alexander alice amanda amy andrew angela anna anne anthony ashley barbara ben benjamin
@@ -99,9 +112,14 @@ martin mary matt matthew megan melissa michael michelle mike nancy natalie natha
 patricia patrick paul peter philip priscilla rachel ralph randy raymond rebecca richard rick rob robert roger ronald
 rose roy russell ruth ryan sam samantha samuel sandra sara sarah scott sean sharon shirley sophia stephanie stephen
 steve steven susan teresa terry thomas tim timothy tina todd tom tony tyler victoria vincent virginia walter wayne
-william zachary
+william zachary francis troy coppola stallone sylvester harvey leonard lloyd marcus maurice morgan nick nolan oscar
+otis owen preston quentin reggie rex rodney roland ross russ sebastian seth shane spencer stanley stuart ted theodore
+toby trevor tyson vince warren wendell wesley whitney willie xavier zach zoe chloe ella grace hazel isla ivy jasmine
+kayla kylie leah lily lucy maya mia nora paige piper quinn riley ruby sadie stella tessa violet willow amber april
+autumn brooke carly dana darcy eden faith gemma hope iris jade june kara lacey leslie mabel nadia opal pearl rae
+reese sienna summer tara vera wren yvonne
 """)
-DETERMINERS = wordset("""the a an its their his her our your this that these those my own new every each any no some
+DETERMINERS = wordset("""the a an its their his her our your this these those my own new every each any no some
 same price stock key main primary easy prime next latest fresh lost moving soft hard upper lower""")
 
 # Words that, right after a name, mean "the company".
@@ -114,6 +132,7 @@ _COMPANY_FOLLOWERS = (
     r"patents?|verdict|trial|case|suit|antitrust|probe|settlement|fine|ruling|appeal|partners?|suppliers?|rivals?|"
     r"competitors?|event|keynote|ai|chips?|software|hardware|ecosystem|services|ads|advertising|cloud|campus|"
     r"smartphones?|phones?|earnings call|growth|margins?|buyback|dividend|turnaround|strategy|leadership|"
+    r"data cent(?:er|re)s?|glasses|headsets?|"
     r"price targets?|price objectives?|target prices?|pts?|ratings?|short interest"
 )
 _FOLLOWER_RE = re.compile(rf"^\s+(?:{_COMPANY_FOLLOWERS})\b(?!-)", re.IGNORECASE)
@@ -132,14 +151,19 @@ _HYPHEN_MODIFIER_RE = re.compile(r"^-(?:backed|owned|funded|led|linked|related|s
 # Appositives: "Tesla rival Nikola", "Super Micro, a key Nvidia partner", "Nvidia's
 # server partner Wistron". Up to two descriptive words may sit in between, never
 # a conjunction or verb ("Apple and its suppliers" is still about Apple).
-_MODIFIER_AFTER_RE = re.compile(
+_ROLE_AFTER_RE = re.compile(
     r"^(?:'s)?\s+(?:(?!(?:and|or|its|their|his|her|with|to|for|of|is|are|was|were|has|have|says?|said|will|"
     r"shares|stock)\b)[\w-]+\s+){0,2}?(?:rivals?|peers?|competitors?|challengers?|suppliers?|vendors?|partners?|"
-    r"licensees?|investees?|backers?|allies|ally|contractors?|portfolio compan(?:y|ies)|spin-?offs?)\b"
-    r"(?!\s+(?:with|on|in|to|for|program|programs|network|summit|day|event|portal|conference)\b)"
-    r"|^(?:'s)?\s+(?:customers?|clients?)\s+(?-i:[A-Z])",
+    r"licensees?|investees?|backers?|allies|ally|contractors?|portfolio compan(?:y|ies)|spin-?offs?|"
+    r"customers?|clients?)\b"
+    r"(?!\s+(?:with|on|in|to|for|program|programs|network|summit|day|event|portal|conference)\b)",
     re.IGNORECASE,
 )
+# "..., a key Nvidia partner" / "..., Nvidia server partner": the appositive
+# describes the entity before the comma.
+_APPOSITIVE_BEFORE_RE = re.compile(r"[\w)],\s+(?:(?:a|an|the|another|fellow|longtime|key|major|big)\s+){0,2}$",
+                                   re.IGNORECASE)
+_NAMED_AFTER_RE = re.compile(r"\s+(\$?(?-i:[A-Z])[\w&.'-]*)")
 # Background mentions after the main clause: "... after delays in AT&T spectrum
 # deal", "... as AT&T deal stalls", "... amid Apple trade talks".
 _ADJUNCT_BEFORE_RE = re.compile(r"\b(?:after|amid|despite|following|as|while|in|over|with|before|since)\s+"
@@ -147,19 +171,43 @@ _ADJUNCT_BEFORE_RE = re.compile(r"\b(?:after|amid|despite|following|as|while|in|
 _ADJUNCT_AFTER_RE = re.compile(r"^(?:'s)?\s+(?:[\w-]+\s+)?(?:deal|deals|transaction|merger|takeover|acquisition|"
                                r"spectrum|contract|tie-up|agreement|partnership|order|orders|bid|talks|"
                                r"negotiations|dispute)\b", re.IGNORECASE)
+_VERBISH = HEADLINE_VERBS | MOVE_WORDS | COMMON_HEADLINE_WORDS | STOPWORDS
 
 
 def _mention_role(text: str, start: int, end: int) -> tuple[bool, bool]:
-    """(modifier, adjunct) for a company mention at [start, end) — see Mention."""
+    """(modifier, adjunct) for a company mention at [start, end) — see Mention.
+
+    A role noun after the name ("Tesla rival", "Nvidia partner") marks a
+    modifier only when it describes someone else: another name follows
+    ("Tesla rival Nikola files …") or it is an appositive after a comma
+    ("Super Micro, a key Nvidia partner"). "Apple's suppliers face tariffs"
+    and "Tesla rivals struggle" stay about the company."""
     after = text[end:end + 60]
-    modifier = bool(_HYPHEN_MODIFIER_RE.match(after) or _MODIFIER_AFTER_RE.match(after))
+    modifier = bool(_HYPHEN_MODIFIER_RE.match(after))
+    role = None if modifier else _ROLE_AFTER_RE.match(after)
+    if role:
+        if _APPOSITIVE_BEFORE_RE.search(text[max(0, start - 40):start]):
+            modifier = True
+        else:
+            named = _NAMED_AFTER_RE.match(after[role.end():])
+            word = named.group(1).lower() if named else ""
+            modifier = bool(named) and (not is_title_case(text) or word.lstrip("$") not in _VERBISH)
     adjunct = False
     if not modifier and len(text[:start].split()) >= 3:
-        clause = re.split(r"[.;:!?|]\s|\s-\s", text[:start])[-1]
+        clauses = re.split(r"[.;:!?|]\s|\s-\s", text[:start])
+        clause = clauses[-1]
         lead = re.match(r"\s*([A-Z][\w&.'-]*)", clause)
         adjunct = bool(_ADJUNCT_BEFORE_RE.search(clause) and _ADJUNCT_AFTER_RE.match(after) and lead
                        and lead.group(1).lower() not in _GENERIC_LEAD_WORDS)
+        # "Dish DBS files for bankruptcy protection; AT&T transaction delayed": the
+        # company's deal is the backdrop of another entity's story.
+        first = re.match(r"\s*([A-Z][\w&.'-]*)", text)
+        adjunct = adjunct or bool(len(clauses) > 1 and not clause.strip() and _ADJUNCT_AFTER_RE.match(after) and first
+                                  and first.group(1).lower() not in _GENERIC_LEAD_WORDS
+                                  and first.start(1) != start)
     return modifier, adjunct
+
+
 # Analyst/transaction verbs immediately before a name: "HSBC upgrades Target".
 _STRONG_BEFORE_RE = re.compile(
     r"(?:upgrades?|downgrades?|upgraded|downgraded|initiates?(?: coverage)?(?: on| of)?|coverage (?:on|of)|"
@@ -167,7 +215,27 @@ _STRONG_BEFORE_RE = re.compile(
     r"own|owning|bought|sold|vs\.?|versus|sues?|sued|suing|acquires?|acquiring|backs|likes|prefers|favors|"
     r"names|picks|loves|hates|dumps|trims|adds|boosts stake in|cuts stake in|praises|beats|joins|"
     r"(?:invest(?:ed|ing|s)?|stake|position|bet|bets|betting|exposure) in|shares of|stock of|bullish on|bearish on|"
-    r"(?:loading|loads|load|loaded) up on|pil(?:es|ing|ed) into|bets? on|betting on|long on|short on)\s*$",
+    r"(?:loading|loads|load|loaded) up on|pil(?:es|ing|ed) into|bets? on|betting on|long on|short on|"
+    # legal and regulatory actions taken against the company
+    r"fines?|fined|penali[sz]es|penali[sz]ed|charges?|charged|accuses?|accused|probes?|probed|"
+    r"investigates?|investigated|blocks?|blocked|bans?|banned|"
+    r"(?:penalt(?:y|ies)|damages|fine|settlement|payment|lawsuit|suit|claims?) (?:from|against)|"
+    r"(?:jury|judge|court|regulators?) (?:finds|found|rules|ruled|orders|ordered)|catches up with|against)\s*$",
+    re.IGNORECASE,
+)
+# "wants Meta to pay $40B", "orders Apple to open its App Store": the name is the
+# object of a demand.
+_DEMAND_BEFORE_RE = re.compile(r"\b(?:wants|asks|urges|forces|forced|requires|required|tells|told|orders|ordered|"
+                               r"pushes|pushed|presses|pressed|compels|compelled)\s*$", re.IGNORECASE)
+# Coordinated subjects: "Ford and JPMorganChase launch", "Ford, JPMorgan Chase and
+# Michigan establish $3B initiative".
+_COORDINATED_RE = re.compile(r"^\s*(?:,|and|&)\s+(?:(?-i:[A-Z])[\w&.'-]*\s+){1,3}(?:(?:,\s*)?(?:and|&)\s+"
+                             r"(?:(?-i:[A-Z])[\w&.'-]*\s+){1,3})?(?=\S)", re.IGNORECASE)
+_PLURAL_VERB_RE = re.compile(
+    r"^(?:launch|establish|form|sign|team|partner|unveil|announce|agree|join|build|create|open|plan|win|face|settle|"
+    r"sue|recall|cut|raise|invest|expand|hike|slash|report|post|beat|miss|strike|ink|back|bet|push|take|make|are|"
+    r"have|will|to|say|see|deny|lose|clash|spar|compete|race|merge|unite|split|call|warn|weigh|eye|seek|reach|"
+    r"[a-z]+ed)\b",
     re.IGNORECASE,
 )
 # A verb right after a sentence-initial name: "Target Slashes Prices", "Meta taps".
@@ -187,8 +255,15 @@ _MID_VERB_RE = re.compile(
     r"resumes|files|wins|won|hit|lost|got|made|took|sold|bought|led|paid|rose|fell|sank)\b(?!-)",
     re.IGNORECASE,
 )
+# For a capitalized (case-sensitive) name, any past-tense verb after it marks the
+# subject: "Overnight, Meta deleted all her accounts".
+_PAST_VERB_RE = re.compile(r"^\s+(?-i:[a-z]{3,}ed)\b(?!-)")
+# Clause openings: sentence/clause punctuation, or a reported-speech "that"
+# ("Analysts say that Apple will raise prices" — not a relative "the buyback
+# that Apple unveiled").
 _CLAUSE_START_RE = re.compile(
-    r"(?:^|[:;.!?|]\s*|\s-\s)(?:(?:why|how|what|when|where|will|can|could|should|would|is|does|did|has|"
+    r"(?:^|[:;.!?|,]\s*|\s-\s|\b(?:says?|said|warn(?:s|ed)?|believes?|thinks?|shows?|means?|argues?|claims?|"
+    r"notes?|told \w+)\s+(?:that\s+)?)(?:(?:why|how|what|when|where|will|can|could|should|would|is|does|did|has|"
     r"here's|as|after|while|because|if|but|and|so)\s+){0,2}$",
     re.IGNORECASE,
 )
@@ -209,12 +284,31 @@ _TICKER_CONTEXT_RE = re.compile(
     r"after-hours|short interest|valuation|dividend|buyback|bullish|bearish|ipo|q[1-4]|quarter)\b",
     re.IGNORECASE,
 )
+# Nouns that confirm a bare word-like/short ticker: "MU stock soars", "GE shares".
+_TICKER_NOUNS = r"(?:stock|stocks|shares|calls|puts|earnings|options|price target|short interest)"
+# Index ETFs whose news is the market itself ("Stock futures rise", "Wall Street's AI party").
+_BROAD_INDEX_RE = re.compile(r"s&p 500|s&p500|nasdaq[- ]?100|nasdaq composite|dow jones industrial|\bdow\b|"
+                             r"russell (?:1000|2000|3000)|total (?:stock|us|u\.s\.) market|s&p total market|"
+                             r"msci (?:world|acwi|usa)|wilshire 5000|s&p midcap 400|s&p smallcap 600", re.IGNORECASE)
+# The market itself as the subject — not a sector ("Chip Stocks Extend Their Run")
+# or a backdrop ("Crushed the Market").
+_MARKET_WIDE_RE = re.compile(
+    r"\b(?:the )?stock market\b|\bwall street(?!'s? (?:analysts?|estimates?|expectations?|forecasts?|targets?|zen))\b|"
+    r"\b(?:stock|equity|index|dow(?: jones)?|nasdaq|s&p(?: 500)?) futures\b|\b(?:dow jones|dow|nasdaq|s&p 500|s&p)\b|"
+    r"(?:^|[:;,.!?]\s*|\b(?:as|while|but|after|says?|said)\s+)(?:u\.?s\.?\s+|us\s+|global\s+|world\s+)?"
+    r"(?:stocks|equities)\s+(?:\w+ly\s+)?(?:rally|rallies|rise|rises|fall|falls|climb|climbs|slide|slides|settle|"
+    r"settles|close|closes|end|ends|open|opens|rebound|rebounds|erase|erases|push|pushed|pressured|mixed|higher|lower|"
+    r"edge|edges|extend|extends|surge|surges|tumble|tumbles|sink|sinks|drop|drops|gain|gains|slump|slumps|jump|jumps|"
+    r"retreat|retreats|waver|wavers|stall|stalls|fall|steady|flat)\b|"
+    r"\bbroader market\b|\b(?:bull|bear) market\b|\bmarket (?:correction|crash|rally|selloff|sell-off|rout)\b",
+    re.IGNORECASE,
+)
 _LISTICLE_RE = re.compile(
     r"\b(?:[2-9]|1[0-9]|20|two|three|four|five|six|seven|eight|nine|ten|dozen|several|these)\s+"
     r"(?:(?!hours?|days?|weeks?|months?|years?)[\w&'-]+\s+){0,3}?"
-    r"(?:stocks|names|picks|companies|equities|tickers|chipmakers|plays|buys|etfs)\b"
+    r"(?:stocks|names|picks|companies|equities|tickers|chipmakers|plays|buys)\b"
     r"|\b(?:[1-9]|1[0-9]|20)\s+(?:[\w&'-]+\s+){0,3}?stock\s+(?:to|that|you|we|i)\b"
-    r"|\b(?:stocks? to (?:buy|watch|sell|avoid|own)|stocks? that explain|stock movers|biggest (?:movers|moves)|"
+    r"|\b(?:stocks to (?:buy|watch|sell|avoid|own)|stocks? that explain|stock movers|biggest (?:movers|moves)|"
     r"(?:midday|premarket|after-hours) movers|top (?:gainers|losers)|most active|trending stocks|"
     r"top midday stories|morning squawk|weekly review|week ahead|market wrap|and more:|and more stocks|"
     r"stocks making the biggest moves|earnings to watch|what to watch)\b",
@@ -222,6 +316,7 @@ _LISTICLE_RE = re.compile(
 )
 _COMMA_LIST_RE = re.compile(r"(?:\b[A-Z][\w&.'-]*(?:\s[A-Z][\w&.'-]*){0,2},\s+){3,}")
 _TICKER_LIST_RE = re.compile(r"(?:\b[A-Z]{2,5},\s*){3,}[A-Z]{2,5}\b")
+_HASHTAG_RE = re.compile(r"(?<![\w#])#(\w{2,})")
 _CASHTAG_RE = re.compile(r"(?<![\w$])\$([A-Z][A-Z0-9]{0,5}(?:[.\-][A-Z]{1,3})?)\b")
 _QUALIFIED_RE_T = (r"(?:\b(?:NASDAQ|NYSE|NYSEARCA|NYSEAMERICAN|AMEX|OTC|OTCMKTS|TSX|TSXV|LSE|ASX|CBOE|BATS)\s?:\s?{t}\b"
                    r"|\b{t}\s?:\s?(?:NASDAQ|NYSE|US|CA)\b|\({t}(?:\.[A-Z]{{1,3}})?\)|\b{t}\.US\b)")
@@ -292,7 +387,7 @@ NAME_RULES: dict[str, NameRule] = {
                   "maps", "news", "books", "id", "park", "newsroom", "support"),
     ),
     "meta": NameRule(
-        negative=r"\bmeta[- ](?:analysis|analyses|analytic|data|description|tags?|review|regression|learning|"
+        negative=r"\bmeta[- ](?:analysis|analyses|analytic|data(?! cent(?:er|re)s?)|description|tags?|review|regression|learning|"
                  r"narrative|commentary|game|strategy|joke|humor|level|cognition)\b|\bmeta materials\b|"
                  r"\bmeta financial\b|\b(?:very|so|too|pretty|kinda) meta\b",
         cues=r"\b(?:facebook|instagram|whatsapp|threads|zuckerberg|reality labs|llama|oculus|quest|ray-ban|"
@@ -492,6 +587,13 @@ _TICKER_CUES: dict[str, str] = {
     "GOOGL": r"\b(?:sundar pichai|pichai|youtube|waymo|gemini|deepmind|android)\b",
     "GOOG": r"\b(?:sundar pichai|pichai|youtube|waymo|gemini|deepmind|android)\b",
     "AMZN": r"\b(?:andy jassy|jassy|aws|bezos|kuiper|alexa)\b",
+    # bank chiefs: "JPMorgan's Dimon warns ..." is the bank's own news, not research
+    "JPM": r"\b(?:jamie dimon|dimon)\b",
+    "GS": r"\b(?:david solomon|solomon|john waldron|waldron)\b",
+    "MS": r"\b(?:ted pick|(?-i:Pick)(?= says| warns| sees| expects))\b",
+    "BAC": r"\b(?:brian moynihan|moynihan)\b",
+    "C": r"\b(?:jane fraser|fraser)\b",
+    "WFC": r"\b(?:charlie scharf|scharf)\b",
 }
 
 
@@ -523,6 +625,9 @@ class _Matcher:
     industry_cues: re.Pattern[str] | None
     own_words: frozenset[str]  # lower-case words that belong to the company names
     broker: bool = False  # a brokerage: its name also appears as the author of research on others
+    hashtag: re.Pattern[str] | None = None  # "#NVDA", "#Bitcoin", "$NVIDIA"
+    confirmed_bare: re.Pattern[str] | None = None  # short/word-like ticker + "stock": "MU stock soars"
+    index_fund: bool = False  # tracks a broad index (SPY, QQQ): market-wide news is about it
 
 
 @dataclass(frozen=True)
@@ -658,7 +763,26 @@ def _matcher_for(ticker: str, name: str, short_name: str, aliases: tuple[str, ..
         industry_cues=industry_cues,
         own_words=own_words,
         broker=any(is_known_firm(n) for n in (name, short_name, *aliases) if n),
+        hashtag=_hashtag_pattern(symbols, variants, base_symbol),
+        confirmed_bare=(re.compile(rf"(?<![\w$#@/.-])(?:{sym_alt})(?=\s+{_TICKER_NOUNS}\b)")
+                        if word_like and base_symbol not in WORD_TICKERS and len(base_symbol) >= 2 else None),
+        index_fund=quote_type in {"ETF", "INDEX", "MUTUALFUND"} and bool(
+            _BROAD_INDEX_RE.search(" ".join((name, short_name, *aliases)))),
     )
+
+
+def _hashtag_pattern(symbols: tuple[str, ...], variants: list[_NameVariant], base_symbol: str) -> re.Pattern[str] | None:
+    """Social tags for the company: "#NVDA", "#Bitcoin", "#BTC", "$NVIDIA" (a
+    name written as a cashtag). Word-like tickers ("#AI") and common-word names
+    ("#Apple") stay out."""
+    alts = [re.escape(sym) for sym in symbols if base_symbol not in WORD_TICKERS and len(sym) >= 2]
+    names = [re.escape(v.text.replace(" ", "")) for v in variants if not v.ambiguous and len(v.text) >= 3]
+    parts = [f"#(?:{'|'.join(alts)})"] if alts else []
+    if names:
+        parts.append(f"[#$](?:{'|'.join(names)})")
+    if not parts:
+        return None
+    return re.compile(rf"(?<![\w#$&])(?:{'|'.join(parts)})(?![\w&])", re.IGNORECASE)
 
 
 def _matcher(company: CompanyRef) -> _Matcher:
@@ -704,19 +828,41 @@ def _classify(text: str, start: int, end: int, variant: _NameVariant, matcher: _
     next_word = re.match(r"\s+([A-Za-z]+)", after)
     products = variant.rule.products if variant.rule else ()
     prev = re.search(r"([A-Za-z$][\w'$.]*)\s+$", before)
-    if prev and prev.group(1)[:1].isupper() and prev.group(1).lower() in FIRST_NAMES:
-        return -1  # a person: "Katrina Ford", "Ken Block"
+    if prev and prev.group(1)[:1].isupper() and _is_given_name(prev.group(1), text, start - len(prev.group(0))):
+        return -1  # a person: "Katrina Ford", "Francis Ford Coppola", "Ken Block"
     if _FOLLOWER_RE.match(after) or (next_word and next_word.group(1).lower() in products):
+        return 1
+    if not text[:start].strip() and re.match(r"^:\s+[A-Z0-9\"']", after):
+        return 1  # Seeking Alpha style "Meta: Muse Is Nice, But Not Enough"
+    if _POSSESSIVE_RE.match(after) or _STRONG_BEFORE_RE.search(before):
+        return 1
+    if _DEMAND_BEFORE_RE.search(before) and re.match(r"^\s+to\s+[a-z]", after, re.IGNORECASE):
         return 1
     if prev and prev.group(1).lower().removesuffix("'s") in DETERMINERS:
         return -1
-    if _POSSESSIVE_RE.match(after) or _STRONG_BEFORE_RE.search(before):
-        return 1
     # Subject followed by a verb: "Target Slashes Prices", "jury says Apple owes".
     clause_start = _CLAUSE_START_RE.search(before) is not None
-    if (clause_start and _SUBJECT_VERB_RE.match(after)) or _MID_VERB_RE.match(after):
+    if clause_start and (_SUBJECT_VERB_RE.match(after) or _PAST_VERB_RE.match(after)):
         return 1
+    if _MID_VERB_RE.match(after):
+        return 1
+    coordinated = _COORDINATED_RE.match(after)
+    if clause_start and coordinated and _PLURAL_VERB_RE.match(after[coordinated.end():]):
+        return 1  # "Ford and JPMorganChase launch Michigan LIFT"
     return 0
+
+
+def _is_given_name(word: str, text: str, pos: int) -> bool:
+    """A capitalized word that reads as a person's first name: a known given
+    name, or — in sentence case, where capitals carry information — any
+    capitalized word that is not the first of its sentence and not a known
+    company ("I'm Troy Ford", "says Priscilla Block")."""
+    low = word.lower()
+    if low in FIRST_NAMES:
+        return True
+    if is_title_case(text) or is_known_firm(word) or low in _VERBISH or low in AMBIGUOUS_NAMES:
+        return False
+    return not re.search(r"(?:^|[.!?:;]\s*|[\"(]\s*)$", text[:pos]) and word.isalpha()
 
 
 # --------------------------------------------------------------------------- #
@@ -742,7 +888,6 @@ _ACTOR_AFTER_RE = re.compile(
     r"|^(?:'s|')?\s+(?:best|top|favou?rite|highest[- ]conviction)\s+(?:stock\s+)?(?:ideas|picks)\b"
     r"|^(?:'s|')?\s+(?:[\w-]+\s+)?(?:conviction|focus|top picks?|best ideas|director'?s cut)\s+list\b"
     r"|^\s+(?:downgrade|upgrade|price target|target (?:increase|cut|hike|raise)s?|note|call)\b"
-    r"|^'s\s+(?-i:[A-Z])[\w.'-]+(?:\s+(?-i:[A-Z])[\w.'-]+)?\s+(?:says?|sees?|warns?|expects?|thinks?)\b"
     r"|^(?:'s)?\s+(?:[\w.&'-]+\s+){0,3}?(?:etfs?|etf trust|icav|ucits|fund|funds)\b",
     re.IGNORECASE,
 )
@@ -762,10 +907,15 @@ _MARKET_WORDS_RE = re.compile(
     re.IGNORECASE,
 )
 _OWN_BUSINESS_RE = re.compile(
-    r"\b(?:its|own|our)\b|\b(?:inflows?|outflows?|deposits?|net interest|nii|loan growth|fees?|trading revenue|"
-    r"investment banking|wealth (?:unit|management|business)|clients?|headcount|branches|card)\b",
+    r"\b(?:its|own|our|the bank|the firm|the company)\b|\b(?:inflows?|outflows?|deposits?|net interest|nii|loan growth|"
+    r"fees?|trading revenue|investment banking|wealth|clients?|headcount|branches|card|jobs|hiring|hire|layoffs|"
+    r"employees|staff|bonus(?:es)?|pay|succession|board|ceo|aum|assets under management|capital|cet1|rotce|roe|"
+    r"profitability|efficiency|expenses?|costs?)\b",
     re.IGNORECASE,
 )
+# "JPMorgan's Kolanovic says stocks will fall" (research) vs "JPMorgan's Dimon warns ...".
+_PERSON_SAYS_RE = re.compile(r"^'s\s+(?P<who>(?-i:[A-Z])[\w.'-]+(?:\s+(?-i:[A-Z])[\w.'-]+)?)\s+(?:says?|sees?|warns?|"
+                             r"expects?|thinks?)\b(?P<rest>[^.;:!?]{0,70})", re.IGNORECASE)
 
 
 # Before the name: something was done *by/at/from* the firm, or another firm hires its people.
@@ -779,7 +929,7 @@ _ACTOR_BEFORE_RE = re.compile(
 )
 
 
-def _broker_actor(text: str, start: int, end: int) -> bool:
+def _broker_actor(text: str, start: int, end: int, own_people: re.Pattern[str] | None = None) -> bool:
     """True when a brokerage's name appears as the author of research or a
     market call — "JPMorgan downgrades PepsiCo", "Target Lowered at
     JPMorgan", "...: JPMorgan", "JPMorgan's best stock ideas" — or names its
@@ -787,8 +937,19 @@ def _broker_actor(text: str, start: int, end: int) -> bool:
     after = re.sub(r"^(?:\s*&\s*co\b|\s+chase(?:\s*&\s*co\b)?|,?\s*inc\b)?\.?", "", text[end:end + 90],
                    flags=re.IGNORECASE)
     before = text[max(0, start - 50):start]
-    if _ACTOR_AFTER_RE.match(after) or _ACTOR_BEFORE_RE.search(before):
+    actor = _ACTOR_AFTER_RE.match(after)
+    if actor and not (re.search(r"\bsets?\b", actor.group(0), re.IGNORECASE)
+                      and _OWN_BUSINESS_RE.search(actor.group(0))):  # "sets new wealth management target"
         return True
+    if _ACTOR_BEFORE_RE.search(before):
+        return True
+    person = _PERSON_SAYS_RE.match(after)
+    if person:
+        if own_people and own_people.search(person.group("who")):
+            return False  # its own executive: "JPMorgan's Dimon warns of cockroaches"
+        rest = person.group("rest")
+        return bool((re.search(r"\s(?-i:[A-Z])[\w.&'-]{2,}", rest) or _MARKET_WORDS_RE.search(rest))
+                    and not _OWN_BUSINESS_RE.search(rest))
     soft = _SOFT_ACTOR_RE.match(after)
     if soft:
         rest = soft.group("rest")
@@ -818,11 +979,18 @@ def _other_subject_first(text: str, first_pos: int, matcher: _Matcher) -> bool:
     return False
 
 
-def _is_roundup(text: str) -> bool:
+def _is_roundup(text: str, subject_end: int = -1) -> bool:
+    """Multi-stock roundups, listicles and hashtag-stuffed posts. A list that
+    follows the company as the headline's subject is about the company
+    ("Bitcoin beats Gold, SPY, Silver, QQQ in Iran war"; "Bitcoin: ETF
+    Inflows, Fed Hikes, ...")."""
     tags = {m.group(1).upper() for m in _CASHTAG_RE.finditer(text)}
-    if len(tags) >= 4:
+    if len(tags) >= 4 or (subject_end < 0 and len({h.lower() for h in _HASHTAG_RE.findall(text)}) >= 4):
         return True
-    return bool(_LISTICLE_RE.search(text) or _COMMA_LIST_RE.search(text) or _TICKER_LIST_RE.search(text))
+    if _LISTICLE_RE.search(text):
+        return True
+    lists = [m for rx in (_COMMA_LIST_RE, _TICKER_LIST_RE) if (m := rx.search(text))]
+    return any(not (0 <= subject_end <= m.start()) for m in lists)
 
 
 def explain_relevance(text: str, company: CompanyRef) -> RelevanceResult:
@@ -837,6 +1005,7 @@ def explain_relevance(text: str, company: CompanyRef) -> RelevanceResult:
     spans: list[Mention] = []
     score = 0.0
     mentions = 0
+    subject_end = -1  # end of a headline-leading mention (the subject), if any
 
     def record(start: int, end: int) -> Mention:
         modifier, adjunct = _mention_role(t, start, end)
@@ -845,6 +1014,8 @@ def explain_relevance(text: str, company: CompanyRef) -> RelevanceResult:
         return mention
 
     for m in matcher.cashtag.finditer(t):
+        if subject_end < 0 and len(t[:m.start()].split()) <= 1:
+            subject_end = m.end()
         score = max(score, 1.0)
         positions.append(m.start())
         record(*m.span())
@@ -856,6 +1027,24 @@ def explain_relevance(text: str, company: CompanyRef) -> RelevanceResult:
         record(*m.span())
         mentions += 1
         evidence.append(f"qualified ticker {m.group(0).strip()}")
+    tag_hits = 0
+    if matcher.hashtag:
+        for m in matcher.hashtag.finditer(t):
+            tag_hits += 1
+            if subject_end < 0 and len(t[:m.start()].split()) <= 4 and not re.match(r"\s*[#$]", t[m.end():]):
+                subject_end = m.end()  # "🤖 AI Agent Upgrade: #AAPL is now a BUY" (not "#MU #ACN #LQDA ...")
+            score = max(score, 0.85)
+            positions.append(m.start())
+            record(*m.span())
+            mentions += 1
+            evidence.append(f"tag {m.group(0)}")
+    if matcher.confirmed_bare and score < 0.9 and not shouting:
+        for m in matcher.confirmed_bare.finditer(t):
+            score = max(score, 0.9)
+            positions.append(m.start())
+            record(*m.span())
+            mentions += 1
+            evidence.append(f"ticker {m.group(0)} + stock noun")
     if score < 0.9:
         bare = None
         if matcher.bare_upper and not (matcher.soft_ticker and shouting):
@@ -900,7 +1089,7 @@ def explain_relevance(text: str, company: CompanyRef) -> RelevanceResult:
                 continue
             taken.append(m.span())
             verdict = _classify(t, m.start(), m.end(), variant, matcher, neg_spans)
-            if verdict > 0 and matcher.broker and _broker_actor(t, m.start(), m.end()):
+            if verdict > 0 and matcher.broker and _broker_actor(t, m.start(), m.end(), matcher.brand_cues):
                 actor_mentions += 1
                 evidence.append(f"firm as research author '{m.group(0)}'")
                 continue
@@ -910,6 +1099,8 @@ def explain_relevance(text: str, company: CompanyRef) -> RelevanceResult:
                 mention = record(*m.span())
                 lead = t[:m.start()]
                 primary = len(lead.split()) <= 2 or re.match(r"^[^:]{0,40}:\s*$", lead) is not None
+                if primary and subject_end < 0 and len(lead.split()) <= 2:
+                    subject_end = m.end()
                 level = 0.9 if primary else 0.8
                 if mention.modifier or t[m.end():m.end() + 1] == "-":
                     # "Tesla rival Nikola", "Nvidia-backed CoreWeave", "Apple-designed": qualifies something else
@@ -959,16 +1150,24 @@ def explain_relevance(text: str, company: CompanyRef) -> RelevanceResult:
             # Only named as another entity's rival/partner/backer or in background
             # detail: "Tesla rival Nikola files for bankruptcy".
             result.secondary = True
-            score = min(score, 0.6) * (0.75 if any(s.adjunct for s in spans) else 1.0)
+            score = min(score, CONTEXT_ONLY_MAX)
             evidence.append("named only as context for another entity")
         elif _other_subject_first(t, min(positions), matcher):
             result.secondary = True
             score *= 0.75
             evidence.append("another company is the subject")
-        if _is_roundup(t):
+        if matcher.index_fund and _MARKET_WIDE_RE.search(t):
+            pass  # "Dow, S&P 500, Nasdaq Futures Rise ...: NKE, NFLX In Focus" is the index's own news
+        elif _is_roundup(t, subject_end):
             result.roundup = True
-            score = min(score, 0.4)
-            evidence.append("roundup/listicle")
+            only_tags = tag_hits == mentions and name_level == 0.0
+            score = min(score, 0.3 if only_tags else 0.4)  # one label in a hashtag soup says little
+            evidence.append("hashtag soup" if only_tags else "roundup/listicle")
+    if (matcher.index_fund and score < 0.6 and _MARKET_WIDE_RE.search(t) and not _LISTICLE_RE.search(t)
+            and not _OTHER_SUBJECT_RE.match(t)):
+        score = 0.6
+        result.secondary = False
+        evidence.append("market-wide news (index fund)")
     result.score = round(score, 3)
     return result
 
@@ -990,23 +1189,54 @@ def brand_cue_mentions(text: str, company: CompanyRef) -> list[Mention]:
     return [Mention(m.start(), m.end()) for m in matcher.brand_cues.finditer(fold(text))]
 
 
+# Name words that are everyday vocabulary: "First Solar" should not hide "solar",
+# nor "American Airlines" hide "airlines", from keywords and story features.
+_COMMON_NAME_WORDS = wordset("""
+american first general national united international global solar energy airlines airline motors motor technologies
+technology systems financial holdings bank banks bancorp group health healthcare pharmaceuticals pharmaceutical
+therapeutics semiconductor semiconductors devices micro advanced platforms communications networks network software
+foods food brands entertainment resources industries materials capital partners realty properties trust insurance
+services solutions labs sciences biosciences medical petroleum oil gas power electric water steel mining gold silver
+digital data cloud security robotics auto automotive aerospace defense cruise hotels resorts restaurants pharma bio
+new home homes depot stores store mobile wireless media interactive enterprises corporation company the of and
+""")
+
+
 @lru_cache(maxsize=256)
 def _terms_for(ticker: str, name: str, short_name: str, aliases: tuple[str, ...]) -> frozenset[str]:
     words: set[str] = set()
     base = ticker.split("-")[0].split(".")[0].lower()
     words.update({ticker.lower(), base, f"${base}"})
     for value in (name, short_name, *aliases):
-        cleaned = _clean_name(value or "").lower()
-        for w in re.findall(r"[a-z0-9&]+", cleaned):
-            if len(w) > 1:
-                words.add(w)
+        tokens = [w for w in re.findall(r"[a-z0-9&]+", _clean_name(value or "").lower()) if len(w) > 1]
+        if len(tokens) == 1:
+            words.update(tokens)  # "Nvidia", "Target", "AMD": the name itself
+        else:
+            words.update(w for w in tokens if w not in _COMMON_NAME_WORDS and w not in _VERBISH)
     return frozenset(words)
 
 
 def company_terms(company: CompanyRef | None) -> frozenset[str]:
-    """Lower-case tokens that name the company (ticker, cashtag, name words,
-    aliases). Used to keep the company's own name out of keywords/narrative
-    features."""
+    """Lower-case tokens that name the company (ticker, cashtag, one-word
+    names, the distinctive words of longer names). Used to keep the company's
+    own name out of keywords/narrative features; everyday words inside a
+    longer name ("solar" in First Solar) stay — `company_phrases` covers the
+    full name."""
     if company is None:
         return frozenset()
     return _terms_for(company.ticker, company.name or "", company.short_name or "", tuple(company.aliases or ()))
+
+
+@lru_cache(maxsize=256)
+def _phrases_for(name: str, short_name: str, aliases: tuple[str, ...]) -> tuple[str, ...]:
+    phrases = {" ".join(w for w in re.findall(r"[a-z0-9&]+", _clean_name(v or "").lower()) if len(w) > 1)
+               for v in (name, short_name, *aliases)}
+    return tuple(sorted((p for p in phrases if " " in p), key=len, reverse=True))
+
+
+def company_phrases(company: CompanyRef | None) -> tuple[str, ...]:
+    """Lower-case multi-word names of the company, longest first ("first
+    solar", "advanced micro devices"), for removal as whole phrases."""
+    if company is None:
+        return ()
+    return _phrases_for(company.name or "", company.short_name or "", tuple(company.aliases or ()))

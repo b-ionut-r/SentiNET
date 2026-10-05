@@ -108,8 +108,9 @@ def test_shared_member_articles_mean_not_new() -> None:
 
 
 def test_story_tone_is_anchored_on_its_headline() -> None:
-    # A catch-all cluster (live BTC case): a neutral headline plus unrelated bullish members.
-    # Its tone must follow the headline's core, and it must not serve as directional evidence.
+    # A catch-all cluster (live BTC case): a neutral headline plus bullish members holding most
+    # of the coverage. The headline that speaks for the bulk of the coverage fronts the story, so
+    # the tone shown is never one its headline does not carry.
     from app.analytics.narratives import _story
 
     items = prepare(ACME, [run(GOOGLE, [
@@ -119,15 +120,34 @@ def test_story_tone_is_anchored_on_its_headline() -> None:
         raw("Acme buyers love the strong rally as signals surge", 5, "Barron's"),
     ])], NOW).items
     rep = next(it for it in items if it.title.startswith("Acme faces"))
+    assert rep.score == 0.0
+    story = _story(rep, items, NOW)
+    assert story is not None and story.lead is not rep
+    assert story.narrative.headline == story.lead.title and story.lead.score > 0.3
+    assert story.narrative.score > 0.3 and story.core_share >= 0.5 and story.directional
+    assert story.narrative.count == 4  # the whole cluster still counts as coverage
+
+    aligned = _story(story.lead, [it for it in items if it.score > 0.3], NOW)
+    assert aligned is not None and aligned.directional and aligned.narrative.score > 0.3
+
+
+def test_mixed_story_keeps_its_headline_tone_and_is_not_evidence() -> None:
+    # No tone holds a majority: the headline keeps the story, its tone is the headline's own
+    # coverage (not the cluster mean), and the story is never quoted as directional evidence.
+    from app.analytics.narratives import _story
+
+    items = prepare(ACME, [run(GOOGLE, [
+        raw("Acme reviews its options for the chip unit", 2, "Reuters"),
+        raw("Acme chip unit options: strong rally and record surge", 3, "Bloomberg"),
+        raw("Acme chip unit options spark fraud probe and lawsuit", 3, "CNBC"),
+    ])], NOW).items
+    rep = next(it for it in items if it.title.startswith("Acme reviews"))
+    assert rep.score == 0.0
     story = _story(rep, items, NOW)
     assert story is not None and story.lead is rep
-    assert rep.score == 0.0 and abs(story.narrative.score) < 0.1  # the cluster mean is clearly bullish
-    assert story.spread > 0.35 and story.core_share < 0.5
+    assert story.core_share < 0.5 and story.spread > 0.35
+    assert story.narrative.score == 0.0 and story.narrative.label == "neutral"
     assert not story.directional
-
-    bullish_rep = next(it for it in items if it.title.startswith("Acme reversal signals"))
-    aligned = _story(bullish_rep, [it for it in items if it.score > 0.3], NOW)
-    assert aligned is not None and aligned.directional and aligned.narrative.score > 0.3
 
 
 def test_events_from_one_peripheral_member_do_not_tag_the_story() -> None:
@@ -138,3 +158,49 @@ def test_events_from_one_peripheral_member_do_not_tag_the_story() -> None:
     (story,) = stories(lawsuit)
     assert "lawsuit" in story.material_events
     assert "buyback" not in story.material_events and "buyback" not in story.narrative.events
+
+
+def test_listicles_and_opinion_columns_are_weak_titles() -> None:
+    # Real headlines from live captures (2026-10-04/05).
+    from app.analytics.narratives import WEAK_TITLE_RE
+
+    weak = [
+        "If a Stock Market Crash Is Coming, History Says These Are the 3 Financial Stocks to Buy",
+        "Forget the S&P 500: SCHD Is Beating It by Nearly 10 Points in 2026 and Its Dividend Just Grew",
+        "Goldman Sachs says buy these stocks now as the rally broadens",
+        "My Biggest Warning For Anyone Who Owns The S&P 500",
+        "2 Magnificent Seven Stocks to Buy and Hold for the Rest of the Decade",
+        "1 Reason Now Is a Great Time to Buy SoFi Technologies Stock",
+        "I Correctly Predicted Nvidia Would Overtake Apple in Stock Buybacks and Dividends. Here's the Better Buy Now.",
+        "Stocks to watch on Friday: NVDA, GS, NKE, and more",
+    ]
+    developments = [
+        "S&P 500 stocks rally as Fed signals cuts",
+        "Most S&P 500 Stocks Sank In September — But Retail Traders Didn't Flee",
+        "GameStop CEO Ryan Cohen buys $26.4 million of GME stock",
+        "Nat Turner buys 10,462 shares of GameStop stock",
+        "Bitcoin Churns Below $85,000 as ETF Inflows and Whale Selling Engage in Tug-of-War",
+        "Former Nvidia Adviser Claims $1 Billion in Stock Over 1993 Vesting Dispute",
+        "Dow, S&P 500, Nasdaq open higher",
+        "Top executive leaves Tesla",
+    ]
+    assert [t for t in weak if not WEAK_TITLE_RE.search(t)] == []
+    assert [t for t in developments if WEAK_TITLE_RE.search(t)] == []
+
+
+def test_a_story_that_only_grew_into_the_list_is_not_new() -> None:
+    # Live (16-minute re-run): a 2-article cluster — one 2-day-old article plus one fresh unrelated
+    # note — and a story whose articles all predate the last look were flagged NEW.
+    old_and_one_fresh = [raw("Acme ends week lower despite Friday rally", 52, "Reuters"),
+                         raw("Acme ends week lower despite Friday rally, analysts say", 0.2, "Bloomberg")]
+    prev = snapshot(0.3, 60, 0.2, narratives=["Something else entirely happened at the company"])
+    (story,) = stories(old_and_one_fresh, previous=prev)
+    assert not story.narrative.is_new  # 1 of 2 is not "most"
+    before_look = coverage("Acme names new chief financial officer from rival chipmaker", ["CNBC", "Barron's"],
+                           hours=0.5)  # inside the 1 h grace, yet nothing was published since the look
+    (story,) = stories(before_look, previous=snapshot(0.3, 60, 0.2, narratives=["Something else"]))
+    assert not story.narrative.is_new
+    after_look = coverage("Acme names new chief financial officer from rival chipmaker", ["CNBC", "Barron's"],
+                          hours=0.1)
+    (story,) = stories(after_look, previous=snapshot(0.3, 60, 0.2, narratives=["Something else"]))
+    assert story.narrative.is_new

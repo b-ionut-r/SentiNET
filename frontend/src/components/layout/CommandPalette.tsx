@@ -10,6 +10,7 @@ import { useSearch } from "../../api/hooks";
 import { cx } from "../../lib/cx";
 import { getRecent } from "../../lib/storage";
 import { useTheme } from "../../lib/theme";
+import { useRestoreFocus } from "../../lib/useRestoreFocus";
 import { Kbd } from "../ui/Badges";
 import { TickerLogo } from "../ui/Misc";
 import { useCommands } from "./commands";
@@ -51,7 +52,7 @@ function PaletteDialog({ onClose, pageCommands, openHelp }: { onClose: () => voi
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => inputRef.current?.focus(), []);
+  useRestoreFocus(inputRef);
 
   const go = (path: string) => {
     onClose();

@@ -13,6 +13,7 @@ chips should say *what* is discussed, not that the stock moved.
 """
 from __future__ import annotations
 
+import heapq
 import re
 from collections import Counter, defaultdict
 from collections.abc import Sequence
@@ -21,7 +22,7 @@ from itertools import pairwise
 
 from app.nlp.events import canonical_firm, is_known_firm
 from app.nlp.narratives import find_duplicates
-from app.nlp.relevance import company_terms
+from app.nlp.relevance import company_phrases, company_terms
 from app.nlp.text import (
     CALENDAR_WORDS,
     COMMON_HEADLINE_WORDS,
@@ -83,7 +84,17 @@ maintains maintain keeps keep kept initiates initiate says say sees warns warn h
 corp inc ltd plc group holdings firm firms investor investors trader traders analyst analysts market markets
 price prices percent pct billion million trillion thousand dollar dollars nasdaq nyse wall street buy sell hold
 here's what's why how what who which this that these those it's i'm you're they're we're don't can't won't
+continue continues continued continuing support supports supported supporting acquires acquire acquired acquiring
+file files filed filing claim claims claimed run runs running lose loses losing change changes changed ignore
+ignores ignored real people close closes closed closing average prediction predictions full form forms option options
+units unit data reportedly apparently currently recently finally officially already nearly roughly approximately
+authorize authorizes authorized agree agrees agreed pledge pledges pledged propose proposes proposed let lets letting
+offload offloads offloaded add adds adding added finance seeking hire hires hired concern concerns read reads
 """)
+# Two-letter terms worth a chip when they appear ("AI chips", "EV demand", "EU fines", "5G", "Q3").
+_SHORT_TERMS = wordset("ai ev eu uk 5g 6g ar vr xr q1 q2 q3 q4 h1 h2 pc tv")
+# Text segments: bigrams never span punctuation ("Delta, United, American").
+_SEGMENT_RE = re.compile(r"[,;:!?|()\"]|\s[-\u2013\u2014]\s|\.\s")
 # Outlet names that leak into headlines ("... - Yahoo Finance", "Zacks Investment Ideas").
 _PUBLISHER_WORDS = wordset("""
 reuters bloomberg cnbc wsj barron's barrons marketwatch yahoo benzinga zacks motley fool seekingalpha tipranks
@@ -172,6 +183,15 @@ def _display(term: str, case: _Case) -> str:
     return " ".join(words)
 
 
+def _inflected_only(spellings: Counter[str] | None) -> bool:
+    """Every spelling seen is an inflected verb or an adverb (-ed/-ing/-ly)
+    and none is an everyday headline noun ("earnings", "pricing" stay)."""
+    if not spellings:
+        return False
+    return all(w.endswith(("ed", "ing", "ly")) and w not in COMMON_HEADLINE_WORDS and w not in _LABELS
+               for w in spellings)
+
+
 def extract_keywords(texts: list[str], scores: Sequence[float] | None = None, company: CompanyRef | None = None,
                      top_n: int = 15) -> list[tuple[str, int, float]]:
     """Top `top_n` terms as (term, document count, mean score of the texts
@@ -181,6 +201,8 @@ def extract_keywords(texts: list[str], scores: Sequence[float] | None = None, co
     if not texts:
         return []
     own = company_terms(company)
+    own_phrases = [re.compile(r"\b" + r"\s+".join(map(re.escape, ph.split())) + r"\b", re.IGNORECASE)
+                   for ph in company_phrases(company)]
     raw_values = list(scores) if scores is not None else []
     copies = find_duplicates([t or "" for t in texts])  # syndicated copies count once
     cleaned = [fold(clean_text(texts[g[0]] or "")) for g in copies]
@@ -191,22 +213,24 @@ def extract_keywords(texts: list[str], scores: Sequence[float] | None = None, co
     score_sum: dict[str, float] = defaultdict(float)
     surfaces: dict[str, Counter[str]] = defaultdict(Counter)  # stem -> lower-case spellings
     for i, text in enumerate(cleaned):
+        for pattern in own_phrases:  # "First Solar" goes; "solar" elsewhere stays
+            text = pattern.sub(" | ", text)
         for pattern, concept in _PHRASES:
             text = pattern.sub(concept, text)
         seq: list[str] = []  # content stems in order; "" breaks adjacency
-        for tok in tokenize(text):
-            word = tok.strip("'")
-            if (word in own or word.lstrip("$") in own or word in STOPWORDS or word in GENERIC_WORDS
-                    or word in _FILLER or word in MOVE_WORDS or word in CALENDAR_WORDS or len(word) < 3
-                    or not re.match(r"^[a-z][a-z0-9&_'-]*$", word) or word in _PUBLISHER_WORDS):
-                seq.append("")
-                continue
-            if word in HEADLINE_VERBS:
-                seq.append("")
-                continue
-            key = word if "-" in word else stem(word)
-            surfaces[key][word] += 1
-            seq.append(key)
+        for segment in _SEGMENT_RE.split(text):
+            seq.append("")
+            for tok in tokenize(segment):
+                word = tok.strip("'")
+                if (word in own or word.lstrip("$") in own or word in STOPWORDS or word in GENERIC_WORDS
+                        or word in _FILLER or word in MOVE_WORDS or word in CALENDAR_WORDS or word in HEADLINE_VERBS
+                        or (len(word) < 3 and word not in _SHORT_TERMS) or word in _PUBLISHER_WORDS
+                        or not re.match(r"^(?:[a-z][a-z0-9&_'-]*|[56]g)$", word)):
+                    seq.append("")
+                    continue
+                key = word if "-" in word else stem(word)
+                surfaces[key][word] += 1
+                seq.append(key)
         terms = {w for w in seq if w}
         terms |= {f"{a} {b}" for a, b in pairwise(seq) if a and b and a != b}
         for term in terms:
@@ -216,28 +240,38 @@ def extract_keywords(texts: list[str], scores: Sequence[float] | None = None, co
     min_count = 2 if len(cleaned) >= 8 else 1
     candidates = {t: c for t, c in df.items() if c >= min_count}
     ranked: list[tuple[float, str]] = []
+    deferred: dict[str, float] = {}  # words left to a bigram that carries most of their mentions
     for term, count in candidates.items():
         parts = term.split()
+        if len(parts) == 1 and _inflected_only(surfaces.get(term)):
+            continue  # "changed", "ignoring", "reportedly": verbs/adverbs say nothing on their own
         if len(parts) == 1:
-            # Prefer a bigram that carries most of this word's mentions.
-            if any(count and candidates.get(b, 0) >= 0.6 * count for b in candidates if " " in b and term in b.split()):
-                continue
             weight = count * (1.25 if term in _LABELS else 1.0)
+            if any(count and candidates.get(b, 0) >= 0.6 * count for b in candidates if " " in b and term in b.split()):
+                deferred[term] = weight
+                continue
         else:
             weight = count * 1.35
-        ranked.append((weight, term))
-    ranked.sort(key=lambda x: (-x[0], x[1]))
+        ranked.append((-weight, term))
+    heapq.heapify(ranked)
 
     out: list[tuple[str, int, float]] = []
     used_parts: set[str] = set()
     used_plain: set[str] = set()  # plain words already shown
     used_pieces: set[str] = set()  # words inside shown concepts ("price-target" -> price, target)
-    for _w, term in ranked:
+    while ranked:
+        _w, term = heapq.heappop(ranked)
         parts = term.split()
         plain = {p for p in parts if p not in _LABELS}
         pieces = {piece for p in parts if p in _LABELS for piece in p.split("-")}
         if set(parts) & used_parts or plain & used_pieces or pieces & used_plain:
-            continue  # never repeat a word across chips ("Musk" / "Elon Musk", "target" / "price target")
+            # Never repeat a word across chips ("Musk" / "Elon Musk", "target" / "price target"); a word
+            # deferred to this blocked bigram competes on its own again ("AI" shown, so "chips" alone).
+            if any(p in used_parts and (p in _SHORT_TERMS or p in _LABELS) for p in parts):
+                for part in parts:
+                    if part in deferred and part not in used_parts:
+                        heapq.heappush(ranked, (-deferred.pop(part), part))
+            continue
         words = [surfaces[p].most_common(1)[0][0] if surfaces.get(p) else p for p in parts]
         label = _display(" ".join(words), case)
         if any(label.lower() == existing.lower() for existing, _c, _s in out):

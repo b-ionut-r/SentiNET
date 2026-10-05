@@ -329,6 +329,8 @@ def _split_sentences(text: str) -> list[str]:
         start = match.end()
     out.append(text[start:])
     return out
+
+
 _TAGS = re.compile(r"<[^>]+>")
 
 

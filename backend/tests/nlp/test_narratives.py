@@ -317,3 +317,39 @@ def test_find_duplicates_scales():
     groups = find_duplicates(titles)
     assert time.perf_counter() - start < 1.0
     assert sum(len(g) > 1 for g in groups) == 100
+
+
+# --------------------------------------------------------------------------- #
+# Review round 2: features and display (live NVDA, 2026-10-05)
+# --------------------------------------------------------------------------- #
+def _cluster(titles: list[str], company: CompanyRef = NVDA) -> list[Cluster]:
+    items = [ClusterItem(id=str(i), title=t, timestamp=T0 + timedelta(hours=i), publisher="X")
+             for i, t in enumerate(titles)]
+    return cluster_narratives(items, company)
+
+
+def test_currency_codes_join_the_same_buyback_story():
+    clusters = _cluster(["Nvidia authorizes USD 150 billion increase to share repurchase program",
+                         "Nvidia announces $150 billion buyback",
+                         "Nvidia adds $150B to buyback, lifting total to $235B"])
+    assert len(clusters) == 1
+    assert clusters[0].terms[0] == "$150B"  # money shown upper-case, words not ("$150B buyback")
+    assert all(t == t.split()[0] or not t.split()[-1].isupper() for t in clusters[0].terms)
+
+
+def test_a_rivals_market_cap_milestone_is_not_the_companys_record_story():
+    clusters = _cluster(["Nvidia stock hits record high, market cap nears $6 trillion",
+                         "Nvidia hits record high as AI rally extends",
+                         "AMD Reaches a $1 Trillion Market Cap. Can It Finally Dethrone Nvidia?",
+                         "AMD hits $1 trillion market cap for first time"])
+    groups = sorted(sorted(c.item_ids) for c in clusters)
+    assert ["0", "1"] in groups and not any({"0", "2"} <= set(g) for g in groups)
+    assert "record high high" not in clusters[0].terms
+
+
+def test_story_terms_never_span_pronouns_or_punctuation():
+    clusters = _cluster(["Nvidia CEO Jensen Huang Just Reaffirmed His Jaw-Dropping Projection for 2030",
+                         "Jensen Huang Reaffirmed His Jaw-Dropping Projection: Here's Why",
+                         "Nvidia Settles Advisor Dispute: Early Payout Expected"])
+    terms = {t.lower() for c in clusters for t in c.terms}
+    assert not {"reaffirmed jaw", "dispute early"} & terms, terms

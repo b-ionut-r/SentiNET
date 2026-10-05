@@ -45,7 +45,7 @@ from typing import NamedTuple
 
 from app.nlp import lexicon as lx
 from app.nlp.engine import SentinelEngine, VaderEngine
-from app.nlp.types import SentimentEngine
+from app.nlp.types import SentimentEngine, TextAnalysis
 
 LABELS = ("bullish", "bearish", "neutral")
 CACHE = Path(os.environ.get("SENTINET_CACHE", Path.home() / ".cache" / "sentinet"))
@@ -235,12 +235,34 @@ def directional_metrics(gold: list[str], pred: list[str]) -> dict[str, object]:
     }
 
 
-def predict(engine: SentimentEngine, data: Dataset, batch: int = 256) -> list[str]:
-    preds: list[str] = []
+def analyze(engine: SentimentEngine, data: Dataset, batch: int = 256) -> list[TextAnalysis]:
+    out: list[TextAnalysis] = []
     for i in range(0, len(data), batch):
         chunk = data[i: i + batch]
-        preds.extend(a.label for a in engine.score([e.text for e in chunk], [e.kind for e in chunk]))
-    return preds
+        out.extend(engine.score([e.text for e in chunk], [e.kind for e in chunk]))
+    return out
+
+
+def predict(engine: SentimentEngine, data: Dataset, batch: int = 256) -> list[str]:
+    return [a.label for a in analyze(engine, data, batch)]
+
+
+def reliability(gold: list[str], analyses: list[TextAnalysis], bins: int = 10) -> dict[str, dict[str, float]]:
+    """Does confidence match accuracy? Per predicted kind (polar / neutral): mean confidence, accuracy
+    and expected calibration error (|accuracy - confidence| over equal-width bins, weighted by size)."""
+    out: dict[str, dict[str, float]] = {}
+    for kind, keep in (("polar", lambda lab: lab != "neutral"), ("neutral", lambda lab: lab == "neutral")):
+        rows = [(a.confidence, a.label == g) for g, a in zip(gold, analyses, strict=True) if keep(a.label)]
+        if not rows:
+            continue
+        groups: dict[int, list[tuple[float, bool]]] = {}
+        for c, ok in rows:
+            groups.setdefault(min(bins - 1, int(c * bins)), []).append((c, ok))
+        ece = sum(abs(sum(ok for _, ok in g) / len(g) - sum(c for c, _ in g) / len(g)) * len(g)
+                  for g in groups.values()) / len(rows)
+        out[kind] = {"n": len(rows), "mean_confidence": round(sum(c for c, _ in rows) / len(rows), 4),
+                     "accuracy": round(sum(ok for _, ok in rows) / len(rows), 4), "ece": round(ece, 4)}
+    return out
 
 
 def throughput(engine: SentimentEngine, texts: list[str], kind: str = "news", repeats: int = 1) -> float:
@@ -360,8 +382,11 @@ def main(argv: list[str] | None = None) -> int:
         dist = Counter(e.gold for e in data)
         print(f"\n== {dname} (n={len(data)}; " + ", ".join(f"{k} {v}" for k, v in sorted(dist.items())) + ")")
         for ename, engine in engines.items():
-            preds = predict(engine, data)
+            analyses = analyze(engine, data)
+            preds = [a.label for a in analyses]
             m = metrics([e.gold for e in data], preds)
+            if ename != "vader":  # VADER's "confidence" is just |compound|
+                m["calibration"] = reliability([e.gold for e in data], analyses)
             # on the polar (bullish/bearish) gold items: how often it commits, how right when it does
             polar = [(e.gold, p) for e, p in zip(data, preds, strict=True) if e.gold != "neutral"]
             d = directional_metrics([g for g, _ in polar], [p for _, p in polar])
@@ -371,6 +396,11 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  {ename:12s} acc {m['accuracy']:.3f}  macro-F1 {m['macro_f1']:.3f}   " +
                   "  ".join(f"{c[:4]} F1 {pc[c]['f1']:.2f}" for c in pc) +  # type: ignore[index]
                   f"   | polar: commits {d['coverage']:.2f}, right when committed {d['accuracy_covered']:.3f}")
+            cal = m.get("calibration")
+            if cal:
+                print("               calibration: " + "; ".join(
+                    f"{k} conf {v['mean_confidence']:.2f} vs acc {v['accuracy']:.2f} (ECE {v['ece']:.3f})"
+                    for k, v in cal.items()))  # type: ignore[union-attr]
             if dname == "twitter_train" and args.errors and isinstance(engine, SentinelEngine):
                 print_errors(engine, data, preds, args.errors)
     for dname, data in binary.items():
@@ -402,9 +432,15 @@ def main(argv: list[str] | None = None) -> int:
                 "dead zone (0.28) was fitted to Twitter's neutral-heavy labels, so on FiQA headlines Sentinel commits "
                 "on only ~half the polar items (see 'polar': share of polar items it commits on, and its accuracy "
                 "when it does). Review fixes (sign flips on guidance metrics, negated approvals, size-cap compounds, "
-                "the retailer Target, bare 'record', signed percents, 'stock up/down', forum prose) were selected "
-                "on the Twitter train split and hand-written regression cases only; held-out sets were re-run for "
-                "reporting, not selection."),
+                "the retailer Target, bare 'record', signed percents, 'stock up/down', forum prose, limited upside, "
+                "Form-4 plan trades, enforcement actions, 'wiped out', rating infinitives, 13F bot headlines, "
+                "purpose and relative clauses) were selected on the Twitter train split and hand-written "
+                "regression cases only; held-out sets were re-run for reporting, not selection. 'calibration': "
+                "news polar confidence is remapped by an isotonic fit on Twitter train (ECE on train/valid shows "
+                "the fit holds); neutral confidence is deliberately prior-agnostic (0.5 when nothing was found, "
+                "higher for explicit 'in line'/'unchanged' cues), because whether 'no evidence' means neutral "
+                "depends on the stream's base rate (about 90% of neutral calls are right on Twitter, under 20% on "
+                "the ~88%-polar FiQA sets), so neutral ECE is large on every set by construction."),
             "datasets": {k: {**DATASET_INFO[k], "n": sizes[k]} for k in results},
             "summary": _summary(results),
             "held_out": {k: v for k, v in results.items() if k not in TUNING_SETS},

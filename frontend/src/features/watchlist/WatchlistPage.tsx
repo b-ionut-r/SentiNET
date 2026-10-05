@@ -10,7 +10,7 @@ import { useAlertCreate, useAlertDelete, useAlertEvents, useAlerts, useHealth, u
 import type { AlertKind, AlertRule, WatchItem } from "../../api/types";
 import { Sparkline } from "../../components/charts/Sparkline";
 import { Delta, Mark } from "../../components/ui/Badges";
-import { Empty, ErrorState, Skeleton, TickerLogo } from "../../components/ui/Misc";
+import { Empty, ErrorState, InlineAlert, Skeleton, TickerLogo } from "../../components/ui/Misc";
 import { Panel } from "../../components/ui/Panel";
 import { cx } from "../../lib/cx";
 import { dayTime, pct, price, timeAgo } from "../../lib/format";
@@ -74,9 +74,11 @@ function WatchTable() {
   const add = (e: React.FormEvent) => {
     e.preventDefault();
     const sym = t.trim().toUpperCase().replace(/^\$/, "");
-    if (sym) toggle.mutate({ ticker: sym, watched: false });
-    setT("");
+    // Keep what was typed until the server accepts it, so a rejected symbol can be corrected.
+    if (sym) toggle.mutate({ ticker: sym, watched: false }, { onSuccess: () => setT("") });
   };
+  const remove = (ticker: string) => toggle.mutate({ ticker, watched: true });
+  const failed = toggle.error && toggle.variables;
   return (
     <Panel
       title="Watching"
@@ -84,13 +86,33 @@ function WatchTable() {
       flush
       actions={
         <form onSubmit={add} className="flex items-center gap-1.5">
-          <input value={t} onChange={(e) => setT(e.target.value)} placeholder="Add ticker" className="field h-7 w-32 text-xs uppercase placeholder:normal-case" aria-label="Add ticker" />
+          <input
+            value={t}
+            onChange={(e) => {
+              setT(e.target.value);
+              if (toggle.error) toggle.reset();
+            }}
+            placeholder="Add ticker"
+            className="field h-7 w-32 text-xs uppercase placeholder:normal-case"
+            aria-label="Add ticker"
+            aria-invalid={!!failed && !failed.watched}
+          />
           <button className="btn h-7 px-2" type="submit" aria-label="Add ticker" disabled={toggle.isPending}>
             <Plus className="size-3.5" />
           </button>
         </form>
       }
     >
+      {failed && (
+        <div className="px-4 pb-3">
+          <InlineAlert action={<button className="btn h-7" onClick={() => toggle.reset()}>Dismiss</button>}>
+            <span className="font-medium">
+              Couldn't {failed.watched ? "remove" : "add"} {failed.ticker}
+            </span>
+            <span className="text-ink-2"> — {toggle.error.message}</span>
+          </InlineAlert>
+        </div>
+      )}
       {wl.isPending ? (
         <div className="space-y-2 p-4">
           {[0, 1, 2].map((i) => (
@@ -107,7 +129,7 @@ function WatchTable() {
         <>
         <ul className="divide-hair hairline-t sm:hidden">
           {wl.data.map((w) => (
-            <WatchCard key={w.ticker} w={w} onOpen={() => navigate(`/t/${encodeURIComponent(w.ticker)}`)} />
+            <WatchCard key={w.ticker} w={w} onOpen={() => navigate(`/t/${encodeURIComponent(w.ticker)}`)} onRemove={() => remove(w.ticker)} />
           ))}
         </ul>
         <div className="hidden overflow-x-auto sm:block">
@@ -125,7 +147,7 @@ function WatchTable() {
             </thead>
             <tbody className="divide-hair">
               {wl.data.map((w) => (
-                <WatchRow key={w.ticker} w={w} onOpen={() => navigate(`/t/${encodeURIComponent(w.ticker)}`)} onRemove={() => toggle.mutate({ ticker: w.ticker, watched: true })} />
+                <WatchRow key={w.ticker} w={w} onOpen={() => navigate(`/t/${encodeURIComponent(w.ticker)}`)} onRemove={() => remove(w.ticker)} />
               ))}
             </tbody>
           </table>
@@ -137,13 +159,13 @@ function WatchTable() {
 }
 
 /** Compact phone layout of a watchlist row. */
-function WatchCard({ w, onOpen }: { w: WatchItem; onOpen: () => void }) {
+function WatchCard({ w, onOpen, onRemove }: { w: WatchItem; onOpen: () => void; onRemove: () => void }) {
   const s = w.last?.sentinel_score ?? null;
   const prev = w.previous?.sentinel_score ?? null;
   const p = polarityOf100(s);
   return (
-    <li>
-      <button onClick={onOpen} className="flex w-full items-center gap-3 px-4 py-3 text-left">
+    <li className="flex items-center pr-2">
+      <button onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-3 py-3 pl-4 pr-2 text-left">
         <TickerLogo symbol={w.ticker} url={`https://logos.stocktwits-cdn.com/${w.ticker}.png`} size={32} />
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
@@ -154,6 +176,9 @@ function WatchCard({ w, onOpen }: { w: WatchItem; onOpen: () => void }) {
           <div className="truncate text-2xs text-muted">{s != null ? `${verdictBand(s).label} · ${price(w.last?.price)} · ${timeAgo(w.last?.at)}` : "not analyzed yet"}</div>
         </div>
         <div className="w-20">{w.spark.length > 1 && <Sparkline values={w.spark} height={26} domain={[0, 100]} reference={50} color={toneVar(p)} />}</div>
+      </button>
+      <button className="grid size-9 shrink-0 place-items-center rounded-lg text-muted hover:bg-raised hover:text-critical" onClick={onRemove} aria-label={`Remove ${w.ticker}`}>
+        <Trash className="size-4" />
       </button>
     </li>
   );
@@ -195,7 +220,7 @@ function WatchRow({ w, onOpen, onRemove }: { w: WatchItem; onOpen: () => void; o
           </span>
         )}
       </td>
-      <td className="py-2.5 pr-4">{w.spark.length > 1 ? <Sparkline values={w.spark} height={28} domain={[0, 100]} reference={50} color={toneVar(p)} ariaLabel={`${w.ticker} stored scores`} /> : <span className="text-2xs text-faint">—</span>}</td>
+      <td className="py-2.5 pr-4">{w.spark.length > 1 ? <Sparkline values={w.spark} height={28} domain={[0, 100]} reference={50} color={toneVar(p)} ariaLabel={`${w.ticker} stored scores`} /> : <span className="text-2xs text-muted">—</span>}</td>
       <td className="py-2.5 text-right text-xs num">
         <div className="text-ink">{price(w.last?.price)}</div>
         {priceChg != null && <div className={cx("text-2xs", textTone[priceChg > 0 ? "bull" : priceChg < 0 ? "bear" : "neutral"])}>{pct(priceChg)}</div>}
@@ -203,7 +228,7 @@ function WatchRow({ w, onOpen, onRemove }: { w: WatchItem; onOpen: () => void; o
       <td className="py-2.5 text-right text-2xs text-muted">{w.last ? timeAgo(w.last.at) : `added ${timeAgo(w.added_at)}`}</td>
       <td className="py-2.5 pr-4 text-right">
         <button
-          className="rounded p-1.5 text-faint opacity-0 transition-opacity hover:bg-panel hover:text-critical focus-visible:opacity-100 group-hover:opacity-100"
+          className="rounded p-1.5 text-muted opacity-0 transition-opacity hover:bg-panel hover:text-critical focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
           onClick={(e) => {
             e.stopPropagation();
             onRemove();

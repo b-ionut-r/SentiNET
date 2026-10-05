@@ -3,12 +3,13 @@
  * verdict → insights → narratives → the case → price × tone → smart money →
  * crowd → themes → raw signals → filings & source health.
  */
+import { useQueryClient } from "@tanstack/react-query";
 import { Landmark, RefreshCw, RotateCw, Star } from "lucide-react";
 import { lazy, Suspense, useEffect, useMemo, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { ApiError } from "../../api/client";
-import { useAnalysis, useSearch, useWatchlist, useWatchToggle } from "../../api/hooks";
+import { keys, useAnalysis, useSearch, useWatchlist, useWatchToggle } from "../../api/hooks";
 import type { Analysis } from "../../api/types";
 import { useCommands, usePageCommands } from "../../components/layout/commands";
 import { ErrorState, InlineAlert, Skeleton, TickerLogo, TopProgress } from "../../components/ui/Misc";
@@ -38,14 +39,23 @@ export default function IntelPage() {
   const ticker = raw.trim().toUpperCase(); // already URL-decoded by the router
   const navigate = useNavigate();
   const q = useAnalysis(ticker);
+  const qc = useQueryClient();
   const watchlist = useWatchlist();
   const toggleWatch = useWatchToggle();
-  const watched = !!watchlist.data?.some((w) => w.ticker === ticker);
   const data = q.data;
+  const watched = !!watchlist.data?.some((w) => w.ticker === (data?.ticker ?? ticker));
 
   useEffect(() => {
     if (data) pushRecent(data.ticker);
   }, [data]);
+
+  // The backend normalises symbols (brk.b → BRK-B, $aapl → AAPL). Move the URL to the canonical
+  // ticker, carrying the result over, so watch state, refresh and every per-ticker cache agree.
+  useEffect(() => {
+    if (!data || !data.ticker || data.ticker === ticker) return;
+    qc.setQueryData(keys.analysis(data.ticker), data);
+    navigate(`/t/${encodeURIComponent(data.ticker)}`, { replace: true });
+  }, [data, ticker, qc, navigate]);
 
   useEffect(() => {
     const v = data?.verdict;
@@ -55,7 +65,7 @@ export default function IntelPage() {
     };
   }, [ticker, data]);
 
-  const onWatch = () => toggleWatch.mutate({ ticker, watched });
+  const onWatch = () => toggleWatch.mutate({ ticker: data?.ticker ?? ticker, watched });
   // A failed watch toggle must not follow the reader to another ticker.
   const resetWatch = toggleWatch.reset;
   useEffect(() => resetWatch(), [ticker, resetWatch]);
@@ -155,18 +165,26 @@ function IntelView({
       <VerdictHero a={a} />
 
       {/* DOM order is the reading order (insights, stories, case, catalysts) and is what phones show.
-          Desktop: stories + case on the left spanning both rows; insights pinned top-right and the
-          catalysts rail below them, sticky so it rides along with the longer story column. */}
-      <div className="grid gap-4 lg:grid-cols-12 lg:grid-rows-[auto_1fr] lg:items-start">
-        <InsightsRail insights={a.insights} evidence={a.sentiment.n} className="lg:col-span-4 lg:col-start-9 lg:row-start-1" />
-        <div className="flex min-w-0 flex-col gap-4 lg:col-span-8 lg:col-start-1 lg:row-span-2 lg:row-start-1">
-          <Narratives a={a} membersOf={narrativeSignals} />
-          <CasePanel a={a} />
+          Desktop: stories on the left; insights top-right with the catalysts rail below them, sticky so
+          it rides along with a longer story list; the bull/bear case spans the full width underneath. */}
+      {a.narratives.length > 0 ? (
+        <div className="grid gap-4 lg:grid-cols-12 lg:grid-rows-[auto_1fr_auto] lg:items-start">
+          <InsightsRail insights={a.insights} evidence={a.sentiment.n} className="lg:col-span-4 lg:col-start-9 lg:row-start-1" />
+          <Narratives a={a} membersOf={narrativeSignals} className="min-w-0 lg:col-span-8 lg:col-start-1 lg:row-span-2 lg:row-start-1" />
+          <CasePanel a={a} className="lg:col-span-12 lg:row-start-3" />
+          <div ref={rail.ref} className="min-w-0 lg:sticky lg:col-span-4 lg:col-start-9 lg:row-start-2" style={{ top: rail.top }}>
+            <WatchNext a={a} />
+          </div>
         </div>
-        <div ref={rail.ref} className="min-w-0 lg:sticky lg:col-span-4 lg:col-start-9 lg:row-start-2" style={{ top: rail.top }}>
+      ) : (
+        // No stories this run: the short notice spans the page and insights sit beside the catalysts.
+        <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+          <InsightsRail insights={a.insights} evidence={a.sentiment.n} />
           <WatchNext a={a} />
+          <Narratives a={a} membersOf={narrativeSignals} className="lg:col-span-2 lg:row-start-1" />
+          <CasePanel a={a} className="lg:col-span-2" />
         </div>
-      </div>
+      )}
 
       {/* The id lives outside the lazy chunk so the section nav can track it from the first paint. */}
       <div id="price" className="scroll-mt-36 md:scroll-mt-28">

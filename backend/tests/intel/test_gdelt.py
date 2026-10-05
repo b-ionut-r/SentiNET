@@ -75,6 +75,9 @@ def test_query_short_names_only_inside_phrases() -> None:
 def test_no_query_term_is_too_short_for_gdelt() -> None:
     """GDELT rejects quoted words under 5 characters and silently ignores bare ones."""
     assert gdelt.fallback_query(ref("META", "Meta", ["Meta Platforms"])) == '"Meta Platforms" sourcelang:english'
+    target = CompanyRef(ticker="TGT", name="Target Corporation", short_name="Target", aliases=["Target Corp"])
+    assert gdelt.fallback_query(target) == '"Target Corp" sourcelang:english'  # never the bare word
+    assert gdelt.fallback_query(ref("POOL", "Pool")) is None
     assert build_query(ref("ZZ", "Kora")) == '("Kora Inc" OR "Kora shares" OR "Kora stock" OR "Kora CEO") sourcelang:english'
     assert build_query(ref("XX", "X")) == '("X Inc" OR "X Corp" OR "X CEO" OR "X shares" OR "X stock") sourcelang:english'
     queries = [*gdelt.CURATED.values(), build_query(ref("IBM", "IBM")), build_query(ref("U", "Unity")),
@@ -328,10 +331,49 @@ async def test_stale_trend_is_served_while_refreshing(monkeypatch: pytest.Monkey
         again = await gdelt.get_tone_trend(company)  # cooling down: no new request
         assert again == fresh and route.call_count == 2
     gdelt.reset_state()
+    gdelt._disk.clear()  # nothing cached anywhere: the refusal is the answer
     with pytest.raises(UpstreamError):
         with respx.mock as mock:
             mock.get(gdelt.API_URL).mock(return_value=httpx.Response(429, text=RATE_TEXT))
             await gdelt.get_tone_trend(company)
+
+
+async def test_payloads_survive_a_restart_on_disk() -> None:
+    """A restart (memory wiped) must not cost GDELT requests: the disk copy is served."""
+    tone = load_json("gdelt/nvidia_timelinetone.json")
+    volume = load_json("gdelt/nvidia_timelinevolraw.json")
+    company = ref("NVDA", "Nvidia")
+
+    def answer(request: httpx.Request) -> httpx.Response:
+        mode = parse_qs(urlsplit(str(request.url)).query)["mode"][0]
+        return httpx.Response(200, json=tone if mode == "timelinetone" else volume)
+
+    with respx.mock as mock:
+        mock.get(gdelt.API_URL).mock(side_effect=answer)
+        fresh = await gdelt.get_tone_trend(company)
+        await gdelt.drain()
+        fresh = await gdelt.get_tone_trend(company)  # tone + volume merged
+    gdelt.reset_state()  # "restart": memory, jobs and cooldown gone; the disk cache stays
+    with respx.mock as mock:
+        route = mock.get(gdelt.API_URL).mock(return_value=httpx.Response(500))
+        again = await gdelt.get_tone_trend(company)
+        await gdelt.drain()
+    assert again == fresh and again is not None and route.call_count == 0
+    assert any(p.volume for p in again.series)
+
+
+def test_disk_cache_round_trip_and_age_limit(tmp_path) -> None:
+    from app.intel.diskcache import DiskCache
+
+    disk = DiskCache("t", root=tmp_path)
+    disk.save("k", {"a": [1, 2]})
+    value, age = disk.load("k", max_age=60)
+    assert value == {"a": [1, 2]} and 0 <= age < 5
+    assert disk.load("k", max_age=-1) is None and disk.load("missing", 60) is None
+    disk._path("k").write_text("{not json", encoding="utf-8")
+    assert disk.load("k", 60) is None  # corrupt entry = miss, never an exception
+    disk.save("bad", {1, 2})  # not JSON-serializable: logged, not raised
+    assert not list(tmp_path.glob("t/.tmp-*"))  # no half-written leftovers
 
 
 def test_real_volume_drops_day_still_being_ingested() -> None:
@@ -372,20 +414,73 @@ def test_funds_indices_and_futures_search_their_theme() -> None:
     assert build_query(kre) == '("regional banks" OR "regional bank stocks") sourcelang:english'
     gold = CompanyRef(ticker="GC=F", name="Gold Dec 26", short_name="Gold", aliases=["gold prices", "gold futures"],
                       quote_type="FUTURE")
-    assert build_query(gold) == '("gold prices" OR "gold futures") sourcelang:english'  # never bare "Gold"
+    # The shared theme table first (same terms as the news sources), never the bare word "Gold".
+    assert build_query(gold) == '("gold price" OR "gold futures" OR "gold prices") sourcelang:english'
     coffee = CompanyRef(ticker="KC=F", name="Coffee Dec 26", short_name="Coffee", quote_type="FUTURE")
-    assert build_query(coffee) == '("Coffee prices" OR "Coffee futures") sourcelang:english'
+    assert build_query(coffee).lower() == '("coffee prices" or "coffee futures") sourcelang:english'
     vix = CompanyRef(ticker="^VIX", name="CBOE Volatility Index", short_name="VIX",
                      aliases=["Cboe Volatility Index", "volatility index"], quote_type="INDEX")
-    assert build_query(vix) == '("Cboe Volatility Index" OR "volatility index") sourcelang:english'
+    assert build_query(vix) == '"volatility index" sourcelang:english'  # already matches the Cboe name
 
 
-async def test_unsearchable_company_returns_none_without_a_request() -> None:
-    """No name of 5+ characters (and no aliases): GDELT cannot match anything, so do not ask."""
+def test_currencies_search_their_pair_and_name() -> None:
+    eur = CompanyRef(ticker="EURUSD=X", name="EUR/USD", short_name="EUR/USD", aliases=["euro"], quote_type="CURRENCY")
+    assert build_query(eur) == '("EUR/USD" OR "euro exchange rate") sourcelang:english'
+
+
+def test_phrases_already_covered_by_a_shorter_term_are_dropped() -> None:
+    oil = CompanyRef(ticker="CL=F", name="Crude Oil Nov 26", short_name="Crude oil",
+                     aliases=["oil prices", "WTI crude"], quote_type="FUTURE")
+    q = build_query(oil)
+    assert '"Crude oil prices"' not in q and '"Crude oil futures"' not in q and '"crude oil"' in q.lower()
+    assert build_query(ref("BRK-B", "Berkshire Hathaway", ["Berkshire"])) == '"Berkshire" sourcelang:english'
+    # Different spellings are different GDELT tokens: both stay.
+    jpm = build_query(ref("JPM", "JPMorgan", ["JPMorgan Chase", "JP Morgan", "J.P. Morgan"]))
+    assert jpm == '("JPMorgan" OR "JP Morgan" OR "J.P. Morgan") sourcelang:english'
+
+
+def test_generic_phrases_and_namesakes_are_anchored() -> None:
+    """Everyday noun phrases and namesakes would match ordinary text in a full-text index."""
+    wm = build_query(ref("WM", "Waste Management"))
+    assert '"Waste Management" ' not in wm and '"Waste Management Inc"' in wm and '"Waste Management shares"' in wm
+    ndaq = build_query(ref("NDAQ", "Nasdaq", ["Nasdaq Inc"]))
+    assert ndaq == '("Nasdaq Inc" OR "Nasdaq Corp" OR "Nasdaq CEO") sourcelang:english'  # never "Nasdaq shares"
+    trv = build_query(ref("TRV", "Travelers", ["Travelers Companies"]))
+    assert trv == ('("Travelers Inc" OR "Travelers Corp" OR "Travelers CEO" OR "Travelers Companies") '
+                   'sourcelang:english')
+    jazz = build_query(ref("JAZZ", "Jazz Pharmaceuticals"))
+    assert jazz == '"Jazz Pharmaceuticals" sourcelang:english'
+    # A one-word everyday alias never joins an OR on its own.
+    assert build_query(ref("ZZZ", "Acmecorp", ["Square"])) == '"Acmecorp" sourcelang:english'
+
+
+async def test_unsearchable_company_returns_none_without_a_request(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Nothing searchable: GDELT cannot match anything, so do not ask."""
+    monkeypatch.setattr(gdelt, "build_query", lambda company: None)
     with respx.mock as mock:
         route = mock.get(gdelt.API_URL).mock(return_value=httpx.Response(200, json={}))
-        assert await gdelt.get_tone_trend(ref("BNB-USD", "BNB", qtype="CRYPTOCURRENCY")) is None
+        assert await gdelt.get_tone_trend(ref("ZZZZ", "Q")) is None
         assert route.call_count == 0
+
+
+def test_crypto_names_are_anchored_when_they_are_words_or_too_short() -> None:
+    def coin(ticker: str, name: str) -> str | None:
+        return build_query(ref(ticker, name, qtype="CRYPTOCURRENCY"))
+
+    assert coin("DOGE-USD", "Dogecoin") == '"Dogecoin" sourcelang:english'
+    assert coin("XLM-USD", "Stellar") == '("Stellar crypto" OR "Stellar coin" OR "Stellar token") sourcelang:english'
+    assert '"Shiba Inu" ' not in coin("SHIB-USD", "Shiba Inu")  # the dog breed
+    bnb = coin("BNB-USD", "BNB")  # too short alone; its long name is fine
+    assert bnb == '("BNB crypto" OR "BNB coin" OR "BNB token" OR "Binance Coin") sourcelang:english'
+    unlisted = coin("PEPE24478-USD", "Pepe")  # Yahoo's collision-numbered symbol, unknown base
+    assert unlisted == '("Pepe crypto" OR "Pepe coin" OR "Pepe token") sourcelang:english'
+
+
+def test_fund_strategy_names_are_not_turned_into_fake_phrases() -> None:
+    jepi = CompanyRef(ticker="JEPI", name="JPMorgan Equity Premium Income ETF", short_name="Equity Premium Income",
+                      aliases=["JPMorgan Equity Premium Income ETF"], quote_type="ETF")
+    q = build_query(jepi)
+    assert "stocks" not in q and '"Equity Premium Income"' in q
 
 
 async def test_empty_answers_are_rechecked_soon(monkeypatch: pytest.MonkeyPatch) -> None:

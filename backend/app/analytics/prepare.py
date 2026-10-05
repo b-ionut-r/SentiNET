@@ -266,29 +266,42 @@ def _candidate(raw: RawSignal, run: SourceRun, company: CompanyRef | None, now: 
 
 def _relevance(title: str, context: str | None, extra: dict[str, Any], raw: RawSignal,
                company: CompanyRef) -> float:
+    """Title relevance, lifted by body context, provider relevance and ticker-keyed feeds,
+    then capped for multi-ticker roundups (applied last, so a roundup from a ticker-keyed
+    feed that never names the company in its title stays a roundup)."""
     title_rel = textkit.relevance(title, company)
     rel = title_rel
     if context:
         rel = max(rel, CONTEXT_DISCOUNT * textkit.relevance(f"{title}. {context[:400]}", company))
-    symbols = extra.get("symbols")
-    if isinstance(symbols, int) and symbols >= ROUNDUP_SYMBOLS:
-        rel = rel * 0.85 if title_rel >= 0.8 else min(rel, ROUNDUP_CAP)
     provider = extra.get("provider_relevance")
-    if isinstance(provider, (int, float)) and provider >= PROVIDER_RELEVANCE_MIN:
+    if isinstance(provider, (int, float)) and math.isfinite(provider) and provider >= PROVIDER_RELEVANCE_MIN:
         rel = max(rel, min(float(provider), 0.9))
     if raw.ticker_specific:
         rel = max(rel, SPECIFIC_RELEVANCE)
+    symbols = extra.get("symbols")
+    if isinstance(symbols, int) and symbols >= ROUNDUP_SYMBOLS:
+        rel = rel * 0.85 if title_rel >= 0.8 else min(rel, ROUNDUP_CAP)
     return clamp(rel)
 
 
 def _collapse_duplicates(items: list[Item]) -> list[Item]:
-    """Merge syndicated near-copies; the most trusted (then earliest) item represents them."""
+    """Merge near-copies within each group (news with news, posts with posts).
+
+    A social post sharing a headline is a separate (social) voice, never an extra
+    "article" of the story; the most trusted (then earliest) item represents a group."""
+    news = [it for it in items if it.group == "news"]
+    social = [it for it in items if it.group == "social"]
+    return _collapse_group(news) + _collapse_group(social)
+
+
+def _collapse_group(items: list[Item]) -> list[Item]:
     if len(items) < 2:
         return list(items)
+
     def priority(i: int) -> tuple[Any, ...]:
         it = items[i]
         ts = it.timestamp.timestamp() if it.timestamp else float("inf")
-        return (it.group != "news", -it.trust * it.source_weight, -it.relevance, ts, i)
+        return (-it.trust * it.source_weight, -it.relevance, ts, i)
 
     order = sorted(range(len(items)), key=priority)
     groups = textkit.duplicates([items[i].title for i in order])

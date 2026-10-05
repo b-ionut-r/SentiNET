@@ -56,4 +56,6 @@ class AnalysisInputs:
 
     source_runs: list[SourceRun] = field(default_factory=list)
     previous: Optional[Snapshot] = None  # latest stored snapshot older than ~15 min
+    # Member signal ids of each story in `previous` (for NEW-story detection by shared articles).
+    previous_story_ids: Optional[list[list[str]]] = None
     intel_status: dict[str, str] = field(default_factory=dict)  # task key -> "ok"|"empty"|"error: …"

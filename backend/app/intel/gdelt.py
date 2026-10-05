@@ -20,14 +20,16 @@ Two hard parts live here:
 * **Politeness.** GDELT allows one request per 5 s per IP and answers
   violations with a plain-text "Please limit requests…" body (HTTP 429 or even
   200) after a 10-15 s wait. Requests are serialized and spaced, a refusal
-  pauses all requests (fail fast, clear message), and cached payloads are
-  served stale while one background job refreshes them (see "Fetching").
+  pauses all requests (fail fast, clear message), and cached payloads (kept on
+  disk across restarts) are served stale while one background job refreshes
+  them (see "Fetching").
 """
 from __future__ import annotations
 
 import asyncio
 import logging
 import math
+import re
 import time
 import weakref
 from dataclasses import dataclass, field
@@ -39,8 +41,9 @@ import httpx
 from app.config import settings
 from app.core.cache import TTLStore
 from app.core.http import UpstreamError, fetch
+from app.intel.diskcache import DiskCache
 from app.resolve.names import is_common_word_name
-from app.resolve.words import COMMON_WORDS
+from app.resolve.words import COMMON_WORDS, NAMESAKES
 from app.schemas import TonePoint, ToneTrend
 from app.sources.base import CompanyRef
 
@@ -48,6 +51,8 @@ logger = logging.getLogger(__name__)
 
 API_URL = "https://api.gdeltproject.org/api/v2/doc/doc"
 LANG = "sourcelang:english"
+# Traded on a theme rather than a company (mirrors app.sources.query.THEME_TYPES).
+THEME_TYPES = frozenset({"ETF", "MUTUALFUND", "INDEX", "FUTURE", "CURRENCY"})
 RATE_LIMIT_WAIT = 6.0
 
 # Curated queries where the brand alone is ambiguous or not what the news says.
@@ -131,42 +136,75 @@ def _phrase(term: str) -> str:
     return f'"{term.replace(chr(34), "").strip()}"'
 
 
+def _contains_phrase(longer: str, shorter: str) -> bool:
+    """True when `shorter` occurs in `longer` as whole words (case-insensitive)."""
+    return re.search(rf"(?<!\w){re.escape(shorter.lower())}(?!\w)", longer.lower()) is not None
+
+
 def _or(terms: list[str]) -> str | None:
-    """`term` or `(a OR b …)` over the searchable, de-duplicated terms (max 6); None if none."""
+    """`term` or `(a OR b …)` over the searchable, de-duplicated terms (max 6); None if none.
+
+    A phrase that contains another kept phrase adds nothing to an OR ("Crude oil"
+    already matches every "Crude oil prices"), so it is dropped to keep queries short.
+    """
     unique: dict[str, str] = {}
     for term in terms:
-        term = (term or "").strip()
+        term = " ".join((term or "").split())
         if term and searchable(term):
             unique.setdefault(term.lower(), term)
-    picked = list(unique.values())[:6]
+    candidates = list(unique.values())
+    picked = [t for t in candidates if not any(o != t and _contains_phrase(t, o) for o in candidates)][:6]
     if not picked:
         return None
     return _phrase(picked[0]) if len(picked) == 1 else f"({' OR '.join(_phrase(t) for t in picked)})"
+
+
+# Multi-word brands that are also everyday noun phrases ("waste management" is in
+# every municipal story): searched like everyday-word brands, never bare.
+GENERIC_PHRASES = frozenset({
+    "waste management", "public storage", "best buy", "analog devices", "global payments", "state street",
+    "air products", "realty income", "genuine parts", "extra space", "iron mountain", "steel dynamics",
+    "american water", "electronic arts", "universal health", "general dynamics", "health care",
+    "united rentals", "first solar", "live nation", "core scientific", "rocket lab", "dollar tree",
+})
+
+
+def _needs_anchor(short: str) -> bool:
+    """True when a bare search for the brand would mostly match ordinary text."""
+    return is_common_word_name(short) or short.lower() in GENERIC_PHRASES
 
 
 def build_query(company: CompanyRef) -> str | None:
     """GDELT query for a company (language-filtered), or None when nothing is searchable.
 
     * curated query when we have one (homonym brands, funds, majors);
-    * funds, indices and futures search their theme ("regional banks", "gold prices");
+    * coins by name, anchored ("Stellar crypto") when the name is a word or too short;
+    * funds, indices, futures and FX search their theme ("regional banks", "gold price");
     * short names ("IBM", "Nike") only inside phrases: "IBM shares", "Nike CEO", full names;
-    * everyday-word names ("Chewy") only in their legal form / with "CEO" / via aliases;
+    * everyday words, namesakes and generic phrases ("Chewy", "Nasdaq", "Waste Management")
+      only in their legal form / with "CEO" / via precise aliases;
     * distinctive names are searched as-is, OR'd with their aliases.
     """
     if company.ticker in CURATED:
         return f"{CURATED[company.ticker]} {LANG}"
     short = (company.short_name or company.ticker).strip()
-    if company.quote_type in {"ETF", "MUTUALFUND", "INDEX", "FUTURE"}:
+    if company.is_crypto:
+        coin = _or(_crypto_terms(company))
+        return f"{coin} {LANG}" if coin else None
+    if company.quote_type in THEME_TYPES:
         themed = _or(_fund_themes(company))
         if themed:
             return f"{themed} {LANG}"
-    phrases = [a for a in company.aliases if " " in a.strip()]
-    if company.quote_type == "EQUITY" and is_common_word_name(short):
+    phrases = [a for a in company.aliases if " " in a.strip() and not _needs_anchor(a)]
+    if company.quote_type == "EQUITY" and _needs_anchor(short):
         terms = [f"{short} Inc", f"{short} Corp", f"{short} CEO", *phrases]
-        if short.lower() not in COMMON_WORDS:  # acronym-like ("IBM"): market words are safe to pair
+        # Acronym-like ("IBM") or multi-word ("Best Buy"): pairing with market words is safe.
+        # Never for a single everyday word: GDELT drops stopwords, so "Target shares"
+        # matches "price target on shares".
+        if short.lower() not in COMMON_WORDS | NAMESAKES:
             terms += [f"{short} shares", f"{short} stock"]
     else:
-        terms = [short, *(a for a in company.aliases if short.lower() not in a.lower())]
+        terms = [short, *(a for a in company.aliases if short.lower() not in a.lower() and not _needs_anchor(a))]
         if not searchable(short) and company.quote_type == "EQUITY":
             terms += [f"{short} Inc", f"{short} shares", f"{short} stock", f"{short} CEO"]
     query = _or(terms)
@@ -178,38 +216,78 @@ _TOO_BROAD = {"nasdaq", "nyse", "dow", "market", "stocks"}
 
 
 def _fund_themes(company: CompanyRef) -> list[str]:
-    """What a fund, index or future is about, as GDELT search terms ([] = generic path).
+    """What a fund, index, future or currency is about, as GDELT search terms ([] = generic path).
 
-    Funds use the search sources' theme table ("regional banks" for KRE); indices
-    their name plus aliases; futures "<name> prices/futures". A lone everyday or
-    ubiquitous word ("Gold", "Nasdaq") is never searched by itself.
+    The search sources' theme table comes first ("regional banks" for KRE, "gold
+    price" for GC=F) so every provider searches the same thing. Funds add their
+    own full name (articles about the fund itself); indices, futures and FX add
+    their name and phrase aliases; futures "<name> prices/futures" and currencies
+    "<currency> exchange rate". A lone everyday or ubiquitous word ("Gold",
+    "Nasdaq") is never searched by itself.
     """
     short = (company.short_name or "").strip()
-    terms: list[str] = []
-    if company.quote_type in {"ETF", "MUTUALFUND"}:
-        try:
-            from app.sources.query import etf_theme
+    qtype = company.quote_type
+    try:
+        from app.sources.query import etf_theme
 
-            terms = list(etf_theme(company))
-        except ImportError:  # sources package mid-edit: fall through to aliases
-            terms = []
-    if not terms:
-        terms = [short, *(a for a in company.aliases if " " in a)]
-        if company.quote_type == "FUTURE" and short:
-            terms += [f"{short} prices", f"{short} futures"]
+        terms = list(etf_theme(company))
+    except ImportError:  # sources package mid-edit: fall through to names
+        terms = []
+    if qtype in {"ETF", "MUTUALFUND"}:
+        # A strategy name plus "stocks" ("Equity Premium Income stocks") is the theme table's
+        # generic fallback, a phrase no article contains; the fund's own name is searched instead.
+        if len(short.split()) >= 3:
+            terms = [t for t in terms if t.lower() != f"{short} stocks".lower()]
+        if not terms:
+            terms = [short]
+        terms += [a for a in company.aliases if len(a.split()) >= 3][:1]  # "JPMorgan Equity Premium Income ETF"
+    else:
+        terms += [short, *(a for a in company.aliases if " " in a or "/" in a)]
+    if qtype == "FUTURE" and short:
+        terms += [f"{short} prices", f"{short} futures"]
+    if qtype == "CURRENCY":
+        terms += [f"{t} exchange rate" for t in list(terms) if t and " " not in t and "/" not in t]
 
     def precise(term: str) -> bool:
         if " " in term.strip():
-            return True
+            return term.strip().lower() not in GENERIC_PHRASES or qtype == "INDEX"
         word = term.strip().lower()
         return word not in COMMON_WORDS and word not in _TOO_BROAD
 
     return [t for t in terms if t and precise(t)]
 
 
+def _crypto_terms(company: CompanyRef) -> list[str]:
+    """A coin's GDELT terms: its name, anchored ("Stellar crypto/coin/token") when it is a word.
+
+    Names and the ambiguity flag come from the search sources' curated table so every
+    provider searches the same thing; an unlisted coin is always anchored (precision first).
+    """
+    base = company.base_symbol.upper()
+    try:
+        from app.sources.vocab import CRYPTO_NAMES as KNOWN
+    except ImportError:  # sources package mid-edit
+        KNOWN = {}
+    if base in KNOWN:
+        names, ambiguous = list(KNOWN[base][0]), KNOWN[base][1]
+    else:
+        names, ambiguous = [company.short_name, *company.aliases], True
+    terms: list[str] = []
+    for name in names:
+        if ambiguous or not searchable(name):  # "Shiba Inu" is a dog, "BNB" is too short
+            terms += [f"{name} crypto", f"{name} coin", f"{name} token"]
+        else:
+            terms.append(name)
+    return terms
+
+
 def fallback_query(company: CompanyRef) -> str | None:
-    """Simplest valid query (one searchable name), used when GDELT rejects the precise one."""
-    names = [n.strip() for n in [company.short_name, *company.aliases, company.name] if n and searchable(n)]
+    """Simplest valid query (one precise, searchable name), used when GDELT rejects the precise one.
+
+    Never a bare everyday word: no fallback beats a "Target" query full of price targets.
+    """
+    names = [n.strip() for n in [company.short_name, *company.aliases, company.name]
+             if n and searchable(n.strip()) and not _needs_anchor(n.strip())]
     return f"{_phrase(names[0])} {LANG}" if names else None
 
 
@@ -488,8 +566,30 @@ _jobs: dict[tuple[str, int], tuple[asyncio.Task[None], asyncio.Future[None]]] = 
 _last_start: dict[tuple[str, int], float] = {}
 
 
+_disk = DiskCache("gdelt")  # survives restarts: re-fetching costs minutes on a refused IP
+
+
+def _disk_key(query: str, mode: str, span: int) -> str:
+    return f"{mode}|{span}|{query}"
+
+
 def _cached_payload(query: str, mode: str, span: int) -> _Payload | None:
-    return _payloads.get((query, mode, span))
+    """A payload no older than `STALE_MAX_SECONDS`: memory first, then the disk cache."""
+    key = (query, mode, span)
+    payload = _payloads.get(key)
+    if payload is None:
+        stored = _disk.load(_disk_key(*key), STALE_MAX_SECONDS)
+        if stored is None or not isinstance(stored[0], dict) or "query" not in stored[0]:
+            return None
+        value, age = stored
+        payload = _Payload(value.get("data"), str(value["query"]), time.monotonic() - age)  # keep its real age
+        _payloads.set(key, payload)
+    return payload if time.monotonic() - payload.fetched <= STALE_MAX_SECONDS else None
+
+
+def _store(query: str, mode: str, span: int, payload: _Payload) -> None:
+    _payloads.set((query, mode, span), payload)
+    _disk.save(_disk_key(query, mode, span), {"data": payload.data, "query": payload.query})
 
 
 async def _refresh(query: str, fallback: str | None, span: int, tone_ready: asyncio.Future[None]) -> None:
@@ -505,7 +605,7 @@ async def _refresh(query: str, fallback: str | None, span: int, tone_ready: asyn
                 logger.info("GDELT rejected %r (%s); using %r", query, exc, fallback)
                 data, used = await _gdelt(fallback, TONE, span), fallback
             tone = _Payload(data, used, time.monotonic())
-            _payloads.set((query, TONE, span), tone)
+            _store(query, TONE, span, tone)
     except asyncio.CancelledError:
         tone_ready.cancel()  # shutdown: never leave a waiter hanging
         raise
@@ -520,7 +620,7 @@ async def _refresh(query: str, fallback: str | None, span: int, tone_ready: asyn
     try:
         # One attempt: tone is the core signal, volume can wait for the next refresh.
         data = await _gdelt(tone.query, VOLUME, span, retry=False)
-        _payloads.set((query, VOLUME, span), _Payload(data, tone.query, time.monotonic()))
+        _store(query, VOLUME, span, _Payload(data, tone.query, time.monotonic()))
     except UpstreamError as exc:
         logger.info("GDELT volume unavailable for %r: %s", tone.query, exc)
 

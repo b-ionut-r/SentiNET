@@ -61,6 +61,40 @@ def test_parse_apewisdom() -> None:
             assert r.change_pct == pytest.approx((r.mentions - r.mentions_prev) / r.mentions_prev * 100, abs=0.1)
 
 
+def test_reddit_board_drops_ticker_words() -> None:
+    payload = {"results": [
+        {"rank": 1, "ticker": "SPY", "name": "SPDR S&amp;P 500 ETF Trust", "mentions": 42, "mentions_24h_ago": 40},
+        {"rank": 2, "ticker": "DTE", "name": "DTE Energy", "mentions": 17, "mentions_24h_ago": 24},
+        {"rank": 3, "ticker": "MU", "name": "Micron Technology", "mentions": 32, "mentions_24h_ago": 16},
+    ]}
+    rows = parse_apewisdom(payload, limit=2, skip=market._crowd_word())
+    assert [r.symbol for r in rows] == ["SPY", "MU"]  # "0 DTE" is options slang, not DTE Energy
+    assert rows[0].name == "SPDR S&P 500 ETF Trust" and rows[1].change_pct == 100.0
+
+
+def test_headline_filters_drop_junk_foreign_and_off_topic() -> None:
+    def item(title: str, source: str = "", url: str = "https://x/1") -> str:
+        src = f'<source url="https://s">{source}</source>' if source else ""
+        return (f"<item><title>{title}</title><link>{url}</link>{src}"
+                "<pubDate>Sun, 04 Oct 2026 18:00:00 GMT</pubDate></item>")
+
+    rss = ('<?xml version="1.0"?><rss version="2.0"><channel><title>t</title>'
+           + item("Stock market dips 0.52% in holiday-shortened trading week - punchng.com", "punchng.com")
+           + item("(AMHE) Stock Market Analysis (AMHE:CA) - news.stocktradersdaily.com", "news.stocktradersdaily.com")
+           + item("상장폐지 stock market delistings nearly doubled - 매일경제", "매일경제")
+           + item("S&amp;P 500 earnings season set to impress, Goldman says - Seeking Alpha", "Seeking Alpha")
+           + "</channel></rss>")
+    titles = [s.title for s in parse_feed(rss, "google_news", None, "any")]
+    assert titles == ["S&P 500 earnings season set to impress, Goldman says"]
+    top = ('<?xml version="1.0"?><rss version="2.0"><channel><title>t</title>'
+           + item("In crude Ohio rally speech, Trump says he may not help if Democrats win")
+           + item("Chick-fil-A wants to stay a family business as it expands abroad")
+           + item("OPEC+ agrees to keep November oil output targets steady")
+           + "</channel></rss>")
+    assert [s.title for s in parse_feed(top, "cnbc_top", "CNBC", "title")] == [
+        "OPEC+ agrees to keep November oil output targets steady"]
+
+
 def test_parse_stocktwits_trending() -> None:
     rows = parse_stocktwits_trending(load_json("market/stocktwits_trending.json"))
     assert rows and all(r.source == "stocktwits" for r in rows)

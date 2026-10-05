@@ -118,3 +118,37 @@ def test_fast_for_500_texts():
     start = time.perf_counter()
     assert extract_keywords(texts, [0.1] * len(texts), NVDA)
     assert time.perf_counter() - start < 1.0  # ~0.1 s measured
+
+
+def test_two_letter_acronyms_make_chips():
+    texts = ["Nvidia AI chips demand", "AI chips boom lifts Nvidia", "Nvidia Q3 revenue beats",
+             "Nvidia third-quarter revenue tops estimates", "AI boom: Nvidia AI chips sold out", "EU fines Nvidia",
+             "EU probes Nvidia deal"]
+    terms = set(_terms(extract_keywords(texts, None, NVDA)))
+    assert "AI chips" in terms and "EU" in terms and any(t.startswith("Q3") for t in terms), terms
+
+
+def test_everyday_words_inside_a_long_company_name_stay():
+    fslr = CompanyRef(ticker="FSLR", name="First Solar, Inc.", short_name="First Solar")
+    texts = ["First Solar shares jump as solar demand surges", "Solar stocks rally; First Solar leads",
+             "First Solar wins solar panel order", "Tariffs lift US solar makers", "First Solar raises outlook",
+             "Solar installers see record quarter"]
+    terms = set(_terms(extract_keywords(texts, None, fslr)))
+    assert "solar" in {t.lower() for t in terms} and not {"First Solar", "First"} & terms, terms
+    aal = CompanyRef(ticker="AAL", name="American Airlines Group Inc.", short_name="American Airlines")
+    texts = ["American Airlines cuts flights as airlines face fuel costs", "Airlines rally on lower oil",
+             "Delta, United, American report strong bookings", "Airlines brace for strike"]
+    terms = set(_terms(extract_keywords(texts, None, aal)))
+    assert "airlines" in {t.lower() for t in terms}, terms
+    assert "Delta United" not in terms  # bigrams never span punctuation
+
+
+def test_generic_verbs_are_not_chips():
+    texts = ["Acme continues to support the rally", "Acme acquires 512 stock units", "Acme files new claim",
+             "Acme support level holds", "Acme continues buyback", "Acme files patent", "Acme acquires startup",
+             "Acme changed its plan", "Acme reportedly plans buyback"]
+    terms = {t.lower() for t in _terms(extract_keywords(texts, None, CompanyRef(ticker="ACME", name="Acme Inc.",
+                                                                                   short_name="Acme")))}
+    assert not {"continues", "continue", "support", "acquires", "files", "claim", "units", "changed",
+                "reportedly"} & terms, terms
+    assert "buyback" in terms

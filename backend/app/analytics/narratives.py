@@ -8,14 +8,14 @@ Only published media (news/analysis) that is clearly about the company
     intensity = max(|tone| / 0.4, 0.6 if a material event) capped at 1
     freshness = 0.35 + 0.65 · 0.5^(hours since last item / 48)
 
-Tone is *anchored* on the representative headline: when the members whose own
-tone is close to the headline's (within the cluster's spread, 0.15–0.30) hold
-most of the story's weight, the story's tone is theirs — so a cluster that
-mixes in unrelated items never shows its headline with a tone the headline does
-not carry. Otherwise the headline speaks for a minority of the coverage and the
-tone is the plain weighted mean. Either way a story is used as directional
-evidence (`Story.directional`) only when the headline itself carries the tone
-and the members agreeing with it hold most of the coverage.
+Tone is *anchored* on the headline: it is the weighted mean of the members
+that agree with it (tone within the cluster's spread, 0.15–0.30, or on the same
+side of neutral), so a headline is never shown with a tone it does not carry. When
+that agreeing core is a minority (a catch-all cluster, a mis-scored headline),
+the member whose core holds the largest majority becomes the headline; with no
+majority anywhere the story is mixed. A story is used as directional evidence
+(`Story.directional`) only when its headline carries a clear tone and the
+coverage agreeing with it holds most of the weight.
 
 An event is part of a story when the representative carries it or members
 carrying it hold >= 35% of the story's weighted coverage (and number >= 2), so
@@ -25,11 +25,12 @@ Single items, and clusters carried by a single outlet, only count when the
 outlet is trusted, the item clearly about the company, the tone strong (or a
 material event) and the headline a statement (not a question or listicle).
 
-A narrative is NEW when most of its coverage is dated after the previous look
-(minus 1 h of indexing lag) and none of its headlines matches a previous
-narrative headline (overlap coefficient >= 0.5 with >= 3 shared content stems,
-company name and generic market words ignored) — nor, when the caller knows
-them, shares a member article with a previous story.
+A narrative is NEW when something in it was published since the previous look,
+most of its coverage (strictly) is dated after that look (minus 1 h of indexing
+lag), and none of its headlines matches a previous narrative headline (overlap
+coefficient >= 0.5 with >= 3 shared content stems, company name and generic
+market words ignored) — nor, when the caller knows them, shares a member
+article with a previous story.
 """
 from __future__ import annotations
 
@@ -65,7 +66,7 @@ MATERIAL_SHARE = 0.35  # weighted coverage share for a non-representative event 
 NEW_OVERLAP = 0.5
 NEW_MIN_SHARED = 3
 NEW_GRACE = timedelta(hours=1)  # indexing lag: items stamped just before the last look may be unseen
-NEW_FRESH_SHARE = 0.5  # share of a story's dated coverage that must postdate the last look
+NEW_FRESH_SHARE = 0.5  # share of a story's dated coverage that must (strictly) exceed this after the last look
 NEW_SHARED_IDS = 1 / 3  # shared member articles (of the smaller story) that make two stories one
 
 # Events that are developments in their own right (price moves merely describe the tape).
@@ -76,10 +77,17 @@ to was were will with after amid over than that this vs via new more why how wha
 # Words every market headline shares: they say nothing about which story it is.
 _GENERIC = frozenset("""stock stocks share shares price prices investor investors market markets today week year
 company inc corp co ltd update report news wall street trading trade""".split())
-# Questions, listicles and "reasons to buy" pieces are opinion, not developments.
+# Questions, listicles, "stocks to buy" and first-person columns are opinion, not developments.
 WEAK_TITLE_RE = re.compile(
-    r"\?\s*$|^\s*(?:why|how|what|is|are|should|can|could|will|would|here'?s|this is)\b|"
-    r"\b\d+\s+(?:reasons?|stocks?|things|ways|charts?)\b", re.IGNORECASE)
+    r"\?\s*$|^\s*(?:why|how|what|is|are|should|can|could|will|would|here'?s|this is|forget|my)\b|"
+    r"\bhistory\s+says\b|"
+    r"(?<!S&P )(?<!Nasdaq )(?<!Russell )(?<!Dow )(?<![$\d.,])\b\d+\s+"
+    r"(?:(?!million|billion|trillion|thousand)[\w&'-]+\s+){0,3}?"
+    r"(?:reasons|stocks|picks|etfs|things|ways|charts|lessons|signs|mistakes)\b|"
+    r"\b(?:stocks?|shares?|etfs?)\s+to\s+(?:buy|sell|watch|avoid|own|hold)\b|"
+    r"\b(?:these|best|top)\s+(?:[\w&'-]+\s+){0,2}?(?:stocks|etfs|picks)\b|"
+    r"(?<![$\d.,])\b1\s+(?:[\w&'-]+\s+){0,3}?(?:reason|stock|etf|pick)\b|"
+    r"\bbiggest\s+(?:warning|mistake)\b|\bbetter\s+buy\b|\bon\s+my\s+radar\b", re.IGNORECASE)
 
 
 @dataclass
@@ -167,8 +175,9 @@ def build_narratives(items: list[Item], company: CompanyRef | None, now: datetim
 
 def _story(rep: Item, members: list[Item], now: datetime) -> Story | None:
     members = [rep] + sorted((m for m in members if m is not rep), key=lambda m: (-m.weight, m.id))
+    rep, tone, spread, core_share = pick_anchor(rep, members)
+    members = [rep] + [m for m in members if m is not rep]
     count = sum(m.coverage for m in members)
-    tone, spread, core_share = anchored_tone(rep, members)
     qualified = story_events(rep, members)
     material = [k for k in qualified if k not in PRICE_EVENTS]
 
@@ -213,23 +222,47 @@ def _story(rep: Item, members: list[Item], now: datetime) -> Story | None:
 
 
 def anchored_tone(rep: Item, members: list[Item]) -> tuple[float, float, float]:
-    """(tone, spread, core share) of a story.
+    """(tone, spread, core share) of a story told by `rep`'s headline.
 
-    The core is every member within the cluster's weighted spread (clamped to
-    0.15–0.30) of the representative's score. Tone is the core's weighted mean
-    when the core holds >= half the weight, else the mean of all members (a
-    mis-scored or atypical headline must not set the story's tone); `spread`
-    is over all members."""
+    The core is the coverage agreeing with the headline: members within the
+    cluster's weighted spread (clamped to 0.15–0.30) of its score, plus — for
+    a directional headline — every member on the same side of neutral (a +0.8
+    and a +0.4 headline tell the same bullish story). The tone is the core's
+    weighted mean, so the tone shown next to a headline is the tone of the
+    coverage it speaks for. `spread` is over all members, `core share` is the
+    core's share of the story's weight."""
     mean, wsum = weighted_mean((m.score, m.weight) for m in members)
     if mean is None or wsum <= 0:
         return rep.score, 0.0, 1.0
     spread = math.sqrt(sum(m.weight * (m.score - mean) ** 2 for m in members if m.weight > 0) / wsum)
     band = min(max(spread, ANCHOR_BAND[0]), ANCHOR_BAND[1])
-    core = [m for m in members if abs(m.score - rep.score) <= band]
+    side = 0 if abs(rep.score) < STORY_TONE else 1 if rep.score > 0 else -1
+    core = [m for m in members
+            if abs(m.score - rep.score) <= band or (side and m.score * side >= STORY_TONE)]
     core_tone, core_w = weighted_mean((m.score, m.weight) for m in core)
-    share = core_w / wsum
-    tone = core_tone if core_tone is not None and share >= CORE_SHARE else mean
-    return tone, spread, share
+    return (core_tone if core_tone is not None else rep.score), spread, core_w / wsum
+
+
+def pick_anchor(rep: Item, members: list[Item]) -> tuple[Item, float, float, float]:
+    """(headline item, tone, spread, core share) for a cluster.
+
+    The clusterer's representative tells the story when the coverage agreeing
+    with it holds most of the weight. Otherwise (a catch-all cluster, or a
+    mis-scored headline) the member whose agreeing coverage holds the largest
+    majority takes over — so headline and tone always describe the bulk of the
+    coverage. With no majority anywhere the story is mixed: it keeps the
+    representative and is never used as directional evidence."""
+    tone, spread, share = anchored_tone(rep, members)
+    if share >= CORE_SHARE:
+        return rep, tone, spread, share
+    best: tuple[Item, float, float, float] | None = None
+    for m in members:
+        if m is rep or WEAK_TITLE_RE.search(m.title) or m.relevance < rep.relevance - 0.15:
+            continue
+        m_tone, _, m_share = anchored_tone(m, members)
+        if m_share >= CORE_SHARE and (best is None or (m_share, m.weight) > (best[3], best[0].weight)):
+            best = (m, m_tone, spread, m_share)
+    return best or (rep, tone, spread, share)
 
 
 def story_events(rep: Item, members: list[Item]) -> list[str]:
@@ -270,14 +303,15 @@ def same_headline(a: frozenset[str], b: frozenset[str]) -> bool:
 
 def is_new(story: Story, since: datetime, previous: list[frozenset[str]],
            previous_ids: list[frozenset[str]], ignore: frozenset[str] = frozenset()) -> bool:
-    """Most of the story's coverage postdates the last look and it matches no previous story."""
+    """Something arrived since the last look, most of the story's coverage postdates it
+    (less the indexing grace), and it matches no previous story."""
     if since.tzinfo is None:
         since = since.replace(tzinfo=UTC)
     times = [t for m in story.members for t in m.times()]
-    if not times:
-        return False  # undated: cannot tell when it broke
+    if not times or max(times) <= since:
+        return False  # undated, or nothing published since the last look (it may merely have grown)
     fresh = sum(1 for t in times if t > since - NEW_GRACE)
-    if fresh / len(times) < NEW_FRESH_SHARE:
+    if fresh / len(times) <= NEW_FRESH_SHARE:
         return False
     ids = set(story.narrative.signal_ids)
     for old in previous_ids:

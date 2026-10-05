@@ -8,7 +8,8 @@
   stalls an analysis.
 
 Both blend ~0.6 transformer + 0.4 Sentinel and keep Sentinel's drivers (FinBERT has no
-token-level explanation). Any failure degrades to plain Sentinel results, and ``name``
+token-level explanation). FinBERT's neutral class counts as evidence: a neutral call adds
+0, a hedged polar call is shrunk by its neutral share. Any failure degrades to plain Sentinel results, and ``name``
 says so ("sentinel (finbert-api unavailable)"), so reports never claim a model that did
 not run.
 """
@@ -69,8 +70,10 @@ class _EnsembleEngine:
         self.last_coverage: Optional[float] = None  # share of the last batch the transformer scored
         self._why = "unavailable"  # reason shown when the transformer scored nothing
 
-    def score(self, texts: list[str], kinds: Optional[list[str]] = None) -> list[TextAnalysis]:
-        base = self._sentinel.score(texts, kinds)
+    def score(self, texts: list[str], kinds: Optional[list[str]] = None,
+              targets: Optional[Sequence[Optional[Sequence[str]]]] = None) -> list[TextAnalysis]:
+        """Blend per text; ``targets`` reach Sentinel only (FinBERT reads the whole text)."""
+        base = self._sentinel.score(texts, kinds, targets)
         try:
             probs = self._predict([(t or "")[:MAX_CHARS] for t in texts])
         except Exception as exc:  # noqa: BLE001 - optional engine must never break scoring
@@ -100,10 +103,13 @@ class _EnsembleEngine:
         if p is None:
             return s
         pos, neg, neu = p
-        t_score = pos - neg
+        t_label = "neutral" if neu >= max(pos, neg) else ("bullish" if pos > neg else "bearish")
+        # FinBERT's neutral mass is evidence too: a neutral call contributes 0 (not its small
+        # pos-neg residue, which would flip neutral rows to polar labels) and a hedged polar
+        # call is shrunk by its neutral share.
+        t_score = 0.0 if t_label == "neutral" else (pos - neg) * (1.0 - neu)
         score = max(-1.0, min(1.0, self._weight * t_score + (1.0 - self._weight) * s.score))
         label = label_for(score)
-        t_label = "neutral" if neu >= max(pos, neg) else ("bullish" if pos > neg else "bearish")
         conf = self._weight * max(pos, neg, neu) + (1.0 - self._weight) * s.confidence
         if t_label != s.label and "neutral" not in (t_label, s.label):
             conf *= 0.7  # the two models flatly disagree

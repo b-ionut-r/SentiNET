@@ -51,6 +51,21 @@ export function SignalExplorer({ a }: { a: Analysis }) {
 
   const reset = () => setLimit(PAGE);
 
+  // Nothing collected at all: filters would only imply hidden data, so explain instead.
+  if (a.signals.length === 0) {
+    return (
+      <Panel id="signals" title="Signal explorer" icon={<ListFilter />} subtitle="Every scored news and social item behind the verdict">
+        <Empty title="No news or social items were collected this run">
+          Every text source came back empty or failed — see{" "}
+          <a href="#sources" className="link">
+            Source health
+          </a>{" "}
+          for what each one returned.
+        </Empty>
+      </Panel>
+    );
+  }
+
   return (
     <Panel id="signals" title="Signal explorer" icon={<ListFilter />} subtitle={`${plural(a.signals.length, "item")} kept after relevance filtering and de-duplication`} flush>
       <div className="flex flex-wrap items-center gap-2 px-4 pb-3">

@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
 
 import { cx } from "../../lib/cx";
 import { toneVar } from "../../lib/sentiment";
-import { useTooltip } from "../ui/Tooltip";
+import { useRoving } from "../../lib/useRoving";
 
 /* ------------------------------------------------------------------------- */
 
@@ -91,43 +91,37 @@ export interface Segment {
   color: string;
 }
 
-/** Horizontal part-to-whole bar with 2px surface gaps and per-segment tooltips. */
+/** Horizontal part-to-whole bar with 2px surface gaps and per-segment tooltips (one tab stop, ←/→ to read). */
 export function StackedBar({ segments, height = 10, className, format = (n: number) => String(n) }: { segments: Segment[]; height?: number; className?: string; format?: (n: number) => string }) {
-  const { showAt, hide } = useTooltip();
   const total = segments.reduce((s, x) => s + Math.max(0, x.value), 0);
-  if (total <= 0) return <div className={cx("rounded-full bg-[rgb(var(--grid))]", className)} style={{ height }} />;
   const visible = segments.filter((s) => s.value > 0);
+  const tips = visible.map((s) => (
+    <div className="flex items-center gap-2 whitespace-nowrap">
+      <span className="size-2 rounded-sm" style={{ background: s.color }} />
+      <span className="font-semibold text-ink num">{format(s.value)}</span>
+      <span className="text-muted">
+        {s.label} · {Math.round((s.value / total) * 100)}%
+      </span>
+    </div>
+  ));
+  const { container, mark } = useRoving(tips, visible.map((s) => `${s.label} ${format(s.value)}`).join(", "));
+  if (total <= 0) return <div className={cx("rounded-full bg-[rgb(var(--grid))]", className)} style={{ height }} />;
   return (
-    <div className={cx("flex w-full gap-[2px]", className)} style={{ height }} role="img" aria-label={visible.map((s) => `${s.label} ${format(s.value)}`).join(", ")}>
-      {visible.map((s, i) => {
-        const tip = (
-          <div className="flex items-center gap-2 whitespace-nowrap">
-            <span className="size-2 rounded-sm" style={{ background: s.color }} />
-            <span className="font-semibold text-ink num">{format(s.value)}</span>
-            <span className="text-muted">
-              {s.label} · {Math.round((s.value / total) * 100)}%
-            </span>
-          </div>
-        );
-        return (
-          <div
-            key={s.key}
-            tabIndex={0}
-            className="h-full outline-none transition-[filter] hover:brightness-125 focus-visible:brightness-125"
-            style={{
-              flexGrow: s.value,
-              flexBasis: 0,
-              minWidth: 3,
-              background: s.color,
-              borderRadius: `${i === 0 ? 3 : 1}px ${i === visible.length - 1 ? 3 : 1}px ${i === visible.length - 1 ? 3 : 1}px ${i === 0 ? 3 : 1}px`,
-            }}
-            onMouseEnter={(e) => showAt(tip, e.currentTarget)}
-            onMouseLeave={hide}
-            onFocus={(e) => showAt(tip, e.currentTarget)}
-            onBlur={hide}
-          />
-        );
-      })}
+    <div {...container} className={cx("flex w-full gap-[2px]", container.className, className)} style={{ height }}>
+      {visible.map((s, i) => (
+        <div
+          key={s.key}
+          {...mark(i)}
+          className="h-full transition-[filter] hover:brightness-125 data-[kb-active=true]:brightness-125"
+          style={{
+            flexGrow: s.value,
+            flexBasis: 0,
+            minWidth: 3,
+            background: s.color,
+            borderRadius: `${i === 0 ? 3 : 1}px ${i === visible.length - 1 ? 3 : 1}px ${i === visible.length - 1 ? 3 : 1}px ${i === 0 ? 3 : 1}px`,
+          }}
+        />
+      ))}
     </div>
   );
 }
@@ -189,9 +183,9 @@ export function RangeBar({
       )}
       <div className="relative h-2">
         <div className="absolute inset-y-0 rounded-full bg-[rgb(var(--grid))]" style={{ left: 0, right: 0 }} />
-        <div className="absolute inset-y-0 rounded-full bg-[rgb(var(--accent)/0.28)]" style={{ left: `${x(low)}%`, width: `${x(high) - x(low)}%` }} />
+        <div className="absolute inset-y-0 rounded-full bg-[rgb(var(--ink-2)/0.26)]" style={{ left: `${x(low)}%`, width: `${x(high) - x(low)}%` }} />
         {others.map((m) => (
-          <div key={m.kind} className="absolute -top-1 -bottom-1 w-0.5 -translate-x-1/2 rounded-full bg-accent" style={{ left: `${x(m.value)}%` }} />
+          <div key={m.kind} className="absolute -top-1 -bottom-1 w-0.5 -translate-x-1/2 rounded-full bg-[rgb(var(--ink-2))]" style={{ left: `${x(m.value)}%` }} />
         ))}
         {current && (
           <div

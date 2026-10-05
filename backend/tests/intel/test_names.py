@@ -161,6 +161,8 @@ def test_aliases_include_full_legal_form_and_ascii_fold() -> None:
 
 def test_common_word_detection() -> None:
     assert is_common_word_name("Target")
+    assert is_common_word_name("Nasdaq") and is_common_word_name("Axon")  # namesakes
+    assert is_common_word_name("Travelers") and is_common_word_name("Waters")
     assert is_common_word_name("Apple")
     assert is_common_word_name("AMD")  # short acronyms are ambiguous for full-text search
     assert not is_common_word_name("Nvidia")
@@ -180,10 +182,27 @@ def test_common_word_detection() -> None:
         ("Boston Scientific Corporation", "Boston Scientific"),  # place names are not brands
         ("Archer Aviation Inc.", "Archer Aviation"),
         ("Yum! Brands, Inc.", "Yum! Brands"),
+        # Audit of the ~900 largest SEC registrants: heads that are words, places or famous surnames.
+        ("Restaurant Brands International Inc.", "Restaurant Brands"),
+        ("Quest Diagnostics Incorporated", "Quest Diagnostics"),
+        ("Royalty Pharma plc", "Royalty Pharma"),
+        ("Tenet Healthcare Corporation", "Tenet Healthcare"),
+        ("Jazz Pharmaceuticals plc", "Jazz Pharmaceuticals"),
+        ("Cincinnati Financial Corporation", "Cincinnati Financial"),
+        ("Edison International", "Edison International"),
+        ("Motorola Solutions, Inc.", "Motorola Solutions"),
+        ("Tyler Technologies, Inc.", "Tyler Technologies"),
+        ("Tyson Foods, Inc.", "Tyson Foods"),
+        ("Trip.com Group Limited", "Trip.com"),
+        ("ICON Public Limited Company", "Icon"),
+        ("PTT Exploration and Production Public Company Limited", "PTT Exploration and Production"),
+        # Namesakes the press writes bare keep the short brand (GDELT anchors them instead).
+        ("Carrier Global Corporation", "Carrier"),
+        ("Microchip Technology Incorporated", "Microchip"),
+        ("Charter Communications, Inc.", "Charter"),
         # Coined heads drop industry words the press leaves out.
         ("Gilead Sciences, Inc.", "Gilead"),
         ("Toyota Motor Corporation", "Toyota"),
-        ("Tyson Foods, Inc.", "Tyson"),
         ("Elevance Health, Inc.", "Elevance"),
         ("SoundHound AI, Inc.", "SoundHound"),
         ("D-Wave Quantum Inc.", "D-Wave"),
@@ -207,6 +226,28 @@ def test_everyday_word_brands_get_their_legal_form_as_alias() -> None:
     assert derive_names("POOL", "EQUITY", long_name="Pool Corporation").aliases == ["Pool Corporation"]
     assert derive_names("LMND", "EQUITY", long_name="Lemonade, Inc.").aliases == ["Lemonade Inc"]
     assert derive_names("ONON", "EQUITY", long_name="On Holding AG").aliases == []  # never the bare "On"
+    trv = derive_names("TRV", "EQUITY", long_name="The Travelers Companies, Inc.")
+    assert trv.short_name == "Travelers" and trv.aliases == ["Travelers Companies"]
+    ndaq = derive_names("NDAQ", "EQUITY", long_name="Nasdaq, Inc.")
+    assert ndaq.short_name == "Nasdaq" and ndaq.aliases == ["Nasdaq Inc"]
+    icon = derive_names("ICLR", "EQUITY", long_name="ICON Public Limited Company")
+    assert icon.short_name == "Icon" and icon.aliases == ["Icon plc"]
+
+
+def test_bare_everyday_display_name_keeps_the_legal_descriptor() -> None:
+    msi = derive_names("MSI", "EQUITY", display_name="Motorola", long_name="Motorola Solutions, Inc.")
+    assert msi.short_name == "Motorola Solutions"
+    tyl = derive_names("TYL", "EQUITY", display_name="Tyler", long_name="Tyler Technologies, Inc.")
+    assert tyl.short_name == "Tyler Technologies"
+    axon = derive_names("AXON", "EQUITY", display_name="Axon", long_name="Axon Enterprise, Inc.")
+    assert axon.short_name == "Axon"  # a namesake the press writes bare
+    assert derive_names("WAT", "EQUITY", display_name="Waters", long_name="Waters Corporation").short_name == "Waters"
+
+
+def test_registry_casing_of_scottish_prefixes() -> None:
+    assert fix_case("MCKESSON CORP") == "McKesson Corp"
+    assert fix_case("MCCORMICK & CO INC") == "McCormick & Co Inc"
+    assert fix_case("MACY'S, INC.") == "Macy's, Inc."  # "Mac" is not a prefix rule
 
 
 def test_futures_indices_and_foreign_brands() -> None:
@@ -217,6 +258,7 @@ def test_futures_indices_and_foreign_brands() -> None:
     gold = derive_names("GC=F", "FUTURE", short_name="Gold Dec 26")
     assert gold.short_name == "Gold" and "gold prices" in gold.aliases
     assert derive_names("^VIX", "INDEX", long_name="CBOE Volatility Index").short_name == "VIX"
+    assert derive_names("EURUSD=X", "CURRENCY", long_name="EUR/USD", short_name="EUR/USD").short_name == "EUR/USD"
     assert derive_names("PBR", "EQUITY", long_name="Petróleo Brasileiro S.A. - Petrobras").short_name == "Petrobras"
     assert registry_display_name("Bank of Montreal /CAN/") == "Bank of Montreal"
     assert registry_display_name("UNITED STATES STEEL CORP /DE/") == "United States Steel Corp"

@@ -75,6 +75,15 @@ export function divergingFill(t: number): string {
   return `color-mix(in oklab, rgb(var(${pole})) ${pctPole}%, rgb(var(--mid)))`;
 }
 
+/**
+ * Fill for a sentiment score on the diverging ramp, with the SAME neutral band as
+ * `polarityOf`: a score labelled neutral is never painted bull or bear.
+ * `scale` is the score that reaches the pole.
+ */
+export function toneFill(score: number, scale = 0.5): string {
+  return polarityOf(score) === "neutral" ? "rgb(var(--mid))" : divergingFill(Math.max(-1, Math.min(1, score / scale)));
+}
+
 /** Soft background tint for chips/cells; strength 0..1. */
 export function tintFor(score: number, strength = 1, max = 0.5): string {
   const p = polarityOf(score);

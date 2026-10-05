@@ -14,12 +14,16 @@ from functools import lru_cache
 # --------------------------------------------------------------------------- #
 # Cleaning
 # --------------------------------------------------------------------------- #
-_TAG_RE = re.compile(r"<[^>]{0,400}>")
+# Only tag-shaped markup: "<" must open a tag name ("<b>", "</a>", "<br/>") or a
+# comment. Posts use "<" and ">" for comparisons ("$TSLA <300 is a gift, >400 by
+# EOY", "RSI 42 <65") and "->" for links; those stay.
+_TAG_RE = re.compile(r"<!--.*?-->|</?[A-Za-z][\w:-]*(?:\s[^<>]{0,400})?/?>", re.DOTALL)
 # Inline formatting tags vanish without a gap ("<b>Nvidia</b>'s" -> "Nvidia's").
 _INLINE_TAG_RE = re.compile(r"</?(?:a|b|i|u|em|strong|span|font|small|sup|sub|mark)\b[^>]{0,400}>", re.IGNORECASE)
 _URL_RE = re.compile(r"(?:https?://|www\.)\S+", re.IGNORECASE)
 # Zero-width/invisible chars, BOM, object-replacement char (StockTwits embeds U+FFFC).
-_INVISIBLE_RE = re.compile(r"[\u200b-\u200f\u202a-\u202e\u2060-\u2064\ufeff\ufffc\u00ad]")
+# U+200D (zero-width joiner) stays: it glues emoji sequences ("👨‍💻").
+_INVISIBLE_RE = re.compile(r"[\u200b\u200c\u200e\u200f\u202a-\u202e\u2060-\u2064\ufeff\ufffc\u00ad]")
 _WS_RE = re.compile(r"\s+")
 
 _ASCII_FOLD = str.maketrans({
@@ -65,6 +69,9 @@ _NOT_PUBLISHER_CHARS = re.compile(r"[?!%$\"]|\d{4,}")
 
 
 def _looks_like_publisher(segment: str, publisher: str | None) -> bool:
+    """Is the tail after the last separator an outlet name? With a known
+    `publisher`, only that name, a known outlet or a domain counts — the tail
+    of "Notable ETF Inflow Detected - XLP, MO, TGT, CL" is content."""
     seg = segment.strip().rstrip(".")
     if not seg or len(seg) > 48:
         return False
@@ -76,9 +83,12 @@ def _looks_like_publisher(segment: str, publisher: str | None) -> bool:
 
     if is_known_publisher(seg):
         return True
-    if _NOT_PUBLISHER_CHARS.search(seg):
+    if publisher or _NOT_PUBLISHER_CHARS.search(seg) or "," in seg:
         return False
     words = seg.split()
+    tickers = sum(1 for w in words if re.fullmatch(r"[A-Z]{2,5}", w))
+    if tickers >= 2 or any(w.lower() in _CLAUSE_WORDS for w in words):
+        return False  # "NVDA Gains While SPCX Falls", "What You Should Know"
     # Short Title-Case phrase ("Key Context by Tae Kim", "WGAU Radio", "FOX 5 Atlanta").
     return 1 <= len(words) <= 5 and all(
         w[:1].isupper() or w[:1].isdigit() or w.lower() in {"by", "of", "the", "and", "on", "&"} for w in words
@@ -120,12 +130,19 @@ _BOILERPLATE_RE = re.compile(
     r"stock forecast and price target 20\d\d|insider trading activity 20\d\d|"
     r"^\W*\$?[A-Za-z.]{1,8}\s*\([A-Z.: ]{1,16}\)\W*$|stock quote (?:&|and) (?:chart|summary)|"
     r"live (?:stock )?price (?:chart|today)|real-time (?:stock )?quote|"
-    r"\bfor sale in\b|\b[A-HJ-NPR-Z0-9]{17}\b|\bup for auction\b|"
+    r"\bfor sale in\b.{0,60}\b(?:vin|miles|mileage|bedrooms?|baths?|sq\.? ?ft|acres?)\b|\b[A-HJ-NPR-Z0-9]{17}\b|"
+    r"\btrades (?:at )?(?:eur|usd|gbp|chf|cad|\$|€|£)\s?[\d.,]+ versus\b|"
     # option-chain pages ("SOFI261106P00019000") and automated price ticks
     r"\b[A-Z]{1,6}\d{6}[CP]\d{8}\b|\binteractive stock chart\b|"
     r"\b(?:after-hours|pre-?market|intraday|closing) at (?:eur|usd|gbp|chf|cad|\$|€|£)\s?[\d.,]+|"
     r"\bversus (?:the )?prior close\b",
     re.IGNORECASE,
+)
+# Case-sensitive stubs: a bare legal name ("Target Corporation"), a dated listing
+# ("2021 Ford F-150 XLT for sale in Dallas, TX").
+_STUB_RE = re.compile(
+    r"^\W*[A-Z][\w&.,' -]{1,40}?\s(?:Inc|Corp|Corporation|Ltd|plc|PLC|Co|Company|Holdings|Group|N\.V|SA|AG|SE)\.?\W*$|"
+    r"\b(?:19|20)\d\d\s[A-Z][\w-]*(?:\s[\w-]+){0,4}\sfor sale in\s[A-Z][a-z]+(?:\s[A-Z][a-z]+)?,\s?[A-Z]{2}\b"
 )
 _CONTENT_WORD_RE = re.compile(r"(?<![$#@\w])[A-Za-z][A-Za-z'&-]*[A-Za-z]")
 
@@ -142,7 +159,7 @@ def is_meaningful(text: str | None, min_words: int = 2) -> bool:
     if not text:
         return False
     cleaned = clean_text(text)
-    if not cleaned or _BOILERPLATE_RE.search(fold(cleaned)):
+    if not cleaned or _BOILERPLATE_RE.search(fold(cleaned)) or _STUB_RE.search(cleaned):
         return False
     return len(content_words(cleaned)) >= min_words
 
@@ -229,6 +246,11 @@ soar soars soared soaring plunge plunges plunged plunging tumble tumbles tumbled
 rallying pop pops popped edge edges edged higher lower up down percent pct rebound rebounds rebounded retreat retreats
 retreated sell-off selloff
 """)
+# Words that make a trailing " - X" segment a clause, not an outlet name.
+_CLAUSE_WORDS: frozenset[str] = HEADLINE_VERBS | MOVE_WORDS | wordset("""
+what why how you your should know is are was were will gets get face faces while as after amid downgrades upgrades
+introduces says said sees
+""")
 # Everyday headline nouns/verbs/adjectives that Title Case headlines capitalize
 # ("Stock Pays $0 In Dividends", "Jumps After Strong Delivery Beat"). Where
 # capitalization is useless, these still read as common words, while unknown
@@ -261,27 +283,34 @@ CALENDAR_WORDS: frozenset[str] = wordset("january february march april may june 
                   "apr jun jul aug sep sept oct nov dec monday tuesday wednesday thursday friday saturday sunday")
 
 _TOKEN_RE = re.compile(
-    r"\$\d[\d,]*(?:\.\d+)?(?:\s?(?:trillion|billion|million|thousand|tln|trn|bln|mln|tn|bn|mn|[tbmk])\b)?"  # money
+    r"[$€£]\d[\d,]*(?:\.\d+)?(?:\s?(?:trillion|billion|million|thousand|tln|trn|bln|mln|tn|bn|mn|[tbmk])\b)?"  # money
     r"|\d[\d,]*(?:\.\d+)?%"                                                               # percents
     r"|\$[a-z][a-z.]{0,7}(?<!\.)"                                                         # cashtags
     r"|\d[\d,]*(?:\.\d+)?"                                                                # numbers
     r"|[a-z][a-z0-9&'-]*[a-z0-9]|[a-z]",                                                  # words
 )
-_MONEY_RE = re.compile(r"^\$(\d[\d,]*(?:\.\d+)?)\s?(trillion|billion|million|thousand|tln|trn|bln|mln|tn|bn|mn|"
-                       r"[tbmk])?$")
+_MONEY_RE = re.compile(r"^([$€£])(\d[\d,]*(?:\.\d+)?)\s?(trillion|billion|million|thousand|tln|trn|bln|mln|tn|bn|"
+                       r"mn|[tbmk])?$")
+# "USD 150 billion" / "US$150bn" / "EUR 2 billion" -> "$150 billion" / "€2 billion".
+_CURRENCY_CODE_RE = re.compile(r"\b(?:(usd|us\$)|(eur)|(gbp))\s?(?=\d)", re.IGNORECASE)
 _MONEY_SCALE = {"trillion": "t", "tln": "t", "trn": "t", "tn": "t", "t": "t", "billion": "b", "bln": "b", "bn": "b",
                 "b": "b", "million": "m", "mln": "m", "mn": "m", "m": "m", "thousand": "k", "k": "k"}
 
 
 def normalize_money(token: str) -> str:
-    """'$150 billion' / '$150bn' / '$150 bln' / '$150B' -> '$150b'; '$1,070' -> '$1070'."""
+    """'$150 billion' / '$150bn' / '$150 bln' / '$150B' -> '$150b'; '$1,070' -> '$1070';
+    '€1.2 billion' -> '€1.2b'."""
     m = _MONEY_RE.match(token.lower())
     if not m:
         return token
-    number = m.group(1).replace(",", "")
+    number = m.group(2).replace(",", "")
     if "." in number:
         number = number.rstrip("0").rstrip(".")
-    return f"${number}{_MONEY_SCALE.get(m.group(2) or '', '')}"
+    return f"{m.group(1)}{number}{_MONEY_SCALE.get(m.group(3) or '', '')}"
+
+
+def _currency_symbol(m: re.Match[str]) -> str:
+    return "$" if m.group(1) else "€" if m.group(2) else "£"
 
 
 def tokenize(text: str) -> list[str]:
@@ -290,8 +319,8 @@ def tokenize(text: str) -> list[str]:
     Spelled-out scales right after a bare number fold into money only when a
     '$' was present ("$1.05 billion")."""
     out: list[str] = []
-    for tok in _TOKEN_RE.findall(fold(text).lower()):
-        if tok.startswith("$") and tok[1:2].isdigit():
+    for tok in _TOKEN_RE.findall(_CURRENCY_CODE_RE.sub(_currency_symbol, fold(text)).lower()):
+        if tok[:1] in "$€£" and tok[1:2].isdigit():
             tok = normalize_money(tok)
         elif tok.endswith("'s"):
             tok = tok[:-2]

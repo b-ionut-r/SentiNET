@@ -107,6 +107,62 @@ CASES: list[tuple[str, str, str]] = [
     ("New CEO takes charge at Acme", "neutral", "news"),
     ("Acme takes a $2 billion charge", "bearish", "news"),
     ("Acme's CFO departs abruptly", "bearish", "news"),
+    # capped upside is a bearish argument; capped downside a bullish one
+    ("Morgan Stanley lowers Acme stock price target on limited upside", "bearish", "news"),
+    ("Acme Stock's Upside May Be Limited as AI Agents Could Disrupt Business", "bearish", "news"),
+    ("Analyst sees limited upside for Acme", "bearish", "news"),
+    ("Acme shares rose sharply after the update", "bullish", "news"),
+    # Form-4 pay and plan transactions are not trading decisions
+    ("Acme (ACM) COO acquires 512 stock units at $24.40 each through payroll deductions.", "neutral", "news"),
+    ("Acme (ACM) executive acquires 145 benefit-plan shares and has 9,248 shares withheld for taxes.", "neutral",
+     "news"),
+    ("Acme CFO exercises options and sells 20,000 shares", "neutral", "news"),
+    ("Acme CEO buys 100,000 shares in open market purchase", "bullish", "news"),
+    ("Acme director bought $2 million of stock", "bullish", "news"),
+    ("Acme CEO sells 50,000 shares", "bearish", "news"),
+    # regulators and enforcement
+    ("SEC approves spot bitcoin ETFs", "bullish", "news"),
+    ("SEC charges Acme executives with fraud", "bearish", "news"),
+    ("DOJ sues Acme over pricing", "bearish", "news"),
+    ("SEC drops charges against Acme", "bullish", "news"),
+    ("CFTC approves one final, two proposed rules at open meeting", "neutral", "news"),
+    ("FAA weighs plane approval revamp", "neutral", "news"),
+    ("Acme 737 jets grounded after incident", "bearish", "news"),
+    # destruction takes its sign from what is destroyed
+    ("Acme's 45% Rally Wiped Out as Hopes for an AI Windfall Fizzle", "bearish", "news"),
+    ("Acme's 45% rally wiped out as hopes fade", "bearish", "news"),
+    ("Acme wipes out last year's losses", "bullish", "news"),
+    ("Selloff wipes out $1 trillion in market value", "bearish", "news"),
+    ("Acme cuts $2 billion in costs", "bullish", "news"),
+    ("Fed adds $90 billion in cash to money markets", "neutral", "news"),
+    # "to <rating word>" is a rating change only when a rating phrase ends there
+    ("Company takes steps to reduce debt", "bullish", "news"),
+    ("Chipmaker cuts prices to add market share", "neutral", "news"),
+    ("Acme cuts jobs to reduce costs", "bearish", "news"),
+    ("Founder offers to buy prepaid brand", "neutral", "news"),
+    ("Acme upgraded to Buy at Goldman", "bullish", "news"),
+    ("Acme cut to Neutral; price target lowered", "bearish", "news"),
+    ("Analyst moves Acme to Sell", "bearish", "news"),
+    # the other camp, idioms and emoji in posts
+    ("$ACME can't stop won't stop 🚀", "bullish", "social"),
+    ("$ACME going to zero", "bearish", "social"),
+    ("$ACME dead money", "bearish", "social"),
+    ("$ACME is cooked", "bearish", "social"),
+    ("$ACME bears getting destroyed", "bullish", "social"),
+    ("$ACME bulls getting destroyed", "bearish", "social"),
+    ("$ACME $SPY $QQQ Black Monday coming boys and girls", "bearish", "social"),
+    ("Fed cuts rates to zero", "bullish", "news"),
+    # containment, pauses, 13F bots and market background
+    ("Acme Q3 sales fall 6.6%, says disruption contained within guidance", "bearish", "news"),
+    ("Acme says costs contained", "bullish", "news"),
+    ("Stocks and bonds pause ahead of data", "neutral", "news"),
+    ("Rally pauses as investors take profits", "bearish", "news"),
+    ("Vanguard Group Inc. Raises Stake in Acme", "neutral", "news"),
+    ("State Street Corp Cuts Stake in Acme", "neutral", "news"),
+    ("Geode Capital Management LLC Sells 1,234 Shares of Acme Inc. (NYSE:ACM)", "neutral", "news"),
+    ("Holding company trims its stake in Acme", "bearish", "news"),
+    ("Acme (ACM) Stock Dips While Market Gains", "bearish", "news"),
+    ("Oil prices, which surged last week on supply fears, slide to 3-month low", "bearish", "news"),
     # trader words only count as positions in trading talk
     ("I've been using this for a long time and it calls the API twice", "neutral", "social"),
     ("Long story short, the board calls for a vote", "neutral", "social"),
@@ -176,6 +232,56 @@ def test_why_questions_keep_their_premise_but_yes_no_questions_do_not(engine: Se
     stated = engine.analyze("Nvidia stock down today")
     asked = engine.analyze("Is Nvidia stock down today?")
     assert stated.score < why.score < asked.score <= 0
+
+
+def test_limited_upside_is_a_negative_driver_and_does_not_shrink_the_cut(engine: SentinelEngine) -> None:
+    a = engine.analyze("Morgan Stanley lowers Acme stock price target on limited upside")
+    drivers = dict(a.drivers)
+    assert drivers["limited upside"] < 0
+    plain = engine.analyze("Morgan Stanley lowers Acme stock price target")
+    assert a.score < plain.score  # the trailing adjective no longer diminishes the cut
+
+
+def test_insider_plan_transactions_carry_no_driver(engine: SentinelEngine) -> None:
+    a = engine.analyze("Acme (ACM) COO acquires 512 stock units at $24.40 each through payroll deductions.")
+    assert a.drivers == [] and a.score == 0.0
+    planned = engine.analyze("Acme CEO sells 50,000 shares under 10b5-1 plan")
+    unplanned = engine.analyze("Acme CEO sells 50,000 shares")
+    assert unplanned.score < planned.score <= 0
+
+
+def test_wiped_out_driver_names_what_was_wiped(engine: SentinelEngine) -> None:
+    a = engine.analyze("Acme's 45% rally wiped out as hopes fade")
+    assert a.drivers[0][0].lower().endswith("rally wiped out") and a.drivers[0][1] < 0
+
+
+def test_level_drivers_keep_their_qualifier_and_drop_generic_nouns(engine: SentinelEngine) -> None:
+    a = engine.analyze("$ACME Stocks that break through 52 week highs", "social")
+    assert a.drivers[0][0] == "52 week highs"
+    assert all(term.lower() not in ("stocks", "stocks highs") for term, _ in a.drivers)
+
+
+def test_relative_clause_is_background_not_the_subject(engine: SentinelEngine) -> None:
+    a = engine.analyze("Oil prices, which surged last week on supply fears, slide to 3-month low")
+    assert a.label == "bearish"
+    assert not any("fears, slide" in term for term, _ in a.drivers)
+
+
+def test_neutral_confidence_separates_found_nothing_from_said_neutral(engine: SentinelEngine) -> None:
+    nothing = engine.analyze("Acme to present at investor conference on Tuesday")
+    said = engine.analyze("Acme quarterly results in line with estimates")
+    assert nothing.label == said.label == "neutral"
+    assert nothing.confidence == pytest.approx(0.5, abs=0.05)  # a default, not a finding
+    assert said.confidence > nothing.confidence + 0.15
+
+
+def test_news_polar_confidence_map_is_monotone_and_bounded() -> None:
+    from app.nlp.engine import NEWS_POLAR_CALIBRATION, _interpolate
+
+    xs = [i / 100 for i in range(5, 99)]
+    ys = [_interpolate(x, NEWS_POLAR_CALIBRATION) for x in xs]
+    assert all(b >= a for a, b in zip(ys, ys[1:], strict=False))
+    assert 0.0 < ys[0] and ys[-1] <= 0.9
 
 
 def test_lexicon_counts_are_honest() -> None:

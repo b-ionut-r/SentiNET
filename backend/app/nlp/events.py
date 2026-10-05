@@ -14,8 +14,12 @@ posts are judged on their first sentences (~300 chars).
 Patterns were tuned on real Google News / StockTwits phrasing (US, UK and
 Nordic broker notes, MarketBeat/TradingView auto-headlines, law-firm blasts);
 see tests/nlp/test_events.py for the real cases, false friends included.
-Known limit: events are text-level — "Burford stock jumps after jury orders
-Apple to pay" yields price_up without saying whose price moved.
+
+Events are text-level unless `detect_events(text, company)` is given the
+company the text is scored for: then events that happened to someone else
+are dropped — "Tesla rival Nikola files for bankruptcy" carries no
+bankruptcy for Tesla, and in "Burford stock jumps after jury orders Apple to
+pay" Apple keeps the lawsuit but not the price jump (see `_owned`).
 """
 from __future__ import annotations
 
@@ -331,6 +335,15 @@ _HYPOTHETICAL_RE = re.compile(
     r"aims? to|hopes? to|if|whether)\s+(?:[\w().&'-]+\s+){0,3}$)",
     re.IGNORECASE,
 )
+# Someone expects or bets on the event; it has not happened: "Eyes 'Beat-And-Raise'
+# Quarter", "Retail Bets On Earnings Beat", "Analysts expect stock to jump".
+_EXPECT_RE = re.compile(
+    r"\b(?:eyes?|eyeing|bets? on|betting on|sees?|expects?|expecting|hopes? for|hoping for|set(?:ting)? up for|"
+    r"bar for|odds of|chances? of|path to|primed for|poised for|calls? for|predicts?|predicting|forecasts?|"
+    r"looks? for|looking for|braces? for|bracing for|needs?|awaits?|awaiting)\s+"
+    r"(?:an?\s+|another\s+|the\s+|its\s+)?(?:[\w'\"-]+\s+){0,3}['\"]?$",
+    re.IGNORECASE,
+)
 _UPGRADE_NOISE_RE = re.compile(r"upgrade (?:cycle|supercycle|path|program)|(?:guidance|outlook|forecast|credit|"
                                r"earnings|estimate|eps) upgrades?|upgrades? (?:to|for) (?:ios|android|windows|"
                                r"its network|the network|infrastructure|software|firmware|the grid)|network upgrade|"
@@ -365,7 +378,7 @@ def _num(raw: str) -> float | None:
 
 # Clause boundaries, ignoring initials and abbreviations ("T. Rowe", "Chase & Co.").
 _CLAUSE_SPLIT_RE = re.compile(r"(?<!\b[A-Z])(?<!\bInc)(?<!\bCo)(?<!\bCorp)(?<!\bLtd)(?<!\bSt)(?<!\bU\.S)\.\s|"
-                              r"[;:!?]\s|\s[-|]\s")
+                              r"[;:!?]\s|\s[-|]\s|\s*[\u2022\u25aa\u25ba]\s*")
 
 
 # A reported event inside a question about its consequences is still a fact:
@@ -387,6 +400,13 @@ def _is_hypothetical(text: str, start: int, end: int | None = None) -> bool:
     """Modal/preview phrasing right before the event, or a yes/no question
     ("Can X spark a rally?") — unless the question is about the consequences
     of an event that already happened (see _FACT_BEFORE_RE)."""
+    lead = _CLAUSE_SPLIT_RE.split(text[max(0, start - 60):start])[-1]
+    expect = _EXPECT_RE.search(lead)
+    fact = _FACT_BEFORE_RE.search(lead)
+    if expect and not (fact and fact.start() > expect.start()):
+        # "Retail Bets On Earnings Beat", "HSBC Sees 'Beat And Raise' Quarter" — but
+        # "Bet on TMUS After Dividend Hike" reports the hike.
+        return True
     if _FACT_BEFORE_RE.search(text[max(0, start - 40):start]):
         return False
     if end is not None and _NOUN_EVENT_RE.match(text[start:end]) and _CONSEQUENCE_AFTER_RE.match(text[end:]):
@@ -575,8 +595,25 @@ _EST = (r"(?:estimates?|expectations|forecasts?|consensus|views?|projections?|wa
 _GUIDE = r"(?:guidance|outlook|forecasts?|projections?|guide|view)"
 _GUIDE_MID = (r"(?:(?:its|their|the|annual|full[- ]year|fy\s?\d*|fiscal(?: year)?(?: \d{4})?|20\d\d|q[1-4]|quarterly|"
               r"first[- ]half|second[- ]half|h[12]|revenue|sales|profit|earnings|eps|margin|production|delivery|"
-              r"growth|capex|spending|2026|2027)\s+){0,3}")
-_EXEC = (r"(?:ceo|cfo|coo|cto|cio|c\.e\.o\.|chief\s+\w+\s+officer|chief executive|chief financial officer|chairman|chairwoman|"
+              r"growth|capex|spending|bookings|subscription|subscriber|core|adjusted|operating|ai|chip|chips|"
+              r"current[- ]quarter|next[- ]quarter|current[- ]year|full[- ]year|2026|2027)\s+){0,4}")
+_GUIDE_WORD = r"(?:guidance|outlooks?|forecasts?|guides?|projections?)"
+# Company forecasts against the Street: "Micron forecasts quarterly revenue above
+# estimates", "Nvidia sees Q4 revenue of $65 billion, above estimates", "Intel
+# forecasts weak fourth-quarter revenue" (the canonical Reuters phrasing).
+_GUIDE_VERB = r"(?:forecasts?|projects?|sees|expects|guides?|predicts?|anticipates?|signals?)"
+_GUIDE_METRIC = (r"(?:revenues?|sales|profits?|earnings|eps|results|bookings|deliveries|growth|margins?|order value|"
+                 r"income|ebitda|ebit|cash flow|billings|arr|shipments|subscription revenue)")
+_GUIDE_FILL = r"(?:(?!(?:but|while|as|though|although|yet|and shares|shares|stock)\b)[\w$.,%'-]+\s+)"
+_ABOVE = (r"(?:above|ahead of|exceed(?:s|ing)?|top(?:s|ping)?|beat(?:s|ing)?|blows? past|crush(?:es)?|smash(?:es)?|"
+          r"surpass(?:es)?|outpac(?:es|ing)|better than|comes? in above|that (?:beats?|tops?|exceeds?))")
+_BELOW = (r"(?:below|short of|under|shy of|miss(?:es|ing)?|lags?|lagging|trails?|trailing|falls? short of|"
+          r"comes? in below|weaker than|worse than|lower than|disappoints?|that (?:miss(?:es)?|lags?))")
+_UPBEAT = r"(?:strong|stronger|upbeat|robust|bullish|rosy|blowout|solid|record|bumper|buoyant|better-than-expected)"
+_DOWNBEAT = (r"(?:weak|weaker|soft|softer|muted|lukewarm|disappointing|downbeat|gloomy|bleak|dismal|tepid|"
+             r"lackluster|cautious|steep|sluggish|worse-than-expected|wider-than-expected|lower)")
+_EXEC = (r"(?:ceo|cfo|coo|cto|cio|c\.e\.o\.?|chief(?:\s+[\w-]+){0,2}?\s+(?:officer|scientist|economist|strategist|"
+         r"architect|designer)|chief executive|chief financial officer|chairman|chairwoman|"
          r"chair|president|founder|co-founder|executive|exec|director|svp|evp|vp|general counsel|head of \w+|"
          r"board member|officer|insider)")
 _MOVE_UP = (r"jump(?:s|ed)?|soar(?:s|ed)?|surg(?:e|es|ed)|rall(?:y|ies|ied)|spik(?:e|es|ed)|skyrocket(?:s|ed)?|"
@@ -593,7 +630,9 @@ _MOVE_DOWN = (r"fall(?:s)?|fell|drop(?:s|ped)?|sink(?:s)?|sank|slid(?:e|es)?|tum
 _FUNDAMENTAL = (r"(?:revenue|revenues|sales|profit|profits|earnings|eps|margin|margins|income|deliveries|orders|"
                 r"traffic|comps|yields?|rates?|inflation|prices|price of|unemployment|guidance|outlook|forecast|"
                 r"production|output|demand|volume|bookings|subscribers|users|spending|costs?|debt|cash|losses?|"
-                r"wealth|fortune|net worth|index|market|futures|bitcoin|oil|gold|dollar)")
+                r"wealth|fortune|net worth|index|market|futures|bitcoin|oil|gold|dollar|payments|transactions|"
+                r"volumes|downloads|visits|enrollment|adoption|usage|subscriptions|sign-ups|signups|shipments|"
+                r"inflows|outflows|deposits|loans|assets|backlog|exports|imports|registrations)")
 
 _PCT_AFTER = (rf"(?:\s+(?:by\s+|nearly\s+|almost\s+|over\s+|more than\s+|as much as\s+|about\s+|roughly\s+|"
               rf"another\s+)?(?:{_NUM})\s?(?:%|percent\b|pct\b))")
@@ -603,10 +642,11 @@ _RULES: tuple[tuple[str, re.Pattern[str], bool], ...] = tuple((k, re.compile(p, 
      rf"\b(?:beat|beats|beating|tops?|topped|topping|exceed(?:s|ed|ing)?|surpass(?:es|ed|ing)?|crush(?:es|ed)?|"
      rf"smash(?:es|ed)?|trounce[sd]?|outpace[sd]?|outstrip(?:s|ped)?|blows? past|blew past|sails? past|"
      rf"(?:comes?|came) in above)\s+(?:[\w'$.-]+\s+){{0,4}}?{_EST}\b"
-     rf"|\b(?<!guidance )(?<!outlook )(?<!forecast ){_EARN}\s+(?:and\s+\w+\s+|[\w'$.-]+\s+){{0,3}}?"
+     rf"|\b(?<!guidance )(?<!outlook )(?<!forecast ){_EARN}\s+(?:and\s+\w+\s+|(?!{_GUIDE_WORD}\b)[\w'$.-]+\s+){{0,3}}?"
      r"(?:beat|beats|tops?|topped|exceed(?:s|ed)?|surpass(?:es|ed)?|crush(?:es|ed)?)\b(?!\s+(?:the\s+)?market)"
      rf"|\b(?:{_EARN}|double|top-and-bottom-line)\s+beats?\b|\bbeat[- ]and[- ]raise\b|\bbeats? on (?:\w+\s+){{0,3}}?{_EARN}"
      rf"|\b(?:better|stronger)[- ]than[- ]expected\s+(?:\w+\s+){{0,2}}?{_EARN}"
+     rf"|\b{_EARN}\s+(?:(?!{_GUIDE_WORD}\b)[\w'$.%-]+\s+){{0,3}}?(?:above|ahead of)\s+(?:\w+\s+){{0,2}}?{_EST}\b"
      ), True),
     ("earnings_miss", (
      rf"\b(?:miss(?:es|ed)?|missing|falls? short of|fell short of|falling short of|lags?|lagged|trails?|trailed|"
@@ -615,6 +655,7 @@ _RULES: tuple[tuple[str, re.Pattern[str], bool], ...] = tuple((k, re.compile(p, 
      rf"(?!\s+of\s+(?!(?:\w+\s+){{0,2}}?{_EST}))"
      rf"|\b(?:wider|bigger|larger|deeper)[- ]than[- ]expected\s+(?:\w+\s+){{0,1}}?loss|\bloss\s+(?:widens|wider than)"
      rf"|\b(?:weaker|worse|softer)[- ]than[- ]expected\s+(?:\w+\s+){{0,2}}?{_EARN}"
+     rf"|\b{_EARN}\s+(?:(?!{_GUIDE_WORD}\b)[\w'$.%-]+\s+){{0,3}}?(?:below|short of)\s+(?:\w+\s+){{0,2}}?{_EST}\b"
      ), True),
     ("guidance_raise", (
      rf"\b(?:raise[sd]?|raising|lift(?:s|ed|ing)?|boost(?:s|ed|ing)?|hike[sd]?|up(?:s|ped)|increase[sd]?|"
@@ -622,8 +663,10 @@ _RULES: tuple[tuple[str, re.Pattern[str], bool], ...] = tuple((k, re.compile(p, 
      rf"|\b(?:upbeat|strong|stronger|robust|bullish|rosy|solid|above-consensus|better-than-expected|raised|"
      rf"upside|blowout|higher|increased|improved|boosted|lifted)\s+(?:[\w-]+\s+){{0,2}}?"
      rf"(?:guidance|outlook|forecast|guide)\b"
-     rf"|\b(?:guidance|outlook|forecast|guide)\s+(?:\w+\s+){{0,2}}?(?:tops?|beats?|above|exceeds?|ahead of)\s+"
-     rf"(?:\w+\s+){{0,2}}?{_EST}|\bguided? (?:above|ahead of)\b|\bbeat[- ]and[- ]raise\b"
+     rf"|\b{_GUIDE_WORD}\s+{_GUIDE_FILL}{{0,4}}?{_ABOVE}\s+(?:[\w'-]+\s+){{0,2}}?{_EST}"
+     rf"|\b{_GUIDE_VERB}\s+{_GUIDE_FILL}{{0,6}}?{_GUIDE_METRIC}\b[^.;?!]{{0,30}}?\b{_ABOVE}\s+(?:[\w'-]+\s+){{0,2}}?{_EST}"
+     rf"|\b{_GUIDE_VERB}\s+(?:an?\s+)?{_UPBEAT}\s+(?:[\w$%'-]+\s+){{0,3}}?(?:{_GUIDE_METRIC}|year|quarter|20\d\d)\b"
+     rf"|\bguid(?:e|es|ed|ing) (?:\w+\s+)?(?:above|ahead of)\b|\bbeat[- ]and[- ]raise\b"
      ), True),
     ("guidance_cut", (
      rf"\b(?:cut[s]?|cutting|lower(?:s|ed|ing)?|slash(?:es|ed|ing)?|trim(?:s|med|ming)?|reduce[sd]?|reducing|"
@@ -631,11 +674,15 @@ _RULES: tuple[tuple[str, re.Pattern[str], bool], ...] = tuple((k, re.compile(p, 
      rf"drops?|dropped|abandons?|abandoned|"
      rf"temper(?:s|ed)?)\s+{_GUIDE_MID}{_GUIDE}\b"
      rf"|\b(?:weak|weaker|soft|softer|disappointing|downbeat|gloomy|cautious|bleak|dismal|lowered|reduced|tepid|"
-     rf"lackluster|muted|grim)\s+(?:[\w-]+\s+){{0,2}}?(?:guidance|outlook|forecast|guide)\b"
+     rf"lackluster|lukewarm|muted|grim)\s+(?:[\w-]+\s+){{0,2}}?(?:guidance|outlook|forecast|guide)\b"
      rf"|\b(?:guidance|outlook|forecast|guide)\s+(?:\w+\s+){{0,2}}?(?:miss(?:es|ed)?|falls? short|below|"
      rf"disappoints?|trails?|lags?)\b|\bprofit warning\b|\bwarns? (?:on|of) (?:\w+\s+){{0,2}}?(?:profit|revenue|"
-     rf"sales|earnings|results|demand)\b|\bforecasts? (?:\w+\s+){{0,2}}?(?:revenue|sales|profit|earnings) "
+     rf"sales|earnings|results|demand)\b|\bforecasts? (?:[\w-]+\s+){{0,3}}?(?:revenue|sales|profit|earnings) "
      rf"(?:drop|decline|fall|slump)"
+     rf"|\b{_GUIDE_WORD}\s+{_GUIDE_FILL}{{0,4}}?{_BELOW}\s+(?:[\w'-]+\s+){{0,2}}?{_EST}"
+     rf"|\b{_GUIDE_VERB}\s+{_GUIDE_FILL}{{0,6}}?{_GUIDE_METRIC}\b[^.;?!]{{0,30}}?\b{_BELOW}\s+(?:[\w'-]+\s+){{0,2}}?{_EST}"
+     rf"|\b{_GUIDE_VERB}\s+(?:an?\s+)?{_DOWNBEAT}\s+(?:[\w$%'-]+\s+){{0,3}}?(?:{_GUIDE_METRIC}|year|quarter|20\d\d)\b"
+     rf"|\b(?:dents?|dented|hurts?|weighs? on)\s+{_GUIDE_MID}{_GUIDE}\b|\bguid(?:e|es|ed|ing) (?:\w+\s+)?below\b"
      ), True),
     ("record_results", (
      r"\brecord (?:(?:quarterly|annual|first[- ]quarter|second[- ]quarter|third[- ]quarter|fourth[- ]quarter|"
@@ -682,10 +729,15 @@ _RULES: tuple[tuple[str, re.Pattern[str], bool], ...] = tuple((k, re.compile(p, 
      r"raid(?:ed|s)?|wells notice|under (?:federal )?review)\b"
      ), False),
     ("settlement", (
-     r"\b(?:settle[sd]?|settles|settling|settlements?)\b(?=.{0,60}\b(?:lawsuit|suit|case|claims?|charges?|probe|"
-     r"sec|ftc|doj|class action|litigation|dispute|allegations|investors|shareholders)\b)|"
-     r"\b(?:lawsuit|suit|case|claims?|charges?|probe|class action|litigation|dispute)\b.{0,40}\bsettle[sd]?\b|"
-     r"\bagree[sd]? to pay \$"
+     r"\b(?:settle[sd]?|settles|settling|settlements?)\s+(?:(?:over|of|for|in|to resolve|to end)\s+)?"
+     r"(?:[\w$.,'-]+\s+){0,4}?(?:lawsuits?|suits?|cases?|claims|charges|probes?|class[- ]actions?|litigation|"
+     r"disputes?|allegations|investigations?|complaints?|accusations|antitrust|patent|copyright|fraud)\b"
+     r"|\b(?:settle[sd]?|settles|settling|settlements?)\s+with\s+(?:the\s+)?(?:sec|ftc|doj|cfpb|justice department|"
+     r"regulators?|attorneys? general|states?|plaintiffs|shareholders|investors|the government|eu|european commission|"
+     r"[\w.&-]+ (?:regulators?|authorities))\b"
+     r"|\b(?:lawsuits?|suits?|cases?|claims|charges|probes?|class[- ]actions?|litigation|disputes?)\b[^.;!?]{0,30}?"
+     r"\bsettle[sd]?\b|\$[\d.,]+\s?(?:million|billion|m|bn|b|k)?\s+(?:[\w-]+\s+){0,3}?settlements?\b"
+     r"|\bagree[sd]? to pay \$"
      ), False),
     ("m_and_a", (
      r"\b(?:acquisitions?|mergers?|takeovers?|buyouts?|tender offer|all-(?:cash|stock) deal|go(?:es|ing)? private|"
@@ -701,19 +753,22 @@ _RULES: tuple[tuple[str, re.Pattern[str], bool], ...] = tuple((k, re.compile(p, 
      r"(?!\s+(?:stock|shares)\b)(?=.*\b(?:deal|billion|million|bn|takeover|acquisition|\$\d))"
      r"|(?:\$|£|€)[\d.,]+\s?(?:billion|bn|b)\s+[^?!]{0,40}?\bdeal\s+(?:closes|closed|completes|completed|clears|"
      r"cleared|wins approval|gets approval|just cleared)\b|"
-     r"(?:(?:\$|£|€)[\d.,]+\s?(?:billion|bn|b)|takeover|buyout)\s+deal\s+for\s+(?:rival\s+)?(?-i:[A-Z])[\w&.'-]+|"
+     r"(?:(?:\$|£|€)[\d.,]+\s?(?:billion|bn|b)|takeover|buyout)\s+deal\s+for\s+(?:rival\s+)?"
+     r"(?:(?-i:[a-z])[\w-]*\s+){0,3}?(?-i:[A-Z])[\w&.'-]+|"
      r"\bdeal for rival\b"
      ), False),
     ("partnership", (
      r"\b(?:partner(?:s|ed|ing)? with|partnerships?|teams? up|teamed up|collaborat(?:es|ed|ing|ion)|alliance|"
      r"joint venture|ties up|tie-up|strategic (?:agreement|investment|deal|pact)|signs? (?:a )?(?:deal|pact|"
-     r"agreement|mou) with|inks? (?:a )?(?:\w+\s+)?(?:deal|pact|agreement)|strikes? (?:a )?(?:\w+\s+)?(?:deal|pact|"
-     r"agreement)|struck (?:a )?deal|(?:supply|licensing|distribution|cloud|chip|ai) (?:deal|pact|agreement) with)\b"
+     r"agreement|mou) with|(?:inks?|strikes?|struck|signs?|signed|enters?(?: into)?|entered(?: into)?)\s+(?:an?\s+)?"
+     r"(?:[\w$.,-]+\s+){0,3}?(?:deal|pact|agreement)|(?:supply|licensing|distribution|cloud|chip|ai) (?:deal|pact|agreement) with)\b"
      ), False),
     ("contract_win", (
      r"\b(?:wins?|won|secures?|secured|lands?|landed|awarded|clinch(?:es|ed)?|bags?|bagged|nabs?|gets?|got|"
      r"receives?|received)\s+(?:an?\s+)?(?:[\w$.,'\"-]+\s+){0,4}?(?:contracts?|orders?|award|tender)\b"
      r"(?!\s+(?:extension|talks|negotiations|details|decision))"
+     r"|\b(?:wins?|won|secures?|secured|lands?|landed|nets?|netted|nabs?|nabbed|clinch(?:es|ed)?|bags?|bagged)\s+(?:an?\s+)?"
+     r"(?:[\w$.,-]+\s+){0,3}?deal\s+(?:for|to (?:supply|provide|build|deliver|produce|make))\b"
      ), False),
     ("product_launch", (
      r"\b(?:launch(?:es|ed|ing)?|unveil(?:s|ed|ing)?|introduc(?:es|ed|ing)|rolls? out|rolled out|rolling out|"
@@ -726,8 +781,24 @@ _RULES: tuple[tuple[str, re.Pattern[str], bool], ...] = tuple((k, re.compile(p, 
     ("exec_departure", (
      rf"\b{_EXEC}\s+(?:[\w.'-]+\s+){{0,3}}?(?:steps? down|stepping down|stepped down|resign(?:s|ed|ing)?|to resign|"
      rf"quits?|exits?|depart(?:s|ed|ing)?|leaves|leaving|to leave|retir(?:e|es|ed|ing)|to retire|ousted|fired|"
-     rf"replaced|to step down|is out|out as)\b|\b(?:resignation|departure|exit|ouster|firing|retirement) of "
-     rf"(?:its |the )?(?:ceo|cfo|coo|chief|chairman|president|founder)"
+     rf"replaced|to step down|is out|out as|to exit|to depart|to quit)\b|\b(?:resignation|departure|exit|ouster|firing|"
+     rf"retirement) of (?:its |the )?(?:ceo|cfo|coo|chief|chairman|president|founder)"
+     # "Tim Cook to step down as Apple CEO", "Pat Gelsinger out as Intel CEO"
+     rf"|\b(?:steps?|stepping|stepped|step) down (?:as|from)\s+(?:its\s+|the\s+)?(?:[\w&.'-]+\s+){{0,3}}?{_EXEC}"
+     rf"|\b(?:steps?|stepping|stepped|step) down (?:at|from) (?:the )?(?:helm|top|board|(?-i:[A-Z])[\w&.'-]+)"
+     rf"|\b{_EXEC} of (?:[\w&.'-]+\s+){{1,6}}?(?:steps? down|stepping down|to step down|resigns?|to resign|retires?|"
+     rf"to retire|exits?|departs?|is out)\b|\bannounces (?:ceo|chief executive) (?:succession|transition)\b"
+     rf"|\b(?:is |are |was )?out as\s+(?:its\s+|the\s+)?(?:[\w&.'-]+\s+){{0,2}}?{_EXEC}"
+     rf"|\b(?:leaves?|leaving|exits?|exiting|quits?|quitting|resigns?|retires?|departs?|ousted|fired|removed|"
+     rf"replaced)\s+as\s+(?:its\s+|the\s+)?"
+     rf"(?:[\w&.'-]+\s+){{0,2}}?{_EXEC}"
+     # "Starbucks ousts CEO Laxman Narasimhan", "Kohl's fires CEO", "board fires President and CEO"
+     rf"|\b(?:ousts?|ousted|fires?|fired|removes?|removed|replaces?|dismiss(?:es|ed)|sacks?|sacked|axes|axed|"
+     rf"terminates?|terminated|dumps?|dumped|pushes out|pushed out|forces? out|forced out)\s+(?:its\s+|the\s+|their\s+|"
+     rf"[\w&.-]+'s\s+)?(?:longtime\s+|embattled\s+|founder and\s+|president and\s+|chairman and\s+)?{_EXEC}\b"
+     rf"|\b(?:hand(?:s|ing|ed)?|pass(?:es|ing|ed)?) (?:over )?(?:the )?reins\b|\bced(?:e|es|ing) (?:the )?(?:role|helm|top job)\b"
+     rf"|\b(?:leave|leaves|leaving|exit|exits|exiting|quit|quits|vacate|vacates) (?:the |his |her |its )?{_EXEC} "
+     rf"(?:role|post|job|position|seat)\b"
      ), False),
     ("exec_hire", (
      r"\b(?:appoints?|appointed|names?|named|hires?|hired|taps?|tapped|picks?|poach(?:es|ed)|recruits?|"
@@ -736,7 +807,13 @@ _RULES: tuple[tuple[str, re.Pattern[str], bool], ...] = tuple((k, re.compile(p, 
      r"\bnew\s+(?:finance|financial|operating|technology|executive)?\s*chief\s+(?:takes over|steps in|named)\b|"
      r"\btakes? (?:over )?the helm\b|\btakes? over as\s+(?:ceo|cfo|chief|chair|president)\b|"
      r"\b(?:to join|joins?|to lead)\s+(?:[\w.'-]+\s+){0,3}?as\s+(?:its\s+|new\s+)?(?:ceo|cfo|coo|cto|chief|"
-     r"president|head)\b|\bnames? new (?:ceo|cfo|chief)"
+     r"president|head)\b|\bnames? new (?:ceo|cfo|chief|c\.e\.o)"
+     r"|\bnamed (?:as )?(?:the |its )?(?:new |next |interim )?(?:ceo|chief executive|cfo|president|chair(?:man|woman)?|"
+     r"successor)\b|\bas (?:its |the )?(?:next|new|incoming) (?:ceo|chief executive|cfo|chair(?:man|woman)?|president)\b"
+     r"|\b(?:to become|will become|becomes|set to become)\s+(?:its\s+|the\s+)?(?:new\s+|next\s+)?"
+     r"(?:ceo|chief executive|cfo|president|chair(?:man|woman)?)\b"
+     r"|(?<!under )(?<!with )(?<!for )(?<!by )\bnew (?:ceo|chief executive|cfo)"
+     r"(?=\s*(?:$|[,;:.!?)]|\s(?:named|appointed|takes|steps|to (?:lead|take)|announced)))"
      ), False),
     ("offering", (
      r"\b(?:(?:public|secondary|stock|share|equity|common stock|registered direct|follow-on|at-the-market|atm|"
@@ -841,6 +918,15 @@ _RULES: tuple[tuple[str, re.Pattern[str], bool], ...] = tuple((k, re.compile(p, 
 
 # Matches that must be ignored for a given key (checked on the text around the hit).
 _EXCLUDE: dict[str, re.Pattern[str]] = {
+    # "Here Are Wednesday's Top Wall Street Analyst Research Calls", "10 Top Analyst
+    # Forecasts": the adjective "top", not the verb ("results top estimates").
+    "earnings_beat": re.compile(r"(?:^|[:.!?|]\s+|\s[-\u2013\u2014]\s+|\b(?:the|a|an|its|their|these|those|our|of|"
+                                r"\d+|two|three|four|five|ten|[\w.&-]+'s)\s+)top\s+(?:[\w'-]+\s+){0,2}?(?:analysts?|"
+                                r"picks?|stocks?|forecasters?|research|calls|strategists?|economists?|traders?|ideas|"
+                                r"names|firms?|banks?|brokers?|brokerages?|investors|funds?|managers?|performers?|"
+                                r"gainers?|losers?|movers?|holdings?|wall street)\b|"
+                                r"\bbeat(?:s|ing)?\s+(?:wall street|the street|rivals?|\w+)\s+to\s+(?:the\s+)?"
+                                r"(?!(?:post|report|deliver|log|book|record)\b)\w+", re.IGNORECASE),
     "earnings_miss": re.compile(r"\b(?:give|giving|gave)\s+(?:\w+\s+){0,3}?a miss\b|\bdon'?t miss\b|\bmiss out\b|"
                                 r"\bnear miss\b|\bhit or miss\b|\bcan'?t miss\b", re.IGNORECASE),
     "guidance_raise": re.compile(r"\bmoody'?s\b|\bfitch\b|\bs&p global ratings\b|\brating agency\b|"
@@ -860,15 +946,22 @@ _EXCLUDE: dict[str, re.Pattern[str]] = {
                           r"(?:more )?(?:shares|stock)\b|\b(?:buys|bought|acquires?)\s+(?:UK£|US\$|SEK|[$£€])|"
                           r"\b(?:upgrades?|upgraded|downgrades?|downgraded|raises?|cuts?|moves?)\b.{0,40}\bto (?:buy|acquire)\b|"
                           r"\b(?:buys|bought)\s+(?:put|call|puts|calls|options|bitcoin|ether|gold|the dip)\b|\bacquisition (?:corp|corporation|company|"
-                          r"holdings|co)\b|\b(?:tech|ai|hostile) takeover\b", re.IGNORECASE),
+                          r"holdings|co)\b|\b(?:tech|ai|hostile) takeover\b|\bacquisition of (?:\w+\s+){0,2}?"
+                          r"(?:stock units|share units|units|shares|rsus?|options)\b", re.IGNORECASE),
+    "contract_win": re.compile(r"\b(?:stock|share|phantom|equity|option|rsu|bonus|pay|compensation|industry|innovation|"
+                               r"design|excellence|leadership|employer|workplace|achievement|lifetime|best|gold|silver|"
+                               r"emmy|grammy|oscar|people'?s choice)\s+awards?\b|\bawards?\s+(?:show|ceremony|season|"
+                               r"night|gala|winners?|for (?:best|excellence))\b", re.IGNORECASE),
     "offering": re.compile(r"\binitial public offering\b|\bipo\b|\b(?:director|officer|ceo|cfo|coo|insider|svp|evp|"
                            r"president|founder|chair(?:man|woman)?|general counsel|executive)\b[^.;:]{0,60}?"
-                           r"(?:sells?|sold|proposes?)\b", re.IGNORECASE),
+                           r"(?:sells?|sold|proposes?|plans?|sale|selling)\b", re.IGNORECASE),
     "product_launch": re.compile(r"\b(?:launch(?:es|ed)?|unveil(?:s|ed)?|introduc(?:es|ed)|rolls? out|announces? new)\s+"
                                  r"(?:an?\s+|its\s+|the\s+)?(?:\$[\d.,]+|(?:[\w$.-]+\s+){0,6}?(?:probe|investigation|inquiry|"
                                  r"lawsuit|coverage|offering|ipo|buyback|repurchase|tender|bid|review|campaign "
                                  r"against|attack|strike|missile|plan to cut|layoffs|restructuring|budget|tariffs?|"
-                                 r"dividend|guidance|results|earnings)\b)", re.IGNORECASE),
+                                 r"dividend|guidance|results|earnings|joint venture|jv|price cuts?|price reductions?|"
+                                 r"prices|discounts?|deals|sale|program|initiative|campaign|share sale|"
+                                 r"strategic review|search)\b)", re.IGNORECASE),
     "all_time_high": re.compile(r"\b(?:from|below|off|under|shy of|short of|away from|beneath|since|of)\s+"
                                 r"(?:its|their|the|a)?\s*(?:\w+\s+)?(?:all[- ]time|record)\s+highs?\b|"
                                 r"\bshy of (?:a |its |the )?(?:first |new )?record\b|"
@@ -883,6 +976,22 @@ _EXCLUDE: dict[str, re.Pattern[str]] = {
                           r"\b(?:invested|investment)\b.{0,40}\b52[- ]week low|"
                           r"low (?:valuation|multiple|p/e|unemployment|rates?)\b", re.IGNORECASE),
     "lawsuit": re.compile(r"\bfollow(?:s|ed)? suit\b", re.IGNORECASE),
+    # Payments plumbing: "stablecoin settlement", "T+1 settlement", "settlement network".
+    "settlement": re.compile(r"\b(?:payments?|card|stablecoins?|t\+[0-2]|trades?|cash|instant|crypto|usdc|real-time|"
+                             r"cross-border|blockchain|on-?chain|tokenized|net|gross|fx|same-day|atomic)\s+settlements?\b|"
+                             r"\bsettlements?\s+(?:layer|network|rails?|times?|cycles?|assets?|currency|tokens?|platform|"
+                             r"system|infrastructure|bank|services?|pilot|programs?)\b", re.IGNORECASE),
+    # Plan-driven share accruals are not open-market conviction buys.
+    "insider_buy": re.compile(r"\b(?:stock|share|deferred|restricted|performance|phantom|cash-settled|retirement|"
+                              r"stock-linked|share-linked)[- ]units?\b|\brsus?\b|\bpsus?\b|benefit[- ]plan|\bpayroll\b|"
+                              r"employee stock|\bespp\b|withh[eo]ld|\bgrant(?:ed|s)?\b|\bawards?\b|\bawarded\b|"
+                              r"\bvest(?:ed|ing|s)?\b|\boption exercise|\bexercis(?:e|ed|es|ing)\b|dividend reinvestment|"
+                              r"\bdrip\b|\bgift(?:ed|s)?\b|401\(k\)|deferred (?:pay|compensation)|\baccrual\b|"
+                              r"dividend (?:rights|equivalents?)|"
+                              r"under (?:the |a |its )?(?:company'?s? )?(?:\w+ )?plan\b", re.IGNORECASE),
+    "insider_sell": re.compile(r"withh[eo]ld|withholding|to cover (?:taxes|tax)|sell-to-cover|\bgift(?:ed|s)?\b",
+                               re.IGNORECASE),
+    "exec_hire": re.compile(r"\b(?:ceo|executive|cfo|leader|entrepreneur|founder) of the year\b", re.IGNORECASE),
     "recall": re.compile(r"\b(?:he|she|i|we|they|ceo|who|fans|founder|still|vividly|fondly|executives?|officials|"
                          r"investors|traders|analysts|people|veterans|employees|workers|residents|experts|"
                          r"economists|survivors|witnesses|colleagues|friends)\s+recall|\brecall(?:s|ed|ing)?\s+"
@@ -916,8 +1025,10 @@ _TRIGGERS: dict[str, tuple[str, ...]] = {
                       "above", "better", "stronger"),
     "earnings_miss": ("miss", "short", "lag", "trail", "undershoot", "undershot", "below", "disappoint", "loss",
                       "weaker", "worse", "softer"),
-    "guidance_raise": ("guid", "outlook", "forecast", "projection", "view"),
-    "guidance_cut": ("guid", "outlook", "forecast", "projection", "view", "warn"),
+    "guidance_raise": ("guid", "outlook", "forecast", "projection", "view", "sees", "expects", "project", "predict",
+                       "signal", "anticipat", "beat"),
+    "guidance_cut": ("guid", "outlook", "forecast", "projection", "view", "warn", "sees", "expects", "project",
+                     "predict", "signal", "anticipat"),
     "record_results": ("record",),
     "buyback": ("buyback", "buy-back", "repurchas", "buy back", "bought back"),
     "dividend_raise": ("dividend", "payout", "distribution"),
@@ -934,14 +1045,14 @@ _TRIGGERS: dict[str, tuple[str, ...]] = {
                 "buy", "purchase", "take over", "stake", "bid", "bought", "snaps up", "scoops up"),
     "partnership": ("partner", "team", "collaborat", "alliance", "joint venture", "tie", "strategic", "deal", "pact",
                     "agreement", "struck"),
-    "contract_win": ("contract", "order", "award", "tender"),
+    "contract_win": ("contract", "order", "award", "tender", "deal"),
     "product_launch": ("launch", "unveil", "introduc", "roll", "debut", "releas", "reveal", "on sale", "announce",
                        "showcas"),
     "recall": ("recall",),
-    "exec_departure": ("step", "resign", "quit", "exit", "depart", "leav", "retir", "oust", "fired", "replaced",
-                       " out"),
+    "exec_departure": ("step", "resign", "quit", "exit", "depart", "leav", "retir", "oust", "fire", "replace",
+                       " out", "remov", "dismiss", "sack", "axe", "terminat", "reins", "ced", "vacat"),
     "exec_hire": ("appoint", "name", "hire", "tap", "pick", "poach", "recruit", "promot", "elevat", "select", "join",
-                  "to lead", "takes over", "take over", "helm"),
+                  "to lead", "takes over", "take over", "helm", "becom", "new ", "next ", "incoming"),
     "offering": ("offering", "placement", "convertible", "dilut", "share sale", "raises $", "raising $", "sells $",
                  "sell $"),
     "bankruptcy": ("bankrupt", "chapter", "going concern", "going-concern", "insolven", "receivership",
@@ -1009,6 +1120,11 @@ def detect_events(text: str, company: CompanyRef | None = None) -> list[Detected
             polarity = _polarity(key, t, m)
             value = _price_value(m.group(0), key) if key in {"price_up", "price_down"} else None
             hits.append(_Hit(m.start(), key, polarity, value=value, span=m.group(0).strip(), end=m.end()))
+    keys = {h.key for h in hits}
+    if "m_and_a" in keys:  # "strikes $22 billion deal for Roku" is a takeover, not a partnership
+        hits = [h for h in hits if not (h.key == "partnership" and _GENERIC_DEAL_RE.match(h.span or ""))]
+    if "settlement" in keys:  # "settlement of privacy class action" resolves the suit; it is not a new one
+        hits = [h for h in hits if h.key != "lawsuit"]
     if company is not None and hits:
         hits = _attribute(t, hits, company)
 
@@ -1026,11 +1142,18 @@ def detect_events(text: str, company: CompanyRef | None = None) -> list[Detected
     return _resolve_conflicts(t, out, starts)
 
 
+_GENERIC_DEAL_RE = re.compile(r"(?:inks?|strikes?|struck|signs?|signed|enters?|entered)\b", re.IGNORECASE)
+
 # Exclusions that only void the hit when they overlap it (others void any hit nearby).
-_OVERLAP_EXCLUSIONS = frozenset({"m_and_a", "product_launch", "all_time_high", "low_52w", "high_52w"})
+_OVERLAP_EXCLUSIONS = frozenset({"m_and_a", "product_launch", "all_time_high", "low_52w", "high_52w", "earnings_beat",
+                                 "settlement"})
+# Exclusions that void the hit anywhere in the (lead) text.
+_TEXT_EXCLUSIONS = frozenset({"insider_buy", "insider_sell"})
 
 
 def _excluded(key: str, exclude: re.Pattern[str], text: str, m: re.Match[str]) -> bool:
+    if key in _TEXT_EXCLUSIONS:
+        return exclude.search(text) is not None
     base = max(0, m.start() - 50)
     local = exclude.search(text[base:m.end() + 50])
     if not local:
@@ -1051,11 +1174,20 @@ def _context_ok(key: str, text: str, m: re.Match[str]) -> bool:
     if key == "all_time_high":
         return not re.search(r"short interest\s+(?:\w+\s+){0,2}$", before, re.IGNORECASE)
     if key in {"earnings_beat", "earnings_miss"}:
-        return not re.search(r"\b(?:guidance|outlook|forecasts?|guide)\s+$", text[max(0, m.start() - 20):m.start()],
-                             re.IGNORECASE)
+        if _GUIDANCE_BEFORE_RE.search(text[max(0, m.start() - 50):m.start()]):
+            return False  # "revenue forecast beats estimates", "forecasts revenue above estimates": guidance
+        return not _stale_result(text, m)
+    if key == "record_results":
+        return not _stale_result(text, m)
+    if key == "m_and_a" and re.search(r"\bdeal\s+for\s+(?!rival\b)", m.group(0), re.IGNORECASE):
+        return _deal_for_company(text, m)
+    if key == "contract_win" and re.search(r"\bdeal\s+for\b", m.group(0), re.IGNORECASE):
+        return not _deal_for_company(text, m)  # "clinches $53 billion deal for Hess" is a takeover
     if key in {"guidance_raise", "guidance_cut"}:
         if _MARKET_OUTLOOK_RE.search(m.group(0)):
             return False  # "strong memory pricing outlook": an industry view, not company guidance
+        if _OTHERS_VIEW_RE.search(text[max(0, m.start() - 30):m.start()]):
+            return False  # "Analysts see revenue above estimates": the Street's view, not guidance
         # "JPMorgan Cuts Forecast": a broker's own estimate, not company guidance.
         return not any(f.end() <= m.start() and not re.search(r"[.;:!?]|\s[-|]\s", text[f.end():m.start()])
                        and m.start() - f.end() <= 25 for f in _FIRM_RE.finditer(text))
@@ -1063,7 +1195,84 @@ def _context_ok(key: str, text: str, m: re.Match[str]) -> bool:
 
 
 _MARKET_OUTLOOK_RE = re.compile(r"\b(?:pricing|price|demand|industry|market|sector|economic|macro|rate|rates|"
-                                r"weather|memory|chip|consumer)\s+(?:outlook|forecast|view)s?\b", re.IGNORECASE)
+                                r"weather|memory|(?<!ai\s)chip|consumer)\s+(?:outlook|forecast|view)s?\b", re.IGNORECASE)
+_GUIDANCE_BEFORE_RE = re.compile(rf"\b{_GUIDE_WORD}\s+(?:that\s+|which\s+)?$|"
+                                 rf"\b(?:{_GUIDE_VERB}|guided)\s+(?:[\w$.,%'-]+\s+){{0,4}}$", re.IGNORECASE)
+_OTHERS_VIEW_RE = re.compile(r"\b(?:analysts?|wall street|the street|street|investors|traders|economists?|"
+                             r"strategists?|consensus)\s+(?:\w+\s+)?$", re.IGNORECASE)
+# A result quoted as background to an upcoming report is stale: "SoFi stock heads
+# toward October 27 results after Q2 beat", "heads into earnings after EPS beat".
+_PREVIEW_RE = re.compile(
+    r"\b(?:(?:heads?|heading|headed)\s+(?:toward|towards|into)|(?:gears? up|braces?|bracing)\s+for)\s+"
+    r"(?:(?!after|following)[\w$.,'-]+\s+){0,4}?"
+    r"(?:earnings|results|report|print|q[1-4]|quarter)\b|\b(?:ahead of|before|approaching|awaits?|awaiting|"
+    r"previews?|preview of|set to report|scheduled to report|due to report|will report|to report)\s+"
+    r"(?:its\s+|the\s+|this\s+|next\s+|[\w.&-]+'s\s+)?(?:[\w$.,'-]+\s+){0,3}?(?:earnings|results|report|print)\b"
+    r"|\bearnings preview\b|\bwhat to expect\b",
+    re.IGNORECASE,
+)
+_PAST_RESULT_RE = re.compile(r"\b(?:after|following|on the heels of|post|since|fresh off|coming off)\s", re.IGNORECASE)
+
+
+def _stale_result(text: str, m: re.Match[str]) -> bool:
+    """A past result recalled in a preview of the next report ("heads into
+    October 20 earnings after a Q2 beat")."""
+    return bool(_PREVIEW_RE.search(text) and _PAST_RESULT_RE.search(text[max(0, m.start() - 40):m.end()]))
+
+
+# What a "$N deal for X" buys: goods and services make it a supply deal, not M&A
+# ("AT&T, Corning Enter $3 Billion Deal for Fiber", "deal for OpenAI compute").
+_DEAL_GOODS = wordset("""
+fiber fibre chips chip gpus gpu compute computing capacity power electricity energy gas lng oil crude fuel jets jet
+aircraft planes plane helicopters engines missiles interceptors munitions ammunition weapons satellites satellite
+rockets launches ships vessels submarines vehicles trucks cars buses trains railcars equipment hardware servers
+software services service licenses licences licensing rights content programming supply supplies production
+overhaul maintenance deployment construction infrastructure project projects centers centres cloud storage memory
+components materials steel copper lithium minerals uranium wheat advertising ads marketing sponsorship drugs vaccines
+doses treatments therapy deliveries orders work upgrades modernization training tokens offtake fighters warships
+stadium ballpark arena plants reactors turbines parts homes therapies medicines technology technologies
+""")
+_COMPANY_NOUNS = wordset("""
+maker makers developer operator provider firm company startup business unit division stake stakes biotech drugmaker
+brokerage lender insurer bank rival supplier platform marketplace subsidiary arm assets retailer group chain owner
+producer manufacturer agent network operations portfolio franchise team club studio label publisher
+""")
+_DEAL_NP_END_RE = re.compile(r"\s+(?:to|in|as|with|amid|after|from|that|which|on|at|by|and|while|despite)\b|"
+                             r"[,;:!?()]|\s[-\u2013\u2014|]\s", re.IGNORECASE)
+
+
+def _deal_for_company(text: str, m: re.Match[str]) -> bool:
+    """For "$N deal for X": is X a company (M&A) or what the money buys?"""
+    head = re.compile(r"\bdeal\s+for\s+", re.IGNORECASE).search(text, m.start())
+    np = _DEAL_NP_END_RE.split(text[head.end():], maxsplit=1)[0] if head else ""
+    words = re.findall(r"[A-Za-z0-9][\w&.'-]*", np)
+    if not words:
+        return True
+    if is_title_case(text):
+        # Capitals carry no signal; a name is short ("Deal For Roku Raises The Floor…").
+        return words[:3][-1].lower() not in _DEAL_GOODS
+    if words[-1].lower() in _DEAL_GOODS:
+        return False
+    # Sentence case: what follows the name decides — "OpenAI compute", "SM-6
+    # interceptors" are goods; "Wiz clears review", "radiopharma peer Lantheus" a company.
+    first = next((i for i, w in enumerate(words) if w[:1].isupper()), None)
+    if first is None:
+        return words[-1].lower() in _COMPANY_NOUNS
+    end = first
+    while end < len(words) and (words[end][:1].isupper() or words[end][:1].isdigit()):
+        end += 1
+    return end == len(words) or words[end].lower() not in _DEAL_GOODS
+
+
+_LEGAL_WIN_RE = re.compile(
+    r"\b(?:wins?|won)\s+(?:\w+\s+){0,2}?(?:appeal|case|lawsuit|suit|dismissal|trial|verdict|ruling)\b|"
+    r"\bdismiss(?:es|ed|al)\b|\btoss(?:es|ed)\b|\bthr(?:own|ows|ew) out\b|\bcleared of\b|\bovertur(?:n|ns|ned)\b|"
+    r"\b(?:rejects?|rejected) (?:the |a )?(?:lawsuit|suit|claims)\b|\bvacat(?:es|ed) (?:the |a )?(?:verdict|ruling|judgment)",
+    re.IGNORECASE,
+)
+_LEGAL_LOSS_RE = re.compile(r"\b(?:refus\w*|den(?:y|ies|ied)|declin\w*|won't|will not|fails? to|failed to|rejects?|"
+                            r"rejected)\s+(?:\w+\s+){0,3}?(?:dismiss\w*|toss\w*|throw out)\b|\bloses? (?:\w+\s+)?"
+                            r"(?:bid|motion|appeal) to (?:dismiss|toss)", re.IGNORECASE)
 
 
 def _polarity(key: str, text: str, m: re.Match[str]) -> str:
@@ -1073,6 +1282,11 @@ def _polarity(key: str, text: str, m: re.Match[str]) -> str:
         return "bear"
     if key == "stock_split" and re.search(r"reverse|become one|combine|consolidat", m.group(0), re.IGNORECASE):
         return "bear"
+    if key == "lawsuit":
+        if _LEGAL_LOSS_RE.search(text):
+            return "bear"
+        if _LEGAL_WIN_RE.search(text):
+            return "bull"  # "Judge dismisses lawsuit against Nvidia", "Apple wins appeal"
     if key == "bankruptcy" and re.search(r"\b(?:emerg\w+|exit\w*) (?:from )?(?:chapter|bankruptcy)|chapter 11 exit|"
                                          r"\bavoids?\b", text, re.IGNORECASE):
         return "neutral"
@@ -1221,9 +1435,13 @@ def _has_entity(text: str, title_case: bool, sentence_start: bool, loose: bool =
 
 def _immediate_subject(segment: str) -> str:
     """The noun phrase right before an event phrase: the last few words after
-    the last comma, parenthesized tickers removed."""
-    tail = _PAREN_RE.sub(" ", segment).rsplit(",", 1)[-1]
-    words = tail.split()
+    the last comma, parenthesized tickers removed — or, when the event follows
+    a comma-delimited aside ("Nikola, which makes trucks, files …"), the words
+    opening the clause."""
+    clean = _PAREN_RE.sub(" ", segment)
+    words = clean.rsplit(",", 1)[-1].split()
+    if not words:
+        return " ".join(clean.split(",", 1)[0].split()[:4])
     return " ".join(words[-4:])
 
 
@@ -1246,7 +1464,7 @@ def _clauses(text: str) -> list[tuple[int, int]]:
 
 
 def _sentence_start(text: str, pos: int) -> bool:
-    return not text[:pos].strip() or bool(re.search(r"[.!?:\"(]\s*$|\s-\s*$", text[:pos]))
+    return not text[:pos].strip() or bool(re.search(r"[.!?:\"(\u2022\u25aa\u25ba]\s*$|\s-\s*$", text[:pos]))
 
 
 def _new_subject_between(text: str, a: int, b: int, title_case: bool) -> bool:
@@ -1320,8 +1538,9 @@ def _owned(text: str, hit: _Hit, mentions: list, cues: list, clauses: list[tuple
                                                opener == text[c_start:start].strip(), loose=kind == "party")
     if kind != "target" and own_subject:
         return False  # "… while AMD jumps 5%": that clause has its own subject
+    owners = subjects if kind == "party" else sorted(subjects + cues, key=lambda m: m.start)
     for a, b in reversed(clauses[:ci]):  # inherit the subject of the clause it hangs off
-        if any(a <= m.start < b for m in subjects):
+        if any(a <= m.start < b for m in owners):  # its name, products or executives
             return True
         if _has_entity(text[a:b], title_case, _sentence_start(text, a)):
             return False

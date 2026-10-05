@@ -209,14 +209,25 @@
     row-gap: 14px;
   }
 }
+/* Desktop: identity + price + actions on top, secondary stats + freshness below, so a long
+   company name gets the row instead of the leftovers. */
 @media (min-width: 1024px) {
   .intel-head {
-    grid-template-columns: minmax(0, 1fr) auto auto auto;
+    grid-template-columns: minmax(0, max-content) auto minmax(0, 1fr) auto;
     grid-template-areas:
-      "id quote stats actions"
-      "id quote stats fresh";
-    column-gap: 24px;
-    row-gap: 6px;
+      "id quote . actions"
+      "stats stats stats fresh";
+    align-items: center;
+    column-gap: 32px;
+    row-gap: 14px;
+  }
+}
+
+/* Phones: a horizontally scrolling line fades at the right edge so it reads as "more →". */
+@media (max-width: 639px) {
+  .scroll-fade-x {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent);
   }
 }
 

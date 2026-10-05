@@ -41,6 +41,7 @@ _PUBLISHERS: tuple[tuple[str, float, tuple[str, ...]], ...] = (
     ("Barron's", 1.25, ("barron's", "barrons", "barrons.com")),
     ("MarketWatch", 1.2, ("marketwatch", "marketwatch.com")),
     ("Dow Jones", 1.25, ("dow jones", "dow jones newswires", "djnewswires")),
+    ("MT Newswires", 1.0, ("mt newswires", "mtnewswires", "mtnewswires.com")),
     ("The Information", 1.2, ("the information", "theinformation.com")),
     ("Axios", 1.15, ("axios", "axios.com")),
     ("The Economist", 1.2, ("economist", "economist.com")),
@@ -96,7 +97,7 @@ _PUBLISHERS: tuple[tuple[str, float, tuple[str, ...]], ...] = (
     ("Investopedia", 0.95, ("investopedia", "investopedia.com")),
     ("Seeking Alpha", 0.95, ("seeking alpha", "seekingalpha.com", "seekingalpha")),
     ("The Motley Fool", 0.9, ("motley fool", "the motley fool", "fool.com", "fool", "fool uk", "fool.co.uk")),
-    ("Benzinga", 0.9, ("benzinga", "benzinga.com")),
+    ("Benzinga", 0.9, ("benzinga", "benzinga.com", "benzinga prediction markets")),
     ("Zacks", 0.85, ("zacks", "zacks investment research", "zacks.com", "zacks research")),
     ("InvestorPlace", 0.85, ("investorplace", "investorplace.com")),
     ("TipRanks", 0.85, ("tipranks", "tipranks.com")),
@@ -108,7 +109,7 @@ _PUBLISHERS: tuple[tuple[str, float, tuple[str, ...]], ...] = (
     ("Stocktwits", 0.85, ("stocktwits", "stocktwits.com")),
     ("Simply Wall St", 0.8, ("simply wall st", "simply wall street", "simplywall.st")),
     ("RTTNews", 0.8, ("rttnews", "rttnews.com")),
-    ("Proactive Investors", 0.75, ("proactive investors", "proactiveinvestors.com")),
+    ("Proactive Investors", 0.75, ("proactive investors", "proactiveinvestors.com", "proactive")),
     ("Bankrate", 0.9, ("bankrate", "bankrate.com")),
     ("9to5Mac", 0.85, ("9to5mac", "9to5mac.com")),
     ("MacRumors", 0.85, ("macrumors", "macrumors.com")),
@@ -116,7 +117,7 @@ _PUBLISHERS: tuple[tuple[str, float, tuple[str, ...]], ...] = (
     ("Electrek", 0.85, ("electrek", "electrek.co")),
     ("Teslarati", 0.75, ("teslarati", "teslarati.com")),
     ("Cointelegraph", 0.85, ("cointelegraph", "cointelegraph.com")),
-    ("Decrypt", 0.85, ("decrypt", "decrypt.co")),
+    ("Decrypt", 0.85, ("decrypt", "decrypt.co", "decrypt news")),
     ("Trefis", 0.75, ("trefis", "trefis.com")),
     ("TIKR", 0.75, ("tikr", "tikr.com")),
     ("Insider Monkey", 0.7, ("insider monkey", "insidermonkey.com")),
@@ -131,7 +132,7 @@ _PUBLISHERS: tuple[tuple[str, float, tuple[str, ...]], ...] = (
     ("Deadline", 0.95, ("deadline", "deadline.com")),
     ("Quiver Quantitative", 0.7, ("quiver quantitative", "quiverquant.com")),
     ("Finbold", 0.6, ("finbold", "finbold.com")),
-    ("Traders Union", 0.6, ("traders union", "tradersunion.com")),
+    ("Traders Union", 0.6, ("traders union", "tradersunion.com", "tradersunion")),
     # --- algorithmic / aggregator ------------------------------------------- #
     ("GuruFocus", 0.75, ("gurufocus", "gurufocus.com")),
     ("MarketBeat", 0.65, ("marketbeat", "marketbeat.com")),
@@ -194,7 +195,7 @@ _PR_TEXT_RE = re.compile(
     r"class action (?:lawsuit )?(?:filed|notice)|securities (?:class action|fraud) (?:lawsuit|investigation)|"
     r"(?:notifies|reminds|encourages) (?:investors|shareholders)|investigation (?:notice|on behalf of)|"
     r"law firm (?:announces|investigates)|announces (?:the )?(?:pricing|closing|launch) of|"
-    r"\b(?:today|hereby) announced\b|^\s*notice\b|\(?(?:nasdaq|nyse)\s?:\s?[a-z.]{1,6}\)? (?:today )?announce",
+    r"\b(?:today|hereby) announced\b|^\s*notice (?:of|to)\b|\(?(?:nasdaq|nyse)\s?:\s?[a-z.]{1,6}\)? (?:today )?announce",
     re.IGNORECASE,
 )
 
@@ -237,6 +238,14 @@ def _host(value: str) -> str | None:
     return None
 
 
+def _brand_display(label: str) -> str:
+    """An unknown outlet's domain label as a name, so "ccn.com" and "CCN" (or
+    "cryptonews.net" and "Cryptonews") count as one outlet."""
+    if len(label) <= 4 or not re.search(r"[aeiouy]", label):
+        return label.upper()
+    return label[:1].upper() + label[1:]
+
+
 @lru_cache(maxsize=4096)
 def _lookup(raw: str) -> tuple[str | None, str]:
     """-> (canonical name if known, cleaned display fallback)."""
@@ -255,7 +264,7 @@ def _lookup(raw: str) -> tuple[str | None, str]:
         brand = labels[-3] if len(labels) >= 3 and labels[-2] in {"co", "com", "net", "org"} else labels[-2]
         if brand in _ALIAS and len(brand) >= 3:
             return _ALIAS[brand], host
-        return None, host
+        return None, _brand_display(brand)
     value = _VIA_RE.sub("", value)
     key = _key(value)
     for candidate in (key, _REGION_SUFFIX_RE.sub("", key), key.removesuffix(".com"), key.removeprefix("the ")):
@@ -281,13 +290,17 @@ def is_known_publisher(name_or_domain: str | None) -> bool:
 
 def is_press_release(publisher: str | None = None, title: str | None = None) -> bool:
     """True for press-release wires, company-owned channels ("NVIDIA
-    Newsroom") and class-action / offering announcements by their wording."""
+    Newsroom") and class-action / offering announcements by their wording.
+    Wording never overrides an established newsroom: Reuters writing "Nvidia
+    today announced record revenue" is still Reuters."""
     if publisher:
         canonical = canonical_publisher(publisher)
         if canonical in _PR_WIRES:
             return True
         if _COMPANY_CHANNEL_RE.search(clean_text(publisher)):
             return True
+        if publisher_trust(publisher) >= 0.9:
+            return False
     return bool(title) and bool(_PR_TEXT_RE.search(fold(title)))
 
 

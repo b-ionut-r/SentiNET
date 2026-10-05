@@ -9,9 +9,15 @@
  * crypto Fear & Greed, SEC submissions, yfinance prices/analysts/earnings/
  * insiders, Oct 2026); derived fields (scores, narratives, verdicts) and GDELT
  * tone series are illustrative. Verbatim backend output: *.LIVE.json (a real
- * AAPL run, its SSE progress stream and 90-day history), market.json, sources.json,
- * health.json (monitor flag switched on)
- * and the BTC-USD / MSFT price series (captured 2026-10-04).
+ * AAPL run, its SSE progress stream and 90-day history; price.LIVE.* are the real
+ * AAPL series for that same session), market.json, sources.json, health.json
+ * (monitor flag switched on) and the BTC-USD / MSFT price series (captured
+ * 2026-10-04). *.SPARSE.json is a real backend run of AAPL with every news/social
+ * source forced offline (connection refused) — the genuine degraded output.
+ *
+ * LIVE and SPARSE payloads carry ticker "AAPL", and the app moves the URL to the
+ * canonical ticker. Each browser context therefore remembers which fixture answered
+ * for a ticker and keeps serving that fixture's own price/history/snapshots.
  */
 import { spawn } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
@@ -53,37 +59,50 @@ const json = (route, data, status = 200) => route.fulfill({ status, contentType:
 const never = () => new Promise(() => {});
 const SSE_HEADERS = { "content-type": "text/event-stream", "cache-control": "no-cache" };
 
+/** Price series to borrow when a fixture namespace has none of its own (same real ticker, same session). */
+const PRICE_FALLBACK = { SPARSE: "LIVE" };
+
 /**
  * Answer one /api request from fixtures. `hold` = tickers whose analysis never
  * completes (scan screenshot). `calls` (optional) records "METHOD /path" for assertions.
+ * `state.alias` maps a payload ticker (AAPL) to the fixture namespace that answered for it (LIVE).
  */
-export async function handleApi(route, hold = new Set(), calls = null) {
+export async function handleApi(route, hold = new Set(), calls = null, state = { alias: new Map() }) {
   const req = route.request();
   const url = new URL(req.url());
   const path = url.pathname.replace(/^\/api/, "");
   const method = req.method();
   calls?.push(`${method} ${path}${url.search}`);
   let m;
+  const ns = (t) => state.alias.get(t) ?? t;
+  const remember = (t) => {
+    const a = fixture(`analysis.${t}.json`);
+    if (a && a.ticker !== t) state.alias.set(a.ticker, t);
+  };
 
   if ((m = path.match(/^\/analyze\/([^/]+)\/stream$/))) {
-    const t = decodeURIComponent(m[1]).toUpperCase();
+    const t = ns(decodeURIComponent(m[1]).toUpperCase());
+    if (!hold.has(t)) remember(t);
     return route.fulfill({ status: 200, headers: SSE_HEADERS, body: hold.has(t) ? partialSse(t) : sseBody(t) });
   }
   if ((m = path.match(/^\/analyze\/([^/]+)$/))) {
-    const t = decodeURIComponent(m[1]).toUpperCase();
+    const t = ns(decodeURIComponent(m[1]).toUpperCase());
     if (hold.has(t)) return never();
+    remember(t);
     const a = fixture(`analysis.${t}.json`);
     return a ? json(route, a) : json(route, { detail: `Unknown ticker "${t}" — try a symbol like AAPL or BTC-USD.` }, 400);
   }
   if ((m = path.match(/^\/price\/([^/]+)$/))) {
-    const t = decodeURIComponent(m[1]).toUpperCase();
+    const raw = decodeURIComponent(m[1]).toUpperCase();
+    const t = ns(raw);
     const r = url.searchParams.get("range") ?? "3M";
-    return json(route, fixture(`price.${t}.${r}.json`) ?? { ticker: t, range: r, interval: "1d", currency: "USD", candles: [], available: false, error: "Yahoo Finance returned no candles for this range." });
+    const p = fixture(`price.${t}.${r}.json`) ?? (PRICE_FALLBACK[t] ? fixture(`price.${PRICE_FALLBACK[t]}.${r}.json`) : null);
+    return json(route, p ?? { ticker: raw, range: r, interval: "1d", currency: "USD", candles: [], available: false, error: "Yahoo Finance returned no candles for this range." });
   }
   if ((m = path.match(/^\/history\/([^/]+)$/))) {
-    const t = decodeURIComponent(m[1]).toUpperCase();
-    const h = fixture(`history.${t}.json`);
-    return h ? json(route, h) : json(route, { ticker: t, days: 90, points: [], lags: [], best_lag: null, interpretation: "", status: { tone: "empty" } });
+    const raw = decodeURIComponent(m[1]).toUpperCase();
+    const h = fixture(`history.${ns(raw)}.json`);
+    return h ? json(route, h) : json(route, { ticker: raw, days: 90, points: [], lags: [], best_lag: null, interpretation: "", status: { tone: "empty" } });
   }
   if (path === "/market") return json(route, fixture("market.json"));
   if (path === "/search") {
@@ -92,7 +111,10 @@ export async function handleApi(route, hold = new Set(), calls = null) {
     return json(route, all.filter((s) => s.symbol.toLowerCase().startsWith(q) || s.name.toLowerCase().includes(q)).slice(0, 8));
   }
   if (path === "/watchlist" || path.startsWith("/watchlist/")) return json(route, fixture("watchlist.json"));
-  if (path.startsWith("/snapshots/")) return json(route, fixture("snapshots.AAPL.json"));
+  if ((m = path.match(/^\/snapshots\/([^/]+)$/))) {
+    // Only tickers with a stored-history fixture have looks; everything else is a first look.
+    return json(route, fixture(`snapshots.${ns(decodeURIComponent(m[1]).toUpperCase())}.json`) ?? []);
+  }
   if (path === "/alerts" && method === "POST") {
     const body = JSON.parse(req.postData() ?? "{}");
     return json(route, { id: 99, enabled: true, created_at: NOW.toISOString(), last_triggered_at: null, threshold: null, ...body }, 201);
@@ -110,7 +132,8 @@ export async function handleApi(route, hold = new Set(), calls = null) {
 export async function installMocks(ctx, { hold = new Set(), calls = null } = {}) {
   // Playwright matches the most recently registered route first: block the network, then allow fixtures.
   await ctx.route(/^https?:\/\/(?!127\.0\.0\.1)/, (route) => route.abort());
-  await ctx.route("**/api/**", (route) => handleApi(route, hold, calls));
+  const state = { alias: new Map() };
+  await ctx.route("**/api/**", (route) => handleApi(route, hold, calls, state));
   await ctx.route("https://logos.stocktwits-cdn.com/**", (route) => {
     const file = join(FIX, "logos", new URL(route.request().url()).pathname.slice(1));
     return existsSync(file) ? route.fulfill({ path: file, contentType: "image/png" }) : route.fulfill({ status: 404 });

@@ -351,6 +351,8 @@ class CrowdView(BaseModel):
     stocktwits_bullish: Optional[int] = None  # author-tagged messages in sample
     stocktwits_bearish: Optional[int] = None
     stocktwits_bull_ratio: Optional[float] = None  # bullish / tagged, 0..1
+    stocktwits_bull_authors: Optional[int] = None  # one vote per account (latest stance)
+    stocktwits_bear_authors: Optional[int] = None
     stocktwits_messages: Optional[int] = None
     stocktwits_watchers: Optional[int] = None
     reddit_mentions: Optional[int] = None  # ApeWisdom, last 24h

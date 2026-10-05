@@ -65,6 +65,23 @@ pittsburgh philadelphia baltimore charlotte nashville memphis orlando tampa jack
 hollywood brooklyn manhattan silicon cupertino
 america canada mexico brazil china japan india korea germany france britain london paris berlin
 tokyo europe asia africa australia
+travelers traveler restaurant restaurants royalty quest trip waters crane icon frontline equitable
+encompass tenet carpenter jazz reliance everest monday beyond endeavor planet spire array stem blink
+elastic asana hippo paramount fluence tempus diamondback centerpoint atmos vale
+cincinnati dover carlisle burlington lincoln hartford edison rogers tyler mueller tyson roper penske motorola
 """
+# The last block came from auditing the ~900 largest SEC registrants (2026-10-05): heads that are
+# everyday words ("Quest Diagnostics"), places ("Cincinnati Financial"), common surnames
+# ("Tyler Technologies", "Tyson Foods") or a louder namesake ("Motorola Solutions" vs the phones).
+# Press usage decides the bucket: these are written with their descriptor, so it stays.
 
 COMMON_WORDS: frozenset[str] = frozenset(_RAW.split())
+
+# Brand heads the press *does* use bare ("Axon stock jumps", "Carrier raises outlook", "Nasdaq
+# beats") but that collide with ordinary text or a louder namesake in open full-text search (the
+# Nasdaq index, Microchip the noun, Charter flights, Serena Williams). They stay the short name for
+# finance-context searches; GDELT anchors them like everyday words (legal form, CEO, aliases).
+NAMESAKES: frozenset[str] = frozenset("""
+charter carrier flutter microchip caesars credo synchrony magna graco axon morningstar williams otis
+baxter jacobs rollins woodward ferguson moog brookfield corning fortis nasdaq loews ross
+""".split())

@@ -60,7 +60,11 @@ export function ScanPanel({ ticker, progress }: { ticker: string; progress: Trac
     .slice(-6);
 
   return (
-    <div className="space-y-4" aria-busy="true" aria-live="polite">
+    <div className="space-y-4" aria-busy="true">
+      {/* Screen readers hear task completions only — never the 100 ms timer. */}
+      <p className="sr-only" aria-live="polite">
+        {all.length ? `${done} of ${all.length} tasks done, ${items} items collected` : `Scanning ${ticker}`}
+      </p>
       <section className="panel relative overflow-hidden">
         <div className="absolute inset-x-0 top-0 h-px overflow-hidden" aria-hidden>
           <div className="h-full w-1/3 animate-scan-sweep bg-accent" />
@@ -74,7 +78,7 @@ export function ScanPanel({ ticker, progress }: { ticker: string; progress: Trac
             </h1>
             <p className="mt-1 text-sm text-muted">Fusing news, crowd, analysts, insiders, filings and global news tone.</p>
           </div>
-          <div className="text-right font-mono text-xs text-muted">
+          <div className="text-right font-mono text-xs text-muted" aria-hidden>
             <div className="text-lg font-medium text-ink">{(elapsed / 1000).toFixed(1)}s</div>
             {done}/{all.length || "…"} tasks · {items} items
           </div>

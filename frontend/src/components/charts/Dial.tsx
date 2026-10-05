@@ -24,6 +24,8 @@ interface DialProps {
   ariaLabel: string;
   /** Show 0 / 50 / 100 tick labels. */
   ticks?: boolean;
+  /** Label of the band to highlight, when the caller's band rule decides edges (e.g. 55 is Neutral). */
+  activeLabel?: string;
 }
 
 const SWEEP = 240;
@@ -40,7 +42,7 @@ function arcPath(cx: number, cy: number, r: number, v0: number, v1: number) {
   return `M ${a.x} ${a.y} A ${r} ${r} 0 ${large} 1 ${b.x} ${b.y}`;
 }
 
-export function Dial({ value, bands, size = 200, thickness = 9, children, ariaLabel, ticks = true }: DialProps) {
+export function Dial({ value, bands, size = 200, thickness = 9, children, ariaLabel, ticks = true, activeLabel }: DialProps) {
   const r = size / 2 - thickness / 2 - (ticks ? 14 : 4);
   const cx = size / 2;
   const cy = size / 2;
@@ -56,7 +58,7 @@ export function Dial({ value, bands, size = 200, thickness = 9, children, ariaLa
         {bands.map((b, i) => {
           const lo = i === 0 ? b.min : b.min + gapV / 2;
           const hi = i === bands.length - 1 ? b.max : b.max - gapV / 2;
-          const active = v != null && v >= b.min && (v < b.max || (i === bands.length - 1 && v <= b.max));
+          const active = activeLabel != null ? b.label === activeLabel : v != null && v >= b.min && (v < b.max || (i === bands.length - 1 && v <= b.max));
           return (
             <path
               key={b.label}

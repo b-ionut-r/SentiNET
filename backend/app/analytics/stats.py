@@ -133,7 +133,7 @@ def build_history(ticker: str, days: int, tone: ToneTrend | None, closes: list[t
     tone_series = {d: p for d, p in tone_by_day.items() if start <= d <= end}
     lags = lag_stats(tone_series, window_closes)
     best = best_lag(lags)
-    text = interpret(lags, best, has_tone=bool(tone_series), has_price=len(window_closes) >= 2)
+    text = interpret(lags, best, has_tone=bool(tone_series), has_price=len(window_closes) >= 2, status=status)
     return HistoryResponse(ticker=ticker, days=days, points=points, lags=lags, best_lag=best,
                            interpretation=text, status=dict(status))
 
@@ -212,11 +212,18 @@ def _days(k: int) -> str:
     return f"{k} trading day{'s' if k != 1 else ''}"
 
 
-def interpret(lags: list[LagStat], best: LagStat | None, has_tone: bool, has_price: bool) -> str:
-    """Plain-English reading that respects significance."""
+def interpret(lags: list[LagStat], best: LagStat | None, has_tone: bool, has_price: bool,
+              status: dict[str, str] | None = None) -> str:
+    """Plain-English reading that respects significance (and says when data is only temporarily missing)."""
+    status = status or {}
     if not has_tone:
+        if status.get("tone", "").startswith("error"):
+            return ("Global news tone (GDELT) is temporarily unavailable — the provider is busy; reload in a "
+                    "minute to measure the tone ↔ price link.")
         return "No GDELT tone history for this period, so the tone ↔ price link can't be measured."
     if not has_price:
+        if status.get("price", "").startswith("error"):
+            return "Price history is temporarily unavailable; reload to measure the tone ↔ price link."
         return "No price history for this period, so the tone ↔ price link can't be measured."
     if best is None:
         return (f"Too few overlapping trading days (need {MIN_PAIRS}+) to measure a tone ↔ price relationship.")

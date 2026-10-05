@@ -7,17 +7,17 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { useMarket, useWatchlist, useWatchToggle } from "../../api/hooks";
-import type { FearGreed, IndexQuote, MarketOverview, Narrative, TrendingTicker, WatchItem } from "../../api/types";
+import type { FearGreed, IndexQuote, MarketOverview, Narrative, Polarity, TrendingTicker, WatchItem } from "../../api/types";
 import { DivergingBar } from "../../components/charts/Bars";
 import { Dial, FEAR_GREED_DIAL } from "../../components/charts/Dial";
 import { LineChart } from "../../components/charts/LineChart";
 import { Sparkline } from "../../components/charts/Sparkline";
 import { useCommands } from "../../components/layout/commands";
-import { Delta, Mark, ScoreChip } from "../../components/ui/Badges";
-import { CountUp, Empty, ErrorState, Segmented, Skeleton, TickerLogo } from "../../components/ui/Misc";
+import { Delta, Mark, NewBadge, ScoreChip } from "../../components/ui/Badges";
+import { CountUp, Empty, ErrorState, InlineAlert, Segmented, Skeleton, TickerLogo } from "../../components/ui/Misc";
 import { Panel, SubHead } from "../../components/ui/Panel";
 import { cx } from "../../lib/cx";
-import { dayTime, int, pct, plural, price, timeAgo } from "../../lib/format";
+import { DASH, dayTime, int, pct, plural, price, timeAgo } from "../../lib/format";
 import { fearGreedBand, polarityOf, polarityOf100, textTone, toneVar } from "../../lib/sentiment";
 import { getRecent } from "../../lib/storage";
 
@@ -103,9 +103,15 @@ function MarketSkeleton() {
 
 /* ------------------------------------------------------------------------- */
 
+/** Glyph/tint for the regime call itself ("Risk-on: Greed" ▲, "Risk-off: Fear" ▼, mixed or neutral ●). */
+function regimePolarity(regime: string): Polarity {
+  const r = regime.toLowerCase();
+  return r.startsWith("risk-on") ? "bull" : r.startsWith("risk-off") ? "bear" : "neutral";
+}
+
 function RegimeBanner({ m }: { m: MarketOverview }) {
   const fg = m.fear_greed;
-  const p = fg ? fearGreedBand(fg.score).polarity : "neutral";
+  const p = regimePolarity(m.regime);
   const vix = m.indices.find((i) => i.symbol === "^VIX");
   const tnx = m.indices.find((i) => i.symbol === "^TNX");
   const spy = m.indices.find((i) => i.symbol === "SPY");
@@ -126,7 +132,7 @@ function RegimeBanner({ m }: { m: MarketOverview }) {
           <Fact label="Fear & Greed" value={fg ? <><CountUp value={fg.score} /> <span className="text-sm font-medium text-ink-2">{fearGreedBand(fg.score).label}</span></> : "—"} sub={fg?.month_ago != null ? <Delta value={fg.score - fg.month_ago} suffix=" vs 1m" /> : null} />
           <Fact label="VIX" value={vix?.price != null ? vix.price.toFixed(2) : "—"} sub={vix?.change_pct != null ? <Delta value={vix.change_pct} digits={1} suffix="%" invert /> : null} />
           <Fact label="10Y yield" value={tnx?.price != null ? `${tnx.price.toFixed(2)}%` : "—"} sub={tnx?.change_pct != null ? <Delta value={tnx.change_pct} digits={1} suffix="%" invert /> : null} />
-          <Fact label="S&P 500 · 1M" value={spy1m != null ? pct(spy1m) : "—"} sub={spy?.change_pct != null ? <span className="text-muted">today {pct(spy.change_pct)}</span> : null} />
+          <Fact label="S&P 500 (SPY) · 1M" value={spy1m != null ? pct(spy1m) : "—"} sub={spy?.change_pct != null ? <span className="text-muted">today {pct(spy.change_pct)}</span> : null} />
         </dl>
       </div>
     </section>
@@ -154,18 +160,31 @@ function IndexTape({ indices }: { indices: IndexQuote[] }) {
         const inverse = i.symbol === "^VIX" || i.symbol === "^TNX";
         const first = i.spark[0];
         const last = i.spark[i.spark.length - 1];
-        return (
-          <Link key={i.symbol} to={i.symbol.startsWith("^") ? "#" : `/t/${encodeURIComponent(i.symbol)}`} className="panel block p-3 transition-colors hover:bg-raised" onClick={(e) => i.symbol.startsWith("^") && e.preventDefault()}>
+        // Index levels (^VIX, ^TNX) have no ticker page; ETF proxies are labelled as such.
+        const isIndex = i.symbol.startsWith("^");
+        const isEtf = /^[A-Z]{2,5}$/.test(i.symbol);
+        const level = i.price == null ? DASH : i.symbol === "^TNX" ? `${i.price.toFixed(2)}%` : i.symbol === "^VIX" ? i.price.toFixed(2) : price(i.price);
+        const body = (
+          <>
             <div className="flex items-baseline justify-between gap-2">
               <span className="truncate text-xs font-medium text-ink-2">{i.name}</span>
-              <span className="font-mono text-2xs text-muted">{i.symbol.replace("^", "")}</span>
+              <span className="shrink-0 font-mono text-2xs text-muted">{isEtf ? `${i.symbol} ETF` : i.symbol.replace("^", "")}</span>
             </div>
             <div className="mt-1.5 flex items-baseline justify-between gap-2">
-              <span className="text-base font-semibold text-ink">{i.symbol === "^TNX" ? `${i.price?.toFixed(2)}%` : i.symbol === "^VIX" ? i.price?.toFixed(2) : price(i.price)}</span>
+              <span className="text-base font-semibold text-ink">{level}</span>
               <span className={cx("text-xs font-medium", textTone[inverse && p !== "neutral" ? (p === "bull" ? "bear" : "bull") : p])}>{pct(i.change_pct, 2)}</span>
             </div>
             <Sparkline values={i.spark} height={26} className="mt-1.5" color="rgb(var(--ink-2))" reference={first} area ariaLabel={`${i.name}, one month${first != null && last != null ? `, ${pct((last / first - 1) * 100)}` : ""}`} />
             {first != null && last != null && <div className="mt-1 text-right text-2xs text-muted">1M {pct((last / first - 1) * 100)}</div>}
+          </>
+        );
+        return isIndex ? (
+          <div key={i.symbol} className="panel p-3">
+            {body}
+          </div>
+        ) : (
+          <Link key={i.symbol} to={`/t/${encodeURIComponent(i.symbol)}`} className="panel block p-3 transition-colors hover:bg-raised">
+            {body}
           </Link>
         );
       })}
@@ -195,7 +214,7 @@ function FearGreedPanel({ fg, className }: { fg: FearGreed | null; className?: s
     <Panel title="CNN Fear & Greed" subtitle="Seven market indicators, 0 = extreme fear · 100 = extreme greed" className={className}>
       <div className="grid gap-6 md:grid-cols-[200px_minmax(0,1fr)]">
         <div>
-          <Dial value={fg.score} bands={FEAR_GREED_DIAL} size={196} thickness={10} ariaLabel={`Fear and Greed ${Math.round(fg.score)}, ${band.label}`}>
+          <Dial value={fg.score} bands={FEAR_GREED_DIAL} activeLabel={band.label} size={196} thickness={10} ariaLabel={`Fear and Greed ${Math.round(fg.score)}, ${band.label}`}>
             <span className="text-[48px] font-semibold leading-none tracking-[-0.04em] text-ink">
               <CountUp value={fg.score} />
             </span>
@@ -368,7 +387,7 @@ function MarketNarratives({ narratives, className }: { narratives: Narrative[]; 
                     ) : (
                       n.headline
                     )}
-                    {n.is_new && <span className="ml-2 inline-block translate-y-[-1px] rounded bg-accent/15 px-1 py-px align-middle text-2xs font-semibold uppercase tracking-wider text-accent">New</span>}
+                    {n.is_new && <NewBadge className="ml-2 translate-y-[-1px]" />}
                   </p>
                   <ScoreChip score={n.score} className="mt-px shrink-0" />
                 </div>
@@ -453,7 +472,7 @@ function TrendingPanel({ trending, className }: { trending: TrendingTicker[]; cl
                     {t.rank ?? "—"}
                     {rankChg != null && rankChg !== 0 && (
                       <span title={`${rankChg > 0 ? "up" : "down"} ${Math.abs(rankChg)} places vs yesterday (#${t.rank_prev})`}>
-                        <Delta value={rankChg} className="ml-1 text-2xs" />
+                        <Delta value={rankChg} plain className="ml-1 text-2xs" />
                       </span>
                     )}
                   </td>
@@ -532,8 +551,8 @@ function WatchSummary() {
     e.preventDefault();
     const sym = t.trim().toUpperCase().replace(/^\$/, "");
     if (!sym) return;
-    add.mutate({ ticker: sym, watched: false });
-    setT("");
+    // Clear only once the server accepted it, so a rejected symbol can be corrected.
+    add.mutate({ ticker: sym, watched: false }, { onSuccess: () => setT("") });
   };
   return (
     <Panel
@@ -544,7 +563,17 @@ function WatchSummary() {
       actions={
         <>
           <form onSubmit={submit} className="flex items-center gap-1.5">
-            <input value={t} onChange={(e) => setT(e.target.value)} placeholder="Add ticker" className="field h-7 w-28 text-xs uppercase placeholder:normal-case" aria-label="Add ticker to watchlist" />
+            <input
+              value={t}
+              onChange={(e) => {
+                setT(e.target.value);
+                if (add.error) add.reset();
+              }}
+              placeholder="Add ticker"
+              className="field h-7 w-28 text-xs uppercase placeholder:normal-case"
+              aria-label="Add ticker to watchlist"
+              aria-invalid={!!add.error}
+            />
             <button className="btn h-7 px-2" type="submit" aria-label="Add" disabled={add.isPending}>
               <Plus className="size-3.5" />
             </button>
@@ -555,6 +584,14 @@ function WatchSummary() {
         </>
       }
     >
+      {add.error && add.variables && (
+        <div className="px-4 pb-3">
+          <InlineAlert action={<button className="btn h-7" onClick={() => add.reset()}>Dismiss</button>}>
+            <span className="font-medium">Couldn't add {add.variables.ticker}</span>
+            <span className="text-ink-2"> — {add.error.message}</span>
+          </InlineAlert>
+        </div>
+      )}
       {wl.isPending ? (
         <div className="space-y-2 p-4">
           <Skeleton className="h-10 w-full" />

@@ -13,6 +13,27 @@ import { compact, int, pct, plural, signed } from "../../lib/format";
 
 /** StockTwits skews bullish structurally; this is the typical bull share. */
 const ST_BASELINE = 0.62;
+/** Mirrors the backend's crowding rule (analytics/composite.py `crowded`). */
+const CROWDED_LONG = 0.85;
+const CROWDED_SHORT = 0.35;
+const MIN_TAGGED = 15;
+/** Attention bands as the backend labels them (analytics/crowd.py `heat_label`). */
+const HEAT_BANDS = [
+  { label: "Quiet", from: 0, to: 35 },
+  { label: "Normal", from: 35, to: 62 },
+  { label: "Elevated", from: 62, to: 78 },
+  { label: "Spiking", from: 78, to: 100 },
+] as const;
+
+/** One-line read of the StockTwits tag split, on the same thresholds as the crowding insight. */
+function stocktwitsRead(ratio: number, tagged: number): string {
+  if (tagged < MIN_TAGGED) return `Too few tagged posts to read positioning (under ${MIN_TAGGED}).`;
+  if (ratio >= CROWDED_LONG) return `Crowded long — ${Math.round(CROWDED_LONG * 100)}%+ bullish is one-sided positioning, vulnerable to bad news.`;
+  if (ratio <= CROWDED_SHORT) return `Washed out — ${Math.round(CROWDED_SHORT * 100)}% or less bullish is retail capitulation, a classic contrarian setup.`;
+  if (ratio - ST_BASELINE >= 0.1) return "Leaning more bullish than usual, short of crowded.";
+  if (ratio - ST_BASELINE <= -0.1) return "Leaning more bearish than usual, short of washed out.";
+  return "Near StockTwits' structural bullish skew — no edge either way.";
+}
 
 export function CrowdPanel({ a, className }: { a: Analysis; className?: string }) {
   const c = a.crowd;
@@ -36,6 +57,18 @@ export function CrowdPanel({ a, className }: { a: Analysis; className?: string }
   );
 }
 
+/** One vote per account (what the score uses) — shown when it differs from the per-post ratio. */
+function perAccount(c: CrowdView) {
+  const bull = c.stocktwits_bull_authors ?? 0;
+  const bear = c.stocktwits_bear_authors ?? 0;
+  if (bull + bear === 0) return null;
+  return (
+    <p className="mt-1 text-2xs text-ink-2">
+      {Math.round((bull / (bull + bear)) * 100)}% bullish by account ({plural(bull + bear, "account")}, one vote each)
+    </p>
+  );
+}
+
 function Retail({ c, socialScore, socialN }: { c: CrowdView; socialScore: number | null; socialN: number }) {
   const tagged = (c.stocktwits_bullish ?? 0) + (c.stocktwits_bearish ?? 0);
   const ratio = c.stocktwits_bull_ratio;
@@ -50,7 +83,7 @@ function Retail({ c, socialScore, socialN }: { c: CrowdView; socialScore: number
             <div className="flex items-baseline gap-2">
               <span className="text-xl font-semibold leading-none text-ink">{Math.round(ratio * 100)}%</span>
               <span className="text-xs text-ink-2">bullish of {plural(tagged, "tagged post")}</span>
-              {tagged < 15 && <span className="rounded bg-raised px-1 text-2xs text-ink-2">small sample</span>}
+              {tagged < MIN_TAGGED && <span className="rounded bg-raised px-1 text-2xs text-ink-2">small sample</span>}
             </div>
             <div className="relative mt-2.5">
               <div className="flex h-2.5 gap-[2px]" role="img" aria-label={`${Math.round(ratio * 100)}% bullish, ${Math.round((1 - ratio) * 100)}% bearish`}>
@@ -65,13 +98,8 @@ function Retail({ c, socialScore, socialN }: { c: CrowdView; socialScore: number
               </span>
               <span>│ typical {Math.round(ST_BASELINE * 100)}%</span>
             </div>
-            <p className="mt-1 text-2xs text-muted">
-              {ratio - ST_BASELINE >= 0.15
-                ? "Well above the usual bullish skew — crowded long."
-                : ratio - ST_BASELINE <= -0.15
-                  ? "Well below the usual bullish skew — retail is souring."
-                  : "Near StockTwits' structural bullish skew — no edge either way."}
-            </p>
+            {perAccount(c)}
+            <p className="mt-1 text-2xs text-muted">{stocktwitsRead(ratio, tagged)}</p>
           </>
         ) : (
           <p className="text-xs text-muted">{c.stocktwits_messages ? `${c.stocktwits_messages} recent messages, none tagged bullish/bearish.` : "No StockTwits stream for this symbol."}</p>
@@ -82,7 +110,7 @@ function Retail({ c, socialScore, socialN }: { c: CrowdView; socialScore: number
         <Tile
           label="Reddit rank"
           value={c.reddit_rank != null ? `#${c.reddit_rank}` : "—"}
-          sub={rankDelta != null ? <><Delta value={rankDelta} /> <span className="text-muted">vs #{c.reddit_rank_prev} yesterday</span></> : "not in ApeWisdom's list"}
+          sub={rankDelta != null ? <><Delta value={rankDelta} plain /> <span className="text-muted">vs #{c.reddit_rank_prev} yesterday</span></> : "not in ApeWisdom's list"}
         />
         <Tile
           label="Reddit mentions · 24h"
@@ -97,9 +125,17 @@ function Retail({ c, socialScore, socialN }: { c: CrowdView; socialScore: number
         <Tile
           label="Social text tone"
           value={socialScore != null ? <ScoreChip score={socialScore} label /> : "—"}
-          sub={socialN ? `${plural(socialN, "post")} scored${c.bluesky_posts != null ? ` · ${c.bluesky_posts} on Bluesky` : ""}` : "no posts kept"}
+          sub={socialN ? `${plural(socialN, "post")} scored` : "no posts kept"}
         />
       </div>
+      {c.bluesky_posts != null && (
+        <p className="flex items-baseline justify-between gap-3 rounded-md bg-sunken px-2.5 py-2 text-xs">
+          <span className="text-muted">Bluesky</span>
+          <span className="text-ink-2">
+            <span className="font-semibold text-ink">{int(c.bluesky_posts)}</span> recent {c.bluesky_posts === 1 ? "post" : "posts"} mentioning it
+          </span>
+        </p>
+      )}
     </>
   );
 }
@@ -129,12 +165,19 @@ function Attention({ att }: { att: AttentionView }) {
         <span className="text-[28px] font-semibold leading-none tracking-[-0.02em] text-ink">{att.heat}</span>
         <span className="pb-0.5 text-sm font-semibold text-ink-2">{att.label}</span>
       </div>
-      <Meter value={att.heat / 100} color="rgb(var(--heat))" track="rgb(var(--heat) / 0.16)" height={8} className="mt-3" />
-      <div className="mt-1 flex justify-between text-2xs text-muted">
-        <span>Quiet</span>
-        <span>Normal</span>
-        <span>Elevated</span>
-        <span>Spiking</span>
+      <div className="relative mt-3">
+        <Meter value={att.heat / 100} color="rgb(var(--heat))" track="rgb(var(--heat) / 0.16)" height={8} />
+        {HEAT_BANDS.slice(1).map((b) => (
+          <span key={b.label} className="absolute -bottom-0.5 -top-0.5 w-0.5 bg-[rgb(var(--panel))]" style={{ left: `calc(${b.from}% - 1px)` }} aria-hidden />
+        ))}
+      </div>
+      {/* Each label sits centred in its band, at the backend's cut-points (35 / 62 / 78). */}
+      <div className="relative mt-1 h-4 text-2xs text-muted">
+        {HEAT_BANDS.map((b) => (
+          <span key={b.label} className={cx("absolute -translate-x-1/2 whitespace-nowrap", b.label === att.label && "font-semibold text-ink-2")} style={{ left: `${(b.from + b.to) / 2}%` }}>
+            {b.label}
+          </span>
+        ))}
       </div>
       <ul className="mt-3 divide-hair">
         {rows.map((r) => (

@@ -8,13 +8,12 @@ import { useEffect, useRef, useState } from "react";
 
 import type { Analysis, Narrative, Signal } from "../../api/types";
 import { Pulse } from "../../components/charts/Pulse";
-import { Chip, ScoreChip } from "../../components/ui/Badges";
-import { Empty } from "../../components/ui/Misc";
+import { Chip, NewBadge, ScoreChip } from "../../components/ui/Badges";
 import { Panel } from "../../components/ui/Panel";
-import { useTooltip } from "../../components/ui/Tooltip";
 import { cx } from "../../lib/cx";
 import { plural, signed, timeAgo } from "../../lib/format";
-import { divergingFill, polarityOf } from "../../lib/sentiment";
+import { polarityOf, toneFill } from "../../lib/sentiment";
+import { useRoving } from "../../lib/useRoving";
 import { themeLabel } from "./themes";
 
 const INITIAL = 8;
@@ -27,17 +26,18 @@ export function Narratives({ a, membersOf, className }: { a: Analysis; membersOf
     <Panel
       id="narratives"
       title="What's moving it"
-      subtitle={a.narratives.length ? `${a.narratives.length} stories from ${plural(items, "item")} · ranked by coverage × tone × recency` : undefined}
+      subtitle={
+        // No stories: the reason IS the content, so the panel stays one compact line.
+        a.narratives.length
+          ? `${a.narratives.length} stories from ${plural(items, "item")} · ranked by coverage × tone × recency`
+          : a.signals.length > 0
+            ? "No story clusters — not enough related coverage to group; the individual signals are below."
+            : "No coverage collected — no news or social items survived this run; Source health below shows what failed."
+      }
       className={className}
       flush
     >
-      {a.narratives.length === 0 ? (
-        a.signals.length > 0 ? (
-          <Empty title="No story clusters">Not enough related coverage to form narratives — see individual signals below.</Empty>
-        ) : (
-          <Empty title="No coverage collected">No news or social items survived this run — check Source health below for what failed.</Empty>
-        )
-      ) : (
+      {a.narratives.length === 0 ? null : (
         <>
           <CoverageMix narratives={a.narratives} />
           {a.timeline.length > 1 && (
@@ -64,10 +64,21 @@ export function Narratives({ a, membersOf, className }: { a: Analysis; membersOf
 
 /** Share of story coverage by narrative, colored on the diverging tone ramp. */
 function CoverageMix({ narratives }: { narratives: Narrative[] }) {
-  const { showAt, hide } = useTooltip();
   const total = narratives.reduce((s, n) => s + n.count, 0) || 1;
   const bull = narratives.filter((n) => polarityOf(n.score) === "bull").reduce((s, n) => s + n.count, 0);
   const bear = narratives.filter((n) => polarityOf(n.score) === "bear").reduce((s, n) => s + n.count, 0);
+  const tips = narratives.map((n, i) => (
+    <div className="max-w-[260px]">
+      <div className="font-semibold text-ink">
+        #{i + 1} · {n.count} items · tone {signed(n.score)}
+      </div>
+      <div className="mt-0.5">{n.headline}</div>
+    </div>
+  ));
+  const { container, mark } = useRoving(
+    tips,
+    `Coverage: ${Math.round((bull / total) * 100)}% bullish-toned, ${Math.round((bear / total) * 100)}% bearish-toned across ${narratives.length} stories`,
+  );
   return (
     <div className="px-4 pb-3.5">
       <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-x-3 text-2xs text-muted">
@@ -77,33 +88,19 @@ function CoverageMix({ narratives }: { narratives: Narrative[] }) {
           <span className="font-semibold text-bear-ink">▼ {Math.round((bear / total) * 100)}%</span> bearish-toned
         </span>
       </div>
-      <div className="flex h-2.5 gap-[2px]" role="img" aria-label={`Coverage: ${Math.round((bull / total) * 100)}% bullish-toned, ${Math.round((bear / total) * 100)}% bearish-toned`}>
+      <div {...container} className={cx("flex h-2.5 gap-[2px]", container.className)}>
         {narratives.map((n, i) => (
           <div
             key={n.id}
-            tabIndex={0}
-            className="h-full outline-none transition-[filter] hover:brightness-125 focus-visible:brightness-125"
+            {...mark(i)}
+            className="h-full transition-[filter] hover:brightness-125 data-[kb-active=true]:brightness-125"
             style={{
               flexGrow: n.count,
               flexBasis: 0,
               minWidth: 3,
-              background: divergingFill(Math.max(-1, Math.min(1, n.score / 0.5))),
+              background: toneFill(n.score, 0.5),
               borderRadius: `${i === 0 ? 3 : 1}px ${i === narratives.length - 1 ? 3 : 1}px ${i === narratives.length - 1 ? 3 : 1}px ${i === 0 ? 3 : 1}px`,
             }}
-            onMouseEnter={(e) =>
-              showAt(
-                <div className="max-w-[260px]">
-                  <div className="font-semibold text-ink">
-                    #{i + 1} · {n.count} items · tone {signed(n.score)}
-                  </div>
-                  <div className="mt-0.5">{n.headline}</div>
-                </div>,
-                e.currentTarget,
-              )
-            }
-            onMouseLeave={hide}
-            onFocus={(e) => showAt(`#${i + 1} ${n.headline} — ${n.count} items, tone ${signed(n.score)}`, e.currentTarget)}
-            onBlur={hide}
           />
         ))}
       </div>
@@ -139,7 +136,7 @@ function NarrativeRow({ n, rank, members, defaultOpen }: { n: Narrative; rank: n
           <div className="flex items-start gap-2">
             <p className="min-w-0 flex-1 text-[14px] font-medium leading-5 text-ink">
               {n.headline}
-              {n.is_new && <span className="ml-2 inline-block translate-y-[-1px] rounded bg-accent/15 px-1 py-px align-middle text-2xs font-semibold uppercase tracking-wider text-accent">New</span>}
+              {n.is_new && <NewBadge className="ml-2 translate-y-[-1px]" />}
             </p>
             <ScoreChip score={n.score} className="mt-px shrink-0" />
           </div>

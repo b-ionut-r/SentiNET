@@ -95,6 +95,43 @@ def test_bullish_large_cap_reads_bullish_with_evidence() -> None:
     assert len(a.brief.bull_points) >= 3 and "Strong Buy" in a.brief.summary
 
 
+def test_bullish_case_still_states_the_material_negatives() -> None:
+    # Live NVDA: 5 bull points vs 1 bear point although insiders sold $1.37B with no buys.
+    a = build("bullish_large_cap")
+    bear = a.brief.bear_points
+    selling = next((b for b in bear if b.startswith("Insider selling")), None)
+    assert selling is not None
+    assert "2 open-market sales worth $40M" in selling and "bought nothing in 180 days" in selling
+    assert "largest: John Doe (Director) $25M" in selling
+    assert "(0.01% of market cap)" in selling and "10b5-1" in selling  # routine-sized: said with the caveat
+    # Counterpoints rank below everything that moves the score; the bull case is unchanged.
+    assert a.brief.bull_points[0].startswith(("Analysts", "News", "Story", "Price", "Sentiment"))
+    assert all(any(ch.isdigit() for ch in b) for b in bear)
+
+
+@pytest.mark.parametrize("name", ["bullish_large_cap", "meme_stock", "crypto", "lawsuit"])
+def test_price_confirms_sentiment_but_does_not_outshout_it(name: str) -> None:
+    # Live finding: technicals were the largest contributor in 5 of 9 tickers (a normal uptrend read 75-85).
+    a = build(name)
+    c = next(x for x in a.verdict.components if x.key == "technicals")
+    if not c.available:
+        return
+    contributions = {x.key: abs((x.score or 50) - 50) * x.weight for x in a.verdict.components if x.available}
+    share = contributions["technicals"] / (sum(contributions.values()) or 1)
+    nominal = c.weight / sum(x.weight for x in a.verdict.components if x.available)
+    assert share <= nominal * 1.6, (share, nominal)
+
+
+def test_news_counts_share_one_base() -> None:
+    # Live NVDA: '197 articles' counted syndicated copies while '66 bullish vs 14 bearish' counted 166 uniques.
+    a = build("bullish_large_cap")
+    news = comp(a, "news")
+    reason = next(r.text for r in a.verdict.reasons if r.ref == "news")
+    assert f"across {a.news.n} articles" in news.detail
+    assert f"{a.news.bullish} bullish / {a.news.bearish} bearish" in news.detail
+    assert f"across {a.news.n} articles (+" in reason and "syndicated cop" in reason
+
+
 def test_bullish_large_cap_syndication_and_sources() -> None:
     a = build("bullish_large_cap")
     top = a.narratives[0]
@@ -112,9 +149,10 @@ def test_bullish_large_cap_syndication_and_sources() -> None:
 def test_meme_stock_flags_crowding_divergence_and_risks() -> None:
     a = build("meme_stock")
     v = a.verdict
-    # One vote per account (34 of 37 accounts bullish); a crowded long reads as a contrarian
+    # The crowd panel reports tagged messages (57 of 60, as CrowdView documents); the scoring
+    # uses one vote per account (34 of 37) and says so. A crowded long reads as a contrarian
     # caution, so the social component stays well short of "strongly bullish".
-    assert a.crowd.stocktwits_bullish == 34 and a.crowd.stocktwits_bull_ratio == pytest.approx(0.919, abs=1e-3)
+    assert a.crowd.stocktwits_bullish == 57 and a.crowd.stocktwits_bull_ratio == pytest.approx(0.95)
     assert 55 <= comp(a, "social").score < 75  # euphoric posts (+0.88) are capped at the crowding level
     assert comp(a, "news").score <= 35 and comp(a, "analysts").score <= 25
     # The crowd cannot carry the verdict on its own.

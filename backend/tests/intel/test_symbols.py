@@ -172,6 +172,24 @@ def test_funds_carry_their_theme_as_alias() -> None:
     assert vix.short_name == "VIX" and vix.cik is None
 
 
+async def test_sec_fallback_does_not_add_units_of_a_shown_issuer(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Live 2026-10-05: "bitcoin" showed BIXI and, via the SEC merge, its SPAC units BIXIU."""
+    quotes = [{"symbol": "BTC-USD", "quoteType": "CRYPTOCURRENCY", "shortname": "Bitcoin USD"},
+              {"symbol": "BTC=F", "quoteType": "FUTURE", "shortname": "Bitcoin Futures,Oct-2026"}]
+    cik_map = {"BIXIU": ("0002011111", "Bitcoin Infrastructure Acquisition Corp Ltd"),
+               "BIXIW": ("0002011111", "Bitcoin Infrastructure Acquisition Corp Ltd"),
+               "BIXI": ("0002011111", "Bitcoin Infrastructure Acquisition Corp Ltd"),
+               "BITF": ("0001858000", "Bitfarms Ltd")}
+    monkeypatch.setattr(symbols, "_yahoo_search", lambda q, limit: quotes)
+
+    async def fake_map() -> dict[str, tuple[str, str]]:
+        return cik_map
+
+    monkeypatch.setattr("app.intel.sec.get_cik_map", fake_map)
+    found = [m.symbol for m in await symbols.search_symbols("bitcoin")]
+    assert found[:2] == ["BTC-USD", "BIXI"] and not {"BIXIU", "BIXIW"} & set(found)
+
+
 def test_search_drops_collision_numbered_crypto_tokens() -> None:
     quotes = [
         {"symbol": "ETH-USD", "shortname": "Ethereum USD", "quoteType": "CRYPTOCURRENCY", "exchange": "CCC"},

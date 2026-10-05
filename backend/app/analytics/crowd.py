@@ -111,15 +111,17 @@ def stocktwits_tally(metrics: dict[str, Any]) -> Tally | None:
 def crowd_view(metrics: dict[str, Any]) -> CrowdView | None:
     """Structured retail metrics; None when no crowd source reported anything.
 
-    StockTwits bull/bear counts (and the ratio) come from `stocktwits_tally`:
-    per account when the source reports it, so counts and ratio share one base."""
-    tally = stocktwits_tally(metrics)
-    ratio = tally.ratio if tally is not None else None
+    StockTwits counts and ratio are per tagged message, as `CrowdView` documents
+    (and the UI labels them); the scoring uses the per-account `stocktwits_tally`
+    and says "accounts" wherever it quotes it."""
+    bull, bear = as_int(metrics.get("stocktwits_bullish")), as_int(metrics.get("stocktwits_bearish"))
+    tagged = max(bull or 0, 0) + max(bear or 0, 0)
     wsb_label = metrics.get("wsb_label")
     view = CrowdView(
-        stocktwits_bullish=tally.bullish if tally is not None else None,
-        stocktwits_bearish=tally.bearish if tally is not None else None,
-        stocktwits_bull_ratio=round(ratio, 3) if ratio is not None else None,
+        stocktwits_bullish=bull, stocktwits_bearish=bear,
+        stocktwits_bull_ratio=round(max(bull or 0, 0) / tagged, 3) if tagged else None,
+        stocktwits_bull_authors=as_int(metrics.get("stocktwits_bull_authors")),
+        stocktwits_bear_authors=as_int(metrics.get("stocktwits_bear_authors")),
         stocktwits_messages=as_int(metrics.get("stocktwits_messages")),
         stocktwits_watchers=as_int(metrics.get("stocktwits_watchers")),
         reddit_mentions=as_int(metrics.get("reddit_mentions")),

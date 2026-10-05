@@ -211,7 +211,7 @@ _PHRASES: tuple[tuple[re.Pattern[str], str], ...] = tuple((re.compile(p, re.IGNO
       r"\bbuy[- ]?backs?\b|\bbuy(?:ing)? back\b|\bbought back\b"), " buyback "),
     ((r"\b(?:all[- ]time|record)[- ]highs?\b|\bfirst record\b|\brecord (?:territory|close|closing high)\b|"
       r"\b(?:back at|at|hits?|to|reach(?:es|ed)?|sets?|notch(?:es|ed)?|new|fresh)\s+(?:a\s+|its\s+|another\s+)?"
-      r"(?:new\s+|fresh\s+|(?-i:[A-Z])\w+\s+)?record\b(?!\s+(?:revenue|sales|profit|earnings|quarter|deliveries|"
+      r"(?:new\s+|fresh\s+|(?-i:[A-Z])\w+\s+)?record(?:[- ]highs?)?\b(?!\s+(?:revenue|sales|profit|earnings|quarter|deliveries|"
       r"buyback|repurchase|low|loss|\$|\d))"), " record-high "),
     (r"\bprice[- ]targets?\b|\btarget[- ]prices?\b|\bPTs?\b", " price-target "),
     (r"\bmarket (?:cap(?:italization)?|value|valuation)\b", " market-cap "),
@@ -432,11 +432,16 @@ def _raw_features(title: str, own: frozenset[str], proper: frozenset[str]
         if anchor:
             anchors.add(feature)
 
-    for tok in _split_hyphens(tokenize(text)):
+    tokens: list[str] = []
+    for segment in _SEGMENT_RE.split(text):  # bigrams never span punctuation ("Dispute: Early ...")
+        tokens.extend(["", *_split_hyphens(tokenize(segment))])
+    for k, tok in enumerate(tokens):
         surface = cased.get(tok, tok)
-        if tok in own or tok.lstrip("$") in own:
+        if not tok:
+            content.append(("", "", False))
+        elif tok in own or tok.lstrip("$") in own:
             content.append(("", "", False))  # the company's own name is not a story feature
-        elif tok.startswith("$") and tok[1:2].isdigit():
+        elif tok[:1] in "$€£" and tok[1:2].isdigit():
             specific = _money_specific(tok)
             add(tok, _W_MONEY if specific else _W_ROUND_MONEY, tok.upper(), anchor=specific)
             content.append((tok, tok.upper(), False))
@@ -449,7 +454,8 @@ def _raw_features(title: str, own: frozenset[str], proper: frozenset[str]
             elif len(tok.replace(".", "").replace(",", "")) >= 2 or "." in tok:
                 add(tok, _W_NUMBER, tok, anchor=True)
         elif tok in STOPWORDS or len(tok) < 2:
-            continue
+            if tok not in _BRIDGE_WORDS:  # "sales for Q3" ~ "Q3 sales", but no "Reaffirmed [His] Jaw"
+                content.append(("", "", False))
         elif tok in MOVE_WORDS:
             add(stem(tok), _W_MOVE, surface)
             content.append(("", "", False))
@@ -459,7 +465,12 @@ def _raw_features(title: str, own: frozenset[str], proper: frozenset[str]
             add(tok, _W_MONTH, surface)
             content.append(("", "", False))
         elif "-" in tok and tok in _CONCEPTS:
-            add(tok, _W_CONCEPT, surface, anchor=tok not in _WEAK_CONCEPTS)
+            anchor = tok not in _WEAK_CONCEPTS
+            if tok in _SUBJECT_CONCEPTS and own:
+                # "record high"/"market cap" tie stories only when they are the company's own
+                # ("AMD Reaches a $1 Trillion Market Cap. Can It Dethrone Nvidia?" is AMD's).
+                anchor = bool({t.lstrip("$") for t in tokens[max(0, k - 5):k]} & own)
+            add(tok, _W_CONCEPT, surface, anchor=anchor)
             content.append((tok, surface, False))
         else:
             feature = stem(tok)
@@ -492,6 +503,9 @@ def _raw_features(title: str, own: frozenset[str], proper: frozenset[str]
 
 
 _CONCEPTS = frozenset(c.strip() for _p, c in _PHRASES if "-" in c)
+_SUBJECT_CONCEPTS = frozenset({"record-high", "market-cap"})
+_BRIDGE_WORDS = frozenset({"for", "of", "in", "on", "at", "from", "with"})
+_SEGMENT_RE = re.compile(r"[,;:!?|()\"]|\s[-\u2013\u2014]\s|\.\s")
 
 
 def _dot(a: dict[str, float], b: dict[str, float]) -> float:
@@ -947,8 +961,10 @@ def _display(feature: str, votes: Counter[str] | None, common: frozenset[str]) -
     are shown lower-case; names keep their capitalization."""
     if feature in _CONCEPT_LABELS:
         return _CONCEPT_LABELS[feature]
-    if feature.startswith("$"):
-        return "$" + feature[1:].upper()
+    if feature[:1] in "$€£":
+        head, *rest = feature.split()
+        tail = [_CONCEPT_LABELS.get(part, part) for part in rest]
+        return " ".join([head[0] + head[1:].upper(), *tail])  # "$150B buyback", not "$150B BUYBACK"
     if not votes:
         return feature
     surface = votes.most_common(1)[0][0]

@@ -63,13 +63,24 @@ def test_api_engine_blends_and_keeps_sentinel_drivers() -> None:
     base = SentinelEngine().score(texts)
     out = eng.score(texts)
     assert [a.label for a in out] == ["bullish", "bearish"]
-    for a, b, p in zip(out, base, ((0.9, 0.03), (0.05, 0.8)), strict=True):
-        expected = 0.6 * (p[0] - p[1]) + 0.4 * b.score
+    for a, b, p in zip(out, base, ((0.9, 0.03, 0.07), (0.05, 0.8, 0.15)), strict=True):
+        expected = 0.6 * (p[0] - p[1]) * (1 - p[2]) + 0.4 * b.score
         assert a.score == pytest.approx(expected, abs=1e-3)
         assert a.label == label_for(a.score)
         assert a.drivers == b.drivers  # FinBERT has no token-level explanation
         assert 0.0 <= a.confidence <= 1.0
     assert eng.calls == [texts]
+
+
+def test_api_neutral_call_contributes_zero_not_its_residue() -> None:
+    # pos 0.12 / neg 0.02 / neu 0.86 is a neutral call; its +0.10 residue must not make it bullish
+    reply = [{"label": "neutral", "score": 0.86}, {"label": "positive", "score": 0.12},
+             {"label": "negative", "score": 0.02}]
+    text = "Acme to hold annual meeting on May 5"
+    base = SentinelEngine().score([text])[0]
+    out = StubApi([[reply]]).score([text])[0]
+    assert base.label == "neutral"
+    assert out.label == "neutral" and out.score == pytest.approx(0.4 * base.score, abs=1e-3)
 
 
 def test_api_flat_disagreement_lowers_confidence() -> None:
@@ -220,3 +231,10 @@ def test_reset_engine_rebuilds(monkeypatch: pytest.MonkeyPatch, fresh_registry: 
     assert isinstance(get_engine(), VaderEngine)  # cached until reset
     reset_engine()
     assert isinstance(get_engine(), SentinelEngine)
+
+
+def test_api_engine_passes_targets_to_sentinel() -> None:
+    text = "Cerebras stock hits post-IPO low, tumbling 20% on Nvidia pressure"
+    aimed = StubApi([[NEU]]).score([text], ["news"], [["NVDA", "Nvidia"]])[0]
+    plain = StubApi([[NEU]]).score([text], ["news"])[0]
+    assert abs(aimed.score) < abs(plain.score)  # FinBERT says neutral; Sentinel's peer move counts less

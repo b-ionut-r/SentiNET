@@ -64,6 +64,19 @@ def test_engine_events_and_themes_are_kept_and_not_duplicated(fake_engine):
     assert len(result.themes) == len(set(result.themes)) <= pipeline.MAX_THEMES
 
 
+def test_company_attributes_events(fake_engine):
+    """With the company, a bystander mention carries no red-flag event."""
+    from app.sources.base import CompanyRef
+
+    att = CompanyRef(ticker="T", name="AT&T Inc.", short_name="AT&T", industry="Telecom Services")
+    text = "EchoStar Unit Dish DBS Files for Bankruptcy After Delays In Crucial AT&T Transaction"
+    assert [e.key for e in pipeline.analyze_texts([text])[0].events] == ["bankruptcy"]
+    attributed = pipeline.analyze_texts([text], ["news"], company=att)[0]
+    assert attributed.events == []  # themes still describe the text's topic
+    own = pipeline.analyze_text("AT&T stock falls 4% after earnings miss", "news", company=att)
+    assert sorted(e.key for e in own.events) == ["earnings_miss", "price_down"]
+
+
 def test_edges(fake_engine):
     assert pipeline.analyze_texts([]) == []
     out = pipeline.analyze_texts([None, ""])  # type: ignore[list-item]

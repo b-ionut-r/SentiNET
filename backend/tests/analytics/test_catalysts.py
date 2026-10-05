@@ -82,3 +82,84 @@ def test_delta_notes() -> None:
     soft = build_delta(prev, verdict(43, "bearish"), SentimentStat(), quote(price=100.0), [])
     assert soft.note.startswith("Sentiment softened (−7: 50 → 43), now bearish")
     assert build_delta(None, verdict(60, "bullish"), SentimentStat(), None, []).note is None
+
+
+# --------------------------------------------------------------------------- #
+# News catalysts: only material developments, never noise (live findings)
+# --------------------------------------------------------------------------- #
+def _story(headline: str, lead_events: list[str], events: list[str] | None = None, impact: float = 0.6,
+           score: float = 0.4, days_ago: float = 1.0):
+    from datetime import timedelta
+
+    from app.analytics.narratives import Story
+    from app.analytics.prepare import Item
+    from app.nlp.types import DetectedEvent
+    from app.schemas import Narrative
+    from tests.analytics.factories import NOW
+
+    lead = Item(id="i-" + headline[:8], source="google_news", source_label="Google News", source_weight=1.0,
+                kind="news", title=headline, scored=True, score=score,
+                events=[DetectedEvent(key=k, polarity="bull") for k in lead_events])
+    other = Item(id="j-" + headline[:8], source="bing_news", source_label="Bing News", source_weight=1.0,
+                 kind="news", title=headline + " (copy)", scored=True, score=score)
+    when = NOW - timedelta(days=days_ago)
+    narrative = Narrative(id="n-" + headline[:8], headline=headline, count=3, publishers=["Reuters", "CNBC"],
+                          score=score, first_seen=when, last_seen=when, impact=impact)
+    return Story(narrative=narrative, members=[lead, other], material_events=events or lead_events)
+
+
+def _news_catalysts(stories, analyst_view=None, earnings_view=None):
+    from types import SimpleNamespace
+
+    from app.analytics.catalysts import _news
+    from tests.analytics.factories import NOW
+
+    facts = SimpleNamespace(inputs=SimpleNamespace(analysts=analyst_view, earnings=earnings_view), now=NOW,
+                            stories=stories)
+    return _news(facts)  # type: ignore[arg-type]
+
+
+def test_news_catalysts_skip_noise() -> None:
+    out = _news_catalysts([
+        _story("Acme opens second factory in Texas", ["expansion"]),                          # kept
+        _story("Acme director sells shares", ["insider_sell"]),                                 # Form 4 covers it
+        _story("Dow, S&P 500, Nasdaq open higher; Acme at 52-week high", ["high_52w"]),          # tape, not news
+        _story("Acme partners with Globex on chips", ["partnership"], impact=0.40),              # below the bar
+        _story("Morgan Stanley lowers Acme price target", ["pt_cut", "product_launch"],         # analyst story
+               events=["pt_cut", "product_launch"]),
+    ], analyst_view=analysts(actions=[action(1, "Morgan Stanley", "main", "Overweight", 90, 100)]))
+    assert [c.title for c in out] == ["Acme opens second factory in Texas"]
+
+
+def test_retrospective_results_stories_are_not_fresh_catalysts() -> None:
+    # Live: 'Target Q2 2025 Earnings: Results, Market Reaction & History' was dated as a fresh beat.
+    e = earnings(days_until=40)  # last report ~91 days ago
+    out = _news_catalysts([_story("Acme Q2 earnings: results, market reaction and history",
+                                  ["earnings_beat", "guidance_raise"]),
+                           _story("Acme beats estimates and raises guidance", ["earnings_beat", "buyback"])],
+                          earnings_view=e)
+    assert [c.title for c in out] == ["Acme beats estimates and raises guidance"]
+    assert out[0].detail.startswith("Buyback")  # the stale results event is not claimed as fresh
+
+
+def test_mixed_story_catalyst_is_neutral() -> None:
+    mixed = _story("Acme faces sell signals as reversal looms", ["product_launch"], score=0.3)
+    mixed.members[0].score = 0.0  # its headline carries no tone: the cluster mean is not its polarity
+    mixed.core_share = 0.4
+    (c,) = _news_catalysts([mixed])
+    assert c.polarity == "neutral"
+
+
+def test_long_8k_titles_are_split_into_label_and_trimmed_detail() -> None:
+    desc = ("NVIDIA Corporation entered into a definitive agreement to acquire Hugging Face, Inc. The transaction "
+            "includes an approximately $11.9 billion purchase price payable to Hugging Face shareholders, subject to "
+            "certain adjustments and customary closing conditions.")
+    a = build_analysis(inputs(ACME, [run(GOOGLE, NEWS)], quote=quote(), filings=[
+        filing(3, "8-K", f"Other material event: {desc}", ["8.01"], "high"),
+        filing(5, "8-K/A", "Amended: Director/officer departure or appointment: The Board appointed a new CFO.",
+               ["5.02"], "high")]))
+    by_title = {c.title: c for c in a.catalysts if c.kind == "filing"}
+    assert set(by_title) == {"Other material event", "Director/officer departure or appointment (amended)"}
+    detail = by_title["Other material event"].detail
+    assert detail.startswith("Form 8-K · items 8.01 · NVIDIA Corporation entered") and detail.endswith("…")
+    assert len(detail) < 200

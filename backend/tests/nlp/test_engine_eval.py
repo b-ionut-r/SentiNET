@@ -71,3 +71,21 @@ def test_committed_results_show_sentinel_beating_vader() -> None:
     assert held["stocktwits_odd"]["sentinel"]["accuracy_covered"] > held["stocktwits_odd"]["vader"]["accuracy_covered"]
     assert data["throughput_texts_per_s"]["sentinel"] >= 2000
     assert "twitter_train" not in data["held_out"]
+
+
+def test_reliability_math() -> None:
+    from app.nlp.types import TextAnalysis
+
+    gold = ["bullish", "bearish", "neutral", "neutral"]
+    preds = [TextAnalysis(0.5, "bullish", 0.8), TextAnalysis(0.4, "bullish", 0.6),
+             TextAnalysis(0.0, "neutral", 0.5), TextAnalysis(0.0, "neutral", 0.5)]
+    r = ev.reliability(gold, preds)
+    assert r["polar"]["n"] == 2 and r["polar"]["accuracy"] == 0.5
+    assert r["polar"]["ece"] == pytest.approx((abs(1 - 0.8) + abs(0 - 0.6)) / 2)
+    assert r["neutral"] == {"n": 2, "mean_confidence": 0.5, "accuracy": 1.0, "ece": 0.5}
+
+
+def test_committed_news_polar_confidence_is_calibrated_on_twitter() -> None:
+    data = json.loads(ev.RESULTS_PATH.read_text(encoding="utf-8"))
+    cal = data["held_out"]["twitter_valid"]["sentinel"]["calibration"]["polar"]
+    assert cal["ece"] <= 0.06  # fitted on train; must hold on the held-out split of the same source

@@ -432,7 +432,8 @@ async def _execute_inner(run: _Run) -> Analysis:
         tone=val("tone"),
         wiki_views=val("wiki") or None,
         source_runs=source_runs,
-        previous=previous_task.result(),
+        previous=previous_task.result()[0],
+        previous_story_ids=previous_task.result()[1],
         intel_status=status,
     )
     analysis = await _synthesize(run, inputs)
@@ -524,12 +525,17 @@ def _engine_name() -> str:
         return settings.sentiment_engine
 
 
-async def _previous_snapshot(symbol: str, now: datetime) -> Snapshot | None:
+async def _previous_snapshot(symbol: str, now: datetime) -> tuple[Snapshot | None, list[list[str]] | None]:
+    """The latest stored snapshot old enough to diff against, plus its stories' member ids."""
     from app.storage import db
 
-    out = await run_bounded(lambda: db.latest_snapshot(symbol, before=now - PREVIOUS_MIN_AGE),
+    out = await run_bounded(lambda: db.latest_record(symbol, before=now - PREVIOUS_MIN_AGE),
                             STORAGE_TIMEOUT, name="previous-snapshot")
-    return out.value if out.ok else None
+    rec = out.value if out.ok else None
+    if rec is None:
+        return None, None
+    story_ids = [list(story.ids) for story in rec.stories if story.ids]
+    return rec.snapshot, story_ids or None
 
 
 # ---- sources ---------------------------------------------------------------- #

@@ -23,8 +23,9 @@ export function CasePanel({ a, className }: { a: Analysis; className?: string })
   const b = a.brief;
   return (
     <Panel id="case" title="Bull case vs. bear case" subtitle="Deterministic brief — every point is backed by a number" className={className} bodyClassName="flex flex-col">
-      {b.summary && <p className="mb-4 max-w-[78ch] text-sm leading-[22px] text-ink-2">{b.summary}</p>}
-      <div className="grid flex-1 gap-4 sm:grid-cols-2">
+      {/* Wide screens: the brief, then the two cases side by side as three equal columns. */}
+      <div className="grid flex-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {b.summary && <p className="max-w-[78ch] text-sm leading-[22px] text-ink-2 sm:col-span-2 xl:col-span-1">{b.summary}</p>}
         <CaseColumn title="Bull case" p="bull" points={b.bull_points} empty="No bullish evidence cleared the bar." />
         <CaseColumn title="Bear case" p="bear" points={b.bear_points} empty="No bearish evidence cleared the bar." />
       </div>

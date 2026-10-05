@@ -11,12 +11,13 @@ import { useSnapshots } from "../../api/hooks";
 import { Dial, VERDICT_DIAL } from "../../components/charts/Dial";
 import { Sparkline } from "../../components/charts/Sparkline";
 import { DivergingBar } from "../../components/charts/Bars";
-import { Delta, Mark } from "../../components/ui/Badges";
+import { Delta, Mark, NewBadge } from "../../components/ui/Badges";
 import { CountUp } from "../../components/ui/Misc";
 import { Tip } from "../../components/ui/Tooltip";
 import { cx } from "../../lib/cx";
 import { dayTime, pct, signed, timeAgo } from "../../lib/format";
 import { polarityOf100, textTone, toneVar } from "../../lib/sentiment";
+import { useMedia } from "../../lib/useMedia";
 
 export function VerdictHero({ a }: { a: Analysis }) {
   const v = a.verdict;
@@ -42,18 +43,20 @@ function ScoreBlock({ a }: { a: Analysis }) {
   const v = a.verdict;
   const p = polarityOf100(v.score);
   const pips = v.confidence === "high" ? 3 : v.confidence === "medium" ? 2 : 1;
+  // Below desktop the dial sits beside its meta so the headline lands on the first phone screen.
+  const wide = useMedia("(min-width: 1024px)");
   return (
-    <div className="flex flex-col items-center">
-      <Dial value={v.score} bands={VERDICT_DIAL} size={208} thickness={11} ariaLabel={`SentiNET score ${v.score} of 100, ${v.label}`}>
-        <span className="text-[56px] font-semibold leading-none tracking-[-0.04em] text-ink">
+    <div className="flex items-center justify-center gap-4 lg:flex-col lg:gap-0">
+      <Dial value={v.score} bands={VERDICT_DIAL} size={wide ? 208 : 164} thickness={wide ? 11 : 9} ariaLabel={`SentiNET score ${v.score} of 100, ${v.label}`}>
+        <span className="text-[44px] font-semibold leading-none tracking-[-0.04em] text-ink lg:text-[56px]">
           <CountUp value={v.score} />
         </span>
-        <span className={cx("mt-2 flex items-center gap-1.5 text-sm font-semibold", textTone[p])}>
+        <span className={cx("mt-1.5 flex items-center gap-1.5 text-sm font-semibold lg:mt-2", textTone[p])}>
           <Mark p={p} className="text-[10px]" />
           {v.label}
         </span>
       </Dial>
-      <div className="-mt-1 flex flex-col items-center gap-1.5">
+      <div className="flex min-w-0 flex-col items-start gap-2 lg:-mt-1 lg:items-center lg:gap-1.5">
         <Tip content={`Confidence ${Math.round(v.confidence_value * 100)}% — data volume, source count, component agreement and freshness`}>
           <span className="inline-flex items-center gap-1.5 text-xs text-ink-2">
             <span className="flex gap-0.5" aria-hidden>
@@ -88,7 +91,7 @@ function ScoreHistory({ ticker, current }: { ticker: string; current: number }) 
   const hi = Math.max(...values);
   return (
     <Tip content={`${list.length} stored looks since ${dayTime(list[0].at)} · range ${lo}–${hi} · now ${current}`}>
-      <div className="flex w-[150px] items-center gap-2" tabIndex={0}>
+      <div className="flex w-[140px] items-center gap-2 lg:w-[150px]" tabIndex={0}>
         <Sparkline values={values} height={20} reference={50} color="rgb(var(--ink-2))" className="flex-1" />
         <span className="text-2xs text-muted">{list.length} looks</span>
       </div>
@@ -213,11 +216,16 @@ function ComponentsBlock({ components, className }: { components: Component[]; c
 
 function DeltaStrip({ a }: { a: Analysis }) {
   const d = a.delta;
+  // "What changed" compares against a stored look at least 15 minutes old (backend rule), so
+  // a ticker can have recent looks and still no baseline yet — say which case this is.
+  const looks = useSnapshots(a.ticker).data?.length ?? 0;
   if (!d.previous_at) {
     return (
       <div className="relative flex items-center gap-2 px-5 py-2.5 text-xs text-muted hairline-t">
         <ClockArrowLeft className="size-3.5 shrink-0" aria-hidden />
-        First look at {a.ticker} — what changed will show here on your next visit.
+        {looks <= 1
+          ? `First look at ${a.ticker} — what changed will show here on your next visit.`
+          : "No stored look older than 15 minutes yet — what changed will show after a later refresh."}
       </div>
     );
   }
@@ -246,7 +254,7 @@ function DeltaStrip({ a }: { a: Analysis }) {
       )}
       {d.new_narratives.length > 0 && (
         <span className="inline-flex min-w-0 items-center gap-1.5 text-muted">
-          <span className="rounded bg-accent/15 px-1 py-px text-2xs font-semibold uppercase tracking-wider text-accent">New</span>
+          <NewBadge />
           <span className="truncate text-ink-2">“{d.new_narratives[0]}”</span>
           {d.new_narratives.length > 1 && <span className="shrink-0">+{d.new_narratives.length - 1} more</span>}
         </span>

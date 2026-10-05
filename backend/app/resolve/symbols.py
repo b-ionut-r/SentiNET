@@ -21,7 +21,7 @@ from urllib.parse import urlsplit
 
 from app.core.cache import cached
 from app.core.sync import run_yahoo
-from app.resolve.names import BARE_CRYPTO, CRYPTO_NAMES, derive_names, registry_display_name
+from app.resolve.names import BARE_CRYPTO, CRYPTO_NAMES, clean_company_name, derive_names, registry_display_name
 from app.schemas import SymbolMatch
 from app.sources.base import CompanyRef
 
@@ -50,6 +50,8 @@ EXCHANGES: dict[str, str] = {
 }
 
 _SEARCH_TYPES = {"EQUITY", "ETF", "CRYPTOCURRENCY", "INDEX", "MUTUALFUND"}
+# Assets traded on a theme rather than a company (mirrors app.sources.query.THEME_TYPES).
+_THEME_TYPES = frozenset({"ETF", "MUTUALFUND", "INDEX", "FUTURE", "CURRENCY"})
 
 
 def normalize_ticker(raw: str) -> str | None:
@@ -178,7 +180,7 @@ def build_company_ref(
         industry=info.get("industry") or None,
         website=info.get("website") or None,
     )
-    if quote_type in {"ETF", "MUTUALFUND", "INDEX"}:
+    if quote_type in _THEME_TYPES:
         ref.aliases = _with_fund_theme(ref)
     return ref
 
@@ -253,6 +255,16 @@ def _rank_key(match: SymbolMatch, wanted: str | None) -> tuple[int, int]:
     return (0 if match.symbol == wanted else 1, 1 if foreign else 0)
 
 
+def _issuer_key(name: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", clean_company_name(name).lower())
+
+
+def _same_issuer_line(symbol: str, name: str, shown: list[SymbolMatch]) -> bool:
+    """True when `symbol` is another line (units, warrants, foreign listing) of an issuer already shown."""
+    key = _issuer_key(name)
+    return any(symbol != m.symbol and symbol.startswith(m.symbol) and _issuer_key(m.name) == key for m in shown)
+
+
 def matches_from_yahoo(quotes: list[dict[str, Any]], q: str, limit: int) -> list[SymbolMatch]:
     """Pure: Yahoo search quotes -> ranked SymbolMatch list."""
     wanted = normalize_ticker(q)
@@ -267,7 +279,7 @@ def matches_from_yahoo(quotes: list[dict[str, Any]], q: str, limit: int) -> list
             continue  # Yahoo's collision-numbered tokens ("USDE29470-USD"): never what was meant
         seen.add(sym)
         name = str(item.get("longname") or item.get("shortname") or sym)
-        if any(m.name == name and sym.startswith(m.symbol) for m in out):
+        if _same_issuer_line(sym, name, out):
             continue  # same issuer's units/warrants/foreign line (BIXIU, NVDA.TO): noise in autocomplete
         out.append(SymbolMatch(
             symbol=sym,
@@ -334,7 +346,10 @@ async def _search_cached(q: str, limit: int) -> list[SymbolMatch]:
             from app.intel.sec import get_cik_map
 
             have = {m.symbol for m in results}
-            extra = [m for m in matches_from_sec(await get_cik_map(), q, limit) if m.symbol not in have]
+            extra: list[SymbolMatch] = []
+            for m in matches_from_sec(await get_cik_map(), q, limit):  # shortest symbols first
+                if m.symbol not in have and not _same_issuer_line(m.symbol, m.name, results + extra):
+                    extra.append(m)
             results.extend(m for m in extra if m.symbol == wanted)
             results.extend(m for m in extra if m.symbol != wanted)
         except Exception as exc:  # noqa: BLE001
