@@ -21,11 +21,20 @@ try {
     await page.locator("#price canvas").first().waitFor();
     await page.waitForTimeout(2500);
     await page.locator("#price").screenshot({ path: `${OUT}/fp-${mode}-a.png` });
+    await page.evaluate(() => {
+      window.__sizes = [];
+      for (const lbl of ["Candlestick price chart", "Daily volume", "Daily news tone histogram"]) {
+        const el = document.querySelector(`[aria-label="${lbl}"]`);
+        new ResizeObserver((es) => es.forEach((e) => window.__sizes.push(`${lbl.split(" ")[1]} ${Math.round(e.contentRect.width)}x${Math.round(e.contentRect.height)} @${Math.round(performance.now())}`))).observe(el);
+      }
+      window.addEventListener("resize", () => window.__sizes.push(`win ${innerWidth}x${innerHeight} @${Math.round(performance.now())}`));
+    });
+    await page.waitForTimeout(300);
     const t0 = Date.now();
     await page.screenshot({ path: `${OUT}/fp-${mode}-full.png`, fullPage: true });
     await page.waitForTimeout(800);
     await page.locator("#price").screenshot({ path: `${OUT}/fp-${mode}-b.png` });
-    console.log(mode, "done", Date.now() - t0);
+    console.log(mode, "done", Date.now() - t0, await page.evaluate(() => window.__sizes.join("\n")));
     await ctx.close();
   }
 } finally {
