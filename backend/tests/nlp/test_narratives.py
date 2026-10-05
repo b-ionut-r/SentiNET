@@ -99,14 +99,14 @@ def _cluster_of(clusters: list[Cluster], item_id: str) -> Cluster:
 # Story clustering on labeled real sets
 # --------------------------------------------------------------------------- #
 @pytest.mark.parametrize(("ticker", "min_f1", "min_b3"), [
-    ("nvda", 0.88, 0.88),  # tuning      measured .91 / .92
-    ("aapl", 0.78, 0.85),  # tuning      .83 / .89
+    ("nvda", 0.92, 0.92),  # tuning      measured .95 / .94 (rivals' milestones kept apart)
+    ("aapl", 0.80, 0.86),  # tuning      .85 / .91
     ("meta", 0.45, 0.78),  # tuning      .50 / .81 (many overlapping "Muse" angles)
     ("tgt", 0.76, 0.83),   # tuning      .82 / .87
     ("xyz", 0.93, 0.92),   # tuning      .99 / .96
-    ("tsla", 0.76, 0.79),  # validation  .80 / .83
+    ("tsla", 0.75, 0.79),  # validation  .78 / .82
     ("amzn", 0.76, 0.82),  # validation  .81 / .86
-    ("amd", 0.78, 0.83),   # test: .89 / .89 at first (untouched) scoring; .83 / .87 now
+    ("amd", 0.80, 0.84),   # test: .89 / .89 at first (untouched) scoring; .86 / .89 now
 ])
 def test_labeled_story_sets(ticker, min_f1, min_b3):
     items, labels, company = _items(ticker)

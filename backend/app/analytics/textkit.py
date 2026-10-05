@@ -35,11 +35,13 @@ def _fallback(name: str, exc: BaseException) -> None:
 # --------------------------------------------------------------------------- #
 # Scoring (no fallback: the caller decides how to report an engine failure)
 # --------------------------------------------------------------------------- #
-def analyze(texts: Sequence[str], kinds: Sequence[str] | None = None) -> list[TextAnalysis]:
-    """Engine score + themes + events for each text, in order."""
+def analyze(texts: Sequence[str], kinds: Sequence[str] | None = None,
+            company: CompanyRef | None = None) -> list[TextAnalysis]:
+    """Engine score + themes + events for each text, in order. With `company`,
+    events and price moves that belong to another entity are attributed away."""
     from app.nlp.pipeline import analyze_texts
 
-    return analyze_texts(list(texts), list(kinds) if kinds is not None else None)
+    return analyze_texts(list(texts), list(kinds) if kinds is not None else None, company)
 
 
 # --------------------------------------------------------------------------- #

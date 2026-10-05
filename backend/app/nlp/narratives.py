@@ -435,11 +435,13 @@ def _raw_features(title: str, own: frozenset[str], proper: frozenset[str]
     tokens: list[str] = []
     for segment in _SEGMENT_RE.split(text):  # bigrams never span punctuation ("Dispute: Early ...")
         tokens.extend(["", *_split_hyphens(tokenize(segment))])
-    for k, tok in enumerate(tokens):
+    own_seen = False  # the company named earlier, with no other entity named since
+    for tok in tokens:
         surface = cased.get(tok, tok)
         if not tok:
             content.append(("", "", False))
         elif tok in own or tok.lstrip("$") in own:
+            own_seen = True
             content.append(("", "", False))  # the company's own name is not a story feature
         elif tok[:1] in "$€£" and tok[1:2].isdigit():
             specific = _money_specific(tok)
@@ -465,17 +467,18 @@ def _raw_features(title: str, own: frozenset[str], proper: frozenset[str]
             add(tok, _W_MONTH, surface)
             content.append(("", "", False))
         elif "-" in tok and tok in _CONCEPTS:
-            anchor = tok not in _WEAK_CONCEPTS
-            if tok in _SUBJECT_CONCEPTS and own:
-                # "record high"/"market cap" tie stories only when they are the company's own
-                # ("AMD Reaches a $1 Trillion Market Cap. Can It Dethrone Nvidia?" is AMD's).
-                anchor = bool({t.lstrip("$") for t in tokens[max(0, k - 5):k]} & own)
-            add(tok, _W_CONCEPT, surface, anchor=anchor)
-            content.append((tok, surface, False))
+            feature = tok
+            if tok in _SUBJECT_CONCEPTS and own and not own_seen:
+                # A rival's milestone ("AMD Reaches a $1 Trillion Market Cap. Can It Dethrone
+                # Nvidia?") is a different story from the company's own record or market cap.
+                feature = f"{tok}~other"
+            add(feature, _W_CONCEPT, surface, anchor=tok not in _WEAK_CONCEPTS)
+            content.append((feature, surface, False))
         else:
             feature = stem(tok)
             if tok in proper or (not shouting and _is_entity_shape(surface)):
                 add(feature, _W_PROPER, surface, anchor=True)
+                own_seen = False  # another entity takes over: "... as AMD hits a record"
             elif tok in HEADLINE_VERBS:
                 add(feature, _W_VERB, surface)
             else:
@@ -905,6 +908,7 @@ _CONCEPT_LABELS = {
     "stock-split": "stock split", "earnings-beat": "earnings beat", "earnings-miss": "earnings miss",
     "price-cut": "price cuts", "price-hike": "price hikes", "inst-holding": "institutional holdings",
     "best-stretch": "best run", "worst-stretch": "worst run",
+    "record-high~other": "record high", "market-cap~other": "market cap",
 }
 
 

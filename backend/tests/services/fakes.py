@@ -309,7 +309,8 @@ class FakeWorld:
         class Engine:
             name = "sentinel"
 
-            def score(self, texts: list[str], kinds: list[str] | None = None) -> list[TextAnalysis]:
+            def score(self, texts: list[str], kinds: list[str] | None = None,
+                      targets: object = None) -> list[TextAnalysis]:
                 return [self._one(t) for t in texts]
 
             @staticmethod
@@ -329,7 +330,7 @@ class FakeWorld:
             return "bullish" if score > 0.05 else "bearish" if score < -0.05 else "neutral"
 
         module("app.nlp.engine", get_engine=lambda: engine, label_for=label_for, NEUTRAL_BAND=0.05)
-        module("app.nlp.pipeline", analyze_texts=lambda texts, kinds=None: engine.score(texts, kinds))
+        module("app.nlp.pipeline", analyze_texts=lambda texts, kinds=None, company=None: engine.score(texts, kinds))
         module("app.nlp.relevance", relevance=lambda text, company: 1.0 if company.short_name in text else 0.2)
         module("app.nlp.themes", THEMES={"earnings": "Earnings", "legal": "Legal"})
         return self

@@ -12,7 +12,9 @@ Two hard parts live here:
   (2026-10-04, share of titles naming the company): "Apple" 17% -> curated 62%
   (Nvidia, a distinctive name: 55%); a Meta query built on Instagram/WhatsApp
   1% -> 34%; Target with "at Target"/"Target shares" 6% (stock-rating spam:
-  "price target on shares…") -> precise phrases only. Homonym brands get curated
+  "price target on shares…") -> precise phrases only. Re-check 2026-10-05:
+  Apple 67% (22/33), Meta 36% (13/36); Snap with bare "Snapchat" 15% (5/34, the
+  rest crime/school stories naming the app) -> company phrases only. Homonym brands get curated
   context (`"Apple" (iPhone OR "Tim Cook" OR …)`), other everyday-word names are
   anchored to their legal form ("Chewy Inc", "Chewy CEO"), short names appear only
   inside longer phrases ("IBM shares"), funds search their theme ("regional
@@ -73,7 +75,9 @@ CURATED: dict[str, str] = {
     # Not bare "Cash App": event listings say "pay via Cash App" (most of a 3-day sample).
     "XYZ": '("Block Inc" OR "Jack Dorsey" OR Afterpay OR "Square payments" OR "Cash App owner" OR "Block CEO")',
     "SQ": '("Block Inc" OR "Jack Dorsey" OR Afterpay OR "Square payments" OR "Cash App owner" OR "Block CEO")',
-    "SNAP": '("Snap Inc" OR Snapchat OR "Evan Spiegel")',
+    # Not bare Snapchat: 29 of 34 sampled articles were crime/school stories naming the app.
+    "SNAP": '("Snap Inc" OR "Evan Spiegel" OR "Snapchat parent" OR "Snapchat maker" OR "Snapchat owner" '
+            'OR "Snap CEO")',
     "V": '("Visa Inc" OR "Visa and Mastercard" OR "Visa CEO" OR "Visa card")',
     "SHEL": '("Shell plc" OR "Royal Dutch Shell" OR "Shell CEO" OR "Shell oil")',
     "ORCL": '("Oracle Corp" OR "Oracle Corporation" OR "Oracle Cloud" OR "Larry Ellison" OR "Oracle CEO")',

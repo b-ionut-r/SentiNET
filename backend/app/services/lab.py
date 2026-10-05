@@ -52,7 +52,7 @@ def _score_sync(texts: list[str], company: CompanyRef | None) -> ScoreResponse:
     from app.nlp.pipeline import analyze_texts
     from app.nlp.themes import THEMES
 
-    analyses = analyze_texts(texts)
+    analyses = analyze_texts(texts, None, company)
     relevance_fn = None
     if company is not None:
         from app.nlp.relevance import relevance as relevance_fn

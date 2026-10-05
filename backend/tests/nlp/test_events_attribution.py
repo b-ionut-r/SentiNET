@@ -69,6 +69,11 @@ C = {
     ("NVDA", "Nvidia Stock Rises, Intel Files For Bankruptcy", ["price_up"]),
     ("NVDA", "Nvidia and AMD unveil new chips", ["product_launch"]),
     ("NVDA", "Nvidia rises as rival AMD unveils new chip", []),
+    # a market or sector clause owns its own move (live AAPL headline)
+    ("AAPL", "Apple's iPhone And Google Pixel Q2 Sales Shine Even As Global Smartphone Market Drops To 13-Year Low",
+     []),
+    ("AAPL", "Apple stock drops 3% as market falls", ["price_down"]),
+    ("T", "Corning stock rises on $3B AT&T fiber deal", []),  # live: Corning's move, AT&T's deal
     # multi-sentence posts: subject-less statements inherit the company (or its products/executives)
     ("NVDA", "$NVDA YE target $325 • Q2 revenue +106% YoY • Data Center revenue +117% • Rubin ramp underway "
              "• ~$235B buyback authorization", ["buyback"]),

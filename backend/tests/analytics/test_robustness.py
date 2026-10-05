@@ -79,7 +79,7 @@ def test_failing_catalysts_do_not_sink_the_analysis(monkeypatch) -> None:
 def test_engine_failure_caps_the_read_and_says_why(monkeypatch) -> None:
     healthy = build_analysis(scenarios.crypto())
 
-    def fail(texts, kinds=None):
+    def fail(texts, kinds=None, company=None):
         raise RuntimeError("engine mid-edit")
 
     monkeypatch.setattr(textkit, "analyze", fail)

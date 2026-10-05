@@ -51,11 +51,12 @@ def analyze_texts(texts: Sequence[str], kinds: Sequence[str] | None = None,
     if not texts:
         return []
     # Imported lazily: the engine is heavier and optional at import time.
-    from app.nlp.engine import get_engine
+    from app.nlp.engine import get_engine, target_terms
 
     batch = [t or "" for t in texts]
     kind_list = list(kinds) if kinds is not None else None
-    results = get_engine().score(batch, kind_list)
+    targets = [target_terms(company)] * len(batch) if company is not None else None
+    results = get_engine().score(batch, kind_list, targets)
     if len(results) != len(batch):
         raise RuntimeError(f"sentiment engine returned {len(results)} results for {len(batch)} texts")
     return [enrich(text, result, company) for text, result in zip(batch, results, strict=True)]

@@ -102,7 +102,7 @@ def test_prolific_voices_are_down_weighted() -> None:
 
 
 def test_engine_failure_is_reported_never_faked(monkeypatch) -> None:
-    def broken(texts, kinds=None):
+    def broken(texts, kinds=None, company=None):
         raise RuntimeError("model file missing")
 
     monkeypatch.setattr(textkit, "analyze", broken)

@@ -57,7 +57,7 @@ _PATTERNS: dict[str, tuple[str, ...]] = {
          r"\bforecasts?\b(?!\s+(?:and|&) price)"),
         r"\bguides? (?:up|down|higher|lower|above|below)\b", r"\bguided\b", r"\bprojects? (?:revenue|sales|growth)\b",
         r"\b(?:full[- ]year|fy\d*|annual) (?:target|view|forecast)\b", r"\bprofit warning\b", r"\bwarns? (?:on|of)\b",
-        r"\breaffirms?\b",
+        r"\breaffirm(?:s|ed|ing)?\s+(?:its\s+|the\s+|their\s+)?(?:[\w-]+\s+){0,2}?(?:guidance|outlook|forecasts?|view)\b",
     ),
     "analyst": (
         r"\bprice[- ]targets?\b", r"\btarget price\b", r"\bpt\b", r"\bupgrad(?:e|es|ed|ing)\b", r"\bdowngrad(?:e|es|ed|ing)\b",

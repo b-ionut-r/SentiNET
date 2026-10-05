@@ -1355,7 +1355,7 @@ estimates expectations consensus record high low bankruptcy chapter lawsuit suit
 filing files filed recall layoffs jobs dividend buyback offering notice delisting shares stock
 even as while whereas but yet after amid following despite since because before ahead though although when once
 until why how what where who leader leaders giant maker makers chipmaker automaker retailer firm firms company
-companies group business unit""")
+companies group business unit near above below under around toward towards within beyond into onto upon""")
 _ACRONYM_WORDS = wordset("ai ceo cfo coo cto ev evs eps ipo etf gdp cpi us uk fy q1 q2 q3 q4 h1 h2 pc ii iii yoy qoq")
 _WORD_TOKEN_RE = re.compile(r"(?<![\w$&.'-])\$?[A-Za-z][\w&.'-]*")
 _SUBORDINATOR_RE = re.compile(
@@ -1378,6 +1378,8 @@ _AS_NOT_CLAUSE_AFTER_RE = re.compile(r"^(?:well|of|part|a result|much|many|expec
 _ATTACH_GAP_RE = re.compile(r"^\s*(?:[\w$.,%-]+\s+){0,3}$")
 _TARGET_PREPOSITIONS = wordset("on against into in at of over targeting toward towards vs versus with from by")
 _GAP_FILLERS = wordset("the a an its their his her new fresh another major big more")
+_SUBJECT_CONNECTORS = wordset("hit hits hitting at of for in across from by to strike strikes")
+_CAUSE_WORDS = wordset("on over upon after amid with")
 # Gap pieces that keep the company as the subject: its own unit ("EchoStar unit
 # Dish DBS"), an executive ("Apple CEO John Ternus is planning layoffs"), a
 # ticker in parentheses, coordinated peers ("Ford, GM and Stellantis stock").
@@ -1387,6 +1389,10 @@ _EXEC_NAME_RE = re.compile(r"(?:'s)?\s*\b(?:ceo|cfo|coo|cto|chief(?:\s+\w+)?(?:\
                            r"(?:(?-i:[A-Z])[\w.'-]*\s+){1,3}", re.IGNORECASE)
 _PAREN_RE = re.compile(r"\([^()]{0,40}\)")
 _COORDINATION_RE = re.compile(r"^(?:\s*(?:,|and|&|or)\s+(?:\$?(?-i:[A-Z])[\w&.'-]*\s*){1,3})+")
+# A clause about a market, sector or peer group owns its own move/record.
+_COLLECTIVE_SUBJECT_RE = re.compile(r"\b(?:market|markets|industry|sector|index|indexes|indices|economy|shipments|"
+                                    r"stocks|peers|rivals|rates|yields|prices|futures)(?:\s+[a-z]+){0,2}\s*$",
+                                    re.IGNORECASE)
 _LEAD_SUBORDINATOR_RE = re.compile(r"^\s*,?\s*(?:even as|even though|ahead of|\w+)\s+")
 
 
@@ -1501,7 +1507,10 @@ def _attached_after(text: str, stop: int, mentions: list, kind: str, title_case:
             return False
         if kind == "target":
             return not words or words[-1].lower() in _TARGET_PREPOSITIONS
-        return len(words) <= 2
+        lowered = {w.lower() for w in words}
+        # "layoffs hit Tesla", "recall of 2 million Tesla vehicles" — but in "Corning stock
+        # rises on AT&T deal" the company is the cause, not the one moving.
+        return len(words) <= 3 and bool(lowered & _SUBJECT_CONNECTORS) and not lowered & _CAUSE_WORDS
     return False
 
 
@@ -1533,6 +1542,8 @@ def _owned(text: str, hit: _Hit, mentions: list, cues: list, clauses: list[tuple
     if kind == "party" and any(c_start <= m.start < c_end for m in subjects):
         return True
     opener = _immediate_subject(text[c_start:start])
+    if kind == "subject" and _COLLECTIVE_SUBJECT_RE.search(opener):
+        return False  # "... as Global Smartphone Market Drops To 13-Year Low": the market's, not the company's
     anaphora = re.match(r"\s*(?:\w+\s+)?(?:its|their)\b", opener, re.IGNORECASE)  # "as its Mastercard launch"
     own_subject = not anaphora and _has_entity(opener, title_case, _sentence_start(text, c_start) and
                                                opener == text[c_start:start].strip(), loose=kind == "party")

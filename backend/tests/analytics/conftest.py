@@ -59,7 +59,7 @@ class FakeNLP:
 
     calls = 0
 
-    def analyze(self, texts, kinds=None):
+    def analyze(self, texts, kinds=None, company=None):
         FakeNLP.calls += 1
         out = []
         for text in texts:

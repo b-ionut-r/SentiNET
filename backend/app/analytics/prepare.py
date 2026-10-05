@@ -206,7 +206,7 @@ def prepare(company: CompanyRef | None, runs: list[SourceRun], now: datetime) ->
 
     items = _collapse_duplicates(candidates)
     out.dropped["duplicate"] += len(candidates) - len(items)
-    out.engine_error = _score(items)
+    out.engine_error = _score(items, company)
     for it in items:
         it.weight = item_weight(it, now)
     _diversify(items)
@@ -324,14 +324,14 @@ def _collapse_group(items: list[Item]) -> list[Item]:
     return reps
 
 
-def _score(items: list[Item]) -> str | None:
+def _score(items: list[Item], company: CompanyRef | None = None) -> str | None:
     """Run the engine over representatives; returns an error description on failure."""
     if not items:
         return None
     texts = [it.title for it in items]
     kinds = ["social" if it.group == "social" else "news" for it in items]
     try:
-        results = textkit.analyze(texts, kinds)
+        results = textkit.analyze(texts, kinds, company)
         if len(results) != len(items):
             raise RuntimeError(f"engine returned {len(results)} results for {len(items)} texts")
     except Exception as exc:  # noqa: BLE001 - reported as a data-quality problem, never fabricated

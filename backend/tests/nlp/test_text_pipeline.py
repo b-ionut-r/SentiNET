@@ -20,7 +20,7 @@ class _FakeEngine:
         self.calls: list[tuple[list[str], list[str] | None]] = []
         self.drop = drop
 
-    def score(self, texts, kinds=None):
+    def score(self, texts, kinds=None, targets=None):
         self.calls.append((list(texts), kinds))
         out = [TextAnalysis(score=0.1 * (i + 1), label="bullish", confidence=0.5, drivers=[("x", 0.1)])
                for i in range(len(texts))]
