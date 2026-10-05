@@ -1,5 +1,6 @@
 """A dated catalyst list: what is coming (earnings, ex-dividend) and what just happened
-(rating changes, material 8-Ks, insider trades, high-impact news events).
+(rating changes — from the ratings feed, or fresh ones only the headlines carry —, material
+8-Ks, insider purchases >= $25K and the largest sales >= $1M, high-impact news events).
 
 Upcoming events come first (soonest first), then recent ones (newest first).
 """
@@ -9,6 +10,7 @@ import re
 from datetime import date, datetime, time, timedelta, UTC
 
 from app.analytics import textkit
+from app.analytics.composite import MATERIAL_BUY
 from app.analytics.facts import Facts
 from app.analytics.narratives import PRICE_EVENTS, same_firm
 from app.analytics.util import count, filing_parts, money, pct, quote, signed, tone_polarity, trim
@@ -172,7 +174,7 @@ def _insiders(f: Facts) -> list[Catalyst]:
         if t.date < since:
             continue
         who = t.insider + (f" ({t.position})" if t.position else "")
-        if t.kind == "buy":
+        if t.kind == "buy" and (t.value is None or t.value >= MATERIAL_BUY):  # not VOD.L's $1.4K / $4.67K buys
             value = f" {money(t.value, currency=f.insider_currency)}" if t.value else ""
             out.append(Catalyst(date=noon_utc(t.date), kind="insider", title=f"{who} bought{value}",
                                 detail=_shares(t.shares), polarity="bull"))

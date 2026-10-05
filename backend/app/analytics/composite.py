@@ -20,8 +20,9 @@ Each component maps its evidence to a signed strength x in [-1, 1]
   coverage size.
 * insiders: only open-market trades (USD for every listing); buying by several
   insiders is strong, each buyer counted by size (full weight from $25K; a $1.4K
-  dividend-reinvestment-sized buy barely counts) and discounted when
-  discretionary selling exceeds 10× the buying; selling is scaled by the USD
+  dividend-reinvestment-sized buy barely counts) and discounted when selling
+  exceeds 10× the buying (sales the rows mark as 10b5-1 or show as likely tax
+  sell-to-cover after share awards excluded); selling is scaled by the USD
   market cap (never a cap in another currency) and mild (it is routine).
 * momentum: GDELT 7d-vs-30d tone change + 90d percentile, and the last 48 h of
   headlines vs. the prior days. The headline shift is short-window evidence:
@@ -540,7 +541,7 @@ def analysts_part(view: AnalystView | None, now: datetime, asset: str = "EQUITY"
 # --------------------------------------------------------------------------- #
 INSIDER_HALF_LIFE = 60.0  # days: a buyer's signal halves with the age of their latest purchase
 MATERIAL_BUY = 25_000.0  # USD a buyer must put in for the purchase to read as discretionary
-TOKEN_RATIO = 10.0  # discretionary sales above this multiple of purchases (by value) make the buying token
+TOKEN_RATIO = 10.0  # sales (see `insider_sales`) above this multiple of purchases (by value) make the buying token
 # Pre-scheduled trades named by the filing (Form 4's 10b5-1 box, plan purchases): not a fresh decision.
 PLAN_RE = re.compile(r"\b10b5-1\b|\btrading plan\b|\bpurchase/ownership plan\b", re.IGNORECASE)
 
@@ -582,17 +583,59 @@ def buyers(view: InsiderView, today: date, since: date | None = None) -> list[Bu
     return sorted(out, key=lambda b: (-(b.value or 0.0), b.name))
 
 
-def discretionary_sales(view: InsiderView, since: date | None = None) -> float:
-    """USD sold, less the sales the filings mark as pre-arranged (10b5-1): over the view's whole
-    window (its total), or since `since` (from the listed rows)."""
+COVER_DAYS = 5  # a sale this soon after a share award/vesting row by the same insider …
+COVER_SHARE = (0.2, 0.6)  # … of this share of the awarded shares reads as tax withholding (sell-to-cover)
+
+
+def sell_to_cover(view: InsiderView) -> list[InsiderTxn]:
+    """Listed sales that look like tax sell-to-cover: within COVER_DAYS after an award, vesting or other
+    acquisition row of the same insider, for 20–60% of its shares (VOD.L: three executives each sold
+    850,831 shares the day after 1,805,752-share award rows — 47%, the usual withholding). An option
+    exercise sold in full is not one."""
+    grants = [t for t in view.transactions if t.kind in ("award", "exercise", "other") and (t.shares or 0) > 0]
+    return [t for t in view.transactions if t.kind == "sell" and (t.shares or 0) > 0 and any(
+        g.insider == t.insider and 0 <= (t.date - g.date).days <= COVER_DAYS
+        and COVER_SHARE[0] <= (t.shares or 0.0) / (g.shares or 1.0) <= COVER_SHARE[1] for g in grants)]
+
+
+@dataclass(frozen=True)
+class Sales:
+    """Insider sales (USD) and the parts the rows show are not a fresh call on the stock."""
+
+    total: float
+    planned: float = 0.0  # marked pre-arranged by the filing (Form 4's 10b5-1 box)
+    cover: float = 0.0  # likely tax sell-to-cover after share awards (`sell_to_cover`)
+
+    @property
+    def free(self) -> float:
+        return max(0.0, self.total - self.planned - self.cover)
+
+    def described(self) -> str:
+        """'$16.2M of sales (not counting $4.01M of likely tax sell-to-cover)' — never 'discretionary':
+        most feeds (Yahoo's, every non-US listing's) cannot show whether a sale was planned."""
+        excluded = [f"{money(self.planned, currency=INSIDER_CURRENCY)} under 10b5-1 plans" if self.planned else "",
+                    f"{money(self.cover, currency=INSIDER_CURRENCY)} of likely tax sell-to-cover" if self.cover else ""]
+        said = join_and([x for x in excluded if x])
+        return f"{money(self.free, currency=INSIDER_CURRENCY)} of sales" + (f" (not counting {said})" if said else "")
+
+
+def insider_sales(view: InsiderView, since: date | None = None) -> Sales:
+    """Sales over the view's whole window (its total), or since `since` (from the listed rows), less the
+    ones the rows mark as pre-arranged or show as likely sell-to-cover."""
     rows = [t for t in view.transactions if t.kind == "sell" and (since is None or t.date >= since)]
-    planned = sum(t.value or 0.0 for t in rows if t.text and PLAN_RE.search(t.text))
+    planned = [t for t in rows if t.text and PLAN_RE.search(t.text)]
+    covered = [t for t in sell_to_cover(view) if any(t is r for r in rows) and not any(t is p for p in planned)]
     total = view.sell_value if since is None else sum(t.value or 0.0 for t in rows)
-    return max(0.0, total - planned)
+    return Sales(total=total, planned=sum(t.value or 0.0 for t in planned), cover=sum(t.value or 0.0 for t in covered))
+
+
+def discretionary_sales(view: InsiderView, since: date | None = None) -> float:
+    """USD sold that may be a fresh call on the stock (see `insider_sales`)."""
+    return insider_sales(view, since).free
 
 
 def token_factor(bought: float, sold: float) -> float:
-    """1, or bought·TOKEN_RATIO/sold (< 1) when discretionary selling exceeds TOKEN_RATIO× the buying:
+    """1, or bought·TOKEN_RATIO/sold (< 1) when selling (see `insider_sales`) exceeds TOKEN_RATIO× the buying:
     $163K of purchases next to $20.2M of sales is not insiders buying."""
     if sold <= 0 or sold <= TOKEN_RATIO * bought:
         return 1.0
@@ -625,8 +668,9 @@ def insiders_part(view: InsiderView | None, market_cap: float | None, now: datet
     be in USD too; when it is not available in USD, `cap_currency` names the
     currency it is quoted in and the share of market cap is skipped (said in the
     detail) rather than computed across currencies. Each buyer counts by size
-    (`buy_materiality`) and recency; purchases dwarfed by discretionary sales
-    (> TOKEN_RATIO× by value) are discounted (`token_factor`)."""
+    (`buy_materiality`) and recency; purchases dwarfed by sales that may be a fresh
+    call on the stock (> TOKEN_RATIO× by value; `insider_sales`) are discounted
+    (`token_factor`)."""
     part = Part("insiders", detail="no open-market insider trades")
     if view is None or (view.buys == 0 and view.sells == 0):
         if view is None:
@@ -639,8 +683,8 @@ def insiders_part(view: InsiderView | None, market_cap: float | None, now: datet
         buyer_signal = sum(buy_materiality(b.value) * 0.5 ** (b.age_days / INSIDER_HALF_LIFE) for b in found)
     else:  # counts without rows: judge the average purchase
         buyer_signal = 0.5 * view.buys * buy_materiality(view.buy_value / view.buys if view.buys else None)
-    sold_freely = discretionary_sales(view)
-    token = token_factor(view.buy_value, sold_freely)
+    sales = insider_sales(view)
+    token = token_factor(view.buy_value, sales.free)
     buy_signal = (buyer_signal * (1 + 0.5 * math.log10(1 + view.buy_value / 250_000)) * token
                   if view.buys else 0.0)
     sell_bps = view.sell_value / market_cap * 1e4 if market_cap and market_cap > 0 else None
@@ -665,8 +709,7 @@ def insiders_part(view: InsiderView | None, market_cap: float | None, now: datet
     if view.buys:
         lead = "Insider buying" if x >= 0 else "Net insider selling"
         sells = f" vs {count(view.sells, 'sale')} ({sold}{share})" if view.sells else ", no sales"
-        dwarfed = (f" — the purchases are token-sized next to {money(sold_freely, currency=INSIDER_CURRENCY)} "
-                   f"of discretionary sales" if token < 1.0 else "")
+        dwarfed = f" — the purchases are token-sized next to {sales.described()}" if token < 1.0 else ""
         part.reason = (f"{lead}: {count(view.buys, 'open-market purchase')} ({bought}){who} "
                        f"in {days}{sells}{dwarfed}")
         bear = f"net insider selling ({sold} sold vs {bought} bought)"

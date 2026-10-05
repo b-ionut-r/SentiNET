@@ -10,6 +10,7 @@ import { Panel, SubHead } from "../../components/ui/Panel";
 import { cx } from "../../lib/cx";
 import { compact, countdown, int, money, pct, perShare, plural, price, reportingCurrency, shortDate } from "../../lib/format";
 import { divergingFill, polarityOf100, textTone } from "../../lib/sentiment";
+import { INSIDER_CURRENCY, insiderValuesForeign, sellShareOfCap } from "./insiderMoney";
 
 /* ------------------------------------------------------------------------- */
 /* Analysts                                                                    */
@@ -218,11 +219,12 @@ export function InsidersPanel({ a }: { a: Analysis }) {
   // selling scores neutral, and the panel must not shout what the verdict discounts.
   const comp = a.verdict.components.find((c) => c.key === "insiders" && c.available && c.score != null);
   const p = comp ? polarityOf100(comp.score) : "neutral";
-  const ccy = a.quote?.currency;
-  const mcap = a.quote?.market_cap;
+  // Insider values are US dollars for every listing, whatever the quote's currency.
+  const ccy = INSIDER_CURRENCY;
+  const share = sellShareOfCap(v.sell_value, a.quote?.market_cap, a.quote?.currency);
   const mix = v.buys === 0 && v.sells === 0 ? "no open-market trades" : v.buys === 0 ? "sells only" : v.sells === 0 ? "buys only" : `${v.buys} buys · ${v.sells} sells`;
   return (
-    <Panel title="Insiders" icon={<UserRound />} subtitle={`Open-market trades · last ${v.window_days} days`}>
+    <Panel title="Insiders" icon={<UserRound />} subtitle={`Open-market trades · last ${v.window_days} days${insiderValuesForeign(a.quote?.currency) ? " · values in USD" : ""}`}>
       <div className="flex items-end justify-between gap-3">
         <div>
           <div className={cx("text-[22px] font-semibold leading-none tracking-[-0.01em]", p === "neutral" ? "text-ink" : textTone[p])}>
@@ -260,7 +262,7 @@ export function InsidersPanel({ a }: { a: Analysis }) {
       </div>
       <p className="mt-3 text-2xs leading-4 text-muted">
         {v.buys === 0 && v.sells > 0
-          ? `Selling only.${mcap ? ` Total sales equal ${((v.sell_value / mcap) * 100).toPrecision(1)}% of market cap — ` : " "}scheduled sales by large-cap executives are usually routine; clustered buying is the signal that matters.`
+          ? `Selling only.${share ? ` Total sales equal ${share} of market cap — ` : " "}scheduled sales by large-cap executives are usually routine; clustered buying is the signal that matters.`
           : v.buys > 0
             ? "Open-market buying is the strongest insider signal — executives buy for one reason."
             : "Awards, option exercises and gifts are shown but don't count toward flow."}

@@ -298,11 +298,17 @@ def _relevance(title: str, context: str | None, extra: dict[str, Any], raw: RawS
     feed that never names the company in its title stays a roundup).
 
     A title that names only a separately listed sister company ("Vodafone Idea …" on a
-    VOD.L feed) gets no provider/feed floor: the feed matched the brand, not the company."""
+    VOD.L feed) gets no provider/feed floor: the feed matched the brand, not the company.
+    A headline naming the company only as a bystander of another company's news keeps its
+    title relevance: LULU's 'Nike Sinks 8% …; Lululemon and On Holding Remain Flat' (0.40)
+    came back above MIN_RELEVANCE (0.64) through its snippet."""
     title_rel = textkit.relevance(title, company)
     rel = title_rel
     if context:
-        rel = max(rel, CONTEXT_DISCOUNT * textkit.relevance(f"{title}. {context[:400]}", company))
+        lifted = CONTEXT_DISCOUNT * textkit.relevance(f"{title}. {context[:400]}", company)
+        if lifted > rel and textkit.bystander(title, company):
+            return clamp(title_rel)  # another company's story: no lift, no floor
+        rel = max(rel, lifted)
     floors = title_rel >= MIN_RELEVANCE or textkit.sister_company(title, company) is None
     provider = extra.get("provider_relevance")
     if (floors and isinstance(provider, (int, float)) and math.isfinite(provider)

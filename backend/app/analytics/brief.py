@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from app.analytics.composite import PLAN_RE, Part, Upside, consensus_name, upside
+from app.analytics.composite import PLAN_RE, Part, Upside, consensus_name, sell_to_cover, upside
 from app.analytics.crowd import reddit_breakout, reddit_change_pct, reddit_move
 from app.analytics.facts import Facts
 from app.analytics.insights import restated_component
@@ -295,6 +295,9 @@ def _counterpoints(f: Facts, insights: list[Insight]) -> list[tuple[str, float, 
             planned = sum(1 for t in sells if t.text and PLAN_RE.search(t.text))
             plans = (f"; {planned} of {count(len(sells), 'sale')} under a pre-arranged 10b5-1 trading plan"
                      if planned else "")
+            covered = sum(1 for t in sell_to_cover(ins) if any(t is s for s in sells))
+            plans += (f"; {covered} of {count(len(sells), 'sale')} look like tax sell-to-cover (sold within days of a "
+                      f"share award)" if covered else "")
             out.append(("bear", 0.45, f"Insider selling: {count(ins.sells, 'open-market sale')} worth "
                                       f"{money(ins.sell_value, currency=cash)}{share} vs {bought} in "
                                       f"{ins.window_days} days{who}{routine}{plans}", "insiders"))

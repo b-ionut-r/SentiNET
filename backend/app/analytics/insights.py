@@ -20,7 +20,7 @@ Checks (thresholds):
                >= 1 point (not when a GDELT sign flip already tells the story)
 * smart_money  >= 2 upgrades/downgrades or >= 3 PT raises/cuts in 30d; >= 2 insiders each
                buying >= $25K in 90d, together >= $100K (or 0.5 bp of the USD market cap), and
-               not dwarfed (> 10×) by discretionary insider sales — or an officer buy >= $500K;
+               not dwarfed (> 10×) by insider sales (10b5-1 / likely sell-to-cover excluded) — or an officer buy >= $500K;
                insider sales >= 0.5% of the USD market cap
 * catalyst     earnings <= 14 days; ex-dividend <= 7 days
 * deal         a pending acquisition of the company (signed merger agreement in its 8-Ks,

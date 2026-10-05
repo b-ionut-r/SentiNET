@@ -106,8 +106,13 @@ def theme_stats(items: list[Item]) -> list[ThemeStat]:
     return out[:MAX_THEMES]
 
 
+KEYWORD_MIN_RELEVANCE = 0.5  # as for stories (narratives.MIN_RELEVANCE): chips come from items about the company
+
+
 def keyword_list(items: list[Item], company: CompanyRef | None) -> list[Keyword]:
-    scored = [it for it in items if it.scored]
+    """Keyword chips from the scored items clearly about the company: VOD.L's 'Dixon' and 'Manappuram'
+    came from an Indian movers roundup that named Vodafone in passing (relevance 0.4)."""
+    scored = [it for it in items if it.scored and it.relevance >= KEYWORD_MIN_RELEVANCE]
     if not scored:
         return []
     found = textkit.keywords([it.title for it in scored], [it.score for it in scored], company, MAX_KEYWORDS)

@@ -89,3 +89,19 @@ def test_balanced_sets_are_not_labelled_bullish() -> None:
     assert aggregate_label(0.08, 54, 9, 157) == "bullish"  # a small mean the counts confirm
     assert aggregate_label(0.12, 10, 10, 40) == "bullish"  # a clear mean stands on its own
     assert aggregate_label(-0.06, 5, 20, 60) == "bearish" and aggregate_label(0.03, 30, 1, 40) == "neutral"
+
+
+def test_keywords_come_from_items_about_the_company() -> None:
+    # Live VOD.L: chips 'Dixon' and 'Manappuram' came from 'Top midday stock movers: Dr Reddy's, Dixon,
+    # Manappuram, Vodafone & others' (relevance 0.4, an Indian roundup).
+    from app.analytics.aggregate import keyword_list
+    from app.analytics.prepare import Item
+
+    def item(i: int, title: str, relevance: float) -> Item:
+        return Item(id=f"i{i}", source="google_news", source_label="Google News", source_weight=1.0, kind="news",
+                    title=title, scored=True, score=0.2, relevance=relevance)
+
+    items = [item(i, f"Manappuram rallies with Vodafone among movers {i}", 0.4) for i in range(3)] + \
+            [item(10 + i, f"Vodafone spectrum auction bid number {i}", 0.9) for i in range(3)]
+    terms = {k.term for k in keyword_list(items, None)}
+    assert "spectrum" in terms and "manappuram" not in terms

@@ -2514,7 +2514,8 @@ def _title_case(norm: str, tokens: list[Token]) -> bool:
 
 _ASSET_GAP = 2  # "Ethereum liquidity drops", "Solana network activity slumps": the asset's own noun phrase
 _ASSET_GAP_STOP = frozenset({"and", "or", "but", "nor", "to", "of", "for", "with", "by", "from", "on", "in", "at",
-                             "into", "the", "a", "an", "than", "that", "this", "if", "not", "no"})
+                             "into", "the", "a", "an", "than", "that", "this", "if", "not", "no", "as", "whereas",
+                             *_SUBORDINATORS, *_SPEECH})
 
 
 def _company_like(norm: str, tokens: list[Token], lo: int, hi: int, h: Hit, title: bool,

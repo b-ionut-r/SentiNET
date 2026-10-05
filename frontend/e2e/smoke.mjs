@@ -460,7 +460,10 @@ try {
   // the analysis and swaps in the version that carries it.
   const late = fix("analysis.NVDA.json");
   late.tone = null;
-  late.insights = [{ kind: "quality", severity: "info", polarity: "neutral", title: "Global news tone still loading", detail: "GDELT history is still being fetched; it will be included in the next refresh." }, ...late.insights];
+  // The live wording (backend analytics/insights.py) — the result event carries no progress, so
+  // only the insight can trigger the re-read, exactly as for a cached or plain result.
+  const LATE_TITLE = "Global news tone not loaded this run";
+  late.insights = [{ kind: "quality", severity: "info", polarity: "neutral", title: LATE_TITLE, detail: "GDELT history did not arrive in time for this read; momentum uses the last 48 h of headlines (12) vs the prior days (40) instead." }, ...late.insights];
   await page.route("**/api/analyze/NVDA/stream*", (route) => route.fulfill({ status: 200, headers: { "content-type": "text/event-stream" }, body: sse(late) }));
   // History arrives after the candles: the chart must not narrow under its first fit.
   await page.route("**/api/history/NVDA*", async (route) => {
@@ -489,11 +492,11 @@ try {
   await page.mouse.move(5, 5);
   await page.unroute("**/api/history/NVDA*");
   check("tone-less result still draws GDELT tone from the 90-day history", await page.locator("#price").getByText("Daily global news tone (GDELT) in its own pane below").isVisible());
-  check("…the insights rail says tone is still loading", await page.locator("#insights").getByText("Global news tone still loading").isVisible());
+  check("…the insights rail says tone is not loaded yet", await page.locator("#insights").getByText(LATE_TITLE).isVisible());
   await page.waitForTimeout(21_000);
   check("the analysis is re-read without a forced refresh", mark().includes("GET /analyze/NVDA"), mark().filter((c) => c.includes("analyze")).join(", "));
   await settle(300);
-  check("…and the late tone replaces the 'still loading' result", (await page.locator("#insights").getByText("Global news tone still loading").count()) === 0);
+  check("…and the late tone replaces the 'not loaded this run' result", (await page.locator("#insights").getByText(LATE_TITLE).count()) === 0);
   await page.unroute("**/api/analyze/NVDA/stream*");
 
   // Compare: a ticker that fails to analyze says so in every row and can be removed.

@@ -1587,6 +1587,8 @@ _CAUSE_WORDS = wordset("on over upon after amid with")
 # Gap pieces that keep the company as the subject: its own unit ("EchoStar unit
 # Dish DBS"), an executive ("Apple CEO John Ternus is planning layoffs"), a
 # ticker in parentheses, coordinated peers ("Ford, GM and Stellantis stock").
+_SHARE_CLASS_RE = re.compile(r"^\.?(?:'s)?\s*,?\s*(?:(?:inc|corp|co|ltd|plc|llc|ag|sa|se|nv)\.?\s+)*(?:cl(?:ass)?\.?\s+[a-c]|"
+                             r"series\s+[a-c]|(?:sponsored\s+)?adrs?|ads|ord|shs)\b\.?", re.IGNORECASE)
 _OWN_UNIT_RE = re.compile(r"^(?:'s)?\s+(?:unit|subsidiary|division|arm|affiliate|bank|brand)\b", re.IGNORECASE)
 _EXEC_NAME_RE = re.compile(r"(?:'s)?\s*\b(?:ceo|cfo|coo|cto|chief(?:\s+\w+)?(?:\s+officer)?|chair(?:man|woman)?|"
                            r"president|founder|co-founder|director|executive|exec|boss|head)\s+"
@@ -1690,6 +1692,7 @@ def _new_subject_between(text: str, a: int, b: int, title_case: bool) -> bool:
     gap = _PAREN_RE.sub(" ", text[a:b])
     if _OWN_UNIT_RE.match(gap):  # "EchoStar unit Dish DBS files …": the company's own unit
         return False
+    gap = _SHARE_CLASS_RE.sub(" ", gap, count=1)  # "Shopify Inc. Cl A stock rises": its own share class
     gap = _COORDINATION_RE.sub(" ", _EXEC_NAME_RE.sub(" ", gap, count=1) if _EXEC_NAME_RE.match(gap) else gap)
     if "," in gap:
         head, _sep, tail = gap.rpartition(",")

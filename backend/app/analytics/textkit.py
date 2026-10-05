@@ -107,6 +107,18 @@ _SISTER_RE = re.compile(r"^sister company '(?P<name>[^']+)'")
 SISTER_ONLY_BELOW = 0.35  # relevance under which a text naming a sister company is about the sister only
 
 
+def bystander(text: str, company: CompanyRef) -> bool:
+    """Does `text` name `company` only beside another company's (or the market's) news ('Nike Sinks 8% …;
+    Lululemon and On Holding Remain Flat')? False when the NLP layer cannot tell."""
+    try:
+        from app.nlp.relevance import explain_relevance
+
+        return bool(explain_relevance(text, company).bystander)
+    except Exception as exc:  # noqa: BLE001
+        _fallback("explain_relevance", exc)
+        return False
+
+
 def sister_company(text: str, company: CompanyRef) -> str | None:
     """The separately listed sister company `text` names *instead of* `company` ("Vodafone Idea"
     for VOD.L, "Toyota Industries" for 7203.T), or None — None too when the text also reads as

@@ -33,6 +33,9 @@ C = {
     "SNPS": CompanyRef(ticker="SNPS", name="Synopsys, Inc.", short_name="Synopsys", industry="Software - Application"),
     "TGT": CompanyRef(ticker="TGT", name="Target Corporation", short_name="Target", industry="Discount Stores"),
     "MRNA": CompanyRef(ticker="MRNA", name="Moderna, Inc.", short_name="Moderna", industry="Biotechnology"),
+    "SHOP.TO": CompanyRef(ticker="SHOP.TO", name="Shopify Inc.", short_name="Shopify", exchange="TSX",
+                          industry="Software - Application"),
+    "GOOGL": CompanyRef(ticker="GOOGL", name="Alphabet Inc.", short_name="Alphabet", industry="Internet Content"),
 }
 
 
@@ -80,6 +83,9 @@ C = {
      []),
     ("AAPL", "Apple stock drops 3% as market falls", ["price_down"]),
     ("T", "Corning stock rises on $3B AT&T fiber deal", []),  # live: Corning's move, AT&T's deal
+    # a share class is part of the name (live SHOP.TO, MarketWatch's daily recap)
+    ("SHOP.TO", "Shopify Inc. Cl A stock rises Friday, outperforms market", ["price_up"]),
+    ("GOOGL", "Alphabet Inc. Class C shares fall 2% as Nvidia rises", ["price_down"]),
     # multi-sentence posts: subject-less statements inherit the company (or its products/executives)
     ("NVDA", "$NVDA YE target $325 • Q2 revenue +106% YoY • Data Center revenue +117% • Rubin ramp underway "
              "• ~$235B buyback authorization", ["buyback"]),

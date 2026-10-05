@@ -219,7 +219,7 @@ def test_insider_buys_count_by_size_and_against_the_selling() -> None:
                                       insider(20, "C", "sell", 12e6)]), 5e9, NOW)
     assert dwarfed.score < 50 and dwarfed.facts["token"] == pytest.approx(0.1)
     assert dwarfed.reason.startswith("Net insider selling: 2 open-market purchases ($120K) by 2 insiders")
-    assert "token-sized next to $12M of discretionary sales" in dwarfed.reason
+    assert dwarfed.reason.endswith("token-sized next to $12M of sales")  # never 'discretionary' (see below)
     # Pre-arranged (10b5-1) sales do not make discretionary buying token.
     plan = insiders([insider(10, "A", "buy", 60_000), insider(12, "B", "buy", 60_000),
                      insider(20, "C", "sell", 12e6).model_copy(update={"text": "Sale under a 10b5-1 trading plan"})])
@@ -364,3 +364,31 @@ def test_net_negative_revisions_are_counted_as_they_are() -> None:
     view = analysts(mean=3.4, total=20, upside=25.0, actions=[action(5, "UBS", "main", "Neutral", 90, 100)], down90=1)
     part = analysts_part(view, NOW)
     assert part.phrase == "cautious analyst revisions (1 downgrade in 90d, 1 PT cut in 30d)"
+
+
+def test_insider_sales_are_never_called_discretionary_and_sell_to_cover_is_recognised() -> None:
+    # Live VOD.L: '… token-sized next to $20.2M of discretionary sales' while the rows read only 'Sold at price
+    # 1.63 per share.' (no plan status), and three executives each sold 850,831 shares the day after
+    # 1,805,752-share award rows (47%: tax withholding).
+    from datetime import timedelta
+
+    from app.analytics.composite import insider_sales, sell_to_cover
+    from app.schemas import InsiderTxn
+
+    def row(days: int, who: str, kind: str, shares: float, value: float | None = None) -> InsiderTxn:
+        return InsiderTxn(date=(NOW - timedelta(days=days)).date(), insider=who, kind=kind, shares=shares,  # type: ignore[arg-type]
+                          value=value, text="Sold at price 1.63 per share." if kind == "sell" else None)
+
+    txns = [row(69, "Scott Petty", "other", 1_805_752), row(68, "Scott Petty", "sell", 850_831, 1_387_705),
+            row(69, "Joakim Reiter", "other", 1_805_752), row(68, "Joakim Reiter", "sell", 850_831, 1_387_705),
+            row(68, "Ahmed Essam", "sell", 2_500_000, 4_012_500),  # no award row: a plain sale
+            row(40, "Ann Lee", "exercise", 10_000), row(40, "Ann Lee", "sell", 10_000, 50_000),  # exercise sold in full
+            row(60, "Joakim Reiter", "buy", 53_059, 83_727), row(60, "Scott Petty", "buy", 23_428, 36_969)]
+    view = insiders(txns)
+    assert {(t.insider, t.shares) for t in sell_to_cover(view)} == {("Scott Petty", 850_831), ("Joakim Reiter", 850_831)}
+    sales = insider_sales(view)
+    assert sales.cover == pytest.approx(2 * 1_387_705) and sales.free == pytest.approx(4_012_500 + 50_000)
+    part = insiders_part(view, 37e9, NOW)
+    assert "discretionary" not in (part.reason or "")
+    assert part.reason.endswith("token-sized next to $4.06M of sales (not counting $2.78M of likely tax "
+                                "sell-to-cover)")

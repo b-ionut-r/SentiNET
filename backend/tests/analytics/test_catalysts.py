@@ -236,3 +236,11 @@ def test_fresh_broker_calls_seen_only_in_headlines_become_catalysts(fake_nlp, mo
     firms_listed = {c.detail.split(" by ")[1].split(" ·")[0] for c in bare.catalysts
                     if c.kind == "analyst" and "from the headlines" in (c.detail or "")}
     assert firms_listed == {"Citi", "Morgan Stanley"}
+
+
+def test_token_insider_buys_are_not_catalysts() -> None:
+    # Live VOD.L: 'Simon Dingemans bought $1.4K' and 'Stephen A. Carter bought $4.67K' were listed as catalysts.
+    a = build_analysis(inputs(ACME, [run(GOOGLE, NEWS)], insiders=insiders(
+        [insider(5, "Simon Dingemans", "buy", 1_402), insider(6, "Stephen A. Carter", "buy", 4_672),
+         insider(7, "Joakim Reiter", "buy", 83_727)])))
+    assert [c.title for c in a.catalysts if c.kind == "insider"] == ["Joakim Reiter (Director) bought $83.7K"]

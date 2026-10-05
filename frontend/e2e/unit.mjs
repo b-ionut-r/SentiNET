@@ -145,6 +145,27 @@ check(
   tonePending({ tone: null, insights: [] }, [{ stage: "intel", key: "tone", status: "error", detail: "still loading (rate-limited)" }]),
 );
 check("tone-less result with no pending signal is not re-read (GDELT simply has nothing)", !tonePending({ tone: null, insights: [] }));
+// The live wording since b4c6ad2 (backend/app/analytics/insights.py) — the old regex only knew "still loading".
+const liveLoading = {
+  kind: "quality",
+  severity: "info",
+  polarity: "neutral",
+  title: "Global news tone not loaded this run",
+  detail: "GDELT history did not arrive in time for this read; momentum uses the last 48 h of headlines (12) vs the prior days (40) instead.",
+};
+check("tone-less result with the live 'not loaded this run' insight is re-read (cached/plain path)", tonePending({ tone: null, insights: [liveLoading] }));
+check("…and a cached result whose detail alone says 'did not arrive in time' is re-read", tonePending({ tone: null, insights: [{ ...liveLoading, title: "Global news tone missing" }] }));
+check("the live stream detail ('still loading after 22s; …') is re-read", tonePending({ tone: null, insights: [] }, [{ stage: "intel", key: "tone", status: "error", detail: "still loading after 22s; continuing in the background (reload to include)" }]));
+check(
+  "another feed's gap is not a tone re-read ('Market data not loaded in time')",
+  !tonePending({ tone: null, insights: [{ ...liveLoading, title: "Market data not loaded in time", detail: "Analyst ratings did not arrive in time for this read." }] }),
+);
+check(
+  "a hard GDELT failure is not pending ('could not be loaded this run')",
+  !tonePending({ tone: null, insights: [{ ...liveLoading, severity: "watch", title: "Some market data unavailable", detail: "GDELT tone could not be loaded this run." }] }),
+);
+check("a non-quality insight mentioning tone never triggers it", !tonePending({ tone: null, insights: [{ ...liveLoading, kind: "momentum" }] }));
+check("a hard stream error is not pending", !tonePending({ tone: null, insights: [] }, [{ stage: "intel", key: "tone", status: "error", detail: "HTTP 429 Too Many Requests" }]));
 check("follow-up schedule is bounded and increasing", TONE_FOLLOW_UP_MS.length <= 4 && TONE_FOLLOW_UP_MS.every((v, i) => i === 0 || v > TONE_FOLLOW_UP_MS[i - 1]));
 
 // The chart draws tone from the 90-day history when the analysis went out without it.
