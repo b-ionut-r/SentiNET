@@ -357,5 +357,17 @@ check("a look stored before snapshots carried a currency still compares", priceC
 check("GBp vs GBP is not a 99% crash", priceChange({ price: 1.268, currency: "GBP" }, { price: 126.8, currency: "GBp" }) === null);
 check("missing price → no change", priceChange({ price: null, currency: "USD" }, { price: 1, currency: "USD" }) === null && priceChange({ price: 1, currency: "USD" }, null) === null);
 
+/* ------------------------------------------------ final3: insiders, header, brief, lag notice */
+const IM = await load("src/features/intel/insiderMoney.ts");
+// Insider values are USD for every listing (VOD.L "Sold at price 1.70" = $1.70 = 126.8p).
+check("insider amounts are formatted in USD whatever the quote currency", F.money(850500, IM.INSIDER_CURRENCY) === "$851K" && F.money(20.2e6, IM.INSIDER_CURRENCY) === "$20.2M");
+check("a GBp listing's insider values are flagged as foreign (subtitle says USD)", IM.insiderValuesForeign("GBp") && IM.insiderValuesForeign("EUR") && IM.insiderValuesForeign(null));
+check("…a USD listing's are not", !IM.insiderValuesForeign("USD") && !IM.insiderValuesForeign("usd"));
+check("USD sales over a GBP market cap: no cross-currency share", IM.sellShareOfCap(20.2e6, 29.4e9, "GBp") === null);
+check("USD sales over a USD cap: the backend's wording", IM.sellShareOfCap(1_370_530_832, 5_649_190_617_088, "USD") === "0.02%", String(IM.sellShareOfCap(1_370_530_832, 5_649_190_617_088, "USD")));
+check("a sliver reads '<0.01%'", IM.sellShareOfCap(1e6, 5e12, "USD") === "<0.01%");
+check("large shares never go exponential (toPrecision(1) read '1e+1%')", IM.sellShareOfCap(1.2e9, 1e10, "USD") === "12.00%", String(IM.sellShareOfCap(1.2e9, 1e10, "USD")));
+check("no cap or no sales → no share", IM.sellShareOfCap(1e6, null, "USD") === null && IM.sellShareOfCap(0, 1e9, "USD") === null);
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exitCode = failed ? 1 : 0;

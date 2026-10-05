@@ -300,15 +300,22 @@ def _relevance(title: str, context: str | None, extra: dict[str, Any], raw: RawS
     A title that names only a separately listed sister company ("Vodafone Idea …" on a
     VOD.L feed) gets no provider/feed floor: the feed matched the brand, not the company.
     A headline naming the company only as a bystander of another company's news keeps its
-    title relevance: LULU's 'Nike Sinks 8% …; Lululemon and On Holding Remain Flat' (0.40)
-    came back above MIN_RELEVANCE (0.64) through its snippet."""
+    title relevance whatever lifts it — snippet, provider score or feed tag: LULU's 'Nike
+    Sinks 8% …; Lululemon and On Holding Remain Flat' (0.40) came back above MIN_RELEVANCE
+    (0.64) through its snippet."""
     title_rel = textkit.relevance(title, company)
+    rel = _lifted(title, title_rel, context, extra, raw, company)
+    if rel > title_rel > 0 and textkit.bystander(title, company):
+        return clamp(title_rel)  # another company's story: neither its snippet nor a feed tag makes it this one's
+    return rel
+
+
+def _lifted(title: str, title_rel: float, context: str | None, extra: dict[str, Any], raw: RawSignal,
+            company: CompanyRef) -> float:
+    """`title_rel` lifted by body context, provider relevance and ticker-keyed feeds, then roundup-capped."""
     rel = title_rel
     if context:
-        lifted = CONTEXT_DISCOUNT * textkit.relevance(f"{title}. {context[:400]}", company)
-        if lifted > rel and textkit.bystander(title, company):
-            return clamp(title_rel)  # another company's story: no lift, no floor
-        rel = max(rel, lifted)
+        rel = max(rel, CONTEXT_DISCOUNT * textkit.relevance(f"{title}. {context[:400]}", company))
     floors = title_rel >= MIN_RELEVANCE or textkit.sister_company(title, company) is None
     provider = extra.get("provider_relevance")
     if (floors and isinstance(provider, (int, float)) and math.isfinite(provider)
