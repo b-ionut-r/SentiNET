@@ -68,7 +68,8 @@ class FakeNLP:
             raw = sum(v for _, v in drivers)
             score = math.tanh(0.6 * raw)
             label = "bullish" if score > 0.05 else "bearish" if score < -0.05 else "neutral"
-            events = [DetectedEvent(key=k, polarity=p) for k, pat, p, _ in EVENTS if re.search(pat, text, re.I)]
+            events = [DetectedEvent(key=k, polarity=p, span=m.group(0)) for k, pat, p, _ in EVENTS
+                      if (m := re.search(pat, text, re.I))]
             themes = [t for k, pat, _, t in EVENTS if t and re.search(pat, text, re.I)]
             themes += [t for t, pat in THEME_WORDS if re.search(pat, text, re.I)]
             out.append(TextAnalysis(score=score, label=label, confidence=min(1.0, 0.4 + 0.15 * len(drivers)),

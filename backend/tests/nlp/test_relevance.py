@@ -407,3 +407,52 @@ def test_hashtag_lists_and_soups_stay_low():
     assert relevance("Who's hiring? #GraphicDesigner #artists #3D #NFT #Crypto #eth #Bitcoin", BTC) < THRESHOLD
     assert relevance("🤖 AI Agent Upgrade: #AAPL is now a BUY 📈 Reason: RSI <65 #stocks #AI #trading #invest",
                      AAPL) >= 0.8  # the company's tag leads: the post is about it
+
+
+TM = _company(ticker="TM", name="Toyota Motor Corporation", short_name="Toyota", aliases=["Toyota Motor"],
+              industry="Auto Manufacturers", sector="Consumer Cyclical")
+VOD = _company(ticker="VOD.L", name="Vodafone Group Public Limited Company", short_name="Vodafone", aliases=[],
+               industry="Telecom Services", sector="Communication Services")
+DOW = _company(ticker="DOW", name="Dow Inc.", short_name="Dow", aliases=[], industry="Chemicals",
+               sector="Basic Materials")
+
+
+@pytest.mark.parametrize(("company", "text"), [
+    # live (7203.T, VOD.L, TM): separately listed sister companies sharing the brand
+    # scored 0.8-0.9, formed their own narratives and carried their tone into the verdict.
+    (TM, "Shares of Toyota Industries jump 8% on buyout offer"),
+    (TM, "Toyota Industries stock develops AI quality control technology"),
+    (TM, "Toyota Tsusho stock faces a JPY 375 million Russian claim"),
+    (VOD, "Vodafone Idea shares: CLSA maintains Hold with Rs 13 target on debt raising plan"),
+    (VOD, "Bombay HC quashes ₹2,113 crore DoT demand against Vodafone Idea"),
+    (VOD, "Vodafone Idea Ltd Share Price Today,, IDEA Share Price NSE, BSE"),
+    (META, "Meta Materials files for bankruptcy"),
+    (AAPL, "Apple Hospitality REIT shares rise"),
+])
+def test_sister_companies_are_not_the_company(company, text):
+    result = explain_relevance(text, company)
+    assert result.score < THRESHOLD, result
+    assert any(e.startswith("sister company") for e in result.evidence)
+
+
+@pytest.mark.parametrize(("company", "text"), [
+    # ...while the company's own names, products, regions, units and share lines stay about it
+    (TM, "Toyota Motor recalls 1 million cars"),
+    (TM, "Toyota Recalls 1 Million Cars Over Faulty Airbags"),
+    (TM, "Toyota Prius sales jump"),
+    (TM, "Toyota Tundra recall widens"),
+    (TM, "Toyota North America sales rise 5%"),
+    (TM, "Toyota Motors Q2 profit falls"),
+    (TM, "Toyota ADR shares slip"),
+    (TM, "Toyota Group plans buyout of Toyota Industries"),
+    (TM, "Toyota shares fall after Toyota Industries tender offer"),
+    (VOD, "Vodafone Group shares rise"),
+    (VOD, "Vodafone Germany cuts jobs"),
+    (VOD, "Vodafone Three merger approved"),
+    (DOW, "Dow Chemical to close plant in Germany"),  # the company's own industry: its unit
+    (META, "Meta Platforms stock rises"),
+    (AAPL, "Apple Watch shares health data with doctors"),
+    (NVDA, "Nvidia Industrial AI Cloud launches in Europe"),
+])
+def test_own_names_and_units_stay_relevant(company, text):
+    assert relevance(text, company) >= 0.8

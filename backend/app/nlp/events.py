@@ -866,8 +866,8 @@ _RULES: tuple[tuple[str, re.Pattern[str], bool], ...] = tuple((k, re.compile(p, 
      ), False),
     ("insider_buy", (
      rf"\b{_EXEC}s?\s+(?:[\w.'-]+\s+){{0,6}}?(?:buys?|bought|purchas(?:es|ed)|acquir(?:es|ed)|adds?|scoops? up|"
-     rf"snaps? up|picks? up|loads? up on|subscribes?(?: for| to)?)\s+(?:\$[\d.,]+\w*|[\d.,]+%?\s?(?:million|k|m|"
-     rf"thousand)?|more|shares|stock|stake)|\binsider (?:buying|purchases?|buys?)\b|"
+     rf"snaps? up|picks? up|(?:loads?|loaded|loading) up on|subscribes?(?: for| to)?)\s+(?:(?:US|C|A|HK|S|NZ)?\$[\d.,]+\w*|[£€][\d.,]+\w*|"
+     rf"[\d.,]+%?\s?(?:million|k|m|thousand)?|more|shares|stock|stake)|\binsider (?:buying|purchases?|buys?)\b|"
      rf"\b{_EXEC}s?\s+(?:[\w.'-]+\s+){{0,6}}?(?:continues?|extends?)\s+(?:\w+\s+)?buying\b|"
      rf"\b{_EXEC}s?\b[^.?!]{{0,60}}\$[\d.,]+\s?(?:million|m|k|thousand)?\s+(?:stock|share)\s+purchase\b"
      ), False),
@@ -963,7 +963,7 @@ _EXCLUDE: dict[str, re.Pattern[str]] = {
                           r"bought|sold|purchased|cut|raised|lifted|trimmed|boosted|reduced|increased|decreased|"
                           r"grown)\s+by\b|\b(?:customer|user|talent|data|land) acquisition\b|\bacquisition costs?\b|"
                           r"\b(?:acquires?|buys|bought|purchases?|purchased|picks? up) (?:\d[\d,.]*%? (?:more )?)?"
-                          r"(?:more )?(?:shares|stock)\b|\b(?:buys|bought|acquires?)\s+(?:UK£|US\$|SEK|[$£€])|"
+                          r"(?:more )?(?:shares|stock)\b|\b(?:buys|bought|acquires?)\s+(?:UK£|(?:US|C|A|HK|S|NZ)\$|SEK|[$£€])|"
                           r"\b(?:upgrades?|upgraded|downgrades?|downgraded|raises?|cuts?|moves?)\b.{0,40}\bto (?:buy|acquire)\b|"
                           r"\b(?:buys|bought)\s+(?:put|call|puts|calls|options|bitcoin|ether|gold|the dip|again|"
                           r"more|another)\b|\bacquisition (?:corp|corporation|company|"

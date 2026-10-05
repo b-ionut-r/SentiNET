@@ -15,6 +15,12 @@ Trust tiers (multiplicative weights, 1.0 = typical finance outlet):
     0.55       press-release wires, company newsrooms, low-quality content sites
     0.5        MarketBeat-network auto-content sites
     0.8        unknown
+
+Identity is keyed on a compact form of the name — case, spacing, punctuation
+and the domain suffix dropped — so "NETT"/"nett", "AD HOC NEWS"/"ad-hoc-news.de"
+and "Foreign Policy Journal"/"foreignpolicyjournal.com" are one outlet with one
+trust weight. An outlet outside the table keeps the display name it was first
+seen under, so every spelling of it counts once in outlet tallies.
 """
 from __future__ import annotations
 
@@ -219,7 +225,20 @@ def _key(name: str) -> str:
     return out
 
 
+# The public suffix a domain-shaped name ends in: ".com", ".co.uk", ".de".
+_DOMAIN_SUFFIX_RE = re.compile(r"(?:\.(?:co|com|net|org|gov|ac|ne|or))?\.[a-z]{2,6}$")
+_NOT_ALNUM_RE = re.compile(r"[\W_]+")
+
+
+def _compact(key: str) -> str:
+    """Identity of an outlet name already passed through `_key`: no domain
+    suffix, case, spacing or punctuation ("ad hoc news.de" -> "adhocnews",
+    "foreign policy journal" -> "foreignpolicyjournal")."""
+    return _NOT_ALNUM_RE.sub("", _DOMAIN_SUFFIX_RE.sub("", key))
+
+
 _ALIAS: dict[str, str] = {}
+_COMPACT_ALIAS: dict[str, str] = {}
 _TRUST: dict[str, float] = {}
 for _name, _trust, _aliases in _PUBLISHERS:
     _TRUST[_name] = _trust
@@ -227,6 +246,7 @@ for _name, _trust, _aliases in _PUBLISHERS:
         _ALIAS.setdefault(_key(_alias), _name)
         if _key(_alias).startswith("the "):
             _ALIAS.setdefault(_key(_alias)[4:], _name)
+        _COMPACT_ALIAS.setdefault(_compact(_key(_alias)), _name)
 
 
 def _host(value: str) -> str | None:
@@ -246,31 +266,48 @@ def _brand_display(label: str) -> str:
     return label[:1].upper() + label[1:]
 
 
+def _compact_known(compact: str) -> str | None:
+    return _COMPACT_ALIAS.get(compact) if len(compact) >= 3 else None
+
+
 @lru_cache(maxsize=4096)
-def _lookup(raw: str) -> tuple[str | None, str]:
-    """-> (canonical name if known, cleaned display fallback)."""
+def _lookup(raw: str) -> tuple[str | None, str, str]:
+    """-> (canonical name if known, cleaned display fallback, identity key)."""
     host = _host(raw.strip())
     value = clean_text(raw).strip()
     if not value and not host:
-        return None, ""
+        return None, "", ""
     if host:
         host = host.removeprefix("www.")
         labels = host.split(".")
         for i in range(len(labels) - 1):  # finance.yahoo.com -> yahoo.com
             candidate = ".".join(labels[i:])
             if candidate in _ALIAS:
-                return _ALIAS[candidate], host
+                return _ALIAS[candidate], host, candidate
         # Brand label before the public suffix: bloomberg.co.jp, reuters.de.
         brand = labels[-3] if len(labels) >= 3 and labels[-2] in {"co", "com", "net", "org"} else labels[-2]
         if brand in _ALIAS and len(brand) >= 3:
-            return _ALIAS[brand], host
-        return None, _brand_display(brand)
+            return _ALIAS[brand], host, brand
+        compact = _compact(brand)
+        return _compact_known(compact), _brand_display(brand), compact  # ad-hoc-news.de -> AD HOC NEWS
     value = _VIA_RE.sub("", value)
     key = _key(value)
-    for candidate in (key, _REGION_SUFFIX_RE.sub("", key), key.removesuffix(".com"), key.removeprefix("the ")):
+    regionless = _REGION_SUFFIX_RE.sub("", key)
+    for candidate in (key, regionless, key.removesuffix(".com"), key.removeprefix("the ")):
         if candidate in _ALIAS:
-            return _ALIAS[candidate], value
-    return None, value
+            return _ALIAS[candidate], value, candidate
+    compact = _compact(regionless) or _compact(key)
+    if value.islower() and " " not in value:
+        value = _brand_display(value)  # "nett" is the "NETT" of another feed
+    return _compact_known(compact), value, compact
+
+
+# Display name each unknown outlet was first seen under, by identity key, so
+# "Foreign Policy Journal" and "Foreignpolicyjournal" count as one outlet.
+# Bounded: past the cap a new outlet keeps its own spelling.
+_SEEN_DISPLAY: dict[str, str] = {}
+_SEEN_MAX = 20_000
+
 
 
 def canonical_publisher(name_or_domain: str | None) -> str | None:
@@ -279,8 +316,15 @@ def canonical_publisher(name_or_domain: str | None) -> str | None:
     "Reuters". Unknown outlets keep their (cleaned) name or bare domain."""
     if not name_or_domain:
         return None
-    known, fallback = _lookup(name_or_domain)
-    return known or (fallback or None)
+    known, fallback, key = _lookup(name_or_domain)
+    if known or not fallback:
+        return known or None
+    if not key:
+        return fallback
+    seen = _SEEN_DISPLAY.get(key)
+    if seen is None and len(_SEEN_DISPLAY) < _SEEN_MAX:
+        seen = _SEEN_DISPLAY.setdefault(key, fallback)
+    return seen or fallback
 
 
 def is_known_publisher(name_or_domain: str | None) -> bool:

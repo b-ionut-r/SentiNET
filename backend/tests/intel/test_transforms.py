@@ -128,6 +128,45 @@ def test_technicals_crypto_annualizes_with_365_days() -> None:
     assert t_crypto.volatility_30d / t_equity.volatility_30d == pytest.approx(math.sqrt(365 / 252), rel=0.01)
 
 
+def _closes_frame(closes: list[float]) -> pd.DataFrame:
+    idx = pd.bdate_range(end="2026-10-02", periods=len(closes), tz="America/New_York")
+    return pd.DataFrame({"Close": closes, "High": closes, "Volume": [1e6] * len(closes)}, index=idx)
+
+
+def test_breakout_above_both_averages_is_an_uptrend() -> None:
+    """GME 2026-10 (+30% 1M, +20% vs 50-DMA, +11% vs 200-DMA, 50 < 200) was labelled "sideways"."""
+    closes = [30 - 0.05 * i for i in range(230)] + [18.5 + 0.35 * i for i in range(22)]  # long slide, sharp rally
+    t = tx.technicals_from_history(_closes_frame(closes), now=NOW)
+    assert t is not None and t.vs_50dma_pct and t.vs_50dma_pct > 10 and t.vs_200dma_pct and t.vs_200dma_pct > 0
+    sma50, sma200 = sum(closes[-50:]) / 50, sum(closes[-200:]) / 200
+    assert sma50 < sma200 and t.trend == "uptrend"
+    # Mirror image: a stock that broke below both averages while the 50 still sits over the 200.
+    t_down = tx.technicals_from_history(_closes_frame([10 + 0.05 * i for i in range(230)]
+                                                     + [21.5 - 0.35 * i for i in range(22)]), now=NOW)
+    assert t_down is not None and t_down.trend == "downtrend"
+
+
+@pytest.mark.parametrize(("last", "sma20", "sma50", "sma200", "ret_1m", "vol", "expected"), [
+    (120, 112, 100, 90, 3.0, 30.0, "uptrend"),  # fully aligned
+    (80, 88, 100, 110, -3.0, 30.0, "downtrend"),
+    (120.4, 104, 100, 108, 30.2, 39.8, "uptrend"),  # GME: above both, 50 still < 200
+    (116.6, 104, 100, 100.5, 22.9, 46.3, "uptrend"),  # META
+    (101.5, 100, 100, 99, 1.0, 30.0, "uptrend"),  # aligned: a quiet stretch inside an uptrend
+    (101.5, 100, 100, 101, 1.0, 30.0, "sideways"),  # above both but hugging the 50-DMA, quiet month
+    (85, 95, 100, 90, -12.0, 30.0, "downtrend"),  # below both, 50 still > 200: rolling over
+    (106, 101, 100, 110, 10.3, 51.7, "sideways"),  # KOSS: between the averages, sub-1σ month
+    (106, 101, 100, 110, 16.0, 51.7, "uptrend"),  # ... unless the month moved it decisively
+    (106, 101, 100, 110, -16.0, 51.7, "sideways"),  # ... the same way as the price sits
+    (94, 99, 100, 90, -6.0, 20.0, "downtrend"),  # a dip above the 200-DMA on a ≥1σ month
+    (105, 103, 100, None, None, None, "uptrend"),  # < 200 bars: 20 vs 50 stands in
+    (105, 98, 100, None, None, None, "sideways"),
+])
+def test_trend_label(last: float, sma20: float, sma50: float, sma200: float | None, ret_1m: float | None,
+                     vol: float | None, expected: str) -> None:
+    assert tx.trend_label(last, sma20=sma20, sma50=sma50, sma200=sma200, return_1m=ret_1m,
+                          volatility=vol) == expected
+
+
 def test_technicals_short_history() -> None:
     df = fx.bars("NVDA").tail(30)
     t = tx.technicals_from_history(df, now=NOW)
@@ -267,6 +306,20 @@ def test_dividend_catalysts() -> None:
         ("Conversion of Exercise of derivative security at price 3.50 per share.", "exercise"),
         ("Stock Gift at price 0.00 per share.", "gift"),
         ("", "other"),
+        # UK PDMR notices (VOD.L, BARC.L)
+        ("Bought at price 1.58 per share.", "buy"),
+        ("Sold at price 1.70 per share.", "sell"),
+        ("Buy Back at price 1.27 per share.", "other"),  # the company's own buyback
+        ("Decrease at price 6.10 per share.", "other"),
+        # Canada SEDI (SHOP.TO, RY.TO)
+        ("Acquisition in the public market at price 20.10 per share.", "buy"),
+        ("Disposition in the public market at price 138.31 per share.", "sell"),
+        ("Disposition under a purchase/ownership plan at price 149.72 per share.", "sell"),  # ASDP ~ 10b5-1
+        ("Acquisition under a purchase/ownership plan at price 120.00 per share.", "other"),  # ESPP
+        ("Redemption, retraction, cancelation, repurchase at price 199.70 per share.", "other"),
+        ("Disposition carried out privately at price 50.00 per share.", "other"),
+        ("Exercise of options at price 3.12 per share.", "exercise"),
+        ("Grant of options", "award"),
     ],
 )
 def test_classify_insider(text: str, kind: str) -> None:
@@ -286,6 +339,12 @@ def test_classify_insider(text: str, kind: str) -> None:
         ("NORA JOHNSON SUZANNE M", "Nora Johnson Suzanne M."),  # ambiguous: order kept
         ("BERKSHIRE HATHAWAY INC", "Berkshire Hathaway Inc"),
         ("Jensen Huang", "Jensen Huang"),
+        ("Lutke (Tobias Albin)", "Tobias Albin Lutke"),  # SEDI / UK "Last (First)"
+        ("van Boxmeer (Jean-Francois M.L.)", "Jean-Francois M.L. van Boxmeer"),
+        ("Soci\ufffdt\ufffd G\ufffdn\ufffdrale S.A", "Société Générale S.A"),  # Yahoo lost the accents
+        ("M\ufffdller (J\ufffdrg)", "Jörg Müller"),
+        ("Xq\ufffdz Holdings Plc", "Xqz Holdings Plc"),  # unknown word: the marks are dropped, not guessed
+        ("Vodafone Group Plc", "Vodafone Group Plc"),
     ],
 )
 def test_pretty_insider_name(raw: str, pretty: str) -> None:
@@ -308,6 +367,62 @@ def test_insiders_sofi_ceo_buying() -> None:
     assert [t.date for t in view.transactions] == sorted((t.date for t in view.transactions), reverse=True)
     trades = [t for t in view.transactions if t.kind in {"buy", "sell"} and t.date >= since.date()]
     assert len(trades) == view.buys + view.sells or len(view.transactions) == 25  # trades never crowded out
+
+
+def _window(df: pd.DataFrame) -> pd.DataFrame:
+    return df[df["Start Date"] >= pd.Timestamp(NOW.date()) - pd.Timedelta(days=180)]
+
+
+def test_insiders_uk_pdmr_wording() -> None:
+    """VOD.L showed "no open-market insider trades in 180d" while executives traded (Yahoo, 2026-10-05)."""
+    df = fx.insiders("VOD.L")
+    view = tx.insiders_from_frame(df, now=NOW)
+    assert view is not None and view.buys >= 3 and view.sells >= 5
+    reiter = next(t for t in view.transactions if t.kind == "sell" and t.insider == "Joakim Reiter")
+    assert reiter.date == date(2026, 9, 18) and reiter.value == 850_500 and reiter.shares == 500_000
+    recent = _window(df)
+    sold = recent[recent["Text"].str.startswith("Sold")]
+    assert view.sells == len(sold) and view.sell_value == pytest.approx(sold["Value"].sum())
+    # "Buy Back" is Vodafone buying its own shares, never an insider purchase.
+    assert all(t.kind == "other" for t in view.transactions if t.insider == "Vodafone Group Plc")
+    assert all("\ufffd" not in t.insider for t in view.transactions)
+    assert any(t.insider == "Société Générale S.A" for t in view.transactions)
+
+
+def test_insiders_canada_sedi_wording() -> None:
+    shop = tx.insiders_from_frame(fx.insiders("SHOP.TO"), now=NOW)
+    assert shop is not None and shop.sells >= 20 and shop.buys == 0
+    lutke = [t for t in shop.transactions if t.insider == "Tobias Albin Lutke" and t.date == date(2026, 9, 30)]
+    assert lutke and all(t.kind == "sell" and "plan" in (t.text or "") for t in lutke)  # pre-arranged plan sale
+    ry = tx.insiders_from_frame(fx.insiders("RY.TO"), now=NOW)
+    assert ry is not None and ry.sells >= 20
+    # The bank's own redemptions/repurchases (200,000 shares a day) are not insider selling.
+    assert all(t.kind == "other" for t in ry.transactions if t.insider == "Royal Bank of Canada")
+    recent = _window(fx.insiders("RY.TO"))
+    public = recent[recent["Text"].str.startswith("Disposition in the public market")]
+    assert ry.sells == len(public) and ry.sell_value == pytest.approx(public["Value"].sum())
+
+
+def test_same_day_same_price_purchases_are_a_plan_not_a_cluster_buy() -> None:
+    """BARC.L: six insiders "bought" ~100 shares each at 6.31 on 2026-09-22 (share plan / DRIP)."""
+    view = tx.insiders_from_frame(fx.insiders("BARC.L"), now=NOW)
+    assert view is not None
+    plan = [t for t in view.transactions if t.date == date(2026, 9, 22)]
+    assert len(plan) == 7 and all(t.kind == "other" and "plan purchase: 6 insiders" in (t.text or "") for t in plan)
+    lone = [t for t in view.transactions if t.kind == "buy"]
+    assert [(t.date, t.insider) for t in lone][:1] == [(date(2026, 9, 11), "Craig Bright")]
+    assert view.buys == len(lone) == 3 and view.sells >= 10
+
+    def buy(who: str, price: float, day: date = date(2026, 9, 1)) -> tx.InsiderTxn:
+        return tx.InsiderTxn(date=day, insider=who, kind="buy", shares=100, value=100 * price,
+                             text=f"Purchase at price {price:.2f} per share.")
+
+    # Two insiders at one price, or three at different prices, are still individual decisions.
+    rows = [buy("A", 10.0), buy("B", 10.0), buy("C", 10.07), buy("D", 9.95, date(2026, 9, 2))]
+    assert tx.insider_view(rows, since=date(2026, 4, 1), window_days=180).buys == 4  # type: ignore[union-attr]
+    rows.append(buy("E", 10.0))
+    view = tx.insider_view(rows, since=date(2026, 4, 1), window_days=180)
+    assert view is not None and view.buys == 2 and {t.insider for t in view.transactions if t.kind == "buy"} == {"C", "D"}
 
 
 def test_insiders_nvda_values_and_indirect_flag() -> None:

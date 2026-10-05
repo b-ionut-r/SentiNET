@@ -79,3 +79,13 @@ def test_source_reports_count_fetched_and_kept() -> None:
     assert (g.fetched, g.kept, g.status) == (3, 1, "ok") and g.bullish_pct == 1.0
     assert reports["stocktwits"].status == "error" and reports["stocktwits"].error == "timeout"
     assert reports["finnhub"].status == "unconfigured" and reports["finnhub"].score is None
+
+
+def test_balanced_sets_are_not_labelled_bullish() -> None:
+    # Live /api/market: headlines {score 0.054, bullish 14, bearish 14, neutral 23} shown as 'Bullish'.
+    from app.analytics.util import aggregate_label
+
+    assert aggregate_label(0.054, 14, 14, 51) == "neutral"
+    assert aggregate_label(0.08, 54, 9, 157) == "bullish"  # a small mean the counts confirm
+    assert aggregate_label(0.12, 10, 10, 40) == "bullish"  # a clear mean stands on its own
+    assert aggregate_label(-0.06, 5, 20, 60) == "bearish" and aggregate_label(0.03, 30, 1, 40) == "neutral"

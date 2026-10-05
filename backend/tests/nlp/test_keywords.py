@@ -152,3 +152,32 @@ def test_generic_verbs_are_not_chips():
     assert not {"continues", "continue", "support", "acquires", "files", "claim", "units", "changed",
                 "reportedly"} & terms, terms
     assert "buyback" in terms
+
+
+def test_roles_labels_and_generic_nouns_are_no_chip_alone():
+    # live (GME, AAPL, TGT, LULU): "officer", "director", "money", "hours", "CEO", "Pro",
+    # "products", "items", "bullish", "bears" padded the chips
+    gme = CompanyRef(ticker="GME", name="GameStop Corp.", short_name="GameStop")
+    titles = ["GameStop director Nat Turner buys $254,540 in stock",
+              "GameStop Director Nat Turner Acquires 10,462 Shares",
+              "GameStop officer proposes selling shares to cover taxes",
+              "GameStop Officer Files Form 144 to cover taxes",
+              "GME Pops 2% After-Hours After CEO Buys Shares",
+              "GME Rises After Hours as CEO adds to stake",
+              "Bullish traders pile into GameStop as bears retreat",
+              "Bulls and bears battle over GameStop products and items",
+              "GameStop money: CEO has $1B in cash",
+              "GameStop is putting its cash and money to work"]
+    terms = {t.lower() for t in _terms(extract_keywords(titles, None, gme))}
+    assert "nat turner" in terms
+    assert not terms & {"officer", "director", "ceo", "hours", "after-hours", "bullish", "bears", "bulls", "money",
+                        "cash", "products", "items"}, terms
+
+
+def test_weak_words_still_count_next_to_a_name():
+    titles = ["MongoDB CEO Dev Ittycheria joins Meta to lead enterprise AI",
+              "Meta hires MongoDB CEO for enterprise push",
+              "Meta taps MongoDB CEO as enterprise chief"]
+    terms = _terms(extract_keywords(titles, None, CompanyRef(ticker="META", name="Meta Platforms, Inc.",
+                                                             short_name="Meta")))
+    assert "MongoDB CEO" in terms, terms

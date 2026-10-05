@@ -183,6 +183,8 @@ POSITIVE: dict[str, float] = {
     # capped risk is the bull's argument ("limited downside")
     "limited downside": 0.4, "downside limited": 0.4, "downside is limited": 0.4, "little downside": 0.4,
     # legal relief
+    # MarketBeat consensus labels: the phrase wins over the movement verb "moderate"
+    "moderate buy": 0.4,
     "acquitted": 0.8, "acquittal": 0.8, "exonerated": 0.8, "vindicated": 0.7, "wins lawsuit": 0.8,
     "wins case": 0.7, "lawsuit dismissed": 0.7, "case dismissed": 0.6, "charges dropped": 0.7,
     "drops charges": 0.6, "wins appeal": 0.7, "favorable ruling": 0.8, "settles lawsuit": 0.45,
@@ -209,6 +211,7 @@ NEGATIVE: dict[str, float] = {
     "limited upside": -0.7, "upside limited": -0.7, "upside is limited": -0.7, "upside may be limited": -0.6,
     "upside could be limited": -0.6, "little upside": -0.6, "not much upside": -0.6, "capped upside": -0.6,
     "upside capped": -0.6, "upside is capped": -0.6, "less upside": -0.5, "value trap": -0.7,
+    "moderate sell": -0.4, "priced for perfection": -0.6,
     # results quality
     "miss": -0.8, "misses": -0.8, "missed": -0.8, "disappoint": -0.9, "disappoints": -0.9,
     "disappointed": -0.8, "disappointing": -0.9, "disappointment": -0.9, "letdown": -0.7,
@@ -334,6 +337,7 @@ NEGATIVE: dict[str, float] = {
     "recall": -0.9, "recalls": -0.9, "recalled": -0.9, "defect": -0.7, "defects": -0.7,
     "defective": -0.8, "faulty": -0.7, "contamination": -0.8, "contaminated": -0.8,
     "accident": -0.6, "fatal": -0.7, "spill": -0.8, "disaster": -1.0, "tragedy": -0.8,
+    "incident": -0.4, "security incident": -0.8,
     "breach": -0.8, "data breach": -1.0, "hack": -0.8, "hacked": -0.9, "cyberattack": -0.9,
     "ransomware": -0.9, "outage": -0.8, "outages": -0.8, "glitch": -0.6, "disruption": -0.6,
     "disruptions": -0.6, "under fire": -0.8, "fire sale": -0.7, "backlash": -0.8, "boycott": -0.8,
@@ -775,6 +779,9 @@ METRICS: dict[str, Metric] = {
                "odds of recession", "chance of a recession", "risk of a recession", "risk of recession",
                intrinsic=-0.4),
     **_metrics(-1.0, "losing streak", intrinsic=-0.8),
+    # quantities that are bad news when they grow: "recalls surge 50%", "withdrawal queue surges 392%"
+    **_metrics(-1.0, "recall", "recalls", "withdrawals", "withdrawal queue", "withdrawal requests", "exit queue",
+               "unstaking queue", "redemptions", "redemption requests", "liquidations"),
     **_metrics(-1.0, "probe", "probes", "investigation", "investigations", "lawsuit", "lawsuits",
                "penalty", "penalties", "fines", "sanctions", "tariff", "ban", "restrictions",
                intrinsic=-0.8),
@@ -803,7 +810,7 @@ RATINGS: dict[str, int] = {
     "market perform": 0, "sector perform": 0, "peer perform": 0, "in line": 0, "sector weight": 0,
     "market weight": 0, "mixed": 0, "perform": 0, "equal weighted": 0, "underperform": -1,
     "market underperform": -1, "sector underperform": -1, "underweight": -1, "reduce": -1, "sell": -1,
-    "negative": -1, "cautious": -1, "underperformer": -1, "junk": -1, "strong sell": -2,
+    "negative": -1, "cautious": -1, "underperformer": -1, "junk": -1, "moderate sell": -1, "strong sell": -2,
 }
 
 # --------------------------------------------------------------------------- #
@@ -875,6 +882,10 @@ CONTRAST_SHIFT: frozenset[str] = frozenset({"but", "however", "yet", "neverthele
 CONTRAST_CONCESSIVE: frozenset[str] = frozenset({"despite", "in spite of", "notwithstanding", "even as",
                                                  "even though", "although", "regardless of", "albeit"})
 
+# "holds steady" states a non-move (no news), it is not praise
+_STEADY = frozenset(f"{v} steady" for v in ("hold", "holds", "held", "holding", "stay", "stays", "stayed", "staying",
+                                             "remain", "remains", "remained", "remaining"))
+
 # Phrases that look like sentiment but are not (claimed first, valence 0).
 NEUTRALIZERS: frozenset[str] = frozenset({
     "shares outstanding", "outstanding shares", "outstanding debt", "outstanding notes", "outstanding loans",
@@ -929,12 +940,12 @@ NEUTRALIZERS: frozenset[str] = frozenset({
     "within outlook",
     "of record", "holders of record", "shareholders of record", "stockholders of record", "unitholders of record",
     "owners of record", "record holders",
-    *NEGATION_EXCEPTIONS,
+    *NEGATION_EXCEPTIONS, *_STEADY,
 })
 
 # Neutralizers that are positive evidence of "no news" (a neutral label is then a finding, not a default).
 NEUTRAL_CUES: frozenset[str] = frozenset({"in line", "inline", "in line with", "line with", "little changed",
-                                          "mixed", "unchanged", "flat"})
+                                          "mixed", "unchanged", "flat", *_STEADY})
 
 # Rule triggers for questions / listicles / roundups.
 QUESTION_STARTERS: frozenset[str] = frozenset({

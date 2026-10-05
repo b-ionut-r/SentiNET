@@ -6,10 +6,11 @@ import { OctagonAlert, Check, KeyRound, Minus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { useSources, type TrackedProgress } from "../../api/hooks";
-import type { ProgressEvent } from "../../api/types";
+import type { ProgressEvent, SourceInfo } from "../../api/types";
 import { Skeleton } from "../../components/ui/Misc";
 import { cx } from "../../lib/cx";
 import { ms } from "../../lib/format";
+import { SKIP_BADGE, skipReason, type SkipReason } from "./scanChip";
 
 type ChipStatus = ProgressEvent["status"] | "queued";
 
@@ -20,6 +21,8 @@ interface Chip {
   count: number | null;
   ms: number | null;
   detail: string | null;
+  /** Set when status is "skipped": only "key" means an API key would unlock it. */
+  skip: SkipReason | null;
 }
 
 const STAGE_TITLE: Record<string, string> = { source: "Sources", intel: "Market intel", synth: "Synthesis" };
@@ -36,15 +39,18 @@ export function ScanPanel({ ticker, progress }: { ticker: string; progress: Trac
 
   const groups = useMemo(() => {
     const byKey = new Map(progress.map((p) => [`${p.stage}:${p.key}`, p]));
+    const info = new Map((sources.data ?? []).map((s) => [s.key, s]));
     const src: Chip[] = (sources.data ?? [])
       .filter((s) => s.enabled)
       .map((s) => {
         const ev = byKey.get(`source:${s.key}`);
-        return ev ? toChip(ev) : { key: s.key, label: s.label, status: s.requires_key && !s.configured ? "skipped" : "queued", count: null, ms: null, detail: s.requires_key && !s.configured ? "needs API key" : null };
+        if (ev) return toChip(ev, s);
+        const keyless = s.requires_key && !s.configured;
+        return { key: s.key, label: s.label, status: keyless ? "skipped" : "queued", count: null, ms: null, detail: keyless ? "needs API key" : null, skip: keyless ? "key" : null };
       });
-    for (const p of progress) if (p.stage === "source" && !src.some((c) => c.key === p.key)) src.push(toChip(p));
-    const intel = progress.filter((p) => p.stage === "intel").map(toChip);
-    const synth = progress.filter((p) => p.stage === "resolve" || p.stage === "nlp" || p.stage === "analytics" || p.stage === "done").map(toChip);
+    for (const p of progress) if (p.stage === "source" && !src.some((c) => c.key === p.key)) src.push(toChip(p, info.get(p.key)));
+    const intel = progress.filter((p) => p.stage === "intel").map((p) => toChip(p));
+    const synth = progress.filter((p) => p.stage === "resolve" || p.stage === "nlp" || p.stage === "analytics" || p.stage === "done").map((p) => toChip(p));
     return { source: src, intel, synth };
   }, [progress, sources.data]);
 
@@ -86,9 +92,11 @@ export function ScanPanel({ ticker, progress }: { ticker: string; progress: Trac
         <div className="mx-5 mt-4 h-1 overflow-hidden rounded-full bg-[rgb(var(--grid))]">
           <div className="h-full rounded-full bg-accent transition-[width] duration-300" style={{ width: `${(done / total) * 100}%` }} />
         </div>
-        <div className="grid gap-5 p-5 lg:grid-cols-[1fr_1fr_0.8fr]">
+        {/* Explicit minmax(0,1fr) tracks at every width: an implicit auto track grows to the
+            max-content of the nowrap chip labels and pushes the badges out of the card on phones. */}
+        <div className="grid grid-cols-1 gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.8fr)]">
           {(["source", "intel", "synth"] as const).map((g) => (
-            <div key={g}>
+            <div key={g} className="min-w-0">
               <h2 className="eyebrow mb-2">{STAGE_TITLE[g]}</h2>
               {groups[g].length === 0 ? (
                 <div className="space-y-1.5">
@@ -97,7 +105,7 @@ export function ScanPanel({ ticker, progress }: { ticker: string; progress: Trac
                   ))}
                 </div>
               ) : (
-                <ul className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                <ul className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
                   {groups[g].map((c) => (
                     <ScanChip key={c.key} c={c} />
                   ))}
@@ -115,8 +123,8 @@ export function ScanPanel({ ticker, progress }: { ticker: string; progress: Trac
                 <span className="w-16 shrink-0 text-muted">{p.stage}</span>
                 <span className="w-28 shrink-0 truncate text-ink-2">{p.key}</span>
                 <span className={cx("w-14 shrink-0", statusText[p.status])}>{p.status}</span>
-                <span className="w-16 shrink-0 text-right">{p.count != null ? `${p.count} items` : ""}</span>
-                <span className="w-14 shrink-0 text-right">{p.ms != null ? ms(p.ms) : ""}</span>
+                <span className="hidden w-16 shrink-0 text-right sm:inline">{p.count != null ? `${p.count} items` : ""}</span>
+                <span className="hidden w-14 shrink-0 text-right sm:inline">{p.ms != null ? ms(p.ms) : ""}</span>
                 <span className="truncate text-muted">{p.detail ?? ""}</span>
               </div>
             ))
@@ -143,8 +151,8 @@ const statusText: Record<ChipStatus, string> = {
   skipped: "text-muted",
 };
 
-function toChip(p: ProgressEvent): Chip {
-  return { key: p.key, label: p.label, status: p.status, count: p.count, ms: p.ms, detail: p.detail };
+function toChip(p: ProgressEvent, source?: SourceInfo): Chip {
+  return { key: p.key, label: p.label, status: p.status, count: p.count, ms: p.ms, detail: p.detail, skip: p.status === "skipped" ? skipReason(p.detail, source) : null };
 }
 
 function ScanChip({ c }: { c: Chip }) {
@@ -156,7 +164,7 @@ function ScanChip({ c }: { c: Chip }) {
     ) : c.status === "empty" ? (
       <Minus className="size-3.5 text-muted" />
     ) : c.status === "skipped" ? (
-      <KeyRound className="size-3.5 text-faint" />
+      c.skip === "key" ? <KeyRound className="size-3.5 text-faint" /> : <Minus className="size-3.5 text-faint" />
     ) : c.status === "running" ? (
       <span className="size-2 animate-pulse-soft rounded-full bg-accent" />
     ) : (
@@ -176,7 +184,7 @@ function ScanChip({ c }: { c: Chip }) {
         <span className="flex size-3.5 shrink-0 items-center justify-center">{icon}</span>
         <span className="min-w-0 flex-1 truncate">{c.label}</span>
         <span className="shrink-0 font-mono text-2xs text-muted">
-          {c.status === "ok" && c.count != null ? c.count : c.status === "error" ? "err" : c.status === "skipped" ? "key" : ""}
+          {c.status === "ok" && c.count != null ? c.count : c.status === "error" ? "err" : c.status === "skipped" ? SKIP_BADGE[c.skip ?? "na"] : ""}
           {c.ms != null && c.status !== "running" ? <span className="ml-1.5 text-muted">{ms(c.ms)}</span> : null}
         </span>
       </div>

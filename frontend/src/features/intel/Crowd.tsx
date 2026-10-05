@@ -157,16 +157,18 @@ function Attention({ att }: { att: AttentionView }) {
     { label: "Reddit mentions", value: att.reddit_change_pct != null ? pct(att.reddit_change_pct, 0) : "—", note: "vs the prior 24 hours", z: att.reddit_change_pct != null ? att.reddit_change_pct / 50 : null },
     { label: "Signals · 24h", value: int(att.signals_24h), note: "items timestamped in the last day", z: null },
   ];
+  // Colour only when attention is out of the ordinary; Quiet/Normal stay neutral ink.
+  const hot = att.heat >= HEAT_BANDS[2].from;
   return (
     <div>
       <SubHead>Attention</SubHead>
       <div className="flex items-end gap-3">
-        <Flame className="mb-0.5 size-5 text-heat" aria-hidden />
+        <Flame className={cx("mb-0.5 size-5", hot ? "text-heat" : "text-muted")} aria-hidden />
         <span className="text-[28px] font-semibold leading-none tracking-[-0.02em] text-ink">{att.heat}</span>
         <span className="pb-0.5 text-sm font-semibold text-ink-2">{att.label}</span>
       </div>
       <div className="relative mt-3">
-        <Meter value={att.heat / 100} color="rgb(var(--heat))" track="rgb(var(--heat) / 0.16)" height={8} />
+        <Meter value={att.heat / 100} color={hot ? "rgb(var(--heat))" : "rgb(var(--ink-2) / 0.55)"} track="rgb(var(--grid))" height={8} />
         {HEAT_BANDS.slice(1).map((b) => (
           <span key={b.label} className="absolute -bottom-0.5 -top-0.5 w-0.5 bg-[rgb(var(--panel))]" style={{ left: `calc(${b.from}% - 1px)` }} aria-hidden />
         ))}

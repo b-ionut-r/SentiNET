@@ -248,3 +248,64 @@ def test_migrates_v1_database(tmp_path):
     assert store.call(lambda c: c.execute("PRAGMA user_version").fetchone()[0]) == db.SCHEMA_VERSION
     assert store.call(lambda c: c.execute("SELECT COUNT(*) FROM alert_events").fetchone()[0]) == 1
     store.close()
+
+
+# ---- degraded runs (kept, never a reading) ---------------------------------------------- #
+async def test_degraded_snapshots_are_kept_but_never_readings(store):
+    await db.save_snapshot(analysis_at(T0, score=62))
+    await db.save_snapshot(analysis_at(T0 + timedelta(hours=13), score=58))
+    bad = await db.save_snapshot(analysis_at(T0 + timedelta(hours=14), score=40), degraded=True)
+    assert bad.degraded and (await db.latest_record("NVDA")).id == bad.id  # kept (stories/analyst keys)
+    assert (await db.latest_record("NVDA", sound_only=True)).score == 58
+    assert (await db.latest_snapshot("NVDA", sound_only=True)).sentinel_score == 58
+    assert [s.sentinel_score for s in await db.list_snapshots("NVDA")] == [58, 62]
+    assert (await db.oldest_record_since("NVDA", T0 + timedelta(hours=12), sound_only=True)).score == 58
+
+    await db.add_watch("NVDA")
+    (item,) = await db.watch_items()
+    assert item.last.sentinel_score == 58 and item.previous.sentinel_score == 62 and item.spark == [62, 58]
+
+
+async def test_watch_item_with_only_degraded_runs_shows_it_without_delta(store):
+    await db.save_snapshot(analysis_at(T0, score=40), degraded=True)
+    await db.add_watch("NVDA")
+    (item,) = await db.watch_items()
+    assert item.last.sentinel_score == 40 and item.previous is None and item.spark == []
+
+
+async def test_evidence_free_snapshot_is_flagged_by_the_store(store):
+    from tests.services.fakes import make_verdict
+
+    blank = analysis_at(T0, score=50, verdict=make_verdict(evidence=False))
+    blank = blank.model_copy(update={"sentiment": blank.sentiment.model_copy(update={"n": 0})})
+    assert (await db.save_snapshot(blank)).degraded
+
+
+def test_migration_v3_flags_legacy_no_read_rows(tmp_path):
+    """A v2 store gains `degraded`; rows of evidence-free runs (n = 0, no available component) are flagged."""
+    from tests.services.fakes import make_verdict
+
+    path = tmp_path / "v2.db"
+    conn = sqlite3.connect(path)
+    conn.executescript(db._SCHEMA.replace(
+        ",\n    degraded        INTEGER NOT NULL DEFAULT 0  -- 1: inputs failed; kept, but never a baseline", ""))
+    assert "degraded" not in {r[1] for r in conn.execute("PRAGMA table_info(snapshots)")}
+    rows = [
+        (0, make_verdict(evidence=False)),  # the "No read" of an outage
+        (12, make_verdict(64)),  # a normal run
+        (0, make_verdict(58)),  # no texts, but analysts/technicals available: a real reading
+    ]
+    for i, (n, verdict) in enumerate(rows):
+        conn.execute(
+            "INSERT INTO snapshots (ticker, at, sentinel_score, score, label, n_signals, verdict, extra) "
+            "VALUES ('NVDA', ?, ?, 0.0, 'neutral', ?, ?, '{}')",
+            (db.to_db_time(T0 + timedelta(hours=i)), verdict.score, n, verdict.model_dump_json()))
+    conn.execute("PRAGMA user_version = 2")
+    conn.commit()
+    conn.close()
+    store = db.Database(str(path))
+    flags = store.call(lambda c: [r[0] for r in c.execute("SELECT degraded FROM snapshots ORDER BY id")])
+    assert flags == [1, 0, 0]
+    assert store.call(lambda c: c.execute("PRAGMA user_version").fetchone()[0]) == db.SCHEMA_VERSION
+    assert store.call(db._latest_record, "NVDA", T0, None, True) is None  # the No read is not a baseline
+    store.close()

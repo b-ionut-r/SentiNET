@@ -10,6 +10,12 @@ p-values are two-sided, from Student's t with n − 2 degrees of freedom
 (regularized incomplete beta, no SciPy). Seven lags are tested, so a link is
 only called reliable when it survives a Bonferroni correction (p × 7 < 0.05)
 with |r| >= 0.2.
+
+Only days GDELT actually covered carry tone: a day with zero articles is no
+measurement (its "0.0 tone" is a fill value), so it is skipped rather than
+read as neutral, and when fewer than 20 days (and under half the window) were
+covered no lag is computed at all — 3 articles in 90 days cannot show that news
+leads a stock.
 """
 from __future__ import annotations
 
@@ -17,13 +23,14 @@ import math
 from datetime import date, timedelta
 
 from app.analytics.util import signed
-from app.schemas import HistoryPoint, HistoryResponse, LagStat, Snapshot, ToneTrend
+from app.schemas import HistoryPoint, HistoryResponse, LagStat, Snapshot, TonePoint, ToneTrend
 
 LAGS = range(-3, 4)
 MIN_PAIRS = 10  # below this a lag is not reported
 MIN_RELIABLE_PAIRS = 20
 ALPHA = 0.05
 MIN_R = 0.2
+MIN_COVERED_DAYS = 20  # days with GDELT articles in the window needed before any lag is measured
 
 
 # --------------------------------------------------------------------------- #
@@ -131,9 +138,13 @@ def build_history(ticker: str, days: int, tone: ToneTrend | None, closes: list[t
 
     window_closes = {d: c for d, c in close_by_day.items() if start - timedelta(days=7) <= d <= end}
     tone_series = {d: p for d, p in tone_by_day.items() if start <= d <= end}
-    lags = lag_stats(tone_series, window_closes)
+    covered, articles = coverage(tone_series)
+    # Thin coverage, not merely a short window: few covered days *and* most days without articles.
+    sparse = bool(tone_series) and covered < min(MIN_COVERED_DAYS, len(tone_series) / 2)
+    lags = [] if sparse else lag_stats(tone_series, window_closes)
     best = best_lag(lags)
-    text = interpret(lags, best, has_tone=bool(tone_series), has_price=len(window_closes) >= 2, status=status)
+    text = interpret(lags, best, has_tone=bool(tone_series), has_price=len(window_closes) >= 2, status=status,
+                     sparse=(covered, articles, days) if sparse else None)
     return HistoryResponse(ticker=ticker, days=days, points=points, lags=lags, best_lag=best,
                            interpretation=text, status=dict(status))
 
@@ -147,11 +158,24 @@ def daily_returns(closes: dict[date, float]) -> dict[date, float]:
     return out
 
 
+def covered_day(p: TonePoint) -> bool:
+    """GDELT measured a tone that day: a tone and articles behind it (volume unknown counts)."""
+    return p.tone is not None and (p.volume is None or p.volume > 0)
+
+
+def coverage(tone: dict) -> tuple[int, float | None]:
+    """(days GDELT covered, articles behind them — None when volumes are unknown)."""
+    days = [p for p in tone.values() if covered_day(p)]
+    vols = [p.volume for p in days if p.volume is not None]
+    return len(days), (sum(vols) if vols else None)
+
+
 def aligned_series(tone: dict, closes: dict[date, float]) -> tuple[list[float | None], list[float]]:
     """(tone per trading day, return per trading day) on the trading-day calendar.
 
-    A trading day's tone is the (volume-weighted) mean tone of the calendar days
-    after the previous close up to and including that day."""
+    A trading day's tone is the (volume-weighted) mean tone of the covered
+    calendar days after the previous close up to and including that day (None
+    when none was covered: a zero-article day is no measurement)."""
     days = sorted(closes)
     tones: list[float | None] = []
     rets: list[float] = []
@@ -161,8 +185,8 @@ def aligned_series(tone: dict, closes: dict[date, float]) -> tuple[list[float | 
         d = prev + timedelta(days=1)
         while d <= cur:
             p = tone.get(d)
-            if p is not None and p.tone is not None:
-                w = p.volume if p.volume and p.volume > 0 else 1.0
+            if p is not None and covered_day(p):
+                w = p.volume if p.volume is not None else 1.0  # unknown volume: one day, one vote
                 acc += p.tone * w
                 wsum += w
             d += timedelta(days=1)
@@ -213,8 +237,10 @@ def _days(k: int) -> str:
 
 
 def interpret(lags: list[LagStat], best: LagStat | None, has_tone: bool, has_price: bool,
-              status: dict[str, str] | None = None) -> str:
-    """Plain-English reading that respects significance (and says when data is only temporarily missing)."""
+              status: dict[str, str] | None = None, sparse: tuple[int, float | None, int] | None = None) -> str:
+    """Plain-English reading that respects significance (and says when data is only temporarily missing).
+
+    `sparse` = (covered days, articles or None, window days) when GDELT coverage was too thin to measure."""
     status = status or {}
     if not has_tone:
         if status.get("tone", "").startswith("error"):
@@ -225,6 +251,12 @@ def interpret(lags: list[LagStat], best: LagStat | None, has_tone: bool, has_pri
         if status.get("price", "").startswith("error"):
             return "Price history is temporarily unavailable; reload to measure the tone ↔ price link."
         return "No price history for this period, so the tone ↔ price link can't be measured."
+    if sparse is not None:
+        covered, articles, window = sparse
+        amount = (f"{articles:,.0f} article{'s' if articles != 1 else ''}" if articles is not None
+                  else f"{covered} day{'s' if covered != 1 else ''} with coverage")
+        return (f"Coverage too sparse ({amount} in {window} days; need {MIN_COVERED_DAYS}+ covered days) to "
+                f"measure a tone ↔ price link.")
     if best is None:
         return (f"Too few overlapping trading days (need {MIN_PAIRS}+) to measure a tone ↔ price relationship.")
     stats = f"r = {signed(best.r)}, {_p(best.p_value)}, n = {best.n}"

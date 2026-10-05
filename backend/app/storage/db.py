@@ -11,6 +11,12 @@ lexicographically in time order.
 Snapshot `extra` keeps what alert rules compare against, distinguishing
 *unavailable* (provider failed: `None`) from *empty* (answered, nothing there),
 so a degraded run never makes old facts look new on the next run.
+
+A snapshot flagged `degraded` (several of its inputs failed, see
+`app.services.analyzer.run_quality`) is kept for the record — its stories and
+analyst actions still count as "seen" — but it is never a *reading*: score
+baselines, "what changed", watchlist deltas, sparklines and the score history
+all skip it (`sound_only`).
 """
 from __future__ import annotations
 
@@ -41,7 +47,7 @@ logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 SNAPSHOT_NARRATIVES = 12  # narrative headlines kept per snapshot (for "is new?" checks)
 STORY_IDS = 25  # member signal ids kept per narrative (story identity across runs)
 STORY_RETENTION = timedelta(days=7)  # member ids are pruned from older snapshots
@@ -65,7 +71,8 @@ CREATE TABLE IF NOT EXISTS snapshots (
     attention_heat  INTEGER,
     narratives      TEXT    NOT NULL DEFAULT '[]',
     verdict         TEXT,
-    extra           TEXT    NOT NULL DEFAULT '{}'
+    extra           TEXT    NOT NULL DEFAULT '{}',
+    degraded        INTEGER NOT NULL DEFAULT 0  -- 1: inputs failed; kept, but never a baseline
 );
 CREATE INDEX IF NOT EXISTS ix_snapshots_ticker_at ON snapshots (ticker, at);
 
@@ -99,9 +106,25 @@ CREATE TABLE IF NOT EXISTS alert_events (
 CREATE INDEX IF NOT EXISTS ix_alert_events_at ON alert_events (at);
 """
 
-# Incremental migrations: target version -> statements.
-_MIGRATIONS: dict[int, tuple[str, ...]] = {
-    2: ("ALTER TABLE alert_events ADD COLUMN claimed_at TEXT",),
+# Rows stored before v3 by a run with no evidence at all (every source and feed
+# failed: no signals, no available score component) are flagged degraded.
+_FLAG_NO_EVIDENCE = """
+UPDATE snapshots SET degraded = 1
+WHERE n_signals = 0 AND NOT EXISTS (
+    SELECT 1 FROM json_each(snapshots.verdict, '$.components') AS c
+    WHERE json_extract(c.value, '$.available') = 1
+)"""
+
+
+def _add_column(conn: sqlite3.Connection, table: str, column: str, ddl: str) -> None:
+    if column not in {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
+
+
+# Incremental migrations: target version -> steps (SQL or a function of the connection).
+_MIGRATIONS: dict[int, tuple[str | Callable[[sqlite3.Connection], None], ...]] = {
+    2: (lambda c: _add_column(c, "alert_events", "claimed_at", "TEXT"),),
+    3: (lambda c: _add_column(c, "snapshots", "degraded", "INTEGER NOT NULL DEFAULT 0"), _FLAG_NO_EVIDENCE),
 }
 
 # Webhook delivery states (alert_events.delivered).
@@ -145,7 +168,8 @@ class SnapshotRecord:
     `analyst_keys` is None when analyst data was unavailable for that run (as
     opposed to an empty tuple: "no recent actions"); `news_ok` is False when no
     news source answered (so an empty narrative list says nothing) and None for
-    rows written before it was recorded.
+    rows written before it was recorded. `degraded` runs are not readings: their
+    score is never a baseline.
     """
 
     id: int
@@ -155,6 +179,7 @@ class SnapshotRecord:
     verdict: Verdict | None = None
     stories: tuple[StoryRef, ...] = ()
     news_ok: bool | None = None
+    degraded: bool = False
 
     @property
     def at(self) -> datetime:
@@ -223,6 +248,7 @@ def _row_to_record(row: sqlite3.Row) -> SnapshotRecord:
         verdict=verdict,
         stories=stories,
         news_ok=extra.get("news_ok") if isinstance(extra.get("news_ok"), bool) else None,
+        degraded=bool(row["degraded"]),
     )
 
 
@@ -255,8 +281,11 @@ class Database:
                 self._conn.executescript(_SCHEMA)
             else:
                 for target in range(version + 1, SCHEMA_VERSION + 1):
-                    for stmt in _MIGRATIONS.get(target, ()):
-                        self._conn.execute(stmt)
+                    for step in _MIGRATIONS.get(target, ()):
+                        if callable(step):
+                            step(self._conn)
+                        else:
+                            self._conn.execute(step)
             self._conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
 
     def call(self, fn: Callable[..., T], *args: Any) -> T:
@@ -322,15 +351,21 @@ def _snapshot_extra(analysis: Analysis) -> dict[str, Any]:
     return {"analyst_keys": keys, "stories": stories, "news_ok": news_ok}
 
 
-def _insert_snapshot(conn: sqlite3.Connection, analysis: Analysis) -> SnapshotRecord:
+def evidence_free(analysis: Analysis) -> bool:
+    """No scored text and no available score component: a "No read" (same test as the v3 migration)."""
+    return analysis.sentiment.n == 0 and not any(c.available for c in analysis.verdict.components)
+
+
+def _insert_snapshot(conn: sqlite3.Connection, analysis: Analysis, degraded: bool = False) -> SnapshotRecord:
+    degraded = degraded or evidence_free(analysis)  # callers skip these; never store one as a reading
     verdict = analysis.verdict
     narratives = [n.headline for n in analysis.narratives[:SNAPSHOT_NARRATIVES]]
     at = analysis.generated_at
     with conn:
         cur = conn.execute(
             """INSERT INTO snapshots (ticker, at, sentinel_score, score, label, n_signals, price,
-                   news_score, social_score, attention_heat, narratives, verdict, extra)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   news_score, social_score, attention_heat, narratives, verdict, extra, degraded)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 analysis.ticker,
                 to_db_time(at),
@@ -345,15 +380,19 @@ def _insert_snapshot(conn: sqlite3.Connection, analysis: Analysis) -> SnapshotRe
                 json.dumps(narratives),
                 verdict.model_dump_json(),
                 json.dumps(_snapshot_extra(analysis)),
+                int(degraded),
             ),
         )
     row = conn.execute("SELECT * FROM snapshots WHERE id = ?", (cur.lastrowid,)).fetchone()
     return _row_to_record(row)
 
 
+_SOUND = " AND degraded = 0"
+
+
 def _latest_record(conn: sqlite3.Connection, ticker: str, before: datetime | None,
-                   before_id: int | None) -> SnapshotRecord | None:
-    sql, args = "SELECT * FROM snapshots WHERE ticker = ?", [ticker]
+                   before_id: int | None, sound_only: bool = False) -> SnapshotRecord | None:
+    sql, args = "SELECT * FROM snapshots WHERE ticker = ?" + (_SOUND if sound_only else ""), [ticker]
     if before is not None:
         sql += " AND at <= ?"
         args.append(to_db_time(before))
@@ -365,9 +404,10 @@ def _latest_record(conn: sqlite3.Connection, ticker: str, before: datetime | Non
 
 
 def _oldest_record_since(conn: sqlite3.Connection, ticker: str, since: datetime,
-                         exclude_id: int | None) -> SnapshotRecord | None:
+                         exclude_id: int | None, sound_only: bool = False) -> SnapshotRecord | None:
     row = conn.execute(
-        "SELECT * FROM snapshots WHERE ticker = ? AND at >= ? AND id != ? ORDER BY at ASC, id ASC LIMIT 1",
+        "SELECT * FROM snapshots WHERE ticker = ? AND at >= ? AND id != ?" + (_SOUND if sound_only else "")
+        + " ORDER BY at ASC, id ASC LIMIT 1",
         (ticker, to_db_time(since), exclude_id if exclude_id is not None else -1),
     ).fetchone()
     return _row_to_record(row) if row else None
@@ -384,7 +424,8 @@ def _records_before(conn: sqlite3.Connection, ticker: str, before_id: int, since
 
 def _list_snapshots(conn: sqlite3.Connection, ticker: str, limit: int,
                     since: datetime | None) -> list[Snapshot]:
-    sql, args = "SELECT * FROM snapshots WHERE ticker = ?", [ticker]
+    """Readings only: degraded runs are not part of a ticker's score history."""
+    sql, args = "SELECT * FROM snapshots WHERE ticker = ?" + _SOUND, [ticker]
     if since is not None:
         sql += " AND at >= ?"
         args.append(to_db_time(since))
@@ -405,25 +446,26 @@ def _prune_snapshots(conn: sqlite3.Connection, older_than: datetime, stories_bef
     return cur.rowcount
 
 
-async def save_snapshot(analysis: Analysis) -> SnapshotRecord:
-    """Persist the headline numbers of a fresh analysis."""
-    return await _run(_insert_snapshot, analysis)
+async def save_snapshot(analysis: Analysis, degraded: bool = False) -> SnapshotRecord:
+    """Persist the headline numbers of a fresh analysis (`degraded`: kept, never a baseline)."""
+    return await _run(_insert_snapshot, analysis, degraded)
 
 
-async def latest_record(ticker: str, *, before: datetime | None = None,
-                        before_id: int | None = None) -> SnapshotRecord | None:
-    """Newest snapshot of `ticker` taken at/before `before` and/or older than row `before_id`."""
-    return await _run(_latest_record, ticker, before, before_id)
+async def latest_record(ticker: str, *, before: datetime | None = None, before_id: int | None = None,
+                        sound_only: bool = False) -> SnapshotRecord | None:
+    """Newest snapshot of `ticker` taken at/before `before` and/or older than row `before_id`
+    (`sound_only`: skipping degraded runs)."""
+    return await _run(_latest_record, ticker, before, before_id, sound_only)
 
 
-async def latest_snapshot(ticker: str, before: datetime | None = None) -> Snapshot | None:
-    rec = await latest_record(ticker, before=before)
+async def latest_snapshot(ticker: str, before: datetime | None = None, sound_only: bool = False) -> Snapshot | None:
+    rec = await latest_record(ticker, before=before, sound_only=sound_only)
     return rec.snapshot if rec else None
 
 
-async def oldest_record_since(ticker: str, since: datetime,
-                              exclude_id: int | None = None) -> SnapshotRecord | None:
-    return await _run(_oldest_record_since, ticker, since, exclude_id)
+async def oldest_record_since(ticker: str, since: datetime, exclude_id: int | None = None,
+                              sound_only: bool = False) -> SnapshotRecord | None:
+    return await _run(_oldest_record_since, ticker, since, exclude_id, sound_only)
 
 
 async def records_before(ticker: str, before_id: int, since: datetime, limit: int = 100) -> list[SnapshotRecord]:
@@ -432,7 +474,7 @@ async def records_before(ticker: str, before_id: int, since: datetime, limit: in
 
 
 async def list_snapshots(ticker: str, limit: int = 50, since: datetime | None = None) -> list[Snapshot]:
-    """Newest first."""
+    """Newest first; readings only (degraded runs are skipped)."""
     return await _run(_list_snapshots, ticker, limit, since)
 
 
@@ -458,23 +500,28 @@ def _spark(points: list[tuple[datetime, int]], n: int = SPARK_POINTS) -> list[in
 
 
 def _watch_item(conn: sqlite3.Connection, row: sqlite3.Row) -> WatchItem:
+    """Latest *reading* (degraded runs skip; one is shown only if nothing sound exists yet),
+    its Δ baseline and sparkline — both over sound runs only."""
     ticker = row["ticker"]
-    last = _latest_record(conn, ticker, None, None)
+    last = _latest_record(conn, ticker, None, None, sound_only=True)
     previous = None
     spark: list[int] = []
-    if last is not None:
+    if last is None:
+        last = _latest_record(conn, ticker, None, None)  # only degraded runs so far: show, but no Δ
+    else:
         # Δ baseline: the latest snapshot ≥ 12h before `last` (a "daily" change);
         # with less history, the oldest snapshot we have ("since added").
-        prev = _latest_record(conn, ticker, last.at - WATCH_BASELINE_GAP, None)
+        prev = _latest_record(conn, ticker, last.at - WATCH_BASELINE_GAP, None, sound_only=True)
         if prev is None:
             row0 = conn.execute(
-                "SELECT * FROM snapshots WHERE ticker = ? AND id != ? ORDER BY at ASC, id ASC LIMIT 1",
+                "SELECT * FROM snapshots WHERE ticker = ? AND id != ?" + _SOUND + " ORDER BY at ASC, id ASC LIMIT 1",
                 (ticker, last.id),
             ).fetchone()
             prev = _row_to_record(row0) if row0 else None
         previous = prev.snapshot if prev else None
         rows = conn.execute(
-            "SELECT at, sentinel_score FROM snapshots WHERE ticker = ? AND at >= ? ORDER BY at ASC, id ASC",
+            "SELECT at, sentinel_score FROM snapshots WHERE ticker = ? AND at >= ?" + _SOUND
+            + " ORDER BY at ASC, id ASC",
             (ticker, to_db_time(last.at - SPARK_WINDOW)),
         ).fetchall()
         spark = _spark([(from_db_time(r["at"]), r["sentinel_score"]) for r in rows])

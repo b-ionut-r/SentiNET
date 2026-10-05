@@ -100,7 +100,11 @@ export function AnalystsPanel({ a }: { a: Analysis }) {
             high={v.target_high}
             lowLabel={`low ${perShare(v.target_low, ccy)}`}
             highLabel={`high ${perShare(v.target_high, ccy)}`}
-            singleLabel={`target ${perShare(v.target_low, ccy)}${v.total > 0 ? ` · ${plural(v.total, "analyst")}` : ""}`}
+            singleLabel={
+              v.target_low === v.target_high
+                ? `target ${perShare(v.target_low, ccy)}${v.total > 0 ? ` · ${plural(v.total, "analyst")}` : ""}`
+                : `targets ${perShare(v.target_low, ccy)} to ${perShare(v.target_high, ccy)}`
+            }
             markers={[
               { value: cur, label: `now ${price(cur, ccy)}`, kind: "current" },
               ...(v.target_mean != null ? [{ value: v.target_mean, label: `mean ${perShare(v.target_mean, ccy)}`, kind: "mean" as const }] : []),

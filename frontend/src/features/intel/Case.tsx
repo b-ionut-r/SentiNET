@@ -7,6 +7,7 @@ import { Empty } from "../../components/ui/Misc";
 import { Panel } from "../../components/ui/Panel";
 import { cx } from "../../lib/cx";
 import { countdown, daysUntil, perShare, reportingCurrency, safeHref, shortDate } from "../../lib/format";
+import { freshPoints } from "./brief";
 import { earningsRecord } from "./SmartMoney";
 
 const KIND_ICON: Record<Catalyst["kind"], typeof Coins> = {
@@ -21,13 +22,23 @@ const KIND_ICON: Record<Catalyst["kind"], typeof Coins> = {
 /** The brief: one numbers-backed paragraph, then the bull and bear evidence side by side. */
 export function CasePanel({ a, className }: { a: Analysis; className?: string }) {
   const b = a.brief;
+  // Points the verdict above already lists word for word are not repeated here.
+  const bull = freshPoints(b.bull_points, a.verdict.reasons);
+  const bear = freshPoints(b.bear_points, a.verdict.reasons);
+  const repeated = bull.repeated + bear.repeated;
   return (
-    <Panel id="case" title="Bull case vs. bear case" subtitle="Deterministic brief — every point is backed by a number" className={className} bodyClassName="flex flex-col">
+    <Panel
+      id="case"
+      title="Bull case vs. bear case"
+      subtitle={repeated > 0 ? "Beyond the verdict's reasons above — every point is backed by a number" : "Deterministic brief — every point is backed by a number"}
+      className={className}
+      bodyClassName="flex flex-col"
+    >
       {/* Wide screens: the brief, then the two cases side by side as three equal columns. */}
       <div className="grid flex-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {b.summary && <p className="max-w-[78ch] text-sm leading-[22px] text-ink-2 sm:col-span-2 xl:col-span-1">{b.summary}</p>}
-        <CaseColumn title="Bull case" p="bull" points={b.bull_points} empty="No bullish evidence cleared the bar." />
-        <CaseColumn title="Bear case" p="bear" points={b.bear_points} empty="No bearish evidence cleared the bar." />
+        <CaseColumn title="Bull case" p="bull" points={bull.fresh} empty={bull.repeated ? "Nothing beyond the bullish reasons in the verdict above." : "No bullish evidence cleared the bar."} />
+        <CaseColumn title="Bear case" p="bear" points={bear.fresh} empty={bear.repeated ? "Nothing beyond the bearish reasons in the verdict above." : "No bearish evidence cleared the bar."} />
       </div>
     </Panel>
   );

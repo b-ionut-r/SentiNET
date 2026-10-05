@@ -15,7 +15,10 @@ help: ## Show this help
 
 setup: setup-backend setup-frontend ## Install backend (venv) and frontend dependencies
 
-setup-backend: ## Create backend/.venv and install Python deps
+setup-backend: ## Create backend/.venv and install Python deps (Python 3.11+)
+	@$(PYTHON) -c 'import sys; sys.exit(sys.version_info < (3, 11))' 2>/dev/null || { \
+	  echo "SentiNET needs Python 3.11+ ('$(PYTHON)' is $$($(PYTHON) --version 2>&1 || echo missing))."; \
+	  echo "Install it and run: make setup PYTHON=python3.11  (or use Docker: make docker-up)"; exit 1; }
 	@test -x $(BIN)/python || $(PYTHON) -m venv $(VENV)
 	$(BIN)/pip install -q --upgrade pip
 	$(BIN)/pip install -q -r backend/requirements-dev.txt
@@ -36,8 +39,9 @@ backend: ## API only, auto-reload
 frontend: ## Vite dev server only
 	cd frontend && npm run dev
 
-test: ## Offline backend test suite
+test: ## Offline tests: backend pytest + frontend unit checks (no network, no browser)
 	cd backend && $(BIN)/pytest -q
+	cd frontend && npm run unit
 
 test-live: ## Smoke tests against real providers (network)
 	cd backend && $(BIN)/pytest -q -m live

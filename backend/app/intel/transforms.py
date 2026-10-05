@@ -22,7 +22,7 @@ import math
 import re
 from datetime import date, datetime, time, timedelta, UTC
 from itertools import pairwise
-from typing import Any
+from typing import Any, Literal
 from zoneinfo import ZoneInfo
 
 import pandas as pd
@@ -314,6 +314,47 @@ def _session_in_progress(last: date, now: datetime, is_crypto: bool) -> bool:
     return last >= local.date() and local.weekday() < 5 and local.time() < time(16, 0)
 
 
+FLAT_VS_50DMA_PCT = 3.0  # within this of the 50-DMA (and a < 1σ month) a price is going nowhere
+
+
+def _side(x: float) -> int:
+    return (x > 0) - (x < 0)
+
+
+def trend_label(
+    last: float, *, sma20: float, sma50: float, sma200: float | None,
+    return_1m: float | None, volatility: float | None,
+) -> Literal["uptrend", "downtrend", "sideways"]:
+    """Trend from price vs its 50/200-DMA (20 vs 50 with < 200 bars), sized by volatility.
+
+    * all aligned (price and averages stacked the same way): that trend;
+    * price above *both* averages while the 50 is still under the 200 (a breakout / recovery,
+      GME 2026-10: +20% vs 50-DMA, +11% vs 200-DMA, +30% in 1M) or below both while the 50 is
+      still over the 200 (rolling over): the price's direction, unless it is hugging the
+      50-DMA (< 3%) with a sub-1σ month, which is "sideways";
+    * price between the averages (a bounce under the 200 or a dip above it): "sideways"
+      unless the last month moved it decisively (≥ 1σ monthly) the same way.
+
+    The old rule ("stacked averages or nothing") called every strong breakout "sideways".
+    """
+    long_ref = sma200 if sma200 is not None else sma50
+    price_side = _side(last - sma50)
+    long_side = _side(last - long_ref) if sma200 is not None else _side(sma20 - sma50)
+    stack_side = _side(sma50 - sma200) if sma200 is not None else _side(sma20 - sma50)
+    labels: dict[int, Literal["uptrend", "downtrend", "sideways"]] = {1: "uptrend", -1: "downtrend"}
+    if price_side == 0:
+        return "sideways"
+    if price_side == long_side == stack_side:
+        return labels[price_side]
+    sigma = max(volatility / math.sqrt(12), 1.5) if volatility else 8.0  # 1σ monthly move, %
+    move = return_1m if return_1m is not None else 0.0
+    decisive_month = abs(move) >= sigma and _side(move) == price_side
+    if price_side == long_side:
+        flat = abs(last / sma50 - 1) * 100 < FLAT_VS_50DMA_PCT and abs(move) < sigma
+        return "sideways" if flat else labels[price_side]
+    return labels[price_side] if decisive_month else "sideways"
+
+
 def technicals_from_history(
     df: pd.DataFrame | None, *, now: datetime, is_crypto: bool = False
 ) -> Technicals | None:
@@ -360,17 +401,11 @@ def technicals_from_history(
                 volume_ratio = round(vols[end] / (sum(base) / len(base)), 2)
 
     prev_year_end = _close_on_or_before(dates, closes, date(last_date.year - 1, 12, 31))
+    ret_1m = pct(last, back(months=1))
     trend = None
     if sma50 is not None:
-        # Classic alignment: price vs 50-DMA and 50 vs 200-DMA (20 vs 50 when < 200 bars).
         sma20 = sum(closes[-20:]) / 20
-        stacked_up = sma50 > sma200 if sma200 is not None else sma20 > sma50
-        if last > sma50 and stacked_up:
-            trend = "uptrend"
-        elif last < sma50 and not stacked_up:
-            trend = "downtrend"
-        else:
-            trend = "sideways"
+        trend = trend_label(last, sma20=sma20, sma50=sma50, sma200=sma200, return_1m=ret_1m, volatility=vol30)
 
     rsi = wilder_rsi(closes)
     if is_crypto:
@@ -384,7 +419,7 @@ def technicals_from_history(
     return Technicals(
         return_1d=ret_1d,
         return_5d=ret_5d,
-        return_1m=pct(last, back(months=1)),
+        return_1m=ret_1m,
         return_3m=pct(last, back(months=3)),
         return_ytd=pct(last, prev_year_end) if dates[0].year < last_date.year else None,
         vs_50dma_pct=pct(last, sma50),
@@ -697,15 +732,26 @@ def dividend_catalysts(
 # --------------------------------------------------------------------------- #
 # Insiders
 # --------------------------------------------------------------------------- #
+# Yahoo words each market's filings differently (real 2026-09 rows):
+# * US Form 4: "Purchase at price 18.06 per share." / "Sale at price …"
+# * UK PDMR notices: "Bought at price 1.58 per share." / "Sold at price …" / "Buy Back at price …" (the
+#   company's own buyback, filed under the company's name)
+# * Canada SEDI: "Acquisition|Disposition in the public market at price …" (code 10), "Disposition under a
+#   purchase/ownership plan …" (code 30: automatic disposition plans, the 10b5-1 analogue — a real sale;
+#   an *acquisition* under such a plan is an employee share purchase, not a decision), "Redemption,
+#   retraction, cancelation, repurchase …" (issuer bids), "… carried out privately" (not open market).
 _KIND_RULES: tuple[tuple[re.Pattern[str], str], ...] = (
-    (re.compile(r"^\s*purchase", re.IGNORECASE), "buy"),
-    (re.compile(r"^\s*sale", re.IGNORECASE), "sell"),
+    (re.compile(r"^\s*(?:buy[\s-]?back|redemption|repurchase)\b", re.IGNORECASE), "other"),
+    (re.compile(r"^\s*(?:purchase|bought\b|acquisition in the public market)", re.IGNORECASE), "buy"),
+    (re.compile(r"^\s*(?:sale|sold\b|disposition in the public market|short sale\b|"
+                r"disposition under an? (?:[\w/-]+ )*plan\b)", re.IGNORECASE), "sell"),
     (re.compile(r"stock\s+(?:award|grant)|\bgrant\b|\baward\b", re.IGNORECASE), "award"),
     (re.compile(r"exercise|conversion", re.IGNORECASE), "exercise"),
     (re.compile(r"\bgift\b", re.IGNORECASE), "gift"),
 )
 _ENTITY = re.compile(
-    r"\b(?:inc|corp|llc|lp|l\.p|ltd|trust|fund|partners|holdings|capital|group|foundation|co)\b\.?", re.IGNORECASE
+    r"\b(?:inc|corp|llc|lp|l\.p|ltd|plc|s\.a|trust|fund|partners|holdings|capital|group|foundation|co)\b\.?",
+    re.IGNORECASE,
 )
 _SUFFIXES = {"JR", "SR", "II", "III", "IV", "JR.", "SR."}
 
@@ -713,8 +759,9 @@ _SUFFIXES = {"JR", "SR", "II", "III", "IV", "JR.", "SR."}
 def classify_insider(text: str | None, transaction: str | None = None) -> str:
     """Yahoo transaction text -> buy/sell/award/exercise/gift/other.
 
-    Only "Purchase …"/"Sale …" are open-market trades. An empty text is usually a
-    tax-withholding disposition on vesting (Form 4 code F) — not a signal.
+    Only open-market trades are buys/sells ("Purchase"/"Sale" in the US, "Bought"/"Sold"
+    in the UK, "… in the public market" or a pre-arranged plan sale in Canada). An empty
+    text is usually a tax-withholding disposition on vesting (Form 4 code F) — not a signal.
     """
     for source in (text, transaction):
         if source:
@@ -724,11 +771,37 @@ def classify_insider(text: str | None, transaction: str | None = None) -> str:
     return "other"
 
 
+_LAST_FIRST = re.compile(r"^(?P<last>[^()]+?)\s*\((?P<first>[^()]+)\)$")
+# Accented words common in European holder / director names. Yahoo hands some names over with each
+# Latin-1 accented letter already replaced by U+FFFD ("Soci\ufffdt\ufffd G\ufffdn\ufffdrale S.A"); a
+# word whose one-letter-per-mark pattern matches exactly one of these is restored, other marks dropped.
+_ACCENTED_WORDS = (
+    "Société", "Générale", "Crédit", "Dépôts", "Fédération", "Hermès", "Nestlé", "Zürich", "Müller",
+    "Schäfer", "Schröder", "Jürgen", "Jörg", "Björn", "Søren", "José", "André", "Hélène", "François",
+    "Frédéric", "Gérard", "Stéphane", "Jérôme", "Rémi", "García", "López", "Pérez", "González",
+    "Fernández", "Hernández", "Rodríguez", "Sánchez", "Martínez", "Gómez", "Jiménez", "Muñoz", "Álvarez",
+    "Ramírez", "Núñez", "Peña", "Ibáñez", "Bañuelos",
+)
+_MARKED_WORD = re.compile(r"[^\s()]*\ufffd[^\s()]*")
+
+
+def _restore_accents(name: str) -> str:
+    def fix(m: re.Match[str]) -> str:
+        pattern = re.compile("".join("." if ch == "\ufffd" else re.escape(ch) for ch in m.group(0)),
+                             re.IGNORECASE)
+        hits = [w for w in _ACCENTED_WORDS if pattern.fullmatch(w)]
+        return hits[0] if len(hits) == 1 else m.group(0).replace("\ufffd", "")
+
+    return _MARKED_WORD.sub(fix, name) if "\ufffd" in name else name
+
+
 def pretty_insider_name(raw: str | None) -> str:
-    """SEC "LAST FIRST MIDDLE" -> "First Middle Last" when unambiguous; entities kept."""
-    name = re.sub(r"\s+", " ", (raw or "").strip())
+    """SEC "LAST FIRST MIDDLE" / SEDI-UK "Last (First Middle)" -> "First Middle Last"; entities kept."""
+    name = re.sub(r"\s+", " ", _restore_accents((raw or "").strip()))
     if not name:
         return "Unknown"
+    if (m := _LAST_FIRST.match(name)) and not _ENTITY.search(name):
+        return f"{m.group('first').strip()} {m.group('last').strip()}"
     if not name.isupper() or _ENTITY.search(name):
         return name if not name.isupper() else name.title()
     tokens = name.split(" ")
@@ -783,10 +856,51 @@ def insiders_from_frame(df: pd.DataFrame | None, *, now: datetime, window_days: 
     return insider_view(rows, since=since, window_days=window_days)
 
 
+_UNIT_PRICE = re.compile(r"at price ([\d,]+(?:\.\d+)?) per share", re.IGNORECASE)
+SCHEME_MIN_INSIDERS = 3
+
+
+def _unit_price(t: InsiderTxn) -> float | None:
+    if m := _UNIT_PRICE.search(t.text or ""):
+        return float(m.group(1).replace(",", ""))
+    return round(t.value / t.shares, 2) if t.value and t.shares else None
+
+
+def _scheme_purchases(rows: list[InsiderTxn]) -> list[InsiderTxn]:
+    """Purchases by ≥ 3 insiders on one day at one price -> "other": one scheme allocation, not decisions.
+
+    Separate open-market buys don't fill at the identical price; a share-incentive plan, dividend
+    reinvestment or directors' fee-in-shares purchase does (BARC.L 2026-09-22: six insiders "bought"
+    ~100 shares each at 6.31; 2026-07-28: ten non-executive directors at 6.64), and counted as
+    purchases they fake an "insider cluster buying" alert.
+    """
+    groups: dict[tuple[date, float], set[str]] = {}
+    for t in rows:
+        if t.kind == "buy" and (price := _unit_price(t)) is not None:
+            groups.setdefault((t.date, price), set()).add(t.insider)
+    schemes = {key: len(who) for key, who in groups.items() if len(who) >= SCHEME_MIN_INSIDERS}
+    if not schemes:
+        return rows
+    out: list[InsiderTxn] = []
+    for t in rows:
+        n = schemes.get((t.date, _unit_price(t) or -1.0)) if t.kind == "buy" else None
+        if n:
+            note = f"{t.text or 'Purchase'} (plan purchase: {n} insiders, same day and price)"
+            t = t.model_copy(update={"kind": "other", "text": note})
+        out.append(t)
+    return out
+
+
 def insider_view(rows: list[InsiderTxn], *, since: date, window_days: int) -> InsiderView | None:
-    """Aggregate transactions (shared by the Yahoo path and the SEC Form 4 fallback)."""
+    """Aggregate transactions (shared by the Yahoo path and the SEC Form 4 fallback).
+
+    Values are US dollars from every source: Form 4 is filed in USD and Yahoo converts
+    non-US filings too (VOD.L "Sold at price 1.70" on 2026-09-18 = the 126.15p close at
+    1.3358 $/£; SHOP.TO and RY.TO rows match the CAD close × CADUSD).
+    """
     if not rows:
         return None
+    rows = _scheme_purchases(rows)
     recent = [t for t in rows if t.date >= since]
     buys = [t for t in recent if t.kind == "buy"]
     sells = [t for t in recent if t.kind == "sell"]

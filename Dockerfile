@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 # SentiNET — one image serving the API and the built web app on :8000.
 #   docker build -t sentinet .
-#   docker run -p 8000:8000 -v sentinet-data:/data --env-file backend/.env sentinet
+#   docker run -p 127.0.0.1:8000:8000 -v sentinet-data:/data --env-file backend/.env sentinet
 
 # ---- 1. Build the web app ----------------------------------------------------------
 FROM node:22-alpine AS web
@@ -40,4 +40,8 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
     CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=4)"]
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]
+# X-Forwarded-* headers are trusted only from FORWARDED_ALLOW_IPS (uvicorn's own
+# variable; default 127.0.0.1): set it to your reverse proxy's address, never "*".
+# The API has no authentication and answers only Host names in
+# SENTINET_ALLOWED_HOSTS (default: localhost); see docker-compose.yml.
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]

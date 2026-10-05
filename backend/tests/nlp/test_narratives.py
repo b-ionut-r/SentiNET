@@ -16,7 +16,7 @@ from itertools import combinations
 
 import pytest
 
-from app.nlp.narratives import cluster_narratives, find_duplicates
+from app.nlp.narratives import PROGRAM_SPAN_H, _Doc, _join_programs, cluster_narratives, find_duplicates
 from app.nlp.text import strip_publisher_suffix
 from app.nlp.types import Cluster, ClusterItem
 from app.sources.base import CompanyRef
@@ -100,13 +100,13 @@ def _cluster_of(clusters: list[Cluster], item_id: str) -> Cluster:
 # --------------------------------------------------------------------------- #
 @pytest.mark.parametrize(("ticker", "min_f1", "min_b3"), [
     ("nvda", 0.92, 0.92),  # tuning      measured .95 / .94 (rivals' milestones kept apart)
-    ("aapl", 0.80, 0.86),  # tuning      .85 / .91
+    ("aapl", 0.83, 0.89),  # tuning      .87 / .92
     ("meta", 0.45, 0.78),  # tuning      .50 / .81 (many overlapping "Muse" angles)
     ("tgt", 0.76, 0.83),   # tuning      .82 / .87
     ("xyz", 0.93, 0.92),   # tuning      .99 / .96
-    ("tsla", 0.75, 0.79),  # validation  .78 / .82
-    ("amzn", 0.76, 0.82),  # validation  .81 / .86
-    ("amd", 0.80, 0.84),   # test: .89 / .89 at first (untouched) scoring; .86 / .89 now
+    ("tsla", 0.80, 0.84),  # validation  .84 / .87
+    ("amzn", 0.78, 0.86),  # validation  .82 / .89
+    ("amd", 0.80, 0.84),   # test: .89 / .89 at first (untouched) scoring; .86 / .87 now
 ])
 def test_labeled_story_sets(ticker, min_f1, min_b3):
     items, labels, company = _items(ticker)
@@ -353,3 +353,87 @@ def test_story_terms_never_span_pronouns_or_punctuation():
                          "Nvidia Settles Advisor Dispute: Early Payout Expected"])
     terms = {t.lower() for c in clusters for t in c.terms}
     assert not {"reaffirmed jaw", "dispute early"} & terms, terms
+
+
+# --------------------------------------------------------------------------- #
+# Final review: over-merging on one shared word, fragmentation of continuing
+# developments (live SOFI / AAPL / NVDA / GME, 2026-10-04)
+# --------------------------------------------------------------------------- #
+SOFI = CompanyRef(ticker="SOFI", name="SoFi Technologies, Inc.", short_name="SoFi", industry="Credit Services")
+AAPL = CompanyRef(ticker="AAPL", name="Apple Inc.", short_name="Apple", industry="Consumer Electronics")
+GME = CompanyRef(ticker="GME", name="GameStop Corp.", short_name="GameStop", industry="Specialty Retail")
+
+
+def _timed(rows: list[tuple[str, float]], company: CompanyRef) -> list[list[str]]:
+    """Cluster (title, hours after T0) rows; return the groups as sorted id lists."""
+    items = [ClusterItem(id=str(i), title=t, timestamp=T0 + timedelta(hours=h), publisher="X")
+             for i, (t, h) in enumerate(rows)]
+    return sorted(sorted(c.item_ids) for c in cluster_narratives(items, company, max_clusters=len(items)))
+
+
+def test_one_shared_word_is_not_a_story():
+    # one cluster with terms ['Compelling Entry', 'Robinhood Sit', 'Technologies Stock', 'Sit', 'Peak']
+    clusters = _cluster(["Nu Holdings Jumps 3% After Ruling Out Monzo Deal; SoFi and Robinhood Sit Out the Rally",
+                         "SoFi Technologies (NASDAQ: SOFI) Stock Sits 50% Below Peak, Presenting A Compelling Entry "
+                         "Point For Investors"], SOFI)
+    assert len(clusters) == 2
+    assert not any("Technologies" in t for c in clusters for t in c.terms)  # part of the company's name
+
+
+def test_a_word_shared_by_two_product_names_is_not_a_story():
+    groups = _timed([("Apple iPhone 18 Pro Max AT&T Glitch Requires Device Replacements", 0),
+                     ("Apple Says Some AT&T iPhone 18 Pro Max Users Must Replace Phones After Service-Loss Bug", 1),
+                     ("Apple to replace iPhone 18 Pro Max facing AT&T glitch (AAPL)", 2),
+                     ("AAPL Stock Ends Week Lower — Apple's Vision Pro And Smart Glasses Head Reportedly Defects "
+                      "To OpenAI", 3)], AAPL)
+    assert ["0", "1", "2"] in groups and ["3"] in groups
+
+
+def test_opposite_calls_from_different_firms_are_different_stories():
+    groups = _timed([("Morgan Stanley lowers Apple stock price target on limited upside", 0),
+                     ("Morgan Stanley Maintains Apple(AAPL.US) With Buy Rating, Cuts Target Price to $355", 1),
+                     ("Apple stock gains 1.02 percent as Morgan Stanley trims target", 30),
+                     ("Citi Initiates Apple(AAPL.US) With Buy Rating, Announces Target Price $365", 50)], AAPL)
+    assert ["0", "1", "2"] in groups and ["3"] in groups
+
+
+def test_a_buyback_raised_again_is_one_story_whatever_the_amount():
+    # live NVDA: "$150 Billion Buyback Plan" and "$235 Billion Buyback" (the same program:
+    # a $150B increase taking capacity to $235B) were two narratives and two catalysts
+    groups = _timed([("Nvidia Stock Pops on $150 Billion Buyback Plan", 0),
+                     ("Nvidia unveils massive $150B increase to share buyback program", 1),
+                     ("Nvidia Stock Climbs After $150 Billion Buyback Bombshell", 2),
+                     ("Nvidia's $235 Billion Buyback Shows Who Is Really Winning the AI Boom", 140),
+                     ("Nvidia Wraps Its AI Empire in Insurance, Guardrails and a $235 Billion Buyback", 141)], NVDA)
+    assert groups == [["0", "1", "2", "3", "4"]]
+
+
+def test_an_insider_buying_spree_is_one_story_but_not_with_insider_selling():
+    # live GME: six of eight narrative slots were the CEO's buys, one per amount
+    groups = _timed([("GameStop CEO Ryan Cohen buys $26.4 million of GME stock", 0),
+                     ("GameStop stock jumps as CEO Ryan Cohen buys $26 million in shares", 1),
+                     ("Billionaire GameStop CEO Ryan Cohen Buys 1.2 Million Shares for $26.4 Million", 2),
+                     ("GameStop shares rise as CEO Ryan Cohen buys $10.6 million in stock", 170),
+                     ("GameStop CEO Ryan Cohen Buys $10.6M in Shares, GME Shares Rise", 171),
+                     ("GameStop(GME.US) Officer Buys US$17.08 Million in Common Stock", 230),
+                     ("GameStop Officer Daniel Moore Files Form 144 to Sell 7,297 Shares for RSU Tax Withholding", 231),
+                     ("To cover vesting taxes, GameStop (GME) officer Daniel Moore proposes selling 7,297 shares.",
+                      232)], GME)
+    assert ["0", "1", "2", "3", "4", "5"] in groups
+    assert ["6", "7"] in groups
+
+
+def test_program_follow_ups_join_only_within_the_window():
+    docs = [_Doc(vec={}, raw={}, anchors=frozenset(), surfaces={}, program=frozenset({"insider_buy"}))] * 4
+    hour = 3600.0
+    times: list[float | None] = [0.0, hour, (PROGRAM_SPAN_H - 1) * hour, (2 * PROGRAM_SPAN_H + 5) * hour]
+    # [2] follows [1] within the window (a spree goes on); [3] comes long after the last follow-up
+    assert sorted(_join_programs([[0], [1], [2], [3]], docs, times)) == [[0, 1, 2], [3]]
+
+
+def test_another_companys_program_does_not_join():
+    groups = _timed([("Nvidia Stock Pops on $150 Billion Buyback Plan", 0),
+                     ("Nvidia unveils massive $150B increase to share buyback program", 1),
+                     ("Nvidia stock dips as AMD announces $12 billion buyback", 30),
+                     ("Nvidia slips as AMD unveils $12 billion buyback", 31)], NVDA)
+    assert ["0", "1"] in groups and ["2", "3"] in groups

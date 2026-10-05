@@ -103,7 +103,16 @@ def test_bullish_case_still_states_the_material_negatives() -> None:
     assert selling is not None
     assert "2 open-market sales worth $40M" in selling and "bought nothing in 180 days" in selling
     assert "largest: John Doe (Director) $25M" in selling
-    assert "(0.01% of market cap)" in selling and "10b5-1" in selling  # routine-sized: said with the caveat
+    assert "(0.01% of market cap)" in selling and "routine-sized for the company" in selling
+    # Pre-scheduled (10b5-1) selling is claimed only when the Form 4 filings say so.
+    assert "10b5-1" not in selling
+    inputs = scenarios.bullish_large_cap()
+    assert inputs.insiders is not None
+    for t in inputs.insiders.transactions:
+        if t.kind == "sell" and t.insider == "John Doe":
+            t.text = "Sale at price 120.00 per share. (10b5-1 plan)"
+    planned = next(b for b in build_analysis(inputs).brief.bear_points if b.startswith("Insider selling"))
+    assert "1 of 2 sales under a pre-arranged 10b5-1 trading plan" in planned
     # Counterpoints rank below everything that moves the score; the bull case is unchanged.
     assert a.brief.bull_points[0].startswith(("Analysts", "News", "Story", "Price", "Sentiment"))
     assert all(any(ch.isdigit() for ch in b) for b in bear)
@@ -265,8 +274,9 @@ def test_delta_against_previous_snapshot() -> None:
     assert d.sentinel_change == a.verdict.score - 55 and d.sentinel_change >= 12
     assert d.price_change_pct == pytest.approx(5.26, abs=0.01)
     assert "improved sharply" in d.note and "now bullish (was neutral)" in d.note
-    by_headline = {n.headline: n for n in a.narratives}
-    assert not by_headline["Acme stock jumps 6% after record data-center sales"].is_new
+    # The record-sales story (headlined by its non-recap member) was in the previous snapshot.
+    same = next(n for n in a.narratives if "record data-center sales" in n.headline)
+    assert not same.is_new
     assert any(n.is_new for n in a.narratives)
     assert set(d.new_narratives) == {n.headline for n in a.narratives if n.is_new}
     jump = insight(a, "SentiNET jumped")
@@ -277,3 +287,66 @@ def test_no_previous_snapshot_marks_nothing_new() -> None:
     a = build("bullish_large_cap")
     assert a.delta.previous_at is None and a.delta.note is None
     assert not any(n.is_new for n in a.narratives)
+
+
+def test_bear_case_says_each_insider_fact_once_and_never_invents_a_trend() -> None:
+    # Live TWLO: both 'Heavy insider selling: …' and 'Insider selling only: …' were bear points, and
+    # 'Analysts turning cautious' was asserted while revisions were 2 raises / 0 cuts (the stock had
+    # simply run +30% in a month past the mean target).
+    from tests.analytics.factories import analysts, company, inputs, insider, insiders, news_flow, quote, run
+    from tests.analytics.factories import GOOGLE, technicals
+
+    twlo = company("TWLO", "Twilio Inc.", "Twilio")
+    heavy = insiders([insider(20 + i, f"Seller {i}", "sell", 30e6) for i in range(16)])  # $480M of a $45B cap
+    a = build_analysis(inputs(twlo, [run(GOOGLE, news_flow([f"Twilio expands growth plan {i}" for i in range(8)]))],
+                              quote=quote(price=294.58, market_cap=45e9), insiders=heavy,
+                              technicals=technicals(r1m=30.0, r3m=41.0, vs200=67.0, rsi=66.0),
+                              analysts=analysts(mean=1.9, total=30, upside=-10.7, price=294.58)))
+    bear = a.brief.bear_points
+    assert len([b for b in bear if "insider" in b.lower()]) == 1
+    assert not any(b.startswith("Analysts turning cautious") for b in bear)
+    assert any(b.startswith("Price has run past the mean analyst target ($263.06, −11%) after +30% in 1M") for b in bear)
+    assert "Analysts rate it Buy, but the stock already trades above the mean target ($263.06, −11%)" in a.brief.summary
+
+
+def test_next_catalyst_is_the_most_material_not_the_soonest() -> None:
+    # Live TGT: 'Next catalyst: ex-dividend date in 36 days (Nov 10)' while earnings were Nov 18;
+    # the watch list also carried the dividend *payment* date.
+    from datetime import timedelta
+
+    from app.schemas import Catalyst
+    from tests.analytics.factories import GOOGLE, company, earnings, ex_dividend, inputs, news_flow, run
+
+    pay = Catalyst(date=NOW + timedelta(days=57), kind="dividend", title="Dividend payment",
+                   detail="$1.16/share", upcoming=True)
+    built = inputs(company(), [run(GOOGLE, news_flow([f"Acme expands growth plan {i}" for i in range(8)]))],
+                   earnings=earnings(days_until=44), calendar_catalysts=[ex_dividend(36), pay])
+    brief = build_analysis(built).brief
+    assert "Next catalyst: earnings in 44 days" in brief.summary
+    assert not any(w.startswith("Dividend payment") for w in brief.watch)
+    assert any(w.startswith("Ex-dividend date in 36 days") for w in brief.watch)
+    far = inputs(company(), [run(GOOGLE, news_flow([f"Acme expands growth plan {i}" for i in range(8)]))],
+                 earnings=earnings(days_until=80), calendar_catalysts=[ex_dividend(36)])
+    assert "Next catalyst: ex-dividend date in 36 days" in build_analysis(far).brief.summary
+
+
+def test_delta_tells_a_coverage_change_from_a_sentiment_change() -> None:
+    # Live GME: momentum went 34.7 -> 61.4 between two runs minutes apart only because GDELT loaded;
+    # the note also embedded '… since Oct 5 03:06 UTC' next to the UI's own local time.
+    first = scenarios.bullish_large_cap()
+    first.tone = None
+    before = build_analysis(first)
+    second = scenarios.bullish_large_cap()
+    from tests.analytics.factories import tone_trend
+    second.tone = tone_trend(base=0.9, recent=-0.2, percentile=0.02)  # GDELT arrives, and it is souring
+    second.previous = snapshot(0.2, sentinel=before.verdict.score, score=before.sentiment.score,
+                               label=before.verdict.stance, price=200.0)
+    second.previous_components = before.verdict.components
+    after = build_analysis(second)
+    assert abs(after.verdict.score - before.verdict.score) >= 5
+    note = after.delta.note or ""
+    assert "UTC" not in note and "since the last look" in note
+    assert note.startswith("Data coverage changed") and "momentum −" in note and "(now available)" in note
+    # Without the previous components the note falls back to the score move.
+    second.previous_components = None
+    assert build_analysis(second).delta.note.startswith("Sentiment")

@@ -13,8 +13,12 @@
    options flow, insider trades (Form-4 pay and plan transactions are not
    trades), regulatory approvals, rejections and enforcement, charges, equity
    offerings, legal relief, contract wins, index changes, trend endings, the
-   other camp's pain ("bears getting destroyed"); 13F bot headlines ("Vanguard
-   Group Inc. Raises Stake in X") are recognized and neutral.
+   other camp's pain ("bears getting destroyed"), rating templates ('Earns "Buy"
+   Rating'), distance below a high ("58% below its 52-week high": the high is the
+   reference, not the news), valuation calls ("30% above fair value", "prices in
+   far more than the numbers support"), sitting out someone else's move ("sit out
+   the rally"); 13F bot headlines ("Vanguard Group Inc. Raises Stake in X") are
+   recognized and neutral.
    A rule's word gap never crosses a clause, negator or second verb
    ("Lower Despite Strong Growth Outlook", "FDA did not approve"), and a
    negator inside a rule's span still negates it.
@@ -34,8 +38,14 @@
    hedges ("may", "reportedly"), intensifiers (adjectives only forward:
    "PT cut on limited upside"), questions ("Is X a buy?" asks; "Why is X
    down?" presupposes the drop) and listicles.
-5. Optional subject attribution (``target``): a move or results event whose
-   subject is another company ("SoFi falls 3%; Affirm drops 4%") counts 0.3x.
+5. Optional subject attribution (``target``): evidence in a clause that opens with
+   another company or the market ("Nike sinks 8%; Lululemon flat", "Twilio
+   downgraded, Synopsys upgraded", "Stocks tumble; Apple rises 2%"), and a move or
+   results event whose nearest subject is another company ("... as Affirm drops
+   4%"), counts 0.3x - 0.1x when the target's own clause states its non-move
+   ("remain flat", "sit out the rally") - and never overturns the target's own
+   evidence. ``Evidence.bystander`` / ``is_bystander`` flag texts that name the
+   target only beside someone else's news.
 
 In the social register, trader words ("long", "calls", "buying") only count
 in trading talk (a cashtag, an amount, trading vocabulary) and in a position
@@ -207,6 +217,7 @@ class Evidence:
     listicle: bool = False
     text_hedge: bool = False
     neutral_cues: int = 0  # explicit "no news" evidence: "in line with estimates", "unchanged", debt offerings
+    bystander: bool = False  # with a target: it is named only beside another company's news (see _attribute)
 
 
 @dataclass(slots=True)
@@ -675,6 +686,69 @@ def _offering(m: re.Match[str]) -> Optional[RuleMatch]:
     return RuleMatch(m.start(), m.end(), -0.7, "equity offering", "offering")
 
 
+NEAR_HIGH_PCT = 5.0  # "just 3% below its record high" is near-high framing: the level reading stands
+
+
+def _pct_value(raw: str) -> float:
+    try:
+        return float(raw.replace(",", "."))
+    except ValueError:
+        return 0.0
+
+
+def _off_high(m: re.Match[str]) -> Optional[RuleMatch]:
+    """"trades 58% below its 52-week high": distance from a high is a drawdown, scaled by its size
+    (the "high" there is the reference point, not the news)."""
+    p = _pct_value(m.group("p"))
+    if p < NEAR_HIGH_PCT:
+        return None
+    return RuleMatch(m.start(), m.end(), -0.55 * _pct_magnitude(p), f"{m.group('p')}% below its high", "off_high")
+
+
+def _fair_value(m: re.Match[str]) -> RuleMatch:
+    """"30% above fair value" is an overvaluation call (-), "below fair value" an undervaluation one (+)."""
+    above = m.group("side") in ("above", "over")
+    raw = m.group("p")
+    size = 0.55 * _pct_magnitude(_pct_value(raw)) if raw else 0.7
+    side = "above" if above else "below"
+    return RuleMatch(m.start(), m.end(), -size if above else size,
+                     f"{raw}% {side} fair value" if raw else f"{side} fair value", "valuation")
+
+
+_BEARISH_RUNS = ("selloff", "sell off", "decline", "slide", "rout", "slump", "drop", "plunge", "crash", "downturn",
+                 "carnage", "correction")
+
+
+def _too_far(m: re.Match[str]) -> RuleMatch:
+    """"the rally has gone too far" (-); "the selloff has gone too far" (oversold: +)."""
+    bearish_run = m.group("what").startswith(_BEARISH_RUNS)
+    return RuleMatch(m.start(), m.end(), 0.5 if bearish_run else -0.7,
+                     f"{' '.join(m.group('what').split())} gone too far", "valuation")
+
+
+def _rating_template(m: re.Match[str]) -> RuleMatch:
+    """Rating headlines without a change: 'Stock Now Rated "Buy"', 'Earns "Buy" Rating from Needham',
+    'Given Consensus Rating of "Moderate Buy"'. A stance, weaker than an upgrade; a consensus or
+    average rating (a bot summary of many brokers) weaker still."""
+    new = m.group("new") or m.group("new2")
+    consensus = bool(m.groupdict().get("cons"))
+    val = (0.45 if consensus else 0.6) * _rank(new)
+    label = f"{'consensus ' if consensus else ''}rated {' '.join(new.split())}"
+    return RuleMatch(m.start(), m.end(), val, label, "rating_template")
+
+
+_UP_RUNS = ("rally", "rallies", "gains", "surge", "run", "rebound", "recovery", "upswing", "boom", "bull")
+_SIT_OUT_DET = r"(?:the|this|that|today'?s|a|an|its|their|week'?s)"
+
+
+def _sit_out(m: re.Match[str]) -> RuleMatch:
+    """Not taking part: "SoFi sits out the rally" / "lags the rally" is mildly bad for the one left
+    behind, "sat out the selloff" mildly good. Either way the move itself is someone else's."""
+    missed_upside = m.group("what").startswith(_UP_RUNS)
+    what = " ".join(m.group("what").split())
+    return RuleMatch(m.start(), m.end(), -0.4 if missed_upside else 0.4, f"sits out the {what}", "sit_out")
+
+
 _RULES: list[tuple[str, re.Pattern[str], Callable[[re.Match[str]], Optional[RuleMatch]]]] = [
     # --- analyst rating changes / initiations / reiterations
     ("analyst", re.compile(
@@ -719,12 +793,58 @@ _RULES: list[tuple[str, re.Pattern[str], Callable[[re.Match[str]], Optional[Rule
                                 r"upped|cut|lowered|trimmed|reduced|slashed|decreased|pared)\b(?=\s+(?:to|at|by|on|"
                                 r"from|after|following|amid|as)\b|\s*[.;,:!?)]|\s*$)(?P<tail>[^.;!?]{0,50})"),
      _price_target),
+    # rating headlines with no change (MarketBeat templates); after the analyst rules, which win overlaps
+    ("rating_template", re.compile(
+        r"(?<!\btop\s)(?<!\bbest\s)(?<!\bhighest\s)(?<!\bhigher\s)\brated\s+(?:as\s+)?(?:an?\s+)?['\"]?"
+        r"(?P<new>" + RATING + r")\b(?!\s+(?:with|and|&)\b)['\"]?"), _rating_template),
+    ("rating_template", re.compile(
+        r"\b(?:earns?|earned|earning|given|gets?|got|receives?|received|receiving|assigned|has|have|had|holds?|"
+        r"held|carr(?:y|ies)|carrying|with|boasts?)\s+(?:an?\s+|the\s+|its\s+)?"
+        r"(?:(?P<cons>average|consensus|analysts?'?|street)\s+)?"
+        r"(?:(?:rating|recommendation)\s+of\s+(?:an?\s+)?['\"]?(?P<new>" + RATING + r")\b['\"]?"
+        r"|['\"]?(?P<new2>" + RATING + r")['\"]?\s+(?:rating|recommendation)s?\b)"), _rating_template),
+    # --- distance from a high and valuation calls: the "high" / "rally" there is the reference, not the news
+    ("off_high", re.compile(
+        r"(?<![\w.])(?P<p>\d+(?:[.,]\d+)?)\s?(?:%|percent\b|per\s?cent\b|pct\b)\s+(?:below|under|beneath|off|"
+        r"short\s+of|shy\s+of)\s+(?:(?:its|their|the|a|an|this|that|recent|prior|previous|last)\s+){0,2}"
+        r"(?:(?:(?:\d+\s+(?:day|week|month|year)|52\s+week|all\s+time|alltime|record|lifetime|multi\s+year|"
+        r"pandemic\s+era|\d{4})\s+)?(?:highs?|peaks?|record(?:\s+highs?)?)|(?:ipo|offering|listing|issue)\s+price)\b"),
+     _off_high),
+    ("valuation", re.compile(
+        r"(?:(?<![\w.])(?P<p>\d+(?:[.,]\d+)?)\s?(?:%|percent\b|pct\b)\s+)?\b(?P<side>above|over|below|under|beneath)\s+"
+        r"(?:(?:its|our|the|their|his|her|an?|estimated|analysts?'?|morningstar'?s?)\s+){0,2}(?:fair|intrinsic)\s+"
+        r"value\b"), _fair_value),
+    ("valuation", re.compile(
+        r"\b(?:(?:rally|run\s+up|surge|valuation|stock|shares|price|market)\s+(?:already\s+|now\s+)?)?"
+        r"price[sd]?\s+in\s+(?:far\s+|much\s+|way\s+|a\s+lot\s+|significantly\s+)?(?:more\s+than|too\s+much)"
+        r"(?:\s+(?:what\s+)?(?:the\s+)?(?:numbers|fundamentals|earnings|results|growth|data)\s+(?:can\s+|could\s+)?"
+        r"(?:supports?|justif(?:y|ies)|warrants?|suggests?))?"),
+     _fixed(-0.8, "prices in more than fundamentals support", "valuation")),
+    ("valuation", re.compile(
+        r"\b(?P<what>rally|rallies|run\s+up|surge|gains|rebound|bounce|valuations?|selloff|sell\s+off|decline|slide|"
+        r"rout|slump|drop|plunge|crash|correction)\s+(?:(?:in|of|on|for)\s+(?:[^\s.;!?,]+\s+){1,3}?)?"
+        r"(?:(?:has|have|may|might|could|is|was|already)\s+){0,2}(?:gone|run|went|go|going)\s+too\s+far\b"),
+     _too_far),
+    # not taking part in someone else's move: "SoFi and Robinhood sit out the rally", "lags the rally"
+    ("sit_out", re.compile(
+        r"\b(?:(?:sits?|sat|sitting|miss(?:es|ed|ing)?|left|leaves|leaving)\s+out\s+(?:on\s+|of\s+)?"
+        r"(?:" + _SIT_OUT_DET + r"\s+)?|(?:lag(?:s|ged|ging)?|trail(?:s|ed|ing)?|miss(?:es|ed|ing)?)\s+"
+        + _SIT_OUT_DET + r"\s+)"
+        # up to two modifiers ("the fintech rally"), never a clause word or an estimate noun
+        r"(?:(?!(?:as|after|amid|while|but|on|in|with|and|to|of|for|from|estimates?|expectations?|views?|"
+        r"forecasts?|consensus)\b)[a-z0-9&'-]+\s+){0,2}?"
+        r"(?P<what>rally|rallies|gains|surge|run\s+up|rebound|recovery|upswing|boom|bull\s+run|selloff|sell\s+off|"
+        r"rout|slump|decline|slide|plunge|crash|downturn|carnage|correction)\b"), _sit_out),
     # --- earnings vs. expectations
+    # after a determiner or possessive, "top"/"best" are adjectives: "Wall Street's top analyst calls",
+    # "the best analysts" (a column title, not a beat); "tops analysts' views" still is one
     ("beat", re.compile(
-        r"\b(?:beat(?:s|ing)?|top(?:s|ped|ping)?|exceed(?:s|ed|ing)?|surpass(?:es|ed|ing)?|crush(?:es|ed)?|"
+        r"\b(?<!'s\s)(?<!\bthe\s)(?<!\ba\s)(?<!\bits\s)(?<!\btheir\s)(?<!\bour\s)"
+        r"(?:beat(?:s|ing)?|top(?:s|ped|ping)|top(?!\s+analysts?\b(?!'))|exceed(?:s|ed|ing)?|"
+        r"surpass(?:es|ed|ing)?|crush(?:es|ed)?|"
         r"smash(?:es|ed)?|trounce[sd]?|outstrip(?:s|ped)?|blow(?:s)?\s+past|blew\s+past|blow(?:s)?\s+away|"
-        r"blew\s+away|best(?:s|ed)?|clear(?:s|ed)?|outpace[sd]?|(?:squeak|edge|sail|breeze|cruise|race|zoom)"
-        r"(?:s|d|ed)?\s+(?:past|by|over))" + _gap(5) + _EXP + r"\b"),
+        r"blew\s+away|best(?:s|ed)|best(?!\s+analysts?\b(?!'))|clear(?:s|ed)?|outpace[sd]?|"
+        r"(?:squeak|edge|sail|breeze|cruise|race|zoom)(?:s|d|ed)?\s+(?:past|by|over))" + _gap(5) + _EXP + r"\b"),
      _fixed(1.0, "beats estimates", "beat")),
     ("beat", re.compile(r"\b(?:beat(?:s)?|tops|topped|exceed(?:s|ed)?)\s+(?:[^\s.;!?]+\s+){0,2}?" + _BY_ON),
      _fixed(1.0, "beats", "beat")),
@@ -1003,6 +1123,11 @@ _TRIGGERS: dict[str, tuple[str, ...]] = {
     "analyst_reiterate": ("reiterat", "maintain", "keep", "kept", "affirm", "retain", "repeat", "stick", "stay",
                           "remain"),
     "price_target": ("target", "pt", "tgt", "objective"),
+    "rating_template": ("rated", "rating", "recommendation"),
+    "off_high": ("below", "under", "beneath", "off", "short of", "shy of"),
+    "valuation": ("fair value", "intrinsic value", "price in", "prices in", "priced in", "too far"),
+    "sit_out": ("sit out", "sits out", "sat out", "sitting out", "miss", "left out", "leaves out", "leaving out",
+                "lag", "trail"),
     "beat": ("beat", "top", "exceed", "surpass", "crush", "smash", "trounce", "outstrip", "blow", "blew", "best",
              "clear", "outpac", "squeak", "edge", "sail", "breez", "cruis", "race", "zoom"),
     "miss": ("miss", "short", "shy", "undersh", "came in", "come in", "comes in", "trail", "lag", "meet", "match",
@@ -1919,7 +2044,7 @@ def extract(text: str, *, social: bool = False, target: Optional[Sequence[str]] 
 
     _apply_modifiers(ev, tokens, at, spans, hits, low)
     if target:
-        _attribute(norm, tokens, at, claimed, hits, target)
+        _attribute(norm, tokens, at, claimed, hits, target, ev)
     for h in hits:
         if not h.term:
             h.term = _term(norm, tokens, h)
@@ -2277,13 +2402,17 @@ def _negator_for(tokens: list[Token], at: list[Optional[_Span]], negators: list[
 # Subject attribution (optional): whose move is it?
 # --------------------------------------------------------------------------- #
 OFF_TARGET_FACTOR = 0.3  # a peer's move in the analysed company's headline is context, not its news
+OFF_TARGET_STATED_FACTOR = 0.1  # ... and less still when the text states the target's own (non-)move
+BYSTANDER_SHARE = 0.25  # own evidence below this share of the peers' evidence: the target is a bystander
+_STATED_RULES = frozenset({"rule:sit_out"})  # the target's own non-participation ("sits out the rally")
 # Evidence whose grammatical subject is the company it is about. Analyst, regulatory and legal rules
 # are not here: their subject is the actor ("Morgan Stanley raises ...") and the company the object.
 _SUBJECT_RULES = frozenset({"rule:beat", "rule:miss", "rule:guidance", "rule:job_cuts", "rule:reported_loss",
                             "rule:swing", "rule:charge", "rule:vs_consensus", "rule:eps_loss", "rule:above_exp",
                             "rule:below_exp", "rule:offering", "rule:bankruptcy", "rule:going_concern",
                             "rule:contract_win", "rule:license", "rule:returns", "rule:streak", "rule:pct_loss",
-                            "rule:metric_hit", "rule:numbers"})
+                            "rule:metric_hit", "rule:numbers", "rule:rating_template", "rule:off_high",
+                            "rule:valuation", "rule:sit_out"})
 # capitalized words that are not company names (title-case headlines capitalize everything)
 _NAME_STOP = frozenset("""
 the a an is are was were be been being has have had will would can could may might should must do does did
@@ -2421,15 +2550,156 @@ def _subject_is_other(norm: str, tokens: list[Token], at: list[Optional[_Span]],
     return False
 
 
+def _plural_common(word: str) -> bool:
+    """"critics", "shoppers": in Title Case a lone plural word opening a clause is rarely a company."""
+    return len(word) > 3 and word.endswith("s") and not word.endswith(("ss", "us", "is", "ys"))
+
+
+def _verb_like(tokens: list[Token], at: list[Optional[_Span]], h: Hit) -> bool:
+    """Does ``h`` read as a clause's predicate even in Title Case ("Sinks 8%", "Upgraded", "Earns
+    'Buy' Rating"), not a noun ("Real Recovery", "Data Center Comeback")?"""
+    if h.source.startswith("rule:") or any(tokens[x].kind in ("pct", "num") for x in range(h.start, h.end)):
+        return True
+    sp = at[h.anchor] if 0 <= h.anchor < len(at) else None
+    if h.source == "move" and sp is not None and sp.direction is not None:
+        return sp.direction.pos in ("v", "p", "o", "q")
+    return tokens[h.anchor].text.endswith("ed")
+
+
+def _opening_subject(norm: str, tokens: list[Token], at: list[Optional[_Span]], claimed: bytearray,
+                     targets: set[int], anchors: dict[int, Hit], title: bool, lo: int, hi: int) -> Optional[str]:
+    """Who the clause tokens[lo:hi] is about, read from the name run that opens it: "target", "other"
+    (another company) or None (the market, an anaphoric "Shares ...", a speaker, a common noun).
+
+    A run counts only with a company signal: its own predicate right after it ("Nike Sinks 8%",
+    "Synopsys upgraded" - in Title Case a verb-like one, since every word is capitalized there), a
+    possessive or price noun ("Nike's", "Nike shares") or a cashtag."""
+    j = lo
+    while j < hi and tokens[j].kind == "soft":
+        j += 1
+    start = j
+    has_target = False
+    while j < hi and (j in targets or _is_name(norm, tokens, at, claimed, j)):
+        has_target = has_target or j in targets
+        j += 1
+    if j == start:
+        return None
+    k = j
+    while k < hi and tokens[k].text in _AUX:
+        k += 1
+    last = tokens[j - 1]
+    pred = anchors.get(k) if k < hi else None
+    signal = (pred is not None and (not title or _verb_like(tokens, at, pred))) \
+        or norm[last.start: last.end].lower().endswith("'s") \
+        or (j < hi and tokens[j].text in ("stock", "stocks", "shares")) \
+        or any(tokens[x].kind == "tag" for x in range(start, j))
+    if not signal:
+        return None
+    if has_target:
+        return "target"
+    if title and j - start == 1 and _plural_common(tokens[start].text):
+        return None
+    return "other"
+
+
+def _skip_soft(tokens: list[Token], i: int) -> int:
+    while i < len(tokens) and tokens[i].kind == "soft":
+        i += 1
+    return i
+
+
+def _segments(norm: str, tokens: list[Token], at: list[Optional[_Span]], claimed: bytearray, targets: set[int],
+              anchors: dict[int, Hit], title: bool) -> list[int]:
+    """Clause id per token: sentences (hard breaks), further split at a comma or colon that opens a
+    clause with its own subject once the left part has evidence ("Twilio downgraded, Synopsys
+    upgraded"). A list of names is not a clause ("Lululemon, Nike shares fall")."""
+    n = len(tokens)
+    seg = [0] * n
+    sid, evidence = 0, False
+    sep_after = [n] * n  # index of the next hard break
+    nxt = n
+    for i in range(n - 1, -1, -1):
+        sep_after[i] = nxt
+        if tokens[i].kind == "sep":
+            nxt = i
+    for i, t in enumerate(tokens):
+        if t.kind == "sep":
+            seg[i] = sid
+            sid, evidence = sid + 1, False
+            continue
+        if t.kind == "soft" and t.text in (",", ":") and evidence and _opening_subject(
+                norm, tokens, at, claimed, targets, anchors, title, i + 1, sep_after[i]) is not None:
+            sid, evidence = sid + 1, False
+        seg[i] = sid
+        evidence = evidence or i in anchors
+    return seg
+
+
 def _attribute(norm: str, tokens: list[Token], at: list[Optional[_Span]], claimed: bytearray, hits: list[Hit],
-               target: Sequence[str]) -> None:
-    """Down-weight moves and results events whose subject is another named company - only when the
-    target is mentioned at all (otherwise the caller's relevance filter decides)."""
+               target: Sequence[str], ev: Evidence) -> None:
+    """Down-weight evidence that belongs to another named company - only when the target is mentioned
+    at all (otherwise the caller's relevance filter decides).
+
+    * A clause that does not name the target but opens with another company is that company's news,
+      one that opens with the market is the market's: all its evidence is context ("Nike Sinks 8% on
+      Weak Outlook; Lululemon Flat", "Twilio downgraded, Synopsys upgraded", "Stocks tumble; Apple
+      rises 2%").
+    * Inside a clause that names the target, a move or results event whose nearest subject is
+      another company is context too ("Affirm Drops 4% as SoFi holds steady").
+    * When the target's own clause states its (non-)move ("remain flat", "unchanged", "sit out the
+      rally"), the text has told us what happened to the target: peers' news counts even less.
+    """
     targets = _target_positions(tokens, norm, target)
     if not targets:
         return
     title = _title_case(norm, tokens)
+    anchors: dict[int, Hit] = {}
+    for h in hits:  # the strongest piece of evidence anchored at each token
+        if h.anchor not in anchors or abs(h.valence) > abs(anchors[h.anchor].valence):
+            anchors[h.anchor] = h
+    seg = _segments(norm, tokens, at, claimed, targets, anchors, title)
+    n_seg = seg[-1] + 1
+    seg_target = [False] * n_seg
+    for j in targets:
+        seg_target[seg[j]] = True
+    bounds: dict[int, list[int]] = {}
+    for i, s in enumerate(seg):
+        bounds.setdefault(s, [i, i + 1])[1] = i + 1
+    seg_context = [not seg_target[s] and (
+        _opening_subject(norm, tokens, at, claimed, targets, anchors, title, *bounds[s]) == "other"
+        or _market_subject(tokens, _skip_soft(tokens, bounds[s][0]))) for s in range(n_seg)]
+    off: list[Hit] = []
     for h in hits:
-        if (h.source == "move" or h.source in _SUBJECT_RULES) and _subject_is_other(norm, tokens, at, claimed,
-                                                                                   targets, h, title):
-            h.weight *= OFF_TARGET_FACTOR
+        s = seg[min(h.anchor, len(seg) - 1)]
+        if seg_context[s]:
+            off.append(h)
+        elif (h.source == "move" or h.source in _SUBJECT_RULES) and _subject_is_other(norm, tokens, at, claimed,
+                                                                                     targets, h, title):
+            off.append(h)
+    if not off:
+        return
+    off_ids = {id(h) for h in off}  # identity: two hits may compare equal field by field
+    own = [h for h in hits if id(h) not in off_ids]
+    stated = any(h.source in _STATED_RULES and seg_target[seg[h.anchor]] for h in own) or any(
+        seg_target[seg[j]] and sp is not None and sp.neutral and sp.key in lx.NEUTRAL_CUES for j, sp in enumerate(at))
+    own_mass = sum(abs(h.value) for h in own if h.source not in _STATED_RULES)
+    off_mass = sum(abs(h.value) for h in off)
+    lead = seg[min(min(h.anchor for h in hits), len(seg) - 1)]  # the clause carrying the first evidence
+    ev.bystander = not seg_target[lead] and own_mass <= BYSTANDER_SHARE * off_mass
+    factor = OFF_TARGET_STATED_FACTOR if stated else OFF_TARGET_FACTOR
+    for h in off:
+        h.weight *= factor
+    # like context clauses, others' news never overturns the target's own ("Stocks tumble; Apple rises 2%")
+    own_sum, off_sum = sum(h.value for h in own), sum(h.value for h in off)
+    if own_sum and off_sum and (own_sum > 0) != (off_sum > 0) and abs(off_sum) > BACKGROUND_CAP * abs(own_sum):
+        scale = BACKGROUND_CAP * abs(own_sum) / abs(off_sum)
+        for h in off:
+            h.weight *= scale
+
+
+def is_bystander(text: str, target: Sequence[str]) -> bool:
+    """Is ``target`` named in ``text`` only as a bystander of another company's (or the market's)
+    news ("Nike Sinks 8% ...; Lululemon and On Holding Remain Flat")? The news leads with someone
+    else and the target's own clause carries no evidence beyond a stated non-move. For relevance
+    scoring: such a headline is about the other company. False when the target is not named."""
+    return extract(text, target=target).bystander

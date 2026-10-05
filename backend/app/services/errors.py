@@ -32,6 +32,10 @@ class AnalysisFailed(Unavailable):
     """Synthesis itself failed (provider failures never raise; they degrade)."""
 
 
+class NoEvidence(Unavailable):
+    """A run where every source and data feed failed: nothing to report or store (the monitor backs off)."""
+
+
 class Busy(Unavailable):
     """A bounded work queue is full (e.g. the sentiment lab); retry shortly."""
 

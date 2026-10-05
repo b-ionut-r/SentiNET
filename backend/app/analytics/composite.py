@@ -26,7 +26,10 @@ Each component maps its evidence to a signed strength x in [-1, 1]
   after an event day: +0.30 → +0.14 when +0.04 is typical) counts half, it is
   damped unless it is ~2 standard errors, and it is shrunk for small samples
   (k/(k+15), k = items in the thinner window) — so on its own it reads at most
-  as a mild lean unless headlines turn decisively.
+  as a mild lean unless headlines turn decisively. Without GDELT, a shift is
+  named in the headline only when decisive (|x| >= 0.15), and one that only
+  returns toward the typical tone reads "Headline tone normalizing", never
+  "cooling"/"deteriorating".
 * technicals: x = tanh(0.35 · mean z) where each z is a return or DMA
   distance, net of the typical market drift (+0.8%/month — an ordinary uptrend
   is the baseline, as +0.04 is for news tone), in units of its
@@ -350,8 +353,67 @@ def not_applicable(asset: str) -> str | None:
     return f"n/a for {name}" if name else None
 
 
-def analysts_part(view: AnalystView | None, now: datetime, asset: str = "EQUITY") -> Part:
-    """Consensus rating vs typical, upside to the mean target, revision momentum."""
+@dataclass(frozen=True)
+class Upside:
+    """Upside to the analyst targets, robust to a skewed target distribution.
+
+    The mean target is used when the median agrees with it; when they differ
+    by more than TARGET_SPLIT points the median (robust to one outlier target)
+    is used; when they point opposite ways the targets sit at about the price
+    (upside 0): AAPL with a mean 1.7% below and a median 1.9% above the price
+    is not "targets below the price"."""
+
+    mean: float | None
+    median: float | None
+
+    @property
+    def split(self) -> bool:
+        return self.mean is not None and self.median is not None and self.mean * self.median < 0
+
+    @property
+    def skewed(self) -> bool:
+        return (self.mean is not None and self.median is not None and not self.split
+                and abs(self.mean - self.median) > TARGET_SPLIT)
+
+    @property
+    def value(self) -> float | None:
+        if self.split:
+            return 0.0
+        return self.median if self.skewed else self.mean
+
+
+TARGET_SPLIT = 3.0  # points between mean and median upside beyond which the mean is skewed by outliers
+
+
+def upside(view: AnalystView) -> Upside:
+    """Mean and median target upside in percent (the median needs the price implied by the mean)."""
+    median = None
+    if view.upside_pct is not None and view.target_mean and view.target_median and view.upside_pct > -100:
+        price = view.target_mean / (1 + view.upside_pct / 100)
+        if price > 0:
+            median = (view.target_median / price - 1) * 100
+    return Upside(view.upside_pct, median)
+
+
+def target_clause(view: AnalystView, up: Upside, currency: str | None = "USD") -> str | None:
+    """'mean target $327.70 is 40% above the price' — or the median / 'about the price' when the mean misleads."""
+    if up.mean is None or view.target_mean is None:
+        return None
+    mean = money(view.target_mean, price=True, currency=currency)
+    if up.split and view.target_median is not None:
+        return (f"targets sit at about the price (mean {mean}, {pct(up.mean)}; median "
+                f"{money(view.target_median, price=True, currency=currency)}, {pct(up.median or 0.0)})")
+    if up.skewed and view.target_median is not None and up.median is not None:
+        side = "above" if up.median >= 0 else "below"
+        return (f"median target {money(view.target_median, price=True, currency=currency)} is "
+                f"{pct(abs(up.median), sign=False)} {side} the price (mean {mean}, {pct(up.mean)})")
+    side = "above" if up.mean >= 0 else "below"
+    return f"mean target {mean} is {pct(abs(up.mean), sign=False)} {side} the price"
+
+
+def analysts_part(view: AnalystView | None, now: datetime, asset: str = "EQUITY",
+                  currency: str | None = "USD") -> Part:
+    """Consensus rating vs typical, upside to the targets (see `Upside`), revision momentum."""
     part = Part("analysts", detail="no analyst coverage")
     if view is None:
         part.detail = not_applicable(asset) or part.detail
@@ -359,12 +421,14 @@ def analysts_part(view: AnalystView | None, now: datetime, asset: str = "EQUITY"
     subs: list[Sub] = []
     total = view.total
     rating_x = upside_x = None
+    target = upside(view)
+    up = target.value
     if view.mean_rating is not None:
         shrink = total / (total + 3) if total else 0.5
         rating_x = clamp(0.56 * (RATING_BASELINE - view.mean_rating), -1, 1) * shrink
         subs.append(Sub(rating_x, (total / (total + 5)) if total else 0.3, 0.45))
-    if view.upside_pct is not None:
-        upside_x = squash(view.upside_pct - UPSIDE_BASELINE, 30.0)
+    if up is not None:
+        upside_x = squash(up - UPSIDE_BASELINE, 30.0)
         subs.append(Sub(upside_x, 0.8 if total >= 5 else 0.5, 0.30))
     rev = revisions(view, now)
     net = (view.upgrades_90d - view.downgrades_90d) + 0.5 * (rev.raises_30d - rev.cuts_30d)
@@ -384,15 +448,17 @@ def analysts_part(view: AnalystView | None, now: datetime, asset: str = "EQUITY"
         head.append(f"{name}" + (f" ({view.mean_rating:.2f})" if view.mean_rating is not None else ""))
     if total:
         head.append(count(total, "analyst"))
-    if view.upside_pct is not None:
-        head.append(f"target {pct(view.upside_pct)}")
+    if target.split:
+        head.append("target ≈ price")
+    elif up is not None:
+        head.append(f"{'median ' if target.skewed else ''}target {pct(up)}")
     rev_bits = []
     if rev.raises_30d or rev.cuts_30d:
         rev_bits.append(f"30d PT: {rev.raises_30d} up / {rev.cuts_30d} down")
     if view.upgrades_90d or view.downgrades_90d:
         rev_bits.append(f"90d: {view.upgrades_90d} upgrades / {view.downgrades_90d} downgrades")
     part.detail = " · ".join(head + rev_bits) or "coverage without ratings"
-    part.facts.update(name=name, net=net, revisions=rev)
+    part.facts.update(name=name, net=net, revisions=rev, upside=target)
 
     clauses = []
     if name:
@@ -400,20 +466,23 @@ def analysts_part(view: AnalystView | None, now: datetime, asset: str = "EQUITY"
             f" (mean {view.mean_rating:.2f}" + (f" from {count(total, 'analyst')})" if total else ")")
             if view.mean_rating is not None else "")
         clauses.append(rated)
-    if view.target_mean is not None and view.upside_pct is not None:
-        side = "above" if view.upside_pct >= 0 else "below"
-        clauses.append(f"mean target {money(view.target_mean, price=True)} is {pct(abs(view.upside_pct), sign=False)} "
-                       f"{side} the price")
+    said = target_clause(view, target, currency)
+    if said:
+        clauses.append(said)
     if rev_bits:
         clauses.append("; ".join(rev_bits))
-    mixed = rating_x is not None and upside_x is not None and rating_x * upside_x < 0 and \
-        min(abs(rating_x), abs(upside_x)) >= 0.08
-    if mixed and len(clauses) >= 2:  # "Hold consensus (…), but mean target … is 29% above the price"
+    # The rating and the targets argue opposite ways: a Buy consensus with no upside left, or a
+    # Hold/Sell with targets well above the price.
+    rated_side = 1 if name in ("Buy", "Strong Buy") else -1 if name in ("Sell", "Strong Sell") else 0
+    target_side = 0 if up is None else 1 if up >= UPSIDE_BASELINE else -1 if up <= 0 else 0
+    mixed = (rating_x is not None and upside_x is not None and rating_x * upside_x < 0
+             and min(abs(rating_x), abs(upside_x)) >= 0.08) or (rated_side * target_side < 0)
+    if mixed and name and said and len(clauses) >= 2:  # "Buy consensus (…), but mean target … is 11% below the price"
         clauses[:2] = [f"{clauses[0]}, but {clauses[1]}"]
     lead = "Analysts mixed" if mixed else _pick(x, "Analysts bullish", "Analysts cautious", "Analysts neutral")
     part.reason = f"{lead}: " + "; ".join(clauses) if clauses else None
-    up = view.upside_pct
-    to_target = f"{pct(up)} to target" if up is not None else None
+    to_target = ("targets ≈ the price" if target.split
+                 else f"{pct(up)} to {'median ' if target.skewed else ''}target" if up is not None else None)
     if name and to_target:
         bull = f"a {name} consensus ({to_target})"
     elif to_target:
@@ -421,8 +490,9 @@ def analysts_part(view: AnalystView | None, now: datetime, asset: str = "EQUITY"
     else:
         bull = f"a {name} consensus" if name else "bullish analyst revisions"
     if up is not None and up < 0:
-        bear = (f"a {name} consensus with targets {pct(abs(up), sign=False)} below the price" if name
-                else f"analyst targets {pct(abs(up), sign=False)} below the price")
+        which = "median target" if target.skewed else "targets"
+        bear = (f"a {name} consensus with {which} {pct(abs(up), sign=False)} below the price" if name
+                else f"analyst {which} {pct(abs(up), sign=False)} below the price")
     elif up is not None and up < UPSIDE_BASELINE / 2:
         bear = f"limited analyst upside ({to_target}" + (f", {name})" if name else ")")
     elif rev.cuts_30d + view.downgrades_90d > rev.raises_30d + view.upgrades_90d:
@@ -439,8 +509,10 @@ def analysts_part(view: AnalystView | None, now: datetime, asset: str = "EQUITY"
 # Insiders
 # --------------------------------------------------------------------------- #
 def insiders_part(view: InsiderView | None, market_cap: float | None, now: datetime,
-                  asset: str = "EQUITY") -> Part:
-    """Open-market insider flow: clustered buying is strong, selling is routine-scaled."""
+                  asset: str = "EQUITY", currency: str | None = "USD") -> Part:
+    """Open-market insider flow: clustered buying is strong, selling is routine-scaled.
+
+    `currency` is that of the trade values (None: unknown, shown without a symbol)."""
     part = Part("insiders", detail="no open-market insider trades")
     if view is None or (view.buys == 0 and view.sells == 0):
         if view is None:
@@ -466,7 +538,8 @@ def insiders_part(view: InsiderView | None, market_cap: float | None, now: datet
     part.score = to_100(x)
     part.confidence = clamp(trades / (trades + 4) * (1.0 if view.buys else 0.7))
     window = f"{view.window_days}d"
-    part.detail = (f"{view.buys} buys ({money(view.buy_value)}) / {view.sells} sells ({money(view.sell_value)}) · "
+    bought, sold = money(view.buy_value, currency=currency), money(view.sell_value, currency=currency)
+    part.detail = (f"{view.buys} buys ({bought}) / {view.sells} sells ({sold}) · "
                    f"{window}")
     buyers = len(latest_by_buyer) or None
     part.facts.update(buyers=buyers, sell_bps=sell_bps, buy_signal=buy_signal)
@@ -475,16 +548,16 @@ def insiders_part(view: InsiderView | None, market_cap: float | None, now: datet
     days = f"{view.window_days} days"
     if view.buys:
         lead = "Insider buying" if x >= 0 else "Net insider selling"
-        sells = f" vs {count(view.sells, 'sale')} ({money(view.sell_value)}{share})" if view.sells else ", no sales"
-        part.reason = (f"{lead}: {count(view.buys, 'open-market purchase')} ({money(view.buy_value)}){who} "
+        sells = f" vs {count(view.sells, 'sale')} ({sold}{share})" if view.sells else ", no sales"
+        part.reason = (f"{lead}: {count(view.buys, 'open-market purchase')} ({bought}){who} "
                        f"in {days}{sells}")
-        bear = f"net insider selling ({money(view.sell_value)} sold vs {money(view.buy_value)} bought)"
+        bear = f"net insider selling ({sold} sold vs {bought} bought)"
     else:
         routine = " — routine-sized for its market cap" if sell_bps is not None and sell_bps < 5 else ""
-        part.reason = (f"Insider selling only: {count(view.sells, 'open-market sale')} ({money(view.sell_value)}{share}) "
+        part.reason = (f"Insider selling only: {count(view.sells, 'open-market sale')} ({sold}{share}) "
                        f"and no purchases in {days}{routine}")
-        bear = f"insider selling ({money(view.sell_value)}{share})"
-    part.phrase, part.strong = _phrase(x, f"insider buying ({money(view.buy_value)}{who})", bear)
+        bear = f"insider selling ({sold}{share})"
+    part.phrase, part.strong = _phrase(x, f"insider buying ({bought}{who})", bear)
     return part
 
 
@@ -521,26 +594,44 @@ def momentum_part(tone: ToneTrend | None, recent: Summary, older: Summary) -> Pa
     x, conf = blended
     part.score, part.confidence = to_100(x), conf
     part.detail = " · ".join(bits)
+    gdelt = tone is not None and tone.change_7d_vs_30d is not None
+    # Without GDELT, a 48h shift that only drifts back toward the typical tone is the news cycle
+    # settling after an event day (+0.27 -> +0.13 when +0.04 is typical), not a change of mood.
+    normalizing = not gdelt and shift is not None and shift.normalizing and abs(x) >= 0.1
     level = tone.tone_7d if tone is not None and tone.tone_7d is not None else recent.mean
-    if x >= 0.1:
+    if normalizing:
+        lead = "Headline tone normalizing"
+        typical = f" (typical is {signed(NEWS_BASELINE)})"
+    elif x >= 0.1:
         lead = "Sentiment turning positive" if level is not None and level > 0 and _was_negative(tone, older) \
             else "Sentiment improving"
+        typical = ""
     elif x <= -0.1:
         lead = "Sentiment cooling" if level is not None and level > 0 else "Sentiment deteriorating"
+        typical = ""
     else:
-        lead = "Sentiment trend flat"
-    part.reason = f"{lead}: " + "; ".join(reason_bits)
+        lead, typical = "Sentiment trend flat", ""
+    part.reason = f"{lead}: " + "; ".join(reason_bits) + typical
     verb_up, verb_down = "improving", ("cooling" if level is not None and level > 0 else "deteriorating")
-    if tone is not None and tone.change_7d_vs_30d is not None:
+    if gdelt:
+        assert tone is not None and tone.change_7d_vs_30d is not None
         part.phrase, part.strong = _phrase(
             x, f"{verb_up} global news tone (GDELT {signed(tone.change_7d_vs_30d)} vs 30d)",
             f"{verb_down} global news tone (GDELT {signed(tone.change_7d_vs_30d)} vs 30d)")
-    elif shift is not None:
+    elif shift is not None and abs(x) >= PHRASE_MARGIN:
+        # A lone 48h shift is short-window evidence: it is named in the headline only when it is
+        # decisive on its own (a mild lean from it is never a "main drag").
         r, o = signed(shift.recent), signed(shift.older)
-        part.phrase, part.strong = _phrase(x, f"{verb_up} headlines ({r} in 48h vs {o} before)",
-                                           f"{verb_down} headlines ({r} in 48h vs {o} before)")
-    part.facts.update(tone_change=tone.change_7d_vs_30d if tone else None, shift=shift,
-                      gdelt=tone is not None and tone.change_7d_vs_30d is not None)
+        if normalizing:
+            up, down = (f"easing headline pessimism ({r} in 48h vs {o} before)",
+                        f"fading headline optimism ({r} in 48h vs {o} before)")
+        else:
+            up, down = (f"{verb_up} headlines ({r} in 48h vs {o} before)",
+                        f"{'cooling' if shift.recent > NEWS_BASELINE else 'deteriorating'} headlines "
+                        f"({r} in 48h vs {o} before)")
+        part.phrase, part.strong = _phrase(x, up, down)
+    part.facts.update(tone_change=tone.change_7d_vs_30d if tone else None, shift=shift, gdelt=gdelt,
+                      normalizing=normalizing)
     return part
 
 
@@ -557,6 +648,12 @@ class Shift:
     @property
     def change(self) -> float:
         return self.recent - self.older
+
+    @property
+    def normalizing(self) -> bool:
+        """The recent window only moved back toward the typical tone (without crossing it)."""
+        before, after = self.older - NEWS_BASELINE, self.recent - NEWS_BASELINE
+        return before * after >= 0 and abs(after) < abs(before)
 
     @property
     def strength(self) -> float:
@@ -657,6 +754,31 @@ def technicals_part(t: Technicals | None) -> Part:
         part.phrase, part.strong = _phrase(x, f"{up} ({horizon})", f"{down} ({horizon})",
                                            f"a firm tape ({horizon})", f"a soft tape ({horizon})")
     part.facts.update(sigma_month=sigma, z=z)
+    return part
+
+
+# --------------------------------------------------------------------------- #
+# Pending acquisition
+# --------------------------------------------------------------------------- #
+DEAL_DAMPING = 0.5  # strength and confidence kept by price-anchored components while a deal is pending
+
+
+def deal_anchored(part: Part) -> Part:
+    """Discount a component whose evidence a pending acquisition has made stale.
+
+    Once the company has agreed to be acquired its price tracks the deal terms:
+    analyst targets set before the agreement and the price trend that jumped on
+    it no longer measure sentiment, so both keep half their strength and
+    confidence and say why (the deal itself leads the verdict; see deals.py)."""
+    if part.score is None:
+        return part
+    part.score = 50.0 + (part.score - 50.0) * DEAL_DAMPING
+    part.confidence *= DEAL_DAMPING
+    part.detail += " · discounted: deal pending"
+    if part.reason:
+        part.reason += " (discounted: a pending acquisition anchors the price to the deal terms)"
+    part.strong = False
+    part.facts["deal_anchored"] = True
     return part
 
 

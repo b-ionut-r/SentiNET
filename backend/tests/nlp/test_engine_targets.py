@@ -115,3 +115,66 @@ def test_target_terms_and_every_engine_accepts_targets() -> None:
     text = "$BTC.X up 3%, $ETH.X down 5%"
     assert VaderEngine().score([text], ["social"], [target_terms(btc)])[0].label in ("bullish", "bearish", "neutral")
     assert SentinelEngine().score([text], ["social"], [target_terms(btc)])[0].label == "bullish"
+
+
+# --- final review (live Google News items, 2026-10-05): a bystander must not inherit the peer's tone
+LULU = ["LULU", "Lululemon", "Lululemon Athletica"]
+TWLO = ["TWLO", "Twilio", "Twilio Inc."]
+
+
+@pytest.mark.parametrize(("text", "target"), [
+    ("Nu Holdings Jumps 3% After Ruling Out Monzo Deal; SoFi and Robinhood Sit Out the Rally", SOFI),
+    ("Nike Sinks 8% as Weak Outlook and Layoffs Follow Revenue Miss; Lululemon and On Holding Remain Flat", LULU),
+    ("Stocks Tumble as Yields Surge; Apple Holds Steady", AAPL),
+])
+def test_bystander_headlines_are_not_the_peers_news(engine: SentinelEngine, text: str, target: list[str]) -> None:
+    from app.nlp.rules import is_bystander
+
+    plain, aimed = engine.analyze(text), engine.analyze(text, "news", target)
+    assert aimed.label == "neutral" and aimed.score <= 0.0, aimed.drivers  # "sit out the rally" may lean negative
+    assert abs(aimed.score) < abs(plain.score) or plain.label == "neutral"
+    assert is_bystander(text, target)
+
+
+def test_a_clause_after_a_comma_with_its_own_subject_is_that_companys(engine: SentinelEngine) -> None:
+    text = "Twilio downgraded, Synopsys upgraded: Wall Street's top analyst calls"
+    twilio = engine.analyze(text, "news", TWLO)
+    assert twilio.label == "bearish" and twilio.drivers[0][0] == "downgraded", twilio.drivers
+    assert "top analyst" not in [t.lower() for t, _ in twilio.drivers]  # a column title, not a beat
+    assert engine.analyze(text, "news", ["SNPS", "Synopsys"]).label == "bullish"
+    swapped = engine.analyze("Synopsys Upgraded, Twilio Downgraded", "news", TWLO)  # Title Case, target second
+    assert swapped.label == "bearish"
+    from app.nlp.rules import is_bystander
+
+    assert not is_bystander(text, TWLO)  # Twilio has news of its own here
+
+
+def test_stated_non_move_mutes_peers_further_than_a_plain_peer_mention(engine: SentinelEngine) -> None:
+    from app.nlp.rules import OFF_TARGET_STATED_FACTOR
+
+    ev = engine.evidence("Lululemon flat as Nike sinks 8%", "news", LULU)
+    assert ev.hits and all(h.weight <= OFF_TARGET_STATED_FACTOR + 1e-9 for h in ev.hits)
+    assert engine.analyze("Lululemon flat as Nike sinks 8%", "news", LULU).label == "neutral"
+
+
+def test_market_clause_is_context_and_never_overturns_the_targets_move(engine: SentinelEngine) -> None:
+    assert engine.analyze("Stocks tumble; Apple rises 2%").label == "bearish"  # read for nobody: the market
+    aimed = engine.analyze("Stocks tumble; Apple rises 2%", "news", AAPL)
+    assert aimed.score >= 0.0 and aimed.drivers[0][0] == "rises 2%"
+    roundup = engine.analyze("Microsoft slips 1%, Apple rallies 3%", "news", AAPL)
+    assert roundup.label == "bullish"
+
+
+def test_title_case_common_words_do_not_open_a_company_clause(engine: SentinelEngine) -> None:
+    # "Real Recovery" after the colon is a noun phrase, not a company called Real
+    text = "Intel (INTC) Data Center Comeback: Real Recovery or Just a Supply Squeeze?"
+    assert all(h.weight == pytest.approx(h2.weight) for h, h2 in zip(
+        engine.evidence(text, "news", ["INTC", "Intel"]).hits, engine.evidence(text).hits, strict=True))
+
+
+def test_bystander_needs_a_named_target_and_no_news_of_its_own() -> None:
+    from app.nlp.rules import is_bystander
+
+    assert not is_bystander("Nike sinks 8% on weak outlook", LULU)  # not named at all
+    assert not is_bystander("Lululemon cuts guidance; Nike sinks 8%", LULU)
+    assert not is_bystander("Lululemon lags the rally as Nike surges 6%", LULU)  # Lululemon is the subject

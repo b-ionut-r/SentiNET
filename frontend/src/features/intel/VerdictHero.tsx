@@ -18,6 +18,8 @@ import { cx } from "../../lib/cx";
 import { dayTime, pct, signed, timeAgo } from "../../lib/format";
 import { polarityOf100, textTone, toneVar } from "../../lib/sentiment";
 import { useMedia } from "../../lib/useMedia";
+import { HERO_REASONS } from "./brief";
+import { effectiveShares, wholePercents } from "./weights";
 
 export function VerdictHero({ a }: { a: Analysis }) {
   const v = a.verdict;
@@ -113,7 +115,7 @@ function ReadBlock({ a }: { a: Analysis }) {
       <h2 className="mt-2 text-balance text-[21px] font-semibold leading-[29px] tracking-[-0.01em] text-ink sm:text-[23px] sm:leading-[31px]">{v.headline}</h2>
       {v.reasons.length > 0 ? (
         <ul className="mt-4 space-y-2.5">
-          {v.reasons.slice(0, 5).map((r, i) => (
+          {v.reasons.slice(0, HERO_REASONS).map((r, i) => (
             <ReasonLine key={i} r={r} narratives={a.narratives.map((n) => n.id)} />
           ))}
         </ul>
@@ -170,18 +172,25 @@ const refTarget: Record<string, string> = {
 };
 
 function ComponentsBlock({ components, className }: { components: Component[]; className?: string }) {
-  const totalW = components.filter((c) => c.available).reduce((s, c) => s + c.weight, 0) || 1;
+  // The share each input actually carries in the score: confidence-scaled and renormalized
+  // over the available inputs (n/a ones carry none) — not the nominal weight.
+  const shares = effectiveShares(components);
+  const shown = wholePercents(shares);
   return (
     <div className={cx("min-w-0", className)}>
       <div className="mb-2.5 flex items-baseline justify-between">
         <p className="eyebrow">Score components</p>
-        <p className="text-2xs text-muted">bear ← 50 → bull · weight</p>
+        <Tip content="Each input's share of the score: nominal weight × confidence, renormalized over the inputs available this run. n/a inputs carry no share.">
+          <p className="text-2xs text-muted" tabIndex={0}>
+            bear ← 50 → bull · share
+          </p>
+        </Tip>
       </div>
       {components.length === 0 && <p className="text-xs text-muted">No component scores were produced for this run.</p>}
       <ul className="space-y-2.5">
         {components.map((c) => {
           const p = polarityOf100(c.score);
-          const effW = c.available ? c.weight / totalW : 0;
+          const share = shares.get(c.key);
           return (
             <li key={c.key}>
               <Tip
@@ -193,7 +202,9 @@ function ComponentsBlock({ components, className }: { components: Component[]; c
                     </div>
                     <div>{c.detail}</div>
                     <div className="text-muted">
-                      Weight {Math.round(c.weight * 100)}% nominal{c.available ? `, ${Math.round(effW * 100)}% effective` : " — excluded"} · confidence {Math.round(c.confidence * 100)}%
+                      {share != null
+                        ? `${shown.get(c.key)}% of the score this run (nominal weight ${Math.round(c.weight * 100)}%, confidence ${Math.round(c.confidence * 100)}%)`
+                        : `Not available this run — its nominal ${Math.round(c.weight * 100)}% went to the other inputs`}
                     </div>
                   </div>
                 }
@@ -202,7 +213,7 @@ function ComponentsBlock({ components, className }: { components: Component[]; c
                   <span className={cx("truncate text-xs font-medium", c.available ? "text-ink-2" : "text-muted")}>{c.label}</span>
                   {c.available ? <DivergingBar value={c.score} height={6} /> : <div className="h-1.5 rounded-full bg-[rgb(var(--grid))] opacity-60" />}
                   <span className={cx("text-right text-xs font-semibold num", c.available ? textTone[p] : "text-muted")}>{c.available && c.score != null ? Math.round(c.score) : "n/a"}</span>
-                  <span className="text-right text-2xs text-muted num">{Math.round(c.weight * 100)}%</span>
+                  <span className="text-right text-2xs text-muted num">{share != null ? `${shown.get(c.key)}%` : "—"}</span>
                 </div>
                 <p className={cx("mt-0.5 line-clamp-2 pl-[94px] text-2xs", "text-muted")}>{c.detail}</p>
               </Tip>

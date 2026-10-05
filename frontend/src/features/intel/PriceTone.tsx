@@ -21,7 +21,7 @@ import { Loader2, RotateCw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useHistory, usePrice } from "../../api/hooks";
-import type { Analysis, HistoryResponse, PriceRange, TonePoint } from "../../api/types";
+import type { Analysis, HistoryResponse, PriceRange } from "../../api/types";
 import { Columns } from "../../components/charts/Columns";
 import { Meter } from "../../components/charts/Bars";
 import { Empty, Segmented, Skeleton } from "../../components/ui/Misc";
@@ -31,7 +31,7 @@ import { compact, longDate, MINUS, ordinal, pct, price as fmtPrice, signed } fro
 import { textTone } from "../../lib/sentiment";
 import { tokenColor, useTheme } from "../../lib/theme";
 import { criticalR, fmtP, LAGS_TESTED, lagVerdict, MIN_RELIABLE_N, reliableLag } from "./lagRule";
-import { buildRows, type Row, TZ_SHIFT } from "./priceRows";
+import { buildRows, type Row, toneOf, TZ_SHIFT } from "./priceRows";
 
 const RANGES: PriceRange[] = ["1D", "5D", "1M", "3M", "6M", "1Y", "5Y"];
 /** Ranges with one bar per session or week (date-keyed time axis). */
@@ -103,16 +103,6 @@ export default function PriceTone({ a }: { a: Analysis }) {
       )}
     </div>
   );
-}
-
-/**
- * The daily GDELT tone to draw: the analysis's own series, or — when GDELT outlived that
- * run's time budget — the same series from the 90-day history fetched for the lead/lag
- * panel, so the chart never says "no tone" beside a panel that is correlating it.
- */
-export function toneOf(a: Pick<Analysis, "tone">, history: Pick<HistoryResponse, "points"> | undefined): TonePoint[] {
-  if (a.tone?.series.length) return a.tone.series;
-  return (history?.points ?? []).filter((p) => p.tone != null).map((p) => ({ date: p.date, tone: p.tone, volume: p.volume }));
 }
 
 function MarkerLegend() {

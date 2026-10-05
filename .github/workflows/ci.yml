@@ -35,7 +35,7 @@ jobs:
         run: pytest -q
 
   frontend:
-    name: Frontend · typecheck + build
+    name: Frontend · typecheck + unit + build
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -53,6 +53,8 @@ jobs:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
       - name: Typecheck
         run: npm run typecheck
+      - name: Unit checks (pure chart logic; must agree with backend/app/analytics/stats.py)
+        run: npm run unit
       - name: Build
         run: npm run build
 

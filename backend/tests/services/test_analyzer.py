@@ -459,3 +459,160 @@ async def test_unknown_symbol_is_negatively_cached(world: FakeWorld):
     world.intel["quote"] = Quote(price=3.2)  # it lists now; an explicit refresh re-checks
     a = await analyzer.analyze("QZXWV", refresh=True)
     assert a.ticker == "QZXWV"
+
+
+async def test_engine_label_never_queues_on_the_cpu_pool_once_built(world: FakeWorld, monkeypatch):
+    pool_calls: list[str] = []
+    real_run_cpu = analyzer.run_cpu
+
+    async def counting(fn, *args):
+        pool_calls.append(getattr(fn, "__name__", "?"))
+        return await real_run_cpu(fn, *args)
+
+    monkeypatch.setattr(analyzer, "run_cpu", counting)
+    assert await analyzer._engine_label() == "sentinel"
+    assert pool_calls == ["_engine_name"]  # first lookup may build the engine: off the loop
+    await analyzer.analyze("NVDA")
+    assert "_engine_name" not in pool_calls[1:]  # afterwards read directly (synthesis still uses the pool)
+    assert world.inputs[-1].engine_name == "sentinel"
+
+
+async def test_engine_label_is_time_boxed_when_the_pool_is_saturated(world: FakeWorld, monkeypatch):
+    async def stuck(fn, *args):
+        await asyncio.sleep(10)
+
+    monkeypatch.setattr(analyzer, "run_cpu", stuck)
+    monkeypatch.setattr(analyzer, "ENGINE_TIMEOUT", 0.05)
+    monkeypatch.setattr(settings, "sentiment_engine", "finbert")
+    assert await asyncio.wait_for(analyzer._engine_label(), 2) == "finbert"  # configured name, not a hang
+    assert "finbert" not in analyzer._engines_built  # retried on the next run
+
+
+# ---- run quality: evidence-free and degraded runs ------------------------------------------ #
+def _all_down(world: FakeWorld) -> None:
+    """Every source and every feed fails (an outage, or a laptop waking before its Wi-Fi)."""
+    world.evidence = None  # decided like the real composite
+    world.sources = [(FakeSource(k, error=RuntimeError("ConnectError")), "enabled")
+                     for k in ("google_news", "bing_news", "stocktwits")]
+    for key in ("profile", "quote", "technicals", "analysts", "insiders", "earnings", "tone", "wiki"):
+        world.intel[key] = Sentinel(exc=RuntimeError("ConnectError"))
+
+
+async def test_no_evidence_run_is_returned_but_never_stored_alerted_or_kept(world: FakeWorld, monkeypatch):
+    from app.schemas import AlertRuleIn
+
+    await db.create_rule(AlertRuleIn(ticker="NVDA", kind="score_below", threshold=55))
+    _all_down(world)
+    rec = Recorder()
+    a = await analyzer.analyze("NVDA", progress=rec)
+    assert a.verdict.score == 50 and a.sentiment.n == 0 and not analyzer.has_evidence(a)
+    assert await db.list_snapshots("NVDA", 10) == []
+    assert await db.list_alert_events(10) == []
+    done = rec.events[-1]
+    assert done.key == "done" and "not stored" in done.detail
+    # Served from cache only briefly: the next load past SHORT_CACHE_TTL retries the providers.
+    assert (await analyzer.analyze("NVDA")).cached is True
+    monkeypatch.setattr(analyzer, "SHORT_CACHE_TTL", 0.0)
+    await analyzer.analyze("NVDA", refresh=True)
+    assert (await analyzer.analyze("NVDA")).cached is False
+    # It proves nothing about the symbol either.
+    assert not analyzer.has_evidence(analyzer.latest_analysis("NVDA"))
+
+
+def test_run_quality_counts_failed_score_inputs():
+    from app.analytics.inputs import SourceRun
+
+    def runs(*statuses):
+        return [SourceRun(source=FakeSource(f"s{i}"), status=st) for i, st in enumerate(statuses)]
+
+    world = FakeWorld()
+    from app.analytics.inputs import AnalysisInputs
+
+    a = world.build(AnalysisInputs(company=world.company, now=datetime.now(UTC), engine_name="sentinel"))
+    ok_intel = {"analysts": "ok", "insiders": "empty", "technicals": "ok", "tone": "error: still loading"}
+    sound = analyzer.run_quality(a, runs("ok", "ok", "error", "empty", "unconfigured"), ok_intel)
+    assert not sound.degraded and sound.failed == ("S2",) and sound.attempted == 7 and sound.note is None
+    three = analyzer.run_quality(a, runs("ok", "error", "error", "ok", "ok", "ok", "ok"),
+                                 {**ok_intel, "analysts": "error: timed out after 9s"})
+    assert three.degraded and len(three.failed) == 3 and "3 of 10 inputs failed" in three.note
+    small = analyzer.run_quality(a, runs("ok", "error", "error"), {"technicals": "ok"})  # crypto-sized
+    assert small.degraded
+    # A slow GDELT tail is not a failure; a disabled source was never tried.
+    assert not analyzer.run_quality(a, runs("ok", "disabled", "disabled", "disabled"), ok_intel).degraded
+
+
+async def test_degraded_run_is_stored_flagged_and_not_a_baseline(world: FakeWorld, monkeypatch):
+    world.sources = [(FakeSource(k), "enabled") for k in ("google_news", "bing_news", "nasdaq", "stocktwits")]
+    await analyzer.analyze("NVDA")
+    sound = await db.latest_record("NVDA")
+    assert not sound.degraded
+    # Push the sound snapshot back in time so it qualifies as "previous" (≥ 15 min old).
+    def age(conn):
+        with conn:
+            conn.execute("UPDATE snapshots SET at = ?", (db.to_db_time(datetime.now(UTC) - timedelta(hours=1)),))
+    await db._run(age)
+
+    for source, _ in world.sources[1:]:
+        source.error = TimeoutError()  # 3 of 4 sources time out (a CPU-starved server)
+    monkeypatch.setattr(analyzer, "SHORT_CACHE_TTL", 0.0)  # degraded results are cached only briefly
+    rec = Recorder()
+    await analyzer.analyze("NVDA", refresh=True, progress=rec)
+    assert "degraded" in rec.events[-1].detail
+    latest = await db.latest_record("NVDA")
+    assert latest.degraded and latest.id != sound.id
+    assert len(await db.list_snapshots("NVDA", 10)) == 1  # the score history shows readings only
+
+    # Past the short TTL the next load re-runs, and it diffs against the sound snapshot.
+    for source, _ in world.sources:
+        source.error = None
+    await analyzer.analyze("NVDA")
+    assert len(world.inputs) == 3
+    assert world.inputs[-1].previous is not None and world.inputs[-1].previous.at == (
+        await db.latest_record("NVDA", sound_only=True, before=datetime.now(UTC) - timedelta(minutes=15))).at
+
+
+# ---- outages are not "unknown symbol" ------------------------------------------------------ #
+def _offline(world: FakeWorld, symbol: str) -> None:
+    """Live repro shape (HTTPS_PROXY to a dead port): yfinance swallows ConnectionError and answers
+    "no data" (ok, None); the resolver falls back to a bare ref; every httpx source raises."""
+    import httpx
+
+    world.resolve = CompanyRef(ticker=symbol, name=symbol, short_name=symbol)
+    world.sources = [(FakeSource(k, error=httpx.ConnectError("proxy refused")), "enabled")
+                     for k in ("google_news", "stocktwits", "apewisdom")]
+    for key in ("profile", "quote", "technicals", "analysts", "insiders", "earnings", "tone", "wiki"):
+        world.intel[key] = None
+    world.witness = None  # SPY: "possibly delisted" too
+
+
+async def test_outage_with_swallowed_errors_is_not_a_404(world: FakeWorld):
+    _offline(world, "MSFT")
+    world.evidence = None
+    a = await analyzer.analyze("MSFT")  # no 404: an honest "No read" (not stored)
+    assert a.ticker == "MSFT" and not analyzer.has_evidence(a)
+    assert analyzer._unknown.get("MSFT") is None
+    assert (await analyzer.ensure_known("MSFT")).ticker == "MSFT"  # watch/alert still accepted
+
+
+async def test_yahoo_only_outage_is_not_a_404_for_foreign_listings(world: FakeWorld):
+    _offline(world, "SHOP-TO")
+    world.sources = [(FakeSource("google_news", signals=3, ticker_specific=False), "enabled")]  # news is up
+    a = await analyzer.analyze("SHOP.TO")
+    assert a.ticker == "SHOP-TO" and analyzer._unknown.get("SHOP-TO") is None
+    assert world.calls["witness"]  # Yahoo was checked before concluding anything
+
+
+async def test_typo_is_still_a_404_when_providers_answer(world: FakeWorld):
+    _offline(world, "QZXWV")
+    world.witness = Quote(price=600.0)  # Yahoo answers: SPY quoted, QZXWV not
+    world.sources = [(FakeSource("apewisdom", "social", signals=0), "enabled"),  # board answered: not listed
+                     (FakeSource("stocktwits", error=RuntimeError("HTTP 404 not found")), "enabled")]
+    with pytest.raises(UnknownSymbol):
+        await analyzer.analyze("QZXWV")
+    world.resolve = CompanyRef(ticker="QZXWW", name="QZXWW", short_name="QZXWW")
+    with pytest.raises(UnknownSymbol):
+        await analyzer.ensure_known("QZXWW")
+    # Every source erroring (with Yahoo's witness cached as up) concludes nothing either.
+    world.sources = [(FakeSource("apewisdom", "social", error=RuntimeError("ConnectError")), "enabled")]
+    world.resolve = CompanyRef(ticker="QZXWZ", name="QZXWZ", short_name="QZXWZ")
+    assert (await analyzer.analyze("QZXWZ")).ticker == "QZXWZ"

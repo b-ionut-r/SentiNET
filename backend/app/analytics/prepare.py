@@ -9,11 +9,18 @@ Pipeline (per analysis):
 3. collapse syndicated near-copies into one representative (the most trusted
    outlet), keeping the copies' outlets/times as coverage evidence;
 4. score representatives with the sentiment engine (+ themes, events);
-5. weight = source weight × outlet trust × recency × engagement × relevance
-   × (0.5 + 0.5·confidence) × (1 + 0.15·ln(1 + copies)), then
-   × min(1, √(4 / items from the same outlet — or, for social posts, author)) so
-   one prolific outlet or account (auto-generated 13F stories, spam bots)
-   cannot dominate the aggregate.
+5. weight = source weight × trust (the outlet's for media, 0.6 for a user post)
+   × recency × engagement × relevance
+   × (0.5 + 0.5·confidence) × (1 + 0.15·ln(1 + copies)) [× 0.4 for a price
+   recap], then × min(1, √(4 / items from the same outlet — or, for social
+   posts, author)) so one prolific outlet or account (auto-generated 13F
+   stories, spam bots) cannot dominate the aggregate.
+
+A *price recap* ("SoFi stock craters 43% in 2026", "Nvidia hits record high")
+is an item whose only events are price moves and whose strongest sentiment
+driver is that price-move phrase: it restates the tape, which the technicals
+component already measures, so it counts at 0.4× in the text aggregates
+instead of a second time at full weight.
 """
 from __future__ import annotations
 
@@ -42,12 +49,19 @@ ROUNDUP_SYMBOLS = 4  # items tagged with this many tickers are roundups
 ROUNDUP_CAP = 0.4
 PROVIDER_RELEVANCE_MIN = 0.6
 PRESS_RELEASE_TRUST = 0.55
+# A user post is one anonymous voice: it starts below a mid-tier outlet (~0.9–1.0) and only its
+# engagement (up to ×2) lifts it, so "$NVDA new ATHs all week 🚀🚀🚀" does not outrank Barron's.
+SOCIAL_TRUST = 0.6
 HALF_LIFE_H: dict[Group, float] = {"news": 72.0, "social": 36.0}
 RECENCY_FLOOR = 0.15
 UNDATED_RECENCY = 0.5
 MAX_BODY = 600
 MAX_DRIVERS = 5
 DIVERSITY_FREE = 4  # items an outlet/author contributes before its items are down-weighted
+PRICE_RECAP_WEIGHT = 0.4  # a headline that only restates the price move (see module docstring)
+# Events that merely describe the tape (shared with narratives/catalysts).
+PRICE_EVENTS = frozenset({"price_up", "price_down", "all_time_high", "high_52w", "low_52w"})
+_TOKEN_RE = re.compile(r"[a-z0-9.%$]+")
 
 # Auto-generated 13F-holdings stories ("Apple Inc. $AAPL Shares Sold by Denver PWM LLC",
 # "Evoke Wealth LLC Sells 229,221 Shares of NVIDIA Corporation $NVDA"): templated filings
@@ -248,7 +262,7 @@ def _candidate(raw: RawSignal, run: SourceRun, company: CompanyRef | None, now: 
         return "irrelevant"
 
     group: Group = "social" if kind == "social" else "news"
-    trust, is_pr = 1.0, False
+    trust, is_pr = SOCIAL_TRUST, False
     if group == "news":
         trust = textkit.publisher_trust(publisher or extra.get("domain"))
         is_pr = textkit.press_release(publisher, title)
@@ -355,12 +369,33 @@ def recency(it: Item, now: datetime) -> float:
     return max(RECENCY_FLOOR, 0.5 ** (age / HALF_LIFE_H[it.group]))
 
 
+def price_recap(it: Item) -> bool:
+    """Does the item merely restate the price move (see module docstring)?
+
+    Its events are all price events and its strongest driver is the phrase that
+    triggered one of them ('Stock Craters 43%'), so 'Meta launches Muse; shares
+    jump' (a product launch) or 'SoFi falls 3% as yields pressure fintech'
+    (driven by the yields phrase) are not recaps."""
+    if not it.events or not it.drivers or not set(it.event_keys) <= PRICE_EVENTS:
+        return False
+    top = set(_TOKEN_RE.findall(max(it.drivers, key=lambda d: abs(d[1]))[0].lower()))
+    if not top:
+        return False
+    for event in it.events:
+        span = set(_TOKEN_RE.findall((event.span or "").lower()))
+        if span and len(top & span) / len(top) >= 0.5:
+            return True
+    return False
+
+
 def item_weight(it: Item, now: datetime) -> float:
     """Aggregation weight (see module docstring)."""
     engagement = 1.0 + min(1.0, math.log1p(it.engagement) / 8.0)
     confidence = 0.5 + 0.5 * (it.confidence if it.scored else 0.0)
     syndication = 1.0 + 0.15 * math.log1p(it.duplicates)
     w = it.source_weight * it.trust * recency(it, now) * engagement * it.relevance * confidence * syndication
+    if it.scored and price_recap(it):
+        w *= PRICE_RECAP_WEIGHT
     return round(max(w, 0.0), 6)
 
 

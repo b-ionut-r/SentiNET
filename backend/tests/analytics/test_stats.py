@@ -124,3 +124,21 @@ def test_temporarily_missing_tone_is_not_called_absent() -> None:
         assert "reload" in h.interpretation
     h = build_history("NVDA", 30, None, closes, [], None, {"tone": "empty", "price": "ok"})
     assert h.interpretation.startswith("No GDELT tone history")
+
+
+def test_zero_article_days_are_not_a_neutral_tone() -> None:
+    # Live KOSS: 3 articles in 90 days (GDELT zero-fills tone and volume on uncovered days) produced
+    # 'Price leads the news … r = +0.44, p < 0.001, n = 58'.
+    rng = random.Random(7)
+    days = calendar(90)
+    covered = {days[20], days[45], days[70]}
+    tone = ToneTrend(query="q", series=[TonePoint(date=d, tone=(rng.uniform(-3, 3) if d in covered else 0.0),
+                                                  volume=(1.0 if d in covered else 0.0)) for d in days])
+    closes = [(d, 10.0 + rng.uniform(-1, 1)) for d in days if d.weekday() < 5]
+    h = build_history("KOSS", 90, tone, closes, [], None, {"tone": "ok"})
+    assert h.lags == [] and h.best_lag is None
+    assert h.interpretation.startswith("Coverage too sparse (3 articles in 90 days")
+    # Zero-article days never enter the aligned series as tone.
+    from app.analytics.stats import aligned_series
+    tones, _ = aligned_series({p.date: p for p in tone.series}, dict(closes))
+    assert sum(t is not None for t in tones) <= 3

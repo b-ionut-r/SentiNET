@@ -27,7 +27,7 @@ export function FilingsPanel({ a, className }: { a: Analysis; className?: string
       flush
       actions={
         cik ? (
-          <a className="btn h-7 px-2 text-xs" href={`https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=${cik}&type=&dateb=&owner=include&count=40`} target="_blank" rel="noreferrer">
+          <a className="btn h-7 px-2 text-xs" href={`https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=${encodeURIComponent(cik)}&type=&dateb=&owner=include&count=40`} target="_blank" rel="noreferrer">
             EDGAR <ArrowUpRight className="size-3" />
           </a>
         ) : undefined

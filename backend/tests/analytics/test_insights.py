@@ -120,10 +120,14 @@ def test_gdelt_extremes_are_judged_as_shown_and_strong_momentum_is_never_silent(
     assert low_ins is not None and "10th percentile" in low_ins.detail
     # A sharply cooling GDELT tone that is not at an extreme still surfaces through the
     # momentum component (it moves the verdict, so the rail must say why).
-    cooling = ToneTrend.model_validate({**tone_trend(base=0.6, recent=-0.1, percentile=0.2).model_dump()})
+    cooling = ToneTrend.model_validate({**tone_trend(base=0.9, recent=0.2, percentile=0.2).model_dump()})
     found = insights(run(GOOGLE, NEUTRAL_NEWS), tone=cooling)
     m = next((i for i in found if i.kind == "momentum"), None)
     assert m is not None and m.polarity == "bear" and "GDELT" in m.detail and "/100" in m.detail
+    assert m.title == "Sentiment cooling"
+    # A sign flip is told once, by the reversal insight (not again as momentum).
+    flip = insights(run(GOOGLE, NEUTRAL_NEWS), tone=tone_trend(base=0.6, recent=-0.1, percentile=0.2))
+    assert titled(flip, "flipped negative") is not None and not [i for i in flip if i.kind == "momentum"]
     # Calm tone: no momentum insight at all.
     calm = insights(run(GOOGLE, NEUTRAL_NEWS), tone=tone_trend(base=0.3, recent=0.32, percentile=0.55))
     assert not [i for i in calm if i.kind == "momentum"]
@@ -242,3 +246,41 @@ def test_ranking_and_cap() -> None:
     ranks = [{"alert": 0, "watch": 1, "info": 2}[i.severity] for i in found]
     assert ranks == sorted(ranks) and len(found) <= 8
     assert len({i.title for i in found}) == len(found)
+
+
+def test_reddit_rank_breakout_from_a_tiny_base_is_not_invisible() -> None:
+    # Live META: rank 675 -> 7 on 14 mentions vs 2 — the % change needs >= 3 prior mentions, so the
+    # breakout produced no insight, a 'Normal' heat and no mention in the summary.
+    def reddit(now: int, prev: int, rank: int, rank_prev: int | None):
+        return run(APEWISDOM, [], {"reddit_mentions": now, "reddit_mentions_prev": prev, "reddit_rank": rank,
+                                   "reddit_rank_prev": rank_prev, "reddit_tracked": 670})
+
+    a = build_analysis(inputs(ACME, [run(GOOGLE, NEUTRAL_NEWS), reddit(14, 2, 7, 675)]))
+    hit = titled(a.insights, "Reddit breakout")
+    assert hit is not None and hit.title == "Reddit breakout: #7 from #675"
+    assert hit.detail.startswith("14 mentions in 24h vs 2 a day earlier") and "of 670 tracked" in hit.detail
+    assert a.attention is not None and a.attention.label in ("Elevated", "Spiking")
+    assert "Reddit rank jumped to #7 from #675 (14 mentions)" in a.brief.summary
+    # A move inside the top ranks, or a thin one, is not a breakout.
+    for args in ((14, 10, 7, 40), (6, 2, 7, 675), (30, 2, 60, 675)):
+        assert titled(insights(run(GOOGLE, NEUTRAL_NEWS), reddit(*args)), "Reddit breakout") is None
+
+
+def test_small_reddit_moves_stay_out_of_the_summary() -> None:
+    # Live GME: '8 -> 6 (fell 25%)' was reported in the summary.
+    def reddit(now: int, prev: int):
+        return run(APEWISDOM, [], {"reddit_mentions": now, "reddit_mentions_prev": prev, "reddit_rank": 24,
+                                   "reddit_rank_prev": 16})
+
+    assert "Reddit" not in build_analysis(inputs(ACME, [run(GOOGLE, NEUTRAL_NEWS), reddit(6, 8)])).brief.summary
+    big = build_analysis(inputs(ACME, [run(GOOGLE, NEUTRAL_NEWS), reddit(48, 12)])).brief.summary
+    assert "Reddit mentions rose 300% in 24h (12 → 48)" in big
+
+
+def test_the_rail_explains_the_headlines_main_drag_when_nothing_else_fired() -> None:
+    # Live NVDA: 'Nothing unusual' on the rail while the headline named the main drag.
+    a = build_analysis(inputs(ACME, [run(GOOGLE, UPBEAT_NEWS)], analysts=analysts(mean=4.0, total=12, upside=-30.0)))
+    assert a.verdict.stance == "bullish" and "the main drag is" in a.verdict.headline
+    drag = next((i for i in a.insights if i.kind != "quality"), None)
+    assert drag is not None and drag.polarity == "bear" and drag.title == "Analysts cautious"
+    assert "the main drag on the" in drag.detail and "points)" in drag.detail

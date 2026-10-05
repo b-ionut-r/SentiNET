@@ -72,6 +72,30 @@ async def test_google_drops_lowercase_homonyms_of_word_names():
     assert [s.title for s in batch.signals] == [titles[4], titles[0]]
 
 
+@respx.mock
+async def test_google_drops_exchange_tag_only_matches_for_index_funds():
+    """QQQ's `intitle:Nasdaq` query: 21 of 100 live results (2026-10-05) named Nasdaq only as a listing."""
+    titles = [
+        "Nasdaq Hits Record High as Treasury Yields Retreat",
+        'Sprouts Farmers Market, Inc. (NASDAQ:SFM) Stock Now Rated "Hold" by Sell-Side Analysts',
+        "Citigroup (NYSE: C) Doubles Price Target On Strategy (NASDAQ: MSTR) To $240 As Stock Surges 30% In A Month",
+        "Invesco QQQ (NASDAQ:QQQ) Sets New 12-Month High - Here's What Happened",
+        "NeuroSense Provides Update on Nasdaq Listing Compliance",
+        "Nasdaq 100 Forecast: NDX rises as oil eases and tech gains",
+    ]
+    items = "".join(
+        f"<item><title>{t} - Example</title><link>https://news.google.com/{i}</link>"
+        f"<pubDate>Mon, 05 Oct 2026 0{i}:00:00 GMT</pubDate></item>"
+        for i, t in enumerate(titles)
+    )
+    feed = f'<?xml version="1.0"?><rss version="2.0"><channel><title>x</title>{items}</channel></rss>'
+    respx.get(google_news.URL).mock(return_value=httpx.Response(200, text=feed.replace("&", "&amp;")))
+    qqq = CompanyRef(ticker="QQQ", name="Invesco QQQ Trust", short_name="Nasdaq 100",
+                     aliases=["Nasdaq-100", "Invesco QQQ", "Nasdaq"], quote_type="ETF")
+    batch = await google_news.GoogleNewsSource().fetch(qqq)
+    assert {s.title for s in batch.signals} == {titles[0], titles[3], titles[5]}
+
+
 def test_google_queries_exclude_listing_pages_server_side():
     for query in google_news.build_queries(search_terms(company("NVDA")), company("NVDA")):
         assert query.endswith(google_news.EXCLUDE) and '-"quote & history"' in query
@@ -110,6 +134,46 @@ async def test_google_fetch_merges_queries_and_tolerates_failures():
     assert len(batch.signals) == 8 and not batch.metrics
     times = [s.timestamp for s in batch.signals]
     assert times == sorted(times, reverse=True)
+
+
+@respx.mock
+async def test_google_slow_query_cannot_sink_the_others(monkeypatch):
+    """A 503 + retry on one query used to run past the source's time box and lose every result."""
+    import asyncio
+
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "source_timeout", 1.0)
+    feed = load_fixture("sources/google_news_nvda.xml")
+
+    async def route(request: httpx.Request) -> httpx.Response:
+        if "when:7d" in request.url.params["q"] and request.url.params["q"].startswith("intitle:Nvidia"):
+            await asyncio.sleep(5)  # stalled upstream (or 503 + back-off + slow retry)
+        return httpx.Response(200, text=feed)
+
+    respx.get(google_news.URL).mock(side_effect=route)
+    started = asyncio.get_running_loop().time()
+    batch = await asyncio.wait_for(google_news.GoogleNewsSource().fetch(company("NVDA")), settings.source_timeout)
+    assert asyncio.get_running_loop().time() - started < settings.source_timeout
+    assert len(batch.signals) == 8  # the 24 h and ticker queries answered: their items survive
+
+
+@respx.mock
+async def test_google_every_query_timing_out_is_a_clear_error(monkeypatch):
+    import asyncio
+
+    from app.config import settings
+    from app.core.http import UpstreamError
+
+    monkeypatch.setattr(settings, "source_timeout", 1.0)
+
+    async def stall(request: httpx.Request) -> httpx.Response:
+        await asyncio.sleep(5)
+        return httpx.Response(200, text="")
+
+    respx.get(google_news.URL).mock(side_effect=stall)
+    with pytest.raises(UpstreamError, match="timed out"):
+        await google_news.GoogleNewsSource().fetch(company("NVDA"))
 
 
 @respx.mock

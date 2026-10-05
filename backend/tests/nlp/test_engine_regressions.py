@@ -171,6 +171,39 @@ CASES: list[tuple[str, str, str]] = [
     ("bought more calls today $NVDA", "bullish", "social"),
     ("loading puts on $SPY", "bearish", "social"),
     ("$CCL doubling down short", "bearish", "social"),
+    # final review: a distance below a high is a drawdown; the "high" is only the reference point
+    ("Acme stock trades 58% below its 52-week high", "bearish", "news"),
+    ("Acme Stock Is 80% Below Its All-Time High: 1 Metric That Shows How Bearish Wall Street Has Become.",
+     "bearish", "news"),
+    ("FTSE drops Acme: Acme Athletica stock sits 58.37 percent below its high", "bearish", "news"),
+    ("Acme is now 45% off its highs", "bearish", "news"),
+    ("Acme trades 20% below its IPO price", "bearish", "news"),
+    ("Acme Stock Is Just 3% Below Its All-Time High", "bullish", "news"),  # near-high framing
+    ("Acme shares have fallen 40% from their record high", "bearish", "news"),
+    # valuation calls
+    ("Acme (ACME) Could Be 30% Above Fair Value On Product Buzz", "bearish", "news"),
+    ("Acme stock 15% below fair value, analyst says", "bullish", "news"),
+    ("Broker says Acme's AI rally prices in far more than the numbers support", "bearish", "news"),
+    ("Acme rally has gone too far, warns strategist", "bearish", "news"),
+    ("The selloff in Acme has gone too far, says strategist", "bullish", "news"),
+    # a move takes its sign from what moved, also for quantities that are bad news when they grow
+    ("Acme recalls surge 50% after software glitch", "bearish", "news"),
+    ("Token Withdrawal Queue Surges 392%: Wallet Incident Could Trigger 523,000 Token Withdrawals", "bearish",
+     "news"),
+    ("Fund redemptions jump 30%", "bearish", "news"),
+    ("Crypto liquidations surge past $1 billion", "bearish", "news"),
+    ("Validator entry queue surges as staking demand returns", "bullish", "news"),
+    ("Acme expands recall to 500,000 trucks", "bearish", "news"),
+    # rating headlines without a change (MarketBeat templates)
+    ('Acme Motor Corporation (NYSE:ACM) Stock Now Rated "Buy" by Wall Street Analysts', "bullish", "news"),
+    ('Acme Platforms Earns "Buy" Rating from Needham', "bullish", "news"),
+    ('Acme Platforms Given Consensus Rating of "Moderate Buy" by Brokerages', "bullish", "news"),
+    ('Acme Given Average Rating of "Reduce" by Analysts', "bearish", "news"),
+    ("Acme Has a Consensus Rating of Hold", "neutral", "news"),
+    ("Top-rated buy-and-hold stocks for 2026", "neutral", "news"),
+    # "top"/"best" after a possessive or determiner are adjectives, not a beat
+    ("Here are Wall Street's top analyst calls", "neutral", "news"),
+    ("Acme tops analysts' estimates", "bullish", "news"),
 ]
 
 
@@ -291,3 +324,42 @@ def test_lexicon_counts_are_honest() -> None:
     assert stats["valence_entries"] >= 600
     # verbs are listed once and inflected by helpers: the generated forms are not entries
     assert "plunged" in lx.DIRECTIONS and "plunged" in lx._GENERATED
+
+
+def test_distance_from_a_high_has_one_negative_driver(engine: SentinelEngine) -> None:
+    for text in ("Acme stock trades 58% below its 52-week high", "Acme Stock Is 80% Below Its All-Time High"):
+        a = engine.analyze(text)
+        assert a.drivers and all(v < 0 for _, v in a.drivers), (text, a.drivers)  # no "52-week high" +
+    deeper = engine.analyze("Acme stock trades 80% below its record high").score
+    assert deeper < engine.analyze("Acme stock trades 12% below its record high").score < 0
+
+
+def test_rating_templates_name_the_rating_and_moderate_is_not_a_move(engine: SentinelEngine) -> None:
+    a = engine.analyze('Acme Platforms Given Consensus Rating of "Moderate Buy" by Brokerages')
+    assert [t for t, _ in a.drivers] == ['Given Consensus Rating of "Moderate Buy"']
+    direct = engine.analyze('Acme Platforms Earns "Buy" Rating from Needham')
+    assert direct.drivers[0] == ('Earns "Buy" Rating', direct.drivers[0][1]) and direct.drivers[0][1] > 0
+    assert direct.score > a.score > 0  # one broker's stance outweighs a bot's consensus summary
+    assert engine.analyze("Acme Has a Moderate Buy rating").score >= 0
+
+
+def test_negative_quantity_subjects_flip_the_move(engine: SentinelEngine) -> None:
+    a = engine.analyze("Acme recalls surge 50% after software glitch")
+    assert a.drivers[0][0] == "recalls surge 50%" and a.drivers[0][1] < 0
+    assert not any(v > 0 for _, v in a.drivers)
+    assert engine.analyze("Acme recalls 1 million vehicles").label == "bearish"  # the verb keeps its sense
+
+
+def test_sitting_out_a_move_is_mild_and_signed_by_what_was_missed(engine: SentinelEngine) -> None:
+    missed = engine.evidence("Acme and Widget Sit Out the Fintech Rally").hits
+    avoided = engine.evidence("Acme sat out the selloff").hits
+    assert [h.source for h in missed] == ["rule:sit_out"] and missed[0].value < 0
+    assert [h.source for h in avoided] == ["rule:sit_out"] and avoided[0].value > 0
+    assert abs(missed[0].value) < 1.0  # weaker than any actual move
+    # an estimate miss is not "missing the rally"
+    assert engine.evidence("Acme misses estimates as gains in services slow").hits[0].source == "rule:miss"
+
+
+def test_holding_steady_is_a_stated_non_move(engine: SentinelEngine) -> None:
+    a = engine.analyze("Acme shares hold steady")
+    assert a.label == "neutral" and not a.drivers and a.confidence >= 0.7

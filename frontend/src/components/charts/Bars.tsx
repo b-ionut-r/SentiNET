@@ -8,6 +8,7 @@ import type { ReactNode } from "react";
 import { cx } from "../../lib/cx";
 import { toneVar } from "../../lib/sentiment";
 import { useRoving } from "../../lib/useRoving";
+import { edgeSafe, rangeLabels } from "./rangeLabels";
 
 /* ------------------------------------------------------------------------- */
 
@@ -149,19 +150,6 @@ export interface RangeMarker {
   kind: "current" | "mean" | "median";
 }
 
-/**
- * Label anchored at `pct` (0–100) of the track that never leaves it: shifting the
- * label left by the same share of its own width puts its left edge on the track's
- * left end at 0%, centres it at 50% and right-aligns it at 100%.
- */
-export function edgeSafe(pct: number): { left: string; transform: string } {
-  const p = Math.max(0, Math.min(100, pct));
-  return { left: `${p}%`, transform: `translateX(-${p}%)` };
-}
-
-/** Low and high sit too close to label separately (in % of the track) — one label covers both. */
-export const RANGE_MERGE_PCT = 30;
-
 /** Low–high band with labelled markers (e.g. analyst targets vs. current price). */
 export function RangeBar({
   low,
@@ -181,16 +169,9 @@ export function RangeBar({
   singleLabel?: ReactNode;
   className?: string;
 }) {
-  const values = [low, high, ...markers.map((m) => m.value)];
-  const lo = Math.min(...values);
-  const hi = Math.max(...values);
-  const pad = (hi - lo) * 0.04 || Math.abs(hi) * 0.04 || 1;
-  const d0 = lo - pad;
-  const d1 = hi + pad;
-  const x = (v: number) => ((v - d0) / (d1 - d0)) * 100;
+  const { x, merged } = rangeLabels(low, high, markers);
   const current = markers.find((m) => m.kind === "current");
   const others = markers.filter((m) => m.kind !== "current");
-  const merged = x(high) - x(low) < RANGE_MERGE_PCT;
   return (
     <div className={cx("relative pt-6 pb-6", className)}>
       {current && (

@@ -5,6 +5,9 @@ contribution (its share of the effective weight × its distance from 50); the
 top story claims a share of the news component's contribution (see
 `story_points`). Every reason and headline clause is built from the evidence
 numbers carried by the components and narratives.
+
+A pending acquisition of the company (deals.py) outranks everything: it leads
+the headline and the reasons, because the price now tracks the deal terms.
 """
 from __future__ import annotations
 
@@ -13,7 +16,7 @@ import math
 from app.analytics.composite import LABELS, WEIGHTS, ComponentKey
 from app.analytics.crowd import reddit_change_pct, reddit_move
 from app.analytics.facts import Facts
-from app.analytics.narratives import Story
+from app.analytics.narratives import STORY_MIN_IMPACT, Story, featured
 from app.analytics.util import (
     band_label,
     clamp,
@@ -30,7 +33,6 @@ from app.schemas import Confidence, Reason, Verdict
 MAX_REASONS = 4
 MIN_REASON_POINTS = 1.0
 MIN_PHRASE_POINTS = 1.0
-STORY_MIN_IMPACT = 0.35
 THIN_ITEMS = 8
 HIGH_CONFIDENCE = 0.7
 MEDIUM_CONFIDENCE = 0.4
@@ -92,23 +94,40 @@ def reasons(f: Facts) -> list[Reason]:
         part = comp.parts[key]
         if part.reason and abs(points) >= MIN_REASON_POINTS and abs((part.score or 50) - 50) >= 4:
             cands.append((abs(points), Reason(text=part.reason, polarity=polarity_of(part.score), weight=0, ref=key)))
-    shown: bool | None = None  # tone sign of the story already given as a reason
-    for i, story in enumerate(f.stories[:2]):
-        n = story.narrative
+    ranked = featured(f.stories)
+    told: list[Story] = []  # at most two: the leading story, and a second only when it runs against it
+    for story in ranked[:2]:
         points = story_points(f, story)
-        if points <= 0 or shown == (n.score > 0):
-            continue  # a second story only when it runs against the first
-        lead = "Top story" if i == 0 else "Counter-story" if shown is not None else "Story"
-        shown = n.score > 0
+        if points <= 0 or (told and (told[0].narrative.score > 0) == (story.narrative.score > 0)):
+            continue
+        told.append(story)
+        cands.append((points, Reason(text="", polarity=tone_polarity(story.narrative.score, 0.1), weight=0,
+                                     ref=story.narrative.id)))
+    cands.sort(key=lambda c: -c[0])
+    deal = _deal_reason(f)
+    kept = [(p, r) for p, r in cands if p >= MIN_REASON_POINTS][:MAX_REASONS - (1 if deal else 0)]
+    # Story labels are set after the cut: "Counter-story" only next to the story it counters.
+    kept_ids = {r.ref for _, r in kept}
+    for i, story in enumerate(told):
+        n = story.narrative
+        lead = ("Top story" if story is ranked[0]
+                else "Counter-story" if i == 1 and told[0].narrative.id in kept_ids else "Story")
         text = (f"{lead}: {quote(n.headline)} — {count(n.count, 'article')} from "
                 f"{count(len(n.publishers), 'outlet')}, tone {signed(n.score)}")
-        cands.append((points, Reason(text=text, polarity=tone_polarity(n.score, 0.1), weight=0, ref=n.id)))
-    cands.sort(key=lambda c: -c[0])
-    kept = [(p, r) for p, r in cands if p >= MIN_REASON_POINTS][:MAX_REASONS]
-    if not kept:
-        return []
-    top = kept[0][0]
-    return [r.model_copy(update={"weight": round(p / top, 3)}) for p, r in kept]
+        kept = [(p, r.model_copy(update={"text": text}) if r.ref == n.id else r) for p, r in kept]
+    out = []
+    if kept:
+        top = kept[0][0]
+        out = [r.model_copy(update={"weight": round(p / top, 3)}) for p, r in kept]
+    return ([deal] if deal else []) + out
+
+
+def _deal_reason(f: Facts) -> Reason | None:
+    d = f.deal
+    if d is None:
+        return None
+    return Reason(text=f"Pending acquisition{d.by}: {d.excerpt} (Form {d.form}, {d.when}) — the share price now "
+                       f"tracks the deal terms and the odds of closing", polarity="neutral", weight=1.0, ref="deal")
 
 
 def story_points(f: Facts, story: Story) -> float:
@@ -154,7 +173,12 @@ def headline(f: Facts, label: str, stance: str) -> str:
     Drivers must be clear signals (strong phrases); counterweights may be mild
     leans. Components that move the score by < 1 point are never named. The
     dominant story is named when it drives the news read and the sentence
-    stays short enough to scan."""
+    stays short enough to scan. A pending acquisition replaces all of that:
+    it is the one fact that matters."""
+    if f.deal is not None and f.composite.available():
+        d = f.deal
+        return (f"{label}, but a pending acquisition dominates: {f.name} agreed to be acquired{d.by} (merger "
+                f"agreement, 8-K {d.when}) — the price tracks the deal terms, not sentiment.")
     text = _headline(f, label, stance, with_story=True)
     return text if len(text) <= MAX_HEADLINE else _headline(f, label, stance, with_story=False)
 
@@ -214,10 +238,11 @@ def _headline(f: Facts, label: str, stance: str, with_story: bool) -> str:
 def _news_story_phrase(f: Facts) -> str | None:
     """'negative news led by ‘Nimbus hit with $1.05B lawsuit…’ (8 articles, −0.58)' when one story drives the tone."""
     part = f.composite.parts["news"]
-    if not f.stories or not part.phrase or part.x == 0:
+    ranked = featured(f.stories)
+    if not ranked or not part.phrase or part.x == 0:
         return None
-    n = f.stories[0].narrative
-    if n.impact < 0.5 or abs(n.score) < 0.15 or (n.score > 0) != (part.x > 0) or not f.stories[0].directional:
+    n = ranked[0].narrative
+    if n.impact < 0.5 or abs(n.score) < 0.15 or (n.score > 0) != (part.x > 0) or not ranked[0].directional:
         return None
     adj = part.phrase.split(" news", 1)[0]
     return f"{adj} news led by {quote(n.headline, 64)} ({count(n.count, 'article')}, {signed(n.score)})"

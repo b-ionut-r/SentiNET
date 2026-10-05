@@ -13,6 +13,7 @@ from typing import Any
 from app.analytics.aggregate import Summary
 from app.analytics.composite import Composite
 from app.analytics.crowd import Tally
+from app.analytics.deals import Deal
 from app.analytics.inputs import AnalysisInputs
 from app.analytics.narratives import Story
 from app.analytics.prepare import Prepared
@@ -39,6 +40,7 @@ class Facts:
     composite: Composite
     catalysts: list[Catalyst] = field(default_factory=list)
     failed: list[str] = field(default_factory=list)  # parts that raised and were left out (data quality)
+    deal: Deal | None = None  # a pending acquisition of the company (see deals.py)
 
     @property
     def now(self) -> datetime:
@@ -52,6 +54,20 @@ class Facts:
     @property
     def is_equity(self) -> bool:
         return self.inputs.company.quote_type == "EQUITY"
+
+    @property
+    def currency(self) -> str:
+        """Currency of the quote, and of analyst targets and dividends quoted against it (USD when unknown)."""
+        q = self.inputs.quote
+        return (q.currency if q is not None and q.currency else None) or "USD"
+
+    @property
+    def reporting_currency(self) -> str | None:
+        """Currency of EPS/revenue estimates, broker action targets and insider values: USD for a
+        USD listing; None (not known — shown without a symbol) for other listings, whose company
+        may report in another currency (Shopify on the TSX reports in USD, Vodafone in EUR) and
+        whose broker feed may be the US line."""
+        return "USD" if self.currency == "USD" else None
 
     @property
     def market_cap(self) -> float | None:

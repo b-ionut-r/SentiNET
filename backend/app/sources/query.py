@@ -112,6 +112,29 @@ _THEME_WORDS = re.compile(
 )
 _RETAIL_STOCK = re.compile(r"(?i)\b(?:back |now )?(?:in|out of|low on) stock\b|\bstock (?:photos?|images?|footage)\b")
 _EXCHANGES = r"(?:NYSE|NASDAQ|Nasdaq|NasdaqGS|NasdaqGM|NasdaqCM|AMEX|NYSEARCA|NYSE American|OTC|TSX|LSE|CBOE)"
+# An exchange named as *where something is listed* is never the subject of the text: the ticker tag
+# "Sprouts Farmers Market (NASDAQ:SFM) Stock Now Rated Hold", a listing ("Nasdaq-listed", "transfer its
+# listing to Nasdaq Capital Market"), listing-rule notices ("regains Nasdaq compliance") and bell
+# ceremonies. Taken as mentions of "Nasdaq" they flooded the Nasdaq-100 funds with single-stock news
+# (QQQ, 2026-10-05: 21 of Google's 100 `intitle:Nasdaq` results). Exchange words match in any case,
+# the ticker only in capitals ("Nasdaq: stocks rally" is market news).
+_VENUE_CODE = r"(?i:NASDAQ(?:GS|GM|CM)?|NYSE(?:\s?ARCA|\s?American|\s?MKT)?|AMEX|OTC(?:QB|QX|MKTS)?|TSXV?|LSE|CBOE|ASX)"
+_TAG_SYMBOL = r"[A-Z][A-Z0-9]{0,5}(?:[.\-/][A-Z0-9]{1,3})?"
+_LISTING_VENUE = re.compile(
+    rf"\(?\s*\b{_VENUE_CODE}\s*:\s*{_TAG_SYMBOL}\b\s*\)?"  # "(NASDAQ: SFM)", "– NASDAQ:PBLBX"
+    rf"|\(\s*\b{_TAG_SYMBOL}\s*:\s*{_VENUE_CODE}\s*\)"  # "(TGT:NYSE)" (parenthesised only: "LIVE: Nasdaq…")
+    r"|(?i:\b(?:Nasdaq|NYSE)[\s-]listed\b"
+    r"|\blist(?:ed|ing|s)? on (?:the )?(?:Nasdaq|NYSE)\b"
+    r"|\b(?:Nasdaq|NYSE) (?:listing(?: compliance)?|compliance|rules?|notices?|notifications?|deficienc(?:y|ies)|"
+    r"delisting|minimum bid|(?:stock )?exchange|Capital Market|Global (?:Select )?Market|"
+    r"(?:Stock Market )?(?:Opening|Closing) Bell)\b)"
+)
+
+
+def strip_listing_venues(text: str) -> str:
+    """`text` without exchange-as-listing-venue phrases ("(NASDAQ: SFM)", "Nasdaq-listed", "Nasdaq
+    compliance"), so a name match on what remains is about the index/company itself."""
+    return _LISTING_VENUE.sub(" ", text)
 
 
 @dataclass(frozen=True)
@@ -295,17 +318,19 @@ class Mentions:
         return bool(self._cashtag.search(text))
 
     def named(self, text: str) -> str | None:
-        """The name found (venue phrases removed; self-evident names win), else None."""
-        cleaned = self._venue.sub(" ", text)
+        """The name found (venue and exchange-listing phrases removed; self-evident names win), else None."""
+        cleaned = self._venue.sub(" ", strip_listing_venues(text))
         found = [n for n, pattern in self._names if pattern.search(cleaned)]
         return next((n for n in found if n in self.terms.self_evident), found[0] if found else None)
 
     def homonym_only(self, text: str) -> bool:
-        """True when the name appears only in the wrong casing ("price target", "apple pie") or in an
-        other-meaning phrase ("Nikola Tesla") — a filter for engines that match case-insensitively."""
+        """True when the name appears only in the wrong casing ("price target", "apple pie"), in an
+        other-meaning phrase ("Nikola Tesla") or as a listing venue ("(NASDAQ: SFM)" for the
+        Nasdaq-100) — a filter for engines that match names loosely."""
         if self.cashtag(text) or self._listed.search(text) or self.named(text) is not None:
             return False
-        return any(p.search(text) for p in self._loose) or bool(self._venue.search(text))
+        return (any(p.search(text) for p in self._loose) or bool(self._venue.search(text))
+                or any(p.search(text) for _, p in self._names))  # matched only inside a removed phrase
 
     def _intent(self, text: str, strong: bool) -> bool:
         text = _RETAIL_STOCK.sub(" ", text)  # "Back in Stock! Apple Desktop Bus mouse" is not market talk

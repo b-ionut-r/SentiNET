@@ -5,7 +5,10 @@ services:
     build: .
     image: sentinet:latest
     ports:
-      - "${SENTINET_PORT:-8000}:8000"
+      # Loopback only: the API has no authentication. To reach it from other
+      # machines, put an authenticating reverse proxy in front, or at least set
+      # SENTINET_BIND=0.0.0.0 plus SENTINET_ALLOWED_HOSTS to the name you browse to.
+      - "${SENTINET_BIND:-127.0.0.1}:${SENTINET_PORT:-8000}:8000"
     env_file:
       - path: backend/.env
         required: false

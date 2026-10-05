@@ -21,8 +21,11 @@ Rule semantics (`threshold` meaning per kind; defaults applied on creation):
 
 Every comparison skips earlier runs that lacked the data in question (a Yahoo
 throttle or a news outage stores "unavailable", not "empty"), so a degraded run
-never makes old facts look new afterwards. With no usable baseline yet, the
-rule stays quiet. Score/attention rules also have a 2 h cooldown so a value
+never makes old facts look new afterwards. Composite numbers (SentiNET score,
+attention heat) of a *degraded* run (several inputs failed; see
+`analyzer.run_quality`) are not readings: score/attention rules neither fire
+on one nor use one as the previous value or baseline. (Runs with no evidence
+at all are never stored.) With no usable baseline yet, the rule stays quiet. Score/attention rules also have a 2 h cooldown so a value
 hovering around the threshold cannot spam. Evaluation is pure (`evaluate_rule`);
 persistence and delivery live in `process_analysis` / `deliver`.
 """
@@ -34,6 +37,7 @@ import re
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from app.config import settings
 from app.schemas import AlertEvent, AlertRule, AlertRuleIn, Analysis, AnalystAction, Narrative
@@ -59,6 +63,8 @@ THRESHOLD_RANGES: dict[str, tuple[float, float]] = {
     "new_narrative": (1, 500),
 }
 WHOLE_NUMBER_KINDS = frozenset({"new_narrative"})
+# Rules on composite numbers, which a degraded run does not measure reliably.
+_READING_KINDS = frozenset({"score_above", "score_below", "score_change", "attention_spike"})
 COOLDOWN = timedelta(hours=2)
 REARM_AFTER = timedelta(days=7)  # a crossing rule with no comparable earlier value re-arms after this
 CHANGE_WINDOW = timedelta(hours=24)
@@ -105,8 +111,8 @@ class RuleContext:
 
     @property
     def previous(self) -> SnapshotRecord | None:
-        """The immediately preceding snapshot."""
-        return self.history[0] if self.history else None
+        """The newest earlier *reading*: the preceding snapshot that was not degraded."""
+        return _first(self.history, lambda r: not r.degraded)
 
 
 # --------------------------------------------------------------------------- #
@@ -264,6 +270,9 @@ def evaluate_rule(rule: AlertRule, ctx: RuleContext, reference: SnapshotRecord |
     cur, prev = ctx.current, ctx.previous
     thr = rule.threshold
 
+    if rule.kind in _READING_KINDS and cur.degraded:
+        return None  # several inputs failed: this score/heat is not a reading
+
     if rule.kind in ("score_above", "score_below"):
         above = rule.kind == "score_above"
         if not _crossing(rule, ctx, cur.score, prev.score if prev else None, above):
@@ -290,7 +299,8 @@ def evaluate_rule(rule: AlertRule, ctx: RuleContext, reference: SnapshotRecord |
         att = ctx.analysis.attention
         if att is None:
             return None
-        before = _first(_within(ctx, ATTENTION_LOOKBACK), lambda r: r.attention_heat is not None)
+        before = _first(_within(ctx, ATTENTION_LOOKBACK),
+                        lambda r: r.attention_heat is not None and not r.degraded)
         if not _crossing(rule, ctx, cur.attention_heat, before.attention_heat if before else None, above=True):
             return None
         parts = []
@@ -342,15 +352,18 @@ def evaluate_rule(rule: AlertRule, ctx: RuleContext, reference: SnapshotRecord |
 # Persistence + delivery
 # --------------------------------------------------------------------------- #
 async def _change_reference(rule: AlertRule, current: SnapshotRecord) -> SnapshotRecord | None:
-    """Baseline for score_change: ~24 h ago (≤ 7 d), advanced to the last trigger's snapshot."""
+    """Baseline for score_change: ~24 h ago (≤ 7 d), advanced to the last trigger's snapshot.
+
+    Only sound runs qualify: a degraded run's score is not a baseline."""
     t = current.snapshot.ticker
-    base = await db.latest_record(t, before=current.at - CHANGE_WINDOW)
+    base = await db.latest_record(t, before=current.at - CHANGE_WINDOW, sound_only=True)
     if base is not None and current.at - base.at > CHANGE_MAX_BASELINE_AGE:
         base = None
     if base is None:
-        base = await db.oldest_record_since(t, current.at - CHANGE_WINDOW, exclude_id=current.id)
+        base = await db.oldest_record_since(t, current.at - CHANGE_WINDOW, exclude_id=current.id, sound_only=True)
     if rule.last_triggered_at is not None:
-        at_trigger = await db.latest_record(t, before=rule.last_triggered_at, before_id=current.id)
+        at_trigger = await db.latest_record(t, before=rule.last_triggered_at, before_id=current.id,
+                                            sound_only=True)
         if at_trigger is not None and (base is None or at_trigger.at > base.at):
             base = at_trigger
     return base
@@ -365,7 +378,8 @@ async def process_analysis(analysis: Analysis, current: SnapshotRecord) -> list[
     ctx = RuleContext(now=current.at, analysis=analysis, current=current, history=tuple(history))
     events: list[AlertEvent] = []
     for rule in rules:
-        reference = await _change_reference(rule, current) if rule.kind == "score_change" else None
+        needs_reference = rule.kind == "score_change" and not current.degraded
+        reference = await _change_reference(rule, current) if needs_reference else None
         alert = evaluate_rule(rule, ctx, reference)
         if alert is None:
             continue
@@ -378,12 +392,31 @@ async def process_analysis(analysis: Analysis, current: SnapshotRecord) -> list[
     return events
 
 
-def webhook_payload(event: AlertEvent) -> dict[str, str]:
-    """Body accepted by both Discord (`content`) and Slack (`text`) incoming webhooks."""
+_DISCORD_MASS_MENTION = re.compile(r"@(everyone|here)\b", re.IGNORECASE)
+
+
+def _discord_safe(text: str) -> str:
+    """Defang @everyone/@here in provider text (belt and braces with `allowed_mentions`)."""
+    return _DISCORD_MASS_MENTION.sub(lambda m: "@\u200b" + m.group(1), text)
+
+
+def _slack_safe(text: str) -> str:
+    """Slack's control characters: `<!channel>`, `<@U…>` and links only exist between < and >."""
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def webhook_payload(event: AlertEvent) -> dict[str, Any]:
+    """Body accepted by both Discord (`content`) and Slack (`text`) incoming webhooks.
+
+    Titles and details quote provider text (headlines, analyst firms), so the
+    payload can never ping anyone: Discord parses no mentions, Slack gets its
+    control characters escaped.
+    """
     return {
         "username": "SentiNET",
-        "content": f"**{event.title}**\n{event.detail}"[:1990],
-        "text": f"*{event.title}*\n{event.detail}"[:3000],
+        "content": _discord_safe(f"**{event.title}**\n{event.detail}")[:1990],
+        "allowed_mentions": {"parse": []},
+        "text": f"*{_slack_safe(event.title)}*\n{_slack_safe(event.detail)}"[:3000],
     }
 
 

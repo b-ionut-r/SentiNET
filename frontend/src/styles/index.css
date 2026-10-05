@@ -37,8 +37,10 @@
   --serious: 236 131 90;
   --critical: 208 59 59;
 
-  /* Attention heat: its own one-hue sequential ramp (orange slot). */
-  --heat: 217 89 38;
+  /* Attention heat is magnitude, not direction: amber — well clear of the bull/bear pair
+     (bear is red-orange) — and used only once attention is Elevated or Spiking; quieter
+     levels draw in neutral ink. */
+  --heat: 230 166 40;
 
   /* Chart furniture. */
   --grid: 38 38 36;
@@ -81,7 +83,7 @@
   --warn: 158 102 0;
   --serious: 180 71 26;
 
-  --heat: 235 104 52;
+  --heat: 184 122 0;
 
   --grid: 236 235 229;
   --axis: 195 194 183;

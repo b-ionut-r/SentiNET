@@ -19,7 +19,10 @@ DEFAULT_MAX_BODY = 64 * 1024
 
 
 def _message(limit: int) -> str:
-    size = f"{limit // (1024 * 1024)} MB" if limit >= 1024 * 1024 else f"{limit // 1024} KB"
+    if limit >= 1024 * 1024:
+        size = f"{limit / (1024 * 1024):.3g} MB"
+    else:
+        size = f"{limit // 1024} KB" if limit >= 1024 else f"{limit} bytes"
     return f"Request body too large (limit {size} for this endpoint)."
 
 

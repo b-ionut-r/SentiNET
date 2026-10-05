@@ -46,14 +46,14 @@ def grade_polarity(grade: str | None) -> Polarity:
 def build_catalysts(f: Facts) -> list[Catalyst]:
     today = f.now.date()
     upcoming: list[Catalyst] = []
-    earnings = _earnings(f.inputs.earnings, today)
+    earnings = _earnings(f.inputs.earnings, today, f.reporting_currency)
     if earnings is not None:
         upcoming.append(earnings)
     upcoming.extend(c for c in f.inputs.calendar_catalysts if c.upcoming and c.date.date() >= today)
 
     recent: list[Catalyst] = []
     if f.inputs.analysts is not None:
-        recent.extend(_analyst_actions(f.inputs.analysts.actions, f.now))
+        recent.extend(_analyst_actions(f.inputs.analysts.actions, f.now, f.reporting_currency))
     recent.extend(_filings(f))
     recent.extend(_insiders(f))
     recent.extend(_news(f))
@@ -63,14 +63,16 @@ def build_catalysts(f: Facts) -> list[Catalyst]:
     return upcoming + recent[:MAX_RECENT]
 
 
-def earnings_detail(e: EarningsView) -> str | None:
+def earnings_detail(e: EarningsView, currency: str | None = "USD") -> str | None:
+    """EPS/revenue estimates (in the reporting `currency`; None: unknown, no symbol) and the beat record."""
     bits = []
     if e.eps_estimate is not None:
-        rng = (f" (range {money(e.eps_low, price=True)}–{money(e.eps_high, price=True)})"
+        rng = (f" (range {money(e.eps_low, price=True, currency=currency)}–"
+               f"{money(e.eps_high, price=True, currency=currency)})"
                if e.eps_low is not None and e.eps_high is not None and e.eps_high > e.eps_low else "")
-        bits.append(f"EPS est. {money(e.eps_estimate, price=True)}{rng}")
+        bits.append(f"EPS est. {money(e.eps_estimate, price=True, currency=currency)}{rng}")
     if e.revenue_estimate:
-        bits.append(f"revenue est. {money(e.revenue_estimate)}")
+        bits.append(f"revenue est. {money(e.revenue_estimate, currency=currency)}")
     reported = [h for h in e.history if h.eps_actual is not None and h.eps_estimate is not None]
     if e.beat_rate is not None and reported:
         beats = round(e.beat_rate * len(reported))
@@ -81,17 +83,20 @@ def earnings_detail(e: EarningsView) -> str | None:
     return " · ".join(bits) or None
 
 
-def _earnings(e: EarningsView | None, today: date) -> Catalyst | None:
+def _earnings(e: EarningsView | None, today: date, currency: str | None = "USD") -> Catalyst | None:
     if e is None or e.next_date is None or e.next_date < today:
         return None
     days = (e.next_date - today).days
     when = "today" if days == 0 else "tomorrow" if days == 1 else f"in {days} days"
     return Catalyst(date=noon_utc(e.next_date), kind="earnings", title=f"Earnings {when}",
-                    detail=earnings_detail(e), upcoming=True)
+                    detail=earnings_detail(e, currency), upcoming=True)
 
 
-def describe_action(a: AnalystAction) -> tuple[str, str | None, Polarity]:
-    """(title, detail, polarity) for one rating/target action."""
+def describe_action(a: AnalystAction, currency: str | None = "USD") -> tuple[str, str | None, Polarity]:
+    """(title, detail, polarity) for one rating/target action.
+
+    `currency` None (a non-USD listing): the broker feed may quote another line's
+    targets (SHOP.TO's are Shopify's USD targets), so only the % change is shown."""
     grade = a.to_grade or ""
     pol: Polarity
     pt_change = None
@@ -105,26 +110,29 @@ def describe_action(a: AnalystAction) -> tuple[str, str | None, Polarity]:
         title, pol = f"{a.firm} initiates at {grade or 'coverage'}", grade_polarity(grade)
     elif pt_change is not None and abs(pt_change) > 0.001:
         verb = "raises" if pt_change > 0 else "cuts"
-        title = f"{a.firm} {verb} target to {money(a.price_target or 0, price=True)}" + (f" · {grade}" if grade else "")
+        to = f" to {money(a.price_target or 0, price=True)}" if currency == "USD" else f" ({pct(pt_change * 100)})"
+        title = f"{a.firm} {verb} target{to}" + (f" · {grade}" if grade else "")
         pol = "bull" if pt_change > 0 else "bear"
     else:
         title, pol = f"{a.firm} reiterates {grade or 'rating'}", "neutral"
     detail = None
-    if a.price_target:
+    if a.price_target and currency == "USD":
         detail = f"PT {money(a.price_target, price=True)}"
         if pt_change is not None and abs(pt_change) > 0.001 and a.prior_target:
             detail = f"PT {money(a.prior_target, price=True)} → {money(a.price_target, price=True)} ({pct(pt_change * 100)})"
+    elif pt_change is not None and abs(pt_change) > 0.001:
+        detail = f"PT {pct(pt_change * 100)}"
     if a.action in ("up", "down") and a.from_grade:
         detail = f"from {a.from_grade}" + (f" · {detail}" if detail else "")
     return title, detail, pol
 
 
-def _analyst_actions(actions: list[AnalystAction], now: datetime) -> list[Catalyst]:
+def _analyst_actions(actions: list[AnalystAction], now: datetime, currency: str | None = "USD") -> list[Catalyst]:
     out: list[Catalyst] = []
     for a in actions:
         if now - a.date > ANALYST_WINDOW or a.date > now + timedelta(days=1):
             continue
-        title, detail, pol = describe_action(a)
+        title, detail, pol = describe_action(a, currency)
         if pol == "neutral" and a.action in ("main", "reit", "other"):
             continue  # plain reiterations are noise on a timeline
         out.append(Catalyst(date=a.date, kind="analyst", title=title, detail=detail, polarity=pol))
@@ -162,14 +170,14 @@ def _insiders(f: Facts) -> list[Catalyst]:
             continue
         who = t.insider + (f" ({t.position})" if t.position else "")
         if t.kind == "buy":
-            value = f" {money(t.value)}" if t.value else ""
+            value = f" {money(t.value, currency=f.reporting_currency)}" if t.value else ""
             out.append(Catalyst(date=noon_utc(t.date), kind="insider", title=f"{who} bought{value}",
                                 detail=_shares(t.shares), polarity="bull"))
         elif t.kind == "sell" and (t.value or 0) >= LARGE_SELL:
             sells.append(t)
     for t in sorted(sells, key=lambda t: -(t.value or 0))[:3]:
         who = t.insider + (f" ({t.position})" if t.position else "")
-        out.append(Catalyst(date=noon_utc(t.date), kind="insider", title=f"{who} sold {money(t.value or 0)}",
+        out.append(Catalyst(date=noon_utc(t.date), kind="insider", title=f"{who} sold {money(t.value or 0, currency=f.reporting_currency)}",
                             detail=_shares(t.shares), polarity="bear"))
     return out
 

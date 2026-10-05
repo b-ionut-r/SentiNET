@@ -101,6 +101,39 @@ def test_name_and_domain_variants_are_one_outlet(variants, canonical):
     assert {canonical_publisher(v) for v in variants} == {canonical}
 
 
+@pytest.mark.parametrize("variants", [
+    # live (LULU, SOFI): case, spacing and punctuation variants of one outlet
+    # counted as two outlets and let a syndicated single-site story pass the
+    # corroboration bar ("outlets ['NETT', 'nett']").
+    ("NETT", "nett", "nett.com"),
+    ("Foreign Policy Journal", "Foreignpolicyjournal", "foreignpolicyjournal.com", "FOREIGN POLICY JOURNAL"),
+    ("Daily Hodl Wire", "dailyhodlwire.com", "DailyHodlWire"),
+])
+def test_case_and_spacing_variants_are_one_outlet(variants):
+    names = {canonical_publisher(v) for v in variants}
+    assert len(names) == 1
+    assert len({publisher_trust(v) for v in variants}) == 1
+
+
+def test_lowercase_single_word_outlet_gets_the_brand_display():
+    assert canonical_publisher("zqxv") == "ZQXV"  # no other spelling seen: still one display per outlet
+
+
+@pytest.mark.parametrize("variant", ["AD HOC NEWS", "ad-hoc-news.de", "Ad-Hoc-News", "https://www.ad-hoc-news.de/x"])
+def test_known_outlet_matches_its_compact_spelling(variant):
+    # the domain spelling used to fall out of the table (trust 0.80 instead of 0.55)
+    assert canonical_publisher(variant) == "AD HOC NEWS"
+    assert publisher_trust(variant) == PRESS_RELEASE_TRUST
+    assert is_known_publisher(variant)
+
+
+def test_compact_identity_does_not_merge_distinct_outlets():
+    assert canonical_publisher("Financial Times") != canonical_publisher("Financial Post")
+    assert canonical_publisher("ft.lk") != "Financial Times"  # Sri Lanka's Daily FT: too short to match loosely
+    assert canonical_publisher("Insider Monkey") == "Insider Monkey"
+    assert canonical_publisher("Business Insider") == "Business Insider"
+
+
 @pytest.mark.parametrize(("publisher", "title", "expected"), [
     ("CNBC", "Notice how Nvidia stock behaves", False),
     ("Reuters", "Nvidia today announced record revenue", False),  # wording never demotes a major newsroom

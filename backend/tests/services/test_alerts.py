@@ -407,3 +407,86 @@ async def test_attention_spike_does_not_refire_after_attention_outage(world):
         fired.append(len(await db.list_alert_events(10)))
         await db._run(age_rule)
     assert fired == [1, 1, 1, 1]  # heat never fell below 75: one alert only
+
+
+# ---- evidence-free and degraded runs are not readings (final-review repros) ---------------- #
+def no_read(**extra):
+    """The real "No read" shape: score 50, no signals, no available score component."""
+    from tests.services.fakes import make_verdict
+
+    return analysis(50, verdict=make_verdict(evidence=False), **extra)
+
+
+async def test_no_read_run_neither_fires_nor_anchors_score_rules(store):
+    """Secops repro: a run where every source/feed failed fired 'score_below' and then a +14 'change'."""
+    await db.create_rule(normalize_rule(AlertRuleIn(ticker="NVDA", kind="score_below", threshold=55)))
+    await db.create_rule(normalize_rule(AlertRuleIn(ticker="NVDA", kind="score_change", threshold=10)))
+    blank = no_read()
+    assert blank.sentiment.n == 0 and blank.verdict.score == 50
+    cur = await _store(blank, NOW - timedelta(hours=1))
+    assert cur.degraded  # stored by a caller anyway: flagged by the store itself
+    assert await alerts.process_analysis(blank, cur) == []
+    later = analysis(64)
+    cur2 = await _store(later, NOW)
+    assert await alerts.process_analysis(later, cur2) == []  # no "+14 in 1h (50 → 64)"
+    assert await db.list_alert_events(10) == []
+
+
+async def test_degraded_runs_are_skipped_as_triggers_and_baselines(store):
+    """E2E repro: 62 → 57 (4 sources timed out) → 61 → 60 (5 of 9 failed) fired 'SentiNET 60 ≤ 60'."""
+    await db.create_rule(normalize_rule(AlertRuleIn(ticker="NVDA", kind="score_below", threshold=60)))
+    titles = []
+    for minutes, score, degraded in ((-18, 62, False), (-14, 57, True), (-7, 61, False), (0, 60, True),
+                                     (7, 59, False)):
+        a = analysis(score)
+        cur = await db.save_snapshot(a.model_copy(update={"generated_at": NOW + timedelta(minutes=minutes)}),
+                                     degraded=degraded)
+        titles += [e.title for e in await alerts.process_analysis(a, cur)]
+    assert titles == ["NVDA SentiNET 59 ≤ 60"]
+    detail = (await db.list_alert_events(1))[0].detail
+    assert "Previously 61" in detail  # the last sound reading, not the degraded 60
+
+
+async def test_score_change_baseline_skips_degraded_runs(store):
+    await db.create_rule(normalize_rule(AlertRuleIn(ticker="NVDA", kind="score_change", threshold=10)))
+    await _store(analysis(62), NOW - timedelta(hours=26))
+    await db.save_snapshot(analysis(40).model_copy(update={"generated_at": NOW - timedelta(hours=25)}),
+                           degraded=True)
+    a = analysis(64)
+    cur = await _store(a, NOW)
+    assert await alerts.process_analysis(a, cur) == []  # +2 vs the sound 62, not +24 vs the degraded 40
+
+
+def test_reading_rules_ignore_degraded_records():
+    from dataclasses import replace
+
+    bad_prev = replace(record(55, NOW - timedelta(minutes=30), heat=30, rid=9), degraded=True)
+    good_prev = record(66, NOW - timedelta(hours=1), heat=80, rid=8)
+    # Previous *reading* is 66 (already ≥ 70? no: 66 < 70) → a crossing to 72 fires; the
+    # degraded 55 is skipped, and the alert quotes 66.
+    alert = evaluate_rule(rule("score_above", 70, last=NOW - timedelta(days=1)),
+                          ctx(record(72), history=(bad_prev, good_prev)))
+    assert alert is not None and "Previously 66" in alert.detail
+    # A degraded *current* run never fires a reading rule…
+    cur_bad = replace(record(80, heat=95), degraded=True)
+    att = AttentionView(heat=95, label="Spiking", signals_24h=50)
+    for kind, thr in (("score_above", 70), ("attention_spike", 75)):
+        assert evaluate_rule(rule(kind, thr), ctx(cur_bad, good_prev, attention=att)) is None
+    assert evaluate_rule(rule("score_change", 10), ctx(cur_bad, None), reference=good_prev) is None
+    # …and attention compares with the last sound heat (80: no crossing), not the degraded 30.
+    assert evaluate_rule(rule("attention_spike", 75, last=NOW - timedelta(days=1)),
+                         ctx(record(60, heat=95), history=(bad_prev, good_prev), attention=att)) is None
+
+
+def test_webhook_payload_never_pings_anyone():
+    """Provider text (headlines, firms) lands in alerts: '@everyone' or '<!channel>' must stay inert."""
+    from app.schemas import AlertEvent
+
+    ev = AlertEvent(id=1, rule_id=1, ticker="NVDA", at=NOW, title="NVDA: 1 new story",
+                    detail="• @everyone Nvidia <!channel> beats & raises <https://x.io|click> @HERE")
+    body = alerts.webhook_payload(ev)
+    assert body["allowed_mentions"] == {"parse": []}  # Discord: no mention is parsed at all
+    assert "@everyone" not in body["content"] and "@\u200beveryone" in body["content"]
+    assert "@HERE" not in body["content"]
+    assert "<!channel>" not in body["text"] and "&lt;!channel&gt;" in body["text"] and "&amp; raises" in body["text"]
+    assert body["text"].startswith("*NVDA: 1 new story*")

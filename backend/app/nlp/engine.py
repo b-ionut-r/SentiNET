@@ -16,7 +16,8 @@ Weak or self-cancelling evidence is pulled into the neutral band on purpose:
 most market text is neutral, and a single soft word should not flip a label.
 
 ``score(texts, kinds, targets)`` optionally takes the analysed company per text
-(ticker + names), so a peer's move in the same headline counts as context.
+(ticker + names), so a peer's or the market's news in the same headline counts as
+context ("Nike sinks 8% on weak outlook; Lululemon flat" is neutral for Lululemon).
 Confidence of a polar headline call is calibrated (isotonic fit on Twitter
 train); a neutral call is 0.5 when nothing was found, higher when the text
 says "in line" / "unchanged".

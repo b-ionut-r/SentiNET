@@ -4,11 +4,19 @@
 `analyze` prints the intel at a glance (verdict, why, components, insights,
 narratives, smart money vs crowd, catalysts, source health) with a live scan
 status on stderr; `--json` writes the raw `Analysis` to stdout instead.
+
+A CLI run is one-shot: the process exits right after, so nothing can finish
+"in the background" for a later reload as it does on the server. `analyze`
+therefore waits up to `CLI_TAIL_WAIT` s for the slow name-search intel (GDELT
+tone, Wikipedia) to include it, and after printing gives provider background
+work (GDELT's volume refresh) up to `CLI_SETTLE` s to land in its disk cache
+for the next run. `--no-wait` skips both.
 """
 from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
 import logging
 import sys
 from collections.abc import Sequence
@@ -29,6 +37,12 @@ STATUS = {"ok": ("●", BULL), "empty": ("○", MUTED), "error": ("✕", BEAR), 
 out = Console()
 err = Console(stderr=True)
 
+CLI_TAIL_WAIT = 30.0  # seconds the slow name-search intel (GDELT tone, Wikipedia) may take
+CLI_SETTLE = 12.0  # seconds after printing for background provider work to reach its cache
+_TAIL_LABELS = {"tone": "GDELT global tone", "wiki": "Wikipedia attention"}
+REDDIT_MIN_BASE = 10  # previous-day mentions needed before a % change is shown
+_BACKGROUND_NOTE = "; continuing in the background (reload to include)"
+
 
 # --------------------------------------------------------------------------- #
 # Formatting helpers
@@ -46,20 +60,39 @@ def sentinel_color(score: float | None) -> str:
 
 
 def signed(value: float | None, fmt: str = "+.2f", suffix: str = "") -> Text:
+    """▲ +0.31 / ▼ -0.12; a value that shows as zero at this precision is flat (• +0.00), not up."""
     if value is None:
         return Text("n/a", style=MUTED)
-    arrow = "▲" if value > 0 else "▼" if value < 0 else "•"
-    return Text(f"{arrow} {value:{fmt}}{suffix}", style=tone_color(value, 0.0))
+    shown = f"{value:{fmt}}"
+    try:
+        flat = float(shown.replace(",", "")) == 0
+    except ValueError:
+        flat = value == 0
+    if flat:
+        return Text(f"• {0.0:{fmt}}{suffix}", style=NEUTRAL)
+    arrow = "▲" if value > 0 else "▼"
+    return Text(f"{arrow} {shown}{suffix}", style=tone_color(value, 0.0))
+
+
+def count(n: int, word: str, plural: str | None = None) -> str:
+    """'1 buy', '3 buys'."""
+    return f"{n:,} {word if n == 1 else plural or word + 's'}"
 
 
 def money(value: float | None, currency: str | None = None) -> str:
-    """Compact amount: $4.43T, -$3.30M (no symbol for non-USD currencies)."""
+    """Compact amount: $4.43T, -$3.30M, $749K, $500 (no symbol for non-USD currencies)."""
     if value is None:
         return "n/a"
     sign, mag = ("-" if value < 0 else ""), abs(value)
     sym = "$" if (currency or "USD") == "USD" else ""
+    if 1e3 <= mag < 1e6 and round(mag / 1e3) < 1000:
+        k = mag / 1e3
+        digits = f"{k:.0f}" if k >= 100 else f"{k:.1f}" if k >= 10 else f"{k:.2f}"
+        if "." in digits:
+            digits = digits.rstrip("0").rstrip(".")
+        return f"{sign}{sym}{digits}K"
     for div, unit in ((1e12, "T"), (1e9, "B"), (1e6, "M")):
-        if mag >= div:
+        if mag >= div * 0.9995:
             return f"{sign}{sym}{mag / div:,.2f}{unit}"
     return f"{sign}{sym}{mag:,.2f}"
 
@@ -189,20 +222,22 @@ def _smart_vs_crowd(a: Analysis) -> Table | None:
         rows.append(("Analysts", t))
     ins = a.insiders
     if ins is not None and (ins.buys or ins.sells):
-        t = Text(f"{ins.buys} buys {money(ins.buy_value)} · {ins.sells} sells {money(ins.sell_value)} "
-                 f"({ins.window_days}d) · net ")
+        t = Text(f"{count(ins.buys, 'buy')} {money(ins.buy_value)} · {count(ins.sells, 'sell')} "
+                 f"{money(ins.sell_value)} ({ins.window_days}d) · net ")
         t.append(money(ins.net_value), style=tone_color(ins.net_value, 0.0))
         rows.append(("Insiders", t))
     cr = a.crowd
     if cr is not None:
         if cr.stocktwits_bull_ratio is not None:
             tagged = (cr.stocktwits_bullish or 0) + (cr.stocktwits_bearish or 0)
-            rows.append(("StockTwits", Text(f"{cr.stocktwits_bull_ratio:.0%} bullish of {tagged} tagged"
+            rows.append(("StockTwits", Text(f"{cr.stocktwits_bull_ratio:.0%} bullish of "
+                                            f"{count(tagged, 'tagged message')}"
                                             + (f" · {cr.stocktwits_watchers:,} watchers"
                                                if cr.stocktwits_watchers else ""))))
         if cr.reddit_mentions is not None:
-            t = Text(f"#{cr.reddit_rank or '?'} · {cr.reddit_mentions} mentions/24h")
-            if cr.reddit_mentions_prev:
+            t = Text(f"#{cr.reddit_rank or '?'} · {count(cr.reddit_mentions, 'mention')}/24h")
+            # A % change off a handful of mentions (1 → 2 = "+100%") is noise, not a trend.
+            if cr.reddit_mentions_prev and cr.reddit_mentions_prev >= REDDIT_MIN_BASE:
                 chg = (cr.reddit_mentions - cr.reddit_mentions_prev) / cr.reddit_mentions_prev * 100
                 t.append(" (")
                 t.append_text(signed(chg, "+.0f", "%"))
@@ -337,58 +372,110 @@ def render_market(m: MarketOverview, console: Console | None = None) -> None:
 # --------------------------------------------------------------------------- #
 # Commands
 # --------------------------------------------------------------------------- #
+def cli_detail(detail: str | None, waited: bool) -> str | None:
+    """A provider status as true for a one-shot CLI run: nothing continues after exit."""
+    if detail and _BACKGROUND_NOTE in detail:
+        why = "" if waited else " (--no-wait)"
+        return detail.replace(_BACKGROUND_NOTE, f"; not loaded in time, left out of this run{why}")
+    return detail
+
+
 class _Scan:
     """Live one-line scan status on stderr, fed by analyzer progress events."""
 
-    def __init__(self, ticker: str, enabled: bool) -> None:
+    def __init__(self, ticker: str, enabled: bool, wait: float | None = None) -> None:
         self.ticker = ticker
         self.enabled = enabled
+        self.wait = wait
         self.total = 0
         self.finished = 0
+        self.running: set[str] = set()
         self.status = err.status(f"Scanning {ticker}…", spinner="dots") if enabled else None
 
     async def __call__(self, ev: ProgressEvent) -> None:
         if ev.stage in ("source", "intel"):
             if ev.status == "running":
                 self.total += 1
+                self.running.add(ev.key)
             elif ev.status != "skipped":
                 self.finished += 1
+                self.running.discard(ev.key)
         if self.status is None:
             return
+        detail = cli_detail(ev.detail, self.wait is not None)
         if ev.status == "error" and ev.stage in ("source", "intel"):
-            err.print(Text(f"  ✕ {ev.label}: {ev.detail or 'error'}", style=BEAR))
-        label = f"{ev.label} {ev.status}" + (f" · {ev.detail}" if ev.detail else "")
-        self.status.update(f"Scanning {self.ticker} [{self.finished}/{self.total}] {label}"[:110])
+            err.print(Text(f"  ✕ {ev.label}: {detail or 'error'}", style=BEAR))
+        tail = [_TAIL_LABELS[k] for k in sorted(self.running) if k in _TAIL_LABELS]
+        if self.wait and tail and len(tail) == len(self.running):
+            label = f"waiting for {', '.join(tail)} (up to {self.wait:.0f}s · --no-wait skips)"
+        else:
+            label = f"{ev.label} {ev.status}" + (f" · {detail}" if detail else "")
+        self.status.update(f"Scanning {self.ticker} [{self.finished}/{self.total}] {label}"[:120])
 
 
-async def _cmd_analyze(ticker: str, as_json: bool, refresh: bool, quiet: bool) -> int:
+async def _settle_background(timeout: float, show: bool) -> None:
+    """Give kept-alive provider work (stragglers, GDELT's volume refresh) up to `timeout` s to
+    land in its cache before exit cancels it; the next run then starts warm."""
+    from app.services.tasks import pending_background
+
+    async def settle() -> None:
+        pending = pending_background()
+        if pending:
+            await asyncio.wait(pending)
+        with contextlib.suppress(Exception):
+            from app.intel import gdelt
+
+            await gdelt.drain()
+
+    job = asyncio.ensure_future(settle())
+    try:
+        done, _ = await asyncio.wait({job}, timeout=0.2)
+        if job in done or timeout <= 0.2:
+            return
+        if show:
+            with err.status(f"Saving slow provider data for the next run (up to {timeout:.0f}s)…", spinner="dots"):
+                await asyncio.wait({job}, timeout=timeout - 0.2)
+        else:
+            await asyncio.wait({job}, timeout=timeout - 0.2)
+    finally:
+        job.cancel()
+        with contextlib.suppress(asyncio.CancelledError, Exception):
+            await job
+
+
+async def _cmd_analyze(ticker: str, as_json: bool, refresh: bool, quiet: bool, wait: bool = True) -> int:
     from app.core.http import close_client
     from app.services import alerts, analyzer
     from app.services.errors import ServiceError
     from app.storage import db
 
-    scan = _Scan(ticker.upper(), enabled=not quiet)
+    tail_wait = CLI_TAIL_WAIT if wait else None
+    scan = _Scan(ticker.upper(), enabled=not quiet, wait=tail_wait)
     try:
-        if scan.status is not None:
-            scan.status.start()
         try:
-            analysis = await analyzer.analyze(ticker, refresh=refresh, progress=scan)
-        finally:
             if scan.status is not None:
-                scan.status.stop()
-    except ServiceError as exc:
-        err.print(Text(f"✕ {exc}", style=BEAR))
-        return 2 if exc.status_code < 500 else 1
+                scan.status.start()
+            try:
+                analysis = await analyzer.analyze(ticker, refresh=refresh, progress=scan, tail_wait=tail_wait)
+            finally:
+                if scan.status is not None:
+                    scan.status.stop()
+        except ServiceError as exc:
+            err.print(Text(f"✕ {exc}", style=BEAR))
+            return 2 if exc.status_code < 500 else 1
+        if as_json:
+            sys.stdout.write(analysis.model_dump_json(indent=2) + "\n")
+            sys.stdout.flush()
+        else:
+            render_analysis(analysis)
+        if wait:
+            await _settle_background(CLI_SETTLE, show=not quiet)
+        return 0
     finally:
         await alerts.drain()  # alert webhooks of this run go out before the HTTP client closes
         await analyzer.shutdown()
         await close_client()
         db.close_db()
-    if as_json:
-        sys.stdout.write(analysis.model_dump_json(indent=2) + "\n")
-    else:
-        render_analysis(analysis)
-    return 0
 
 
 async def _cmd_market(as_json: bool) -> int:
@@ -447,6 +534,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--json", action="store_true", help="print the raw Analysis JSON to stdout")
     p.add_argument("--refresh", action="store_true", help="bypass the cache")
     p.add_argument("--quiet", action="store_true", help="no live scan status on stderr")
+    p.add_argument("--no-wait", action="store_true",
+                   help=f"don't wait (up to {CLI_TAIL_WAIT:.0f}s) for slow GDELT tone / Wikipedia data")
 
     p = sub.add_parser("market", help="market regime, fear & greed, indices, trending")
     p.add_argument("--json", action="store_true")
@@ -465,7 +554,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     level = {0: logging.CRITICAL, 1: logging.WARNING}.get(args.verbose, logging.INFO)
     logging.basicConfig(level=level, format="%(levelname)s %(name)s: %(message)s", force=True)
     if args.command == "analyze":
-        return asyncio.run(_cmd_analyze(args.ticker, args.json, args.refresh, args.quiet))
+        try:
+            return asyncio.run(_cmd_analyze(args.ticker, args.json, args.refresh, args.quiet, wait=not args.no_wait))
+        except KeyboardInterrupt:  # e.g. skipping the post-print cache settle: output is already out
+            return 130
     if args.command == "market":
         return asyncio.run(_cmd_market(args.json))
     if args.command == "sources":

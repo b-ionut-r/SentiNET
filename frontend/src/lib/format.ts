@@ -224,6 +224,31 @@ export function dayTime(s: string | null | undefined, now = Date.now()): string 
   return `${day} ${time}`;
 }
 
+/**
+ * Label for one bucket of a bucketed series spanning `spanMs`, cut every `stepMs`.
+ * Weekday + time only pins a moment inside a window shorter than a week — a 7-day
+ * window starts and ends on the same weekday and hour — so wider windows carry the
+ * date. Daily buckets carry only their (UTC) calendar date; `detail` (tooltips)
+ * always gives weekday and date.
+ */
+export function bucketTime(t: string, spanMs: number, stepMs: number, detail = false): string {
+  const DAY = 864e5;
+  if (stepMs >= DAY) {
+    const d = parseDate(t.slice(0, 10));
+    if (!d) return DASH;
+    return d.toLocaleDateString("en-US", detail ? { weekday: "short", month: "short", day: "numeric" } : { month: "short", day: "numeric" });
+  }
+  const d = new Date(t);
+  if (Number.isNaN(d.getTime())) return DASH;
+  const time = d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+  const day = detail
+    ? d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
+    : spanMs < 6 * DAY
+      ? d.toLocaleDateString("en-US", { weekday: "short" })
+      : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return `${day} ${time}`;
+}
+
 /** Whole calendar days from today until the date (negative = past). */
 export function daysUntil(s: string | null | undefined, now = new Date()): number | null {
   const d = parseDate(s);

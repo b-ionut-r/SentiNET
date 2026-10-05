@@ -165,16 +165,22 @@ function IntelView({
       <SectionNav a={a} />
       <VerdictHero a={a} />
 
-      {/* DOM order is the reading order (insights, stories, case, catalysts) and is what phones show.
-          Desktop: stories on the left; insights top-right with the catalysts rail below them, sticky so
-          it rides along with a longer story list; the bull/bear case spans the full width underneath. */}
+      {/* Desktop: two independent stacks, so neither column's height pushes the other's panels
+          down — stories then the bull/bear case on the left; insights then the catalysts rail on
+          the right, the rail sticky so it rides along with a longer left column. Phones: the
+          stacks dissolve (display: contents) into one column read as insights, stories, case,
+          catalysts. */}
       {a.narratives.length > 0 ? (
-        <div className="grid gap-4 lg:grid-cols-12 lg:grid-rows-[auto_1fr_auto] lg:items-start">
-          <InsightsRail insights={a.insights} evidence={a.sentiment.n} className="lg:col-span-4 lg:col-start-9 lg:row-start-1" />
-          <Narratives a={a} membersOf={narrativeSignals} className="min-w-0 lg:col-span-8 lg:col-start-1 lg:row-span-2 lg:row-start-1" />
-          <CasePanel a={a} className="lg:col-span-12 lg:row-start-3" />
-          <div ref={rail.ref} className="min-w-0 lg:sticky lg:col-span-4 lg:col-start-9 lg:row-start-2" style={{ top: rail.top }}>
-            <WatchNext a={a} />
+        <div className="flex flex-col gap-4 lg:grid lg:grid-cols-12 lg:items-start">
+          <div className="contents lg:col-span-4 lg:col-start-9 lg:row-start-1 lg:flex lg:min-w-0 lg:flex-col lg:gap-4 lg:self-stretch">
+            <InsightsRail insights={a.insights} evidence={a.sentiment.n} className="order-1 lg:order-none" />
+            <div ref={rail.ref} className="order-4 min-w-0 lg:sticky lg:order-none" style={{ top: rail.top }}>
+              <WatchNext a={a} />
+            </div>
+          </div>
+          <div className="contents lg:col-span-8 lg:col-start-1 lg:row-start-1 lg:flex lg:min-w-0 lg:flex-col lg:gap-4">
+            <Narratives a={a} membersOf={narrativeSignals} className="order-2 min-w-0 lg:order-none" />
+            <CasePanel a={a} className="order-3 lg:order-none" />
           </div>
         </div>
       ) : (

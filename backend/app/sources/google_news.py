@@ -21,8 +21,10 @@ Docs: https://news.google.com (RSS search endpoint, unofficial but stable).
 """
 from __future__ import annotations
 
+import asyncio
 import re
 
+from app.config import settings
 from app.core import http
 from app.schemas import SignalKind
 from app.sources.base import CompanyRef, RawSignal, SourceBatch
@@ -108,6 +110,11 @@ def build_queries(terms: SearchTerms, company: CompanyRef) -> list[str]:
     return [f"{q} {EXCLUDE}" for q in queries]
 
 
+def query_deadline() -> float:
+    """Seconds one query may take (retry included): 60% of the per-source time box."""
+    return 0.6 * settings.source_timeout
+
+
 def parse_feed(content: bytes) -> list[RawSignal]:
     root = parse_xml(content, "google_news")
     out: list[RawSignal] = []
@@ -150,8 +157,19 @@ class GoogleNewsSource:
         return company.quote_type in SEARCHABLE_TYPES
 
     async def _search(self, query: str) -> list[RawSignal]:
+        """One query, bounded well inside the source's time box.
+
+        The queries run side by side; without their own deadline a single 503 + retry or a
+        stalled answer ran past `source_timeout` and the box threw away the queries that had
+        already answered (^GSPC, BRK-A, 0700.HK: "timed out after 10s", 0 items, while the same
+        fetch takes ~1 s). Now that query fails alone and `gather_partial` keeps the rest.
+        """
         params = {"q": query, "hl": "en-US", "gl": "US", "ceid": "US:en"}
-        resp = await http.fetch(URL, params=params)
+        deadline = query_deadline()
+        try:
+            resp = await asyncio.wait_for(http.fetch(URL, params=params, timeout=deadline), deadline)
+        except TimeoutError as exc:
+            raise http.UpstreamError(f"news.google.com: query timed out after {deadline:.1f}s") from exc
         return parse_feed(resp.content)
 
     async def fetch(self, company: CompanyRef) -> SourceBatch:

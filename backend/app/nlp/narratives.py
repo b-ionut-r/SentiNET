@@ -23,16 +23,24 @@
      Hub terms whose documents share little else ("Muse", "AI") are damped.
   3. Exact average-link agglomeration (mean pairwise cosine via cluster
      sum-vectors, time-faded), gated by shared anchors and absolute evidence.
+     One shared word never links two stories — a plain word ("Sit") or a
+     piece of two different names ("Pro" of "Vision Pro" / "iPhone 18 Pro
+     Max") — and some developments never share a story: different firms'
+     opposite calls (Citi's Buy initiation vs Morgan Stanley's target cut),
+     insiders buying vs insiders selling. The company's multi-word name
+     ("SoFi Technologies") is the company, not a story term.
   4. Refinement: merge close cores, move clearly misplaced members, attach
      satellites to the core whose *defining* features they share.
+  5. Continuing developments (a buyback raised again, an insider's buying
+     spree) are one story whatever amount each headline quotes: stories about
+     the company's own program join while their coverage is within 10 days.
 
   Measured on hand-labeled real Google News sets in tests/fixtures/nlp
-  (pairwise F1 / B-cubed F1): tuning sets NVDA .91/.92, AAPL .83/.89,
-  META .50/.81, TGT .82/.87, XYZ .99/.96; validation TSLA .80/.83,
-  AMZN .81/.86; test set AMD .89/.89 at its first, untouched scoring
-  (.83/.87 after later fixes). The previous version scored NVDA .83/.89,
-  TGT .71/.78, META .48/.82, TSLA .75/.77, AMD .90/.91 on the same sets.
-  Pure Python, deterministic; ~0.25 s for 500 headlines of one company.
+  (pairwise F1 / B-cubed F1): tuning sets NVDA .95/.94, AAPL .87/.92,
+  META .50/.81, TGT .82/.87, XYZ .99/.96; validation TSLA .84/.87,
+  AMZN .82/.89; test set AMD .89/.89 at its first, untouched scoring
+  (.86/.87 after later fixes). Pure Python, deterministic; ~0.25 s for 500
+  headlines of one company.
 """
 from __future__ import annotations
 
@@ -41,11 +49,12 @@ import math
 import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass
+from functools import lru_cache
 from itertools import pairwise
 
-from app.nlp.events import detect_events
+from app.nlp.events import detect_events, is_known_firm
 from app.nlp.publishers import publisher_trust
-from app.nlp.relevance import company_terms
+from app.nlp.relevance import company_phrases, company_terms
 from app.nlp.text import (
     CALENDAR_WORDS,
     GENERIC_WORDS,
@@ -77,6 +86,7 @@ TIME_FADE_H = 144.0
 # Clusters sharing no anchor (entity, amount, bigram, concept, firm) need this
 # much average-link similarity to merge: plain words link only near-paraphrases.
 NONANCHOR_SIM = 0.4
+NONANCHOR_SHARED = 2  # ...and to share this many non-trivial terms ("Sit" alone is no story)
 ANCHOR_MAX_DF = 0.35
 # Refinement (see _refine): cores, defining features, attach/merge cut-offs.
 CORE_MIN = 3
@@ -325,6 +335,24 @@ class _Doc:
     raw: dict[str, float]  # un-normalized tf-idf weights (absolute evidence)
     anchors: frozenset[str]  # features specific enough to tie two headlines to one story
     surfaces: dict[str, str]  # feature -> a surface form seen in this title
+    trivial: frozenset[str] = frozenset()  # price-move words, years, months: no story identity
+    name_parts: frozenset[str] = frozenset()  # one-word pieces of longer names ("pro" of "Vision Pro")
+    firms: frozenset[str] = frozenset()  # analyst firms acting in this headline ("citi")
+    stances: frozenset[str] = frozenset()  # their actions' polarity ("bull", "bear", "neutral")
+    program: frozenset[str] = frozenset()  # the company's own continuing developments ("buyback")
+
+
+@dataclass
+class _Raw:
+    feats: dict[str, float]
+    anchors: set[str]
+    surfaces: dict[str, str]
+    timed: set[str]
+    trivial: set[str]
+    name_parts: set[str]
+    firms: frozenset[str]
+    stances: frozenset[str]
+    program: frozenset[str]
 
 
 _WORD_SURFACE_RE = re.compile(r"[A-Za-z][\w&'-]*")
@@ -413,9 +441,28 @@ def _own_subject(title: str, span: str | None, own: frozenset[str]) -> bool:
     return bool(set(tokenize(text[max(0, idx - 40):idx])[-4:]) & own)
 
 
-def _raw_features(title: str, own: frozenset[str], proper: frozenset[str]
-                  ) -> tuple[dict[str, float], set[str], dict[str, str], set[str]]:
+# Developments that unfold over days as one story — a buyback program raised
+# again, an insider's buying spree — whatever amount each headline quotes.
+PROGRAM_EVENTS = frozenset({"buyback", "insider_buy", "insider_sell"})
+PROGRAM_SPAN_H = 240.0  # follow-ups this close to the story's coverage join it
+
+
+@lru_cache(maxsize=256)
+def _name_pattern(phrases: tuple[str, ...]) -> re.Pattern[str] | None:
+    """The company's multi-word names ("SoFi Technologies", "Advanced Micro
+    Devices") as one regex: their everyday words are the name, not a story term."""
+    if not phrases:
+        return None
+    alts = [r"[\s-]+".join(re.escape(w) for w in phrase.split()) for phrase in phrases]
+    return re.compile(rf"(?<![\w&])(?:{'|'.join(alts)})(?![\w&])", re.IGNORECASE)
+
+
+def _raw_features(title: str, own: frozenset[str], proper: frozenset[str], company: CompanyRef | None = None,
+                  own_token: str = "") -> _Raw:
     text = _focus(title, own)
+    own_names = _name_pattern(company_phrases(company)) if company is not None and own_token else None
+    if own_names is not None:
+        text = own_names.sub(f" {own_token} ", text)  # "SoFi Technologies Stock Sits ..." -> "sofi Stock Sits ..."
     for pattern, concept in _PHRASES:
         text = pattern.sub(concept, text)
     shouting = is_mostly_upper(text)
@@ -431,6 +478,13 @@ def _raw_features(title: str, own: frozenset[str], proper: frozenset[str]
         surfaces.setdefault(feature, surface)
         if anchor:
             anchors.add(feature)
+
+    def weak(feature: str, weight: float, surface: str) -> None:
+        add(feature, weight, surface)
+        trivial.add(feature)
+
+    trivial: set[str] = set()
+    names: set[str] = set()  # one-word names ("Vision", "Pro", "OpenAI")
 
     tokens: list[str] = []
     for segment in _SEGMENT_RE.split(text):  # bigrams never span punctuation ("Dispute: Early ...")
@@ -452,19 +506,19 @@ def _raw_features(title: str, own: frozenset[str], proper: frozenset[str]
             add(tok, _W_PCT, tok, anchor=value >= 10)
         elif _NUM_RE.match(tok):
             if _YEAR_RE.match(tok):
-                add(tok, _W_YEAR, tok)
+                weak(tok, _W_YEAR, tok)
             elif len(tok.replace(".", "").replace(",", "")) >= 2 or "." in tok:
                 add(tok, _W_NUMBER, tok, anchor=True)
         elif tok in STOPWORDS or len(tok) < 2:
             if tok not in _BRIDGE_WORDS:  # "sales for Q3" ~ "Q3 sales", but no "Reaffirmed [His] Jaw"
                 content.append(("", "", False))
         elif tok in MOVE_WORDS:
-            add(stem(tok), _W_MOVE, surface)
+            weak(stem(tok), _W_MOVE, surface)
             content.append(("", "", False))
         elif tok in GENERIC_WORDS or tok.startswith("$"):
             content.append((tok, surface, True))
         elif tok in CALENDAR_WORDS:
-            add(tok, _W_MONTH, surface)
+            weak(tok, _W_MONTH, surface)
             content.append(("", "", False))
         elif "-" in tok and tok in _CONCEPTS:
             feature = tok
@@ -478,21 +532,34 @@ def _raw_features(title: str, own: frozenset[str], proper: frozenset[str]
             feature = stem(tok)
             if tok in proper or (not shouting and _is_entity_shape(surface)):
                 add(feature, _W_PROPER, surface, anchor=True)
+                names.add(feature)
                 own_seen = False  # another entity takes over: "... as AMD hits a record"
             elif tok in HEADLINE_VERBS:
                 add(feature, _W_VERB, surface)
             else:
                 add(feature, _W_WORD, surface)
             content.append((feature, surface, False))
+    parts: set[str] = set()  # names that are pieces of a longer name: "Pro" in "Vision Pro"
     for (f1, s1, g1), (f2, s2, g2) in pairwise(content):
         if f1 and f2 and f1 != f2 and not (g1 and g2):
             add(f"{f1} {f2}", _W_BIGRAM, f"{s1} {s2}", anchor=True)
+            # a name next to another capitalized word is a piece of a longer name
+            # (an analyst firm is a name of its own: "Robert W. Baird", "Baird Calls")
+            if f1 in names and s2[:1].isupper() and not is_known_firm(s1):
+                parts.add(f1)
+            if f2 in names and s1[:1].isupper() and not is_known_firm(s2):
+                parts.add(f2)
     timed: set[str] = set()
     if _ANALYST_BULL_RE.search(title):
         timed.add("analyst-bull")
     if _ANALYST_BEAR_RE.search(title):
         timed.add("analyst-bear")
-    for event in detect_events(title):
+    # The company's own events only: "Nvidia dips as AMD adds a $10B buyback" is not Nvidia's buyback story.
+    events = detect_events(title, company) if company is not None else detect_events(title)
+    firms = frozenset(e.firm.lower() for e in events if e.firm)
+    stances = frozenset(e.polarity for e in events if e.firm)
+    program = frozenset(e.key for e in events if e.key in PROGRAM_EVENTS)
+    for event in events:
         group = _TIMED_GROUPS.get(event.key)
         if group and (not group.startswith("move-") or (_own_subject(title, event.span, own)
                                                          and not _period_move(title, event.span))):
@@ -502,7 +569,7 @@ def _raw_features(title: str, own: frozenset[str], proper: frozenset[str]
         add(f"ev:{event.key}", _W_EVENT, event.key, anchor=event.key not in _GENERIC_EVENTS)
         if event.firm:
             add(f"firm:{event.firm.lower()}", _W_FIRM, event.firm, anchor=True)
-    return feats, anchors, surfaces, timed
+    return _Raw(feats, anchors, surfaces, timed, trivial, parts, firms, stances, program)
 
 
 _CONCEPTS = frozenset(c.strip() for _p, c in _PHRASES if "-" in c)
@@ -552,30 +619,32 @@ def _hub_damping(vectors: list[dict[str, float]], df: Counter[str]) -> dict[str,
 def _vectorize(titles: list[str], company: CompanyRef | None, times: list[float | None] | None = None
                ) -> tuple[list[_Doc], dict[str, float], frozenset[str]]:
     own = company_terms(company)
+    own_token = company.ticker.lower() if company is not None and company.ticker.lower() in own else ""
     proper, common = _learn_case(titles)
-    raw = [_raw_features(t or "", own, proper) for t in titles]
-    for (feats, anchors, _s, timed), ts in zip(raw, times or [None] * len(titles), strict=True):
+    raw = [_raw_features(t or "", own, proper, company, own_token) for t in titles]
+    for r, ts in zip(raw, times or [None] * len(titles), strict=True):
         if ts is None:
             continue
-        for group in timed:
+        for group in r.timed:
             key = f"t:{group}@{_session_day(ts)}"
-            feats[key] = _W_TIMED
-            anchors.add(key)
+            r.feats[key] = _W_TIMED
+            r.anchors.add(key)
     n = len(titles)
-    df = Counter(f for feats, _a, _s, _t in raw for f in feats)
+    df = Counter(f for r in raw for f in r.feats)
     # Background pseudo-documents keep idf meaningful in small batches: with
     # 3 headlines all about one buyback, "buyback" must still link them.
     idf = {f: math.log((n + IDF_PRIOR_DOCS) / (c + 0.5)) for f, c in df.items()}
     # Features seen once cannot link anything; keep them faint so they don't
     # swamp the shared ones in the norm.
-    weighted = [{f: w * idf[f] * (SINGLETON_DAMPING if df[f] == 1 else 1.0) for f, w in feats.items() if idf[f] > 0}
-                for feats, _a, _s, _t in raw]
+    weighted = [{f: w * idf[f] * (SINGLETON_DAMPING if df[f] == 1 else 1.0) for f, w in r.feats.items() if idf[f] > 0}
+                for r in raw]
     hubs = _hub_damping(weighted, df)
     docs: list[_Doc] = []
-    for vec, (_f, anchors, surfaces, _t) in zip(weighted, raw, strict=True):
+    for vec, r in zip(weighted, raw, strict=True):
         vec = {f: w * hubs.get(f, 1.0) for f, w in vec.items()}
-        docs.append(_Doc(vec=_unit(vec), raw=vec, anchors=frozenset(a for a in anchors if a in vec),
-                         surfaces=surfaces))
+        docs.append(_Doc(vec=_unit(vec), raw=vec, anchors=frozenset(a for a in r.anchors if a in vec),
+                         surfaces=r.surfaces, trivial=frozenset(r.trivial), name_parts=frozenset(r.name_parts),
+                         firms=r.firms, stances=r.stances, program=r.program))
     return docs, idf, common
 
 
@@ -602,6 +671,40 @@ def _heavy(vec: dict[str, float], bound: float) -> set[str]:
     return out
 
 
+def _name_parts(group: list[int], docs: list[_Doc]) -> frozenset[str]:
+    return frozenset().union(*(docs[i].name_parts for i in group))
+
+
+_Actors = tuple[frozenset[str], frozenset[str], frozenset[str]]  # (analyst firms, their stances, program events)
+_INSIDER_SIDES = (frozenset({"insider_buy"}), frozenset({"insider_sell"}))
+
+
+def _actors(i: int, docs: list[_Doc]) -> _Actors:
+    return docs[i].firms, docs[i].stances, docs[i].program
+
+
+def _group_actors(group: list[int], docs: list[_Doc]) -> _Actors:
+    return (frozenset().union(*(docs[i].firms for i in group)), frozenset().union(*(docs[i].stances for i in group)),
+            frozenset().union(*(docs[i].program for i in group)))
+
+
+def _merge_actors(a: _Actors, b: _Actors) -> _Actors:
+    return a[0] | b[0], a[1] | b[1], a[2] | b[2]
+
+
+def _conflict(a: _Actors, b: _Actors) -> bool:
+    """Developments that cannot be one story: different firms acting in
+    opposite directions (Citi initiating at Buy is not Morgan Stanley's target
+    cut), or insiders buying vs insiders selling."""
+    (firms_a, stances_a, program_a), (firms_b, stances_b, program_b) = a, b
+    if (firms_a and firms_b and not firms_a & firms_b and stances_a and stances_b
+            and not stances_a & stances_b):
+        return True
+    buy, sell = _INSIDER_SIDES
+    insider_a, insider_b = program_a & (buy | sell), program_b & (buy | sell)
+    return {insider_a, insider_b} == {buy, sell}
+
+
 def _average_link(docs: list[_Doc], threshold: float, times: list[float | None] | None = None) -> list[list[int]]:
     """Exact average-link agglomeration: sim(A, B) = (ΣA·ΣB) / (|A||B|) for
     unit vectors (× a time-proximity factor), merged greedily from the most
@@ -614,6 +717,8 @@ def _average_link(docs: list[_Doc], threshold: float, times: list[float | None] 
     sums: dict[int, dict[str, float]] = {i: dict(d.vec) for i, d in enumerate(docs)}
     raws: dict[int, dict[str, float]] = {i: dict(d.raw) for i, d in enumerate(docs)}
     anchors: dict[int, set[str]] = {i: set(d.anchors) for i, d in enumerate(docs)}
+    parts: dict[int, set[str]] = {i: set(d.name_parts) for i, d in enumerate(docs)}
+    analysts: dict[int, _Actors] = {i: _actors(i, docs) for i in range(len(docs))}
     members: dict[int, list[int]] = {i: [i] for i in range(len(docs))}
     version = dict.fromkeys(sums, 0)
     # Candidate pairs share a key: an anchor (pairs below NONANCHOR_SIM need
@@ -621,6 +726,7 @@ def _average_link(docs: list[_Doc], threshold: float, times: list[float | None] 
     # "heavy" feature — the lightest features of a unit vector whose L2 mass
     # stays below NONANCHOR_SIM can't by themselves reach it (Cauchy-Schwarz).
     df = Counter(f for d in docs for f in d.vec)
+    trivial = frozenset().union(*(d.trivial for d in docs)) if docs else frozenset()
     anchor_cap = max(3, int(ANCHOR_MAX_DF * len(docs)))
     keys: dict[int, set[str]] = {i: {f for f in d.anchors if df[f] <= anchor_cap} | _heavy(d.vec, NONANCHOR_SIM)
                                  for i, d in enumerate(docs)}
@@ -655,11 +761,24 @@ def _average_link(docs: list[_Doc], threshold: float, times: list[float | None] 
             partners[b].add(a)
         return value
 
+    def shared_terms(a: int, b: int) -> int:
+        ra, rb = raws[a], raws[b]
+        if len(ra) > len(rb):
+            ra, rb = rb, ra
+        return sum(1 for f in ra if f in rb and f not in trivial)
+
     def push(a: int, b: int) -> None:
         a, b = min(a, b), max(a, b)
         sim = pair_dot(a, b) / (len(members[a]) * len(members[b]))
         sim *= _time_factor(clock[a], clock[b])
-        if sim < threshold or (sim < NONANCHOR_SIM and not anchors[a] & anchors[b]):
+        if sim < threshold or _conflict(analysts[a], analysts[b]):
+            return
+        shared_anchors = anchors[a] & anchors[b]
+        if not shared_anchors and sim < NONANCHOR_SIM:
+            return
+        if shared_anchors <= parts[a] & parts[b] and shared_terms(a, b) < NONANCHOR_SHARED:
+            # One shared plain word ("Sit"), or a word of two different names ("Pro" of
+            # "Vision Pro" and of "iPhone 18 Pro Max"), is no story.
             return
         if evidence(a, b) >= MIN_EVIDENCE:
             heapq.heappush(heap, (-sim, a, b, version[a], version[b]))
@@ -687,6 +806,8 @@ def _average_link(docs: list[_Doc], threshold: float, times: list[float | None] 
         for f, w in raws.pop(b).items():
             raws[a][f] = raws[a].get(f, 0.0) + w
         anchors[a] |= anchors.pop(b)
+        parts[a] |= parts.pop(b)
+        analysts[a] = _merge_actors(analysts[a], analysts.pop(b))
         for f in keys.pop(b):
             by_key[f].discard(b)
             by_key[f].add(a)
@@ -748,28 +869,85 @@ def _refine(groups: list[list[int]], docs: list[_Doc], times: list[float | None]
     cores = _merge_cores(sorted((g for g in groups if len(g) >= CORE_MIN), key=lambda g: (-len(g), g[0])),
                          docs, times)
     if not cores:
-        return groups
+        return _join_programs(groups, docs, times)
     cores = _reassign(cores, docs, times)
     profiles = [_profile(g, docs) for g in cores]
+    analysts = [_group_actors(g, docs) for g in cores]
+    parts = [_name_parts(g, docs) for g in cores]
     out = [list(g) for g in cores]
     for g in (g for g in groups if len(g) < CORE_MIN):
         centroid, _defining = _profile(g, docs)
-        k = _best_core(set(centroid), centroid, _span(g, times), cores, profiles, times, ATTACH_SIM)
+        k = _best_core(set(centroid), centroid, _span(g, times), cores, profiles, times, ATTACH_SIM,
+                       analysts=analysts, mine=_group_actors(g, docs), parts=parts, my_parts=_name_parts(g, docs))
         if k >= 0:
             out[k].extend(g)
         else:
             out.append(list(g))
-    return [sorted(g) for g in out if g]
+    return _join_programs([sorted(g) for g in out if g], docs, times)
+
+
+def _program_keys(group: list[int], docs: list[_Doc]) -> set[str]:
+    """Continuing developments a story is *about*: carried by at least
+    DEFINING_FRAC of its members (any member of a pair or a single headline)."""
+    counts = Counter(k for i in group for k in docs[i].program)
+    need = max(1.0, DEFINING_FRAC * len(group)) if len(group) > 2 else 1.0
+    return {k for k, c in counts.items() if c >= need}
+
+
+def _join_programs(groups: list[list[int]], docs: list[_Doc], times: list[float | None]) -> list[list[int]]:
+    """One story per continuing development: the CEO's buys of $26.4M, $10.6M
+    and $17M over two weeks, or a $150B buyback increase and the "$235B
+    buyback" it brings the total to, are follow-ups of one story, not one
+    story per amount. Groups about the same program join when their coverage
+    windows are within PROGRAM_SPAN_H of each other."""
+    keys = [_program_keys(g, docs) for g in groups]
+    if sum(1 for k in keys if k) < 2:
+        return groups
+    spans = [_span(g, times) for g in groups]
+    parent = list(range(len(groups)))
+
+    def find(i: int) -> int:
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    order = sorted(range(len(groups)), key=lambda g: (-len(groups[g]), groups[g][0]))
+    for x, a in enumerate(order):
+        for b in order[x + 1:]:
+            if not keys[a] & keys[b] or find(a) == find(b):
+                continue
+            sa, sb = spans[a], spans[b]
+            if sa is not None and sb is not None and max(sa[0], sb[0]) - min(sa[1], sb[1]) > PROGRAM_SPAN_H * 3600:
+                continue
+            ra, rb = find(a), find(b)
+            merged_a = [i for g in range(len(groups)) if find(g) == ra for i in groups[g]]
+            merged_b = [i for g in range(len(groups)) if find(g) == rb for i in groups[g]]
+            if _conflict(_group_actors(merged_a, docs), _group_actors(merged_b, docs)):
+                continue
+            parent[max(ra, rb)] = min(ra, rb)
+    joined: dict[int, list[int]] = defaultdict(list)
+    for g, members in enumerate(groups):
+        joined[find(g)].extend(members)
+    return [sorted(m) for m in joined.values()]
 
 
 def _best_core(feats: set[str], vec: dict[str, float], span: tuple[float, float] | None, cores: list[list[int]],
                profiles: list[tuple[dict[str, float], set[str]]], times: list[float | None], floor: float,
-               skip: int = -1, min_size: int = 0) -> int:
+               skip: int = -1, min_size: int = 0,
+               analysts: list[_Actors] | None = None, mine: _Actors | None = None,
+               parts: list[frozenset[str]] | None = None, my_parts: frozenset[str] = frozenset()) -> int:
     """Index of the most similar core sharing a defining feature with `feats`
-    (similarity >= floor), or -1."""
+    (similarity >= floor, analyst actions not in conflict), or -1. A lone
+    shared word of two different names ("Pro") does not count as shared."""
     best_k, best_sim = -1, floor
     for k, (centroid, defining) in enumerate(profiles):
-        if k == skip or len(cores[k]) < min_size or not feats & defining:
+        shared = feats & defining
+        if k == skip or len(cores[k]) < min_size or not shared:
+            continue
+        if parts is not None and len(shared) == 1 and shared <= my_parts & parts[k]:
+            continue
+        if analysts is not None and mine is not None and _conflict(mine, analysts[k]):
             continue
         sim = _dot(vec, centroid) * _span_factor(span, _span(cores[k], times))
         if sim >= best_sim:
@@ -783,9 +961,10 @@ def _merge_cores(cores: list[list[int]], docs: list[_Doc], times: list[float | N
     while len(cores) > 1:
         profiles = [_profile(g, docs) for g in cores]
         best: tuple[float, int, int] | None = None
+        analysts = [_group_actors(g, docs) for g in cores]
         for a in range(len(cores)):
             for b in range(a + 1, len(cores)):
-                if not profiles[a][1] & profiles[b][1]:
+                if not profiles[a][1] & profiles[b][1] or _conflict(analysts[a], analysts[b]):
                     continue
                 sim = _dot(profiles[a][0], profiles[b][0]) * _span_factor(_span(cores[a], times),
                                                                           _span(cores[b], times))
@@ -804,6 +983,8 @@ def _reassign(cores: list[list[int]], docs: list[_Doc], times: list[float | None
     (by REASSIGN_MARGIN) than to the rest of its own cluster. Profiles are
     computed once up front, so the result is order-independent."""
     profiles = [_profile(g, docs) for g in cores]
+    analysts = [_group_actors(g, docs) for g in cores]
+    parts = [_name_parts(g, docs) for g in cores]
     moves: list[tuple[int, int, int]] = []  # (item, from core, to core)
     for c, group in enumerate(cores):
         total: dict[str, float] = defaultdict(float)
@@ -815,7 +996,9 @@ def _reassign(cores: list[list[int]], docs: list[_Doc], times: list[float | None
             own_sim = _dot(docs[i].vec, rest)
             point = (times[i], times[i]) if times[i] is not None else None
             k = _best_core(set(docs[i].vec), docs[i].vec, point, cores, profiles, times,
-                           max(ATTACH_SIM, own_sim + REASSIGN_MARGIN), skip=c, min_size=len(group))
+                           max(ATTACH_SIM, own_sim + REASSIGN_MARGIN), skip=c, min_size=len(group),
+                           analysts=analysts, mine=_actors(i, docs), parts=parts,
+                           my_parts=docs[i].name_parts)
             if k >= 0:
                 moves.append((i, c, k))
     out = [list(g) for g in cores]

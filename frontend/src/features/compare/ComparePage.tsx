@@ -16,7 +16,7 @@ import { Empty, Skeleton, TickerLogo } from "../../components/ui/Misc";
 import { Panel } from "../../components/ui/Panel";
 import { cx } from "../../lib/cx";
 import { money, pct, price, ratioPct, signed } from "../../lib/format";
-import { divergingFill, polarityOf100, textTone } from "../../lib/sentiment";
+import { divergingFill, polarityOf100, scoreCell100, textTone } from "../../lib/sentiment";
 
 const MAX = 4;
 /** Categorical identity colours, by slot (never by rank or position). */
@@ -83,6 +83,10 @@ export default function ComparePage() {
   const q3 = useAnalysisPlain(tickers[3] ?? "", !!tickers[3]);
   const queries = [q0, q1, q2, q3].slice(0, tickers.length);
   const loaded = queries.map((q) => q.data ?? null);
+  // A ticker that failed to analyze has no column data, ever: its cells say so ("—")
+  // instead of a loading ellipsis that never resolves.
+  const failed = queries.map((q) => !q.data && !!q.error);
+  const remove = (t: string) => setTickers(tickers.filter((x) => x !== t));
 
   return (
     <div className="space-y-4">
@@ -96,7 +100,7 @@ export default function ComparePage() {
             <span key={t} className="inline-flex h-8 items-center gap-2 rounded-lg bg-raised pl-2.5 pr-1 text-sm font-medium text-ink" style={{ boxShadow: "0 0 0 1px var(--hairline)" }}>
               <span className="h-2.5 w-2.5 rounded-sm" style={{ background: colors[i] }} aria-hidden />
               <span className="font-mono">{t}</span>
-              <button className="rounded p-1 text-muted hover:bg-panel hover:text-ink" onClick={() => setTickers(tickers.filter((x) => x !== t))} aria-label={`Remove ${t}`}>
+              <button className="rounded p-1 text-muted hover:bg-panel hover:text-ink" onClick={() => remove(t)} aria-label={`Remove ${t}`}>
                 <X className="size-3.5" />
               </button>
             </span>
@@ -130,14 +134,14 @@ export default function ComparePage() {
         <>
           <div className={cx("grid gap-4", colsClass(tickers.length))}>
             {tickers.map((t, i) => (
-              <VerdictCard key={t} ticker={t} color={colors[i]} q={queries[i]} />
+              <VerdictCard key={t} ticker={t} color={colors[i]} q={queries[i]} onRemove={() => remove(t)} />
             ))}
           </div>
           {loaded.some(Boolean) && (
             <>
-              <ComponentMatrix tickers={tickers} colors={colors} data={loaded} />
+              <ComponentMatrix tickers={tickers} colors={colors} data={loaded} failed={failed} />
               <ToneCompare tickers={tickers} colors={colors} data={loaded} />
-              <StatsTable tickers={tickers} colors={colors} data={loaded} />
+              <StatsTable tickers={tickers} colors={colors} data={loaded} failed={failed} />
             </>
           )}
         </>
@@ -148,7 +152,18 @@ export default function ComparePage() {
 
 const colsClass = (n: number) => (n <= 1 ? "" : n === 2 ? "md:grid-cols-2" : n === 3 ? "md:grid-cols-3" : "md:grid-cols-2 xl:grid-cols-4");
 
-function VerdictCard({ ticker, color, q }: { ticker: string; color: string; q: ReturnType<typeof useAnalysisPlain> }) {
+/** Cell for a column with no analysis: still loading, or never coming (the run failed). */
+function NoData({ ticker, failed }: { ticker: string; failed: boolean }) {
+  return failed ? (
+    <span className="text-xs text-muted" title={`Couldn't analyze ${ticker}`}>
+      —
+    </span>
+  ) : (
+    <span className="text-xs text-muted">…</span>
+  );
+}
+
+function VerdictCard({ ticker, color, q, onRemove }: { ticker: string; color: string; q: ReturnType<typeof useAnalysisPlain>; onRemove: () => void }) {
   if (q.isPending) {
     return (
       <div className="panel space-y-3 p-4" aria-busy="true">
@@ -162,7 +177,14 @@ function VerdictCard({ ticker, color, q }: { ticker: string; color: string; q: R
   if (q.error || !q.data) {
     return (
       <div className="panel p-4">
-        <Empty title={`Couldn't analyze ${ticker}`}>{q.error?.message}</Empty>
+        <Empty title={`Couldn't analyze ${ticker}`}>
+          {q.error?.message}
+          <div className="mt-3">
+            <button className="btn h-7 px-2.5 text-xs" onClick={onRemove}>
+              <X className="size-3.5" /> Remove {ticker}
+            </button>
+          </div>
+        </Empty>
       </div>
     );
   }
@@ -215,7 +237,7 @@ function VerdictCard({ ticker, color, q }: { ticker: string; color: string; q: R
   );
 }
 
-function ComponentMatrix({ tickers, colors, data }: { tickers: string[]; colors: string[]; data: Array<Analysis | null> }) {
+function ComponentMatrix({ tickers, colors, data, failed }: { tickers: string[]; colors: string[]; data: Array<Analysis | null>; failed: boolean[] }) {
   const rows: Array<{ key: string; label: string; get: (a: Analysis) => number | null }> = [
     { key: "sentinet", label: "SentiNET", get: (a) => a.verdict.score },
     ...COMPONENTS.map((c) => ({ key: c.key, label: c.label, get: (a: Analysis) => a.verdict.components.find((x) => x.key === c.key && x.available)?.score ?? null })),
@@ -243,20 +265,21 @@ function ComponentMatrix({ tickers, colors, data }: { tickers: string[]; colors:
                 <td className="py-1.5 pl-4 text-xs text-ink-2">{r.label}</td>
                 {data.map((a, i) => {
                   const v = a ? r.get(a) : null;
+                  const cell = v == null ? null : scoreCell100(v);
                   const comp = a?.verdict.components.find((c) => c.key === r.key);
                   return (
                     <td key={tickers[i]} className="px-1.5 py-1">
                       <div
                         className="flex h-8 items-center justify-center rounded-md text-sm num"
-                        style={{ background: v == null ? "transparent" : `color-mix(in oklab, ${divergingFill(Math.abs(v - 50) < 5 ? 0 : (v - 50) / 30)} 30%, transparent)` }}
+                        style={{ background: cell == null ? "transparent" : `color-mix(in oklab, ${divergingFill(cell.tint)} 30%, transparent)` }}
                         title={comp?.detail ?? undefined}
                       >
-                        {v == null ? (
-                          <span className="text-xs text-muted">{a ? "n/a" : "…"}</span>
+                        {cell == null ? (
+                          a ? <span className="text-xs text-muted">n/a</span> : <NoData ticker={tickers[i]} failed={failed[i]} />
                         ) : (
                           <span className="inline-flex items-center gap-1 text-ink">
-                            {polarityOf100(v) !== "neutral" && <Mark p={polarityOf100(v)} className="text-[8px]" />}
-                            {Math.round(v)}
+                            {cell.polarity !== "neutral" && <Mark p={cell.polarity} className="text-[8px]" />}
+                            {cell.value}
                           </span>
                         )}
                       </div>
@@ -320,7 +343,7 @@ function ToneCompare({ tickers, colors, data }: { tickers: string[]; colors: str
   );
 }
 
-function StatsTable({ tickers, colors, data }: { tickers: string[]; colors: string[]; data: Array<Analysis | null> }) {
+function StatsTable({ tickers, colors, data, failed }: { tickers: string[]; colors: string[]; data: Array<Analysis | null>; failed: boolean[] }) {
   const tone = (v: number | null | undefined, digits = 1, suffix = "%") =>
     v == null ? <span className="text-muted">—</span> : <span className={textTone[v > 0 ? "bull" : v < 0 ? "bear" : "neutral"]}>{suffix === "%" ? pct(v, digits) : signed(v, digits)}</span>;
   const rows: Array<[string, (a: Analysis) => ReactNode]> = [
@@ -364,7 +387,7 @@ function StatsTable({ tickers, colors, data }: { tickers: string[]; colors: stri
                 <td className="py-1.5 pl-4 text-ink-2">{label}</td>
                 {data.map((a, i) => (
                   <td key={tickers[i]} className="py-1.5 pr-4 text-right capitalize text-ink">
-                    {a ? get(a) : <span className="text-muted">…</span>}
+                    {a ? get(a) : <NoData ticker={tickers[i]} failed={failed[i]} />}
                   </td>
                 ))}
               </tr>

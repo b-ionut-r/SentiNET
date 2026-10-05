@@ -4,14 +4,20 @@
  * kept in the tooltip). Shows *when* the tone shifted and how loud it was.
  */
 import type { TimelineBucket } from "../../api/types";
-import { signed } from "../../lib/format";
+import { bucketTime, signed } from "../../lib/format";
 import { useRoving } from "../../lib/useRoving";
 
-/** Place buckets on an even time grid so quiet stretches show as gaps. */
-function onTimeGrid(buckets: TimelineBucket[]): Array<TimelineBucket | { t: string; empty: true }> {
+/** Smallest gap between consecutive buckets (ms): the series' bucket size. */
+function stepOf(buckets: TimelineBucket[]): number {
   const ts = buckets.map((b) => Date.parse(b.t));
   let step = Infinity;
   for (let i = 1; i < ts.length; i++) step = Math.min(step, ts[i] - ts[i - 1]);
+  return step;
+}
+
+/** Place buckets on an even time grid so quiet stretches show as gaps. */
+function onTimeGrid(buckets: TimelineBucket[], step: number): Array<TimelineBucket | { t: string; empty: true }> {
+  const ts = buckets.map((b) => Date.parse(b.t));
   if (!Number.isFinite(step) || step < 15 * 60_000) return buckets;
   const slots = Math.round((ts[ts.length - 1] - ts[0]) / step) + 1;
   if (slots > 240) return buckets;
@@ -21,12 +27,14 @@ function onTimeGrid(buckets: TimelineBucket[]): Array<TimelineBucket | { t: stri
 
 export function Pulse({ buckets: raw, height = 56 }: { buckets: TimelineBucket[]; height?: number }) {
   const sorted = [...raw].sort((x, y) => x.t.localeCompare(y.t));
-  const buckets = raw.length < 2 ? [] : onTimeGrid(sorted);
+  const step = stepOf(sorted);
+  const buckets = raw.length < 2 ? [] : onTimeGrid(sorted, step);
   const filled = buckets.filter((b): b is TimelineBucket => !("empty" in b));
-  const fmt = (t: string) => new Date(t).toLocaleString("en-US", { weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false });
+  const span = sorted.length > 1 ? Date.parse(sorted[sorted.length - 1].t) - Date.parse(sorted[0].t) : 0;
+  const fmt = (t: string, detail = false) => bucketTime(t, span, step, detail);
   const tips = filled.map((b) => (
     <div className="space-y-0.5">
-      <div className="text-2xs text-muted">{fmt(b.t)}</div>
+      <div className="text-2xs text-muted">{fmt(b.t, true)}</div>
       <div>
         <span className="font-semibold text-ink">{b.count}</span> items · {b.news} news · {b.social} social
       </div>

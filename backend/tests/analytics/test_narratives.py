@@ -228,3 +228,60 @@ def test_a_story_that_only_grew_into_the_list_is_not_new() -> None:
                           hours=0.1)
     (story,) = stories(after_look, previous=snapshot(0.3, 60, 0.2, narratives=["Something else"]))
     assert story.narrative.is_new
+
+
+def test_routine_target_tweak_cannot_become_the_top_story() -> None:
+    # Live AAPL: 'Morgan Stanley Maintains Apple With Buy Rating, Cuts Target Price to $355' became
+    # the top bearish story, while the structured data showed $360 → $355 (−1.4%) with the rating kept.
+    from tests.analytics.factories import action
+
+    tweak = [raw(t, 3 + i, o) for i, (t, o) in enumerate(zip(
+        ["Morgan Stanley maintains Acme at Buy, cuts price target to $355",
+         "Morgan Stanley cuts Acme price target to $355, keeps Overweight",
+         "Morgan Stanley cuts Acme price target to $355 from $360",
+         "Acme: Morgan Stanley cuts its price target to $355"],
+        ["Reuters", "Benzinga", "MarketWatch", "TipRanks"], strict=True))]
+
+    def top(actions):
+        items = prepare(ACME, [run(GOOGLE, tweak)], NOW).items
+        return build_narratives(items, ACME, NOW, None, actions=actions)[0]
+
+    plain = top(())
+    routine = top([action(1, "Morgan Stanley", "main", "Overweight", 355, 360, "Overweight")])
+    assert routine.intensity == 0.3 and routine.narrative.impact < plain.narrative.impact - 0.1
+    assert routine.routine and not plain.routine
+    from app.analytics.narratives import featured
+    assert featured([routine]) == [routine]  # nothing else to say: it may still be quoted
+    # A real revision (> 3%), a rating change, or another firm's action is never "routine".
+    for acts in ([action(1, "Morgan Stanley", "main", "Overweight", 300, 360, "Overweight")],
+                 [action(1, "Morgan Stanley", "down", "Equal-Weight", 355, 360, "Overweight")],
+                 [action(1, "Goldman Sachs", "main", "Buy", 355, 360, "Buy")]):
+        assert top(acts).narrative.impact == plain.narrative.impact
+
+
+def test_firm_names_match_headlines_without_false_friends() -> None:
+    from app.analytics.narratives import names_firm
+
+    assert names_firm("Evercore ISI raises Acme target", "Evercore ISI Group")
+    assert names_firm("BofA cuts Acme target", "B of A Securities")
+    assert names_firm("J.P. Morgan trims Acme target", "JP Morgan")
+    assert not names_firm("J.P. Morgan trims Acme target", "Morgan Stanley")
+
+
+def test_headline_is_a_complete_statement_about_the_company() -> None:
+    # Live: BTC 'Bitcoin nears $87K as October gains build, eyei...' and LULU's guidance-cut story
+    # fronted by 'Nike Sinks 8% …; Lululemon and On Holding Remain Flat'.
+    from app.analytics.narratives import headline_candidate
+
+    items = prepare(ACME, [run(GOOGLE, [
+        raw("Acme rallies as October gains build, eyei...", 2, "Reuters"),
+        raw("Acme rallies as October gains build on strong orders", 3, "Bloomberg"),
+        raw("Peer Corp sinks 8% on weak outlook; Acme and Widget flat", 4, "CNBC"),
+    ])], NOW).items
+    by_title = {it.title[:20]: it for it in items}
+    cut, full = by_title["Acme rallies as Octo"], next(it for it in items if it.title.endswith("orders"))
+    assert headline_candidate(cut, items) is full
+    peer = by_title["Peer Corp sinks 8% o"]
+    peer.relevance, full.relevance = 0.8, 1.0
+    assert headline_candidate(peer, [peer, full]) is full
+    assert headline_candidate(full, items) is full  # a fine headline keeps the story

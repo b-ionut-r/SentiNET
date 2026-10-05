@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from app.analytics import textkit
 from app.analytics.inputs import SourceRun
 from app.analytics.prepare import Item, Prepared
-from app.analytics.util import clamp, effective_n, tone_label, weighted_mean
+from app.analytics.util import aggregate_label, clamp, effective_n, weighted_mean
 from app.schemas import Keyword, SentimentStat, SourceReport, ThemeStat, TimelineBucket
 from app.sources.base import CompanyRef
 
@@ -55,7 +55,8 @@ class Summary:
     def stat(self) -> SentimentStat:
         score = round(self.shrunk, 3)
         return SentimentStat(
-            score=score, label=tone_label(score), n=self.n, bullish=self.bullish, bearish=self.bearish,
+            score=score, label=aggregate_label(score, self.bullish, self.bearish, self.n), n=self.n,
+            bullish=self.bullish, bearish=self.bearish,
             neutral=self.neutral, confidence=round(self.confidence, 3),
         )
 

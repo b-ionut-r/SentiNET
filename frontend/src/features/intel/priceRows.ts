@@ -4,7 +4,7 @@
  */
 import type { Time, UTCTimestamp } from "lightweight-charts";
 
-import type { Candle, TonePoint } from "../../api/types";
+import type { Analysis, Candle, HistoryResponse, TonePoint } from "../../api/types";
 
 /** Seconds to shift UTC timestamps so intraday bars read in the viewer's local time. */
 export const TZ_SHIFT = -new Date().getTimezoneOffset() * 60;
@@ -86,4 +86,14 @@ function uniqueBy<K extends string | number>(candles: Candle[], key: (c: Candle)
     );
   }
   return [...out.entries()].sort((x, y) => cmp(x[0], y[0]));
+}
+
+/**
+ * The daily GDELT tone to draw: the analysis's own series, or — when GDELT outlived that
+ * run's time budget — the same series from the 90-day history fetched for the lead/lag
+ * panel, so the chart never says "no tone" beside a panel that is correlating it.
+ */
+export function toneOf(a: Pick<Analysis, "tone">, history: Pick<HistoryResponse, "points"> | undefined): TonePoint[] {
+  if (a.tone?.series.length) return a.tone.series;
+  return (history?.points ?? []).filter((p) => p.tone != null).map((p) => ({ date: p.date, tone: p.tone, volume: p.volume }));
 }

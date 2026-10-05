@@ -90,6 +90,18 @@ ignores ignored real people close closes closed closing average prediction predi
 units unit data reportedly apparently currently recently finally officially already nearly roughly approximately
 authorize authorizes authorized agree agrees agreed pledge pledges pledged propose proposes proposed let lets letting
 offload offloads offloaded add adds adding added finance seeking hire hires hired concern concerns read reads
+dollars hours after-hours premarket pre-market following heads sends send decline declines declined dip dips dipped
+slump slumps advance advances advanced trades extend extends extended follow follows followed behind
+""")
+# Words that only say something next to another word: roles, sentiment labels,
+# generic nouns ("MongoDB CEO", "margin pressure", "iPhone Pro" are chips;
+# "CEO", "pressure", "Pro" alone are not).
+_WEAK_ALONE = wordset("""
+ceo ceos cfo coo cto chief officer officers director directors executive executives exec execs chairman chairwoman
+chair president founder founders insiders boss money cash common bullish bearish bulls bears bull bear cheap expensive
+double doubles triple pressure product products item items tech device devices pro max plus ultra mini access love
+app apps fix rating ratings purchase purchases purchased purchasing bet bets betting deal deals move moves
+cover covers strength opportunity opportunities
 """)
 # Two-letter terms worth a chip when they appear ("AI chips", "EV demand", "EU fines", "5G", "Q3").
 _SHORT_TERMS = wordset("ai ev eu uk 5g 6g ar vr xr q1 q2 q3 q4 h1 h2 pc tv")
@@ -192,6 +204,10 @@ def _inflected_only(spellings: Counter[str] | None) -> bool:
                for w in spellings)
 
 
+def _weak_alone(spellings: Counter[str] | None) -> bool:
+    return bool(spellings) and all(w in _WEAK_ALONE for w in spellings)
+
+
 def extract_keywords(texts: list[str], scores: Sequence[float] | None = None, company: CompanyRef | None = None,
                      top_n: int = 15) -> list[tuple[str, int, float]]:
     """Top `top_n` terms as (term, document count, mean score of the texts
@@ -245,13 +261,16 @@ def extract_keywords(texts: list[str], scores: Sequence[float] | None = None, co
         parts = term.split()
         if len(parts) == 1 and _inflected_only(surfaces.get(term)):
             continue  # "changed", "ignoring", "reportedly": verbs/adverbs say nothing on their own
+        if all(_weak_alone(surfaces.get(p)) for p in parts):
+            continue  # "CEO", "products", "bullish", "Pro Max": no intel without a name or topic next to them
         if len(parts) == 1:
             weight = count * (1.25 if term in _LABELS else 1.0)
             if any(count and candidates.get(b, 0) >= 0.6 * count for b in candidates if " " in b and term in b.split()):
                 deferred[term] = weight
                 continue
         else:
-            weight = count * 1.35
+            # a name next to a role ("Nat Turner" over "Director Nat"): the weak word is the lesser half
+            weight = count * 1.35 * (0.75 if any(_weak_alone(surfaces.get(p)) for p in parts) else 1.0)
         ranked.append((-weight, term))
     heapq.heapify(ranked)
 

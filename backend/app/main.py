@@ -34,8 +34,9 @@ if not logging.getLogger().handlers:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("sentinet")
 
-# The lab's JSON body: its character budget at up to 4 UTF-8 bytes each, plus quoting/escapes.
-LAB_MAX_BODY = lab.MAX_TOTAL_CHARS * 4 + 1024 * 1024
+# The lab's JSON body: its whole character budget even fully escaped (an astral
+# character as a `\uXXXX\uXXXX` pair is 12 bytes), plus quoting for 500 texts.
+LAB_MAX_BODY = lab.MAX_TOTAL_CHARS * 12 + 1024 * 1024
 # Pydantic error fields that may carry (echo) client input; only type/loc/msg go back.
 _ECHO_FIELDS = ("input", "ctx", "url")
 

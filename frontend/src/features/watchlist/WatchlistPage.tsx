@@ -15,15 +15,7 @@ import { Panel } from "../../components/ui/Panel";
 import { cx } from "../../lib/cx";
 import { dayTime, pct, price, timeAgo } from "../../lib/format";
 import { polarityOf100, textTone, toneVar, verdictBand } from "../../lib/sentiment";
-
-const KINDS: Record<AlertKind, { label: string; unit?: string; needsThreshold: boolean; placeholder?: string }> = {
-  score_above: { label: "SentiNET rises above", needsThreshold: true, placeholder: "65" },
-  score_below: { label: "SentiNET falls below", needsThreshold: true, placeholder: "40" },
-  score_change: { label: "SentiNET moves by at least", unit: "pts", needsThreshold: true, placeholder: "8" },
-  attention_spike: { label: "Attention spikes", needsThreshold: false },
-  new_narrative: { label: "A new narrative appears", needsThreshold: false },
-  analyst_action: { label: "An analyst rating/target changes", needsThreshold: false },
-};
+import { KINDS, needsThreshold, thresholdProblem } from "./alertRules";
 
 export default function WatchlistPage() {
   useEffect(() => {
@@ -248,16 +240,25 @@ function Rules({ className }: { className?: string }) {
   const del = useAlertDelete();
   const [ticker, setTicker] = useState("");
   const [kind, setKind] = useState<AlertKind>("score_change");
-  const [threshold, setThreshold] = useState("");
+  // The field holds a real, editable default for the chosen condition — never a grey
+  // placeholder that looks filled in while the form still counts it as empty.
+  const [threshold, setThreshold] = useState(KINDS.score_change.initial ?? "");
+  const changeKind = (k: AlertKind) => {
+    setKind(k);
+    setThreshold(KINDS[k].initial ?? "");
+  };
   const meta = KINDS[kind];
-  const valid = ticker.trim().length > 0 && (!meta.needsThreshold || (threshold.trim() !== "" && Number.isFinite(Number(threshold))));
+  const withThreshold = needsThreshold(kind);
+  const problem = thresholdProblem(kind, threshold);
+  const missingTicker = ticker.trim().length === 0;
+  const valid = !missingTicker && problem == null;
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!valid) return;
     create.mutate(
-      { ticker: ticker.trim().toUpperCase().replace(/^\$/, ""), kind, threshold: meta.needsThreshold ? Number(threshold) : null },
-      { onSuccess: () => (setTicker(""), setThreshold("")) },
+      { ticker: ticker.trim().toUpperCase().replace(/^\$/, ""), kind, threshold: withThreshold ? Number(threshold) : null },
+      { onSuccess: () => (setTicker(""), setThreshold(meta.initial ?? "")) },
     );
   };
 
@@ -265,20 +266,38 @@ function Rules({ className }: { className?: string }) {
     <Panel title="Alert rules" icon={<Bell />} subtitle="Evaluated by the monitor after each refresh; optional webhook delivery" className={className} flush>
       <form onSubmit={submit} className="flex flex-wrap items-center gap-2 px-4 pb-3">
         <input value={ticker} onChange={(e) => setTicker(e.target.value)} placeholder="Ticker" className="field w-24 uppercase placeholder:normal-case" aria-label="Alert ticker" />
-        <select value={kind} onChange={(e) => setKind(e.target.value as AlertKind)} className="field order-first w-full min-w-0 pr-7 sm:order-none sm:w-auto sm:flex-1" aria-label="Alert condition">
+        <select value={kind} onChange={(e) => changeKind(e.target.value as AlertKind)} className="field order-first w-full min-w-0 pr-7 sm:order-none sm:w-auto sm:flex-1" aria-label="Alert condition">
           {(Object.keys(KINDS) as AlertKind[]).map((k) => (
             <option key={k} value={k}>
               {KINDS[k].label}
             </option>
           ))}
         </select>
-        {meta.needsThreshold && (
-          <input value={threshold} onChange={(e) => setThreshold(e.target.value)} placeholder={meta.placeholder} inputMode="decimal" className="field w-20 num" aria-label="Threshold" />
+        {withThreshold && (
+          <input
+            value={threshold}
+            onChange={(e) => setThreshold(e.target.value)}
+            inputMode="decimal"
+            className={cx("field w-20 num", problem && "ring-1 ring-[rgb(var(--critical))]")}
+            aria-label={`Threshold${meta.range ? ` (${meta.range[0]}–${meta.range[1]}${meta.unit ? ` ${meta.unit}` : ""})` : ""}`}
+            aria-invalid={problem != null}
+            aria-describedby={problem ? "alert-threshold-hint" : undefined}
+          />
         )}
-        <button className="btn btn-primary" type="submit" disabled={!valid || create.isPending}>
+        <button
+          className="btn btn-primary"
+          type="submit"
+          disabled={!valid || create.isPending}
+          title={missingTicker ? "Enter a ticker first" : problem ?? undefined}
+        >
           Add rule
         </button>
       </form>
+      {withThreshold && problem && threshold.trim() !== "" && (
+        <p id="alert-threshold-hint" className="px-4 pb-2 text-xs text-critical">
+          Threshold {problem.toLowerCase()}.
+        </p>
+      )}
       {create.error && <p className="px-4 pb-2 text-xs text-critical">{create.error.message}</p>}
       {rules.isPending ? (
         <div className="p-4">

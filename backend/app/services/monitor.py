@@ -10,7 +10,10 @@ monitor then retries undelivered webhooks and prunes very old snapshots.
 A ticker whose refresh fails is not retried every tick (a failed run stores no
 snapshot, so it would look "due" forever and fan out to ~30 provider calls a
 minute): it backs off exponentially — interval × 2^(failures−1), capped at
-24 h — and an unknown/delisted symbol waits the full 24 h straight away.
+24 h — and an unknown/delisted symbol waits the full 24 h straight away. A run
+that returns but has no evidence at all (every source and feed failed: an
+outage, or a laptop waking before its Wi-Fi) is not stored, so it counts as a
+failure too.
 Failing tickers are reported in `Monitor.status` (`GET /api/monitor`).
 """
 from __future__ import annotations
@@ -22,7 +25,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
 from app.config import settings
-from app.services.errors import UnknownSymbol
+from app.services.errors import NoEvidence, UnknownSymbol
 from app.services.tasks import describe_error
 from app.storage import db
 
@@ -141,7 +144,9 @@ class Monitor:
             if i and self.pause_seconds:
                 await asyncio.sleep(self.pause_seconds)
             try:
-                await analyzer.analyze(ticker, refresh=True)
+                result = await analyzer.analyze(ticker, refresh=True)
+                if not analyzer.has_evidence(result):
+                    raise NoEvidence("every source and data feed failed; nothing stored")
             except Exception as exc:  # noqa: BLE001 - one bad ticker must not stop the cycle
                 self._record_failure(ticker, now, exc)
                 continue

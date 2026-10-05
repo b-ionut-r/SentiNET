@@ -95,7 +95,16 @@ class FakeSource:
         return SourceBatch(signals=signals, metrics=dict(self.metrics))
 
 
-def make_verdict(score: int = 64, headline: str = "Bullish: analysts and news align.") -> Verdict:
+def make_verdict(score: int = 64, headline: str = "Bullish: analysts and news align.",
+                 evidence: bool = True) -> Verdict:
+    """A verdict; `evidence=False` is the real "No read" shape (score 50, no available component)."""
+    if not evidence:
+        return Verdict(
+            score=50, label="No read", stance="neutral", confidence="low", confidence_value=0.0,
+            headline="No read: every source and data feed came back empty or failed",
+            components=[Component(key=k, label=k.title(), score=None, weight=0.2, available=False, detail="n/a")
+                        for k in ("news", "social", "analysts", "insiders", "momentum", "technicals")],
+        )
     stance = "bullish" if score >= 55 else "bearish" if score <= 45 else "neutral"
     return Verdict(
         score=score, label="Bullish" if score >= 62 else "Neutral", stance=stance, confidence="medium",
@@ -128,6 +137,8 @@ class FakeWorld:
     analyst_actions: list[AnalystAction] = field(default_factory=list)
     build_error: BaseException | None = None
     build_delay: float = 0.0
+    evidence: bool | None = True  # verdict has an available component; None: decided like the real composite
+    witness: Any = field(default_factory=lambda: Quote(price=600.0))  # SPY quote: Yahoo answering (None: outage)
 
     calls: dict[str, list[Any]] = field(default_factory=dict)
     inputs: list[AnalysisInputs] = field(default_factory=list)
@@ -154,6 +165,13 @@ class FakeWorld:
         self.calls.setdefault(name, []).append(args)
 
     async def _intel(self, key: str, *args: Any) -> Any:
+        if key == "quote" and args and args[0] == "SPY":  # the analyzer's market-data witness
+            self._record("witness", *args)
+            if isinstance(self.witness, Sentinel):
+                if self.witness.exc is not None:
+                    raise self.witness.exc
+                return self.witness.value
+            return self.witness
         self._record(key, *args)
         value = self.intel.get(key)
         if isinstance(value, Sentinel):
@@ -193,10 +211,13 @@ class FakeWorld:
                                         latency_ms=run.latency_ms, error=run.error,
                                         requires_key=run.source.requires_key))
         n = len(signals)
+        evidence = self.evidence
+        if evidence is None:  # like the real composite: nothing scored and no structured input → "No read"
+            evidence = bool(n) or any(x is not None for x in (inputs.analysts, inputs.technicals, inputs.insiders))
         return Analysis(
             ticker=inputs.company.ticker, generated_at=inputs.now, engine=inputs.engine_name,
             profile=inputs.profile, quote=inputs.quote, technicals=inputs.technicals,
-            verdict=make_verdict(self.score), brief=Brief(summary="Fake brief."),
+            verdict=make_verdict(self.score, evidence=evidence), brief=Brief(summary="Fake brief."),
             sentiment=SentimentStat(score=0.3, label="bullish", n=n, bullish=n),
             news=SentimentStat(score=0.25, label="bullish", n=max(0, n - 2)),
             social=SentimentStat(score=0.4, label="bullish", n=min(2, n)),

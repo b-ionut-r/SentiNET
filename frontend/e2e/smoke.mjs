@@ -5,7 +5,7 @@
  *
  *   npm run build && node e2e/smoke.mjs
  */
-import { installMocks, NOW, startPreview } from "./mock.mjs";
+import { fixture, installMocks, NOW, startPreview } from "./mock.mjs";
 
 const { chromium } = await import("playwright");
 
@@ -144,7 +144,7 @@ try {
   mark = since();
   await page.getByLabel("Alert ticker").fill("nvda");
   await page.getByLabel("Alert condition").selectOption("score_below");
-  await page.getByLabel("Threshold").fill("40");
+  await page.getByRole("textbox", { name: /^Threshold/ }).fill("40");
   await page.getByRole("button", { name: "Add rule" }).click();
   await settle();
   check("creating an alert rule POSTs it", mark().includes("POST /alerts"), mark().join(", "));
@@ -262,6 +262,175 @@ try {
   const loaded = (await page.locator("textarea").inputValue()).split("\n").filter(Boolean).length;
   check("a 620-line upload loads the first 500", loaded === 500, `${loaded} lines`);
   check("…and Score stays enabled", await page.getByRole("button", { name: /^Score$/ }).isEnabled());
+
+  console.log("final review fixes");
+  const sse = (a) => `event: result\ndata: ${JSON.stringify(a)}\n\n`;
+  const fix = (name) => JSON.parse(JSON.stringify(fixture(name)));
+
+  // Price chart: the axis follows the bars on screen. Switching 5D → a daily range keeps the
+  // intraday bars up while the new range loads; they must never be keyed by date. Real clock
+  // here: a frozen Date.now() stalls the chart's render loop and hides its errors.
+  {
+    const live = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "en-US", timezoneId: "America/New_York" });
+    await installMocks(live);
+    const pg = await live.newPage();
+    const chartErrors = [];
+    pg.on("pageerror", (e) => chartErrors.push(e.message));
+    await pg.goto(`${BASE}/t/NVDA`);
+    await pg.waitForSelector("#verdict");
+    await pg.evaluate(() => document.getElementById("price")?.scrollIntoView({ block: "start" }));
+    await pg.locator("#price").getByRole("radio", { name: "5D" }).click();
+    await pg.waitForTimeout(800);
+    await pg.route("**/api/price/**", async (route) => {
+      await new Promise((r) => setTimeout(r, 1200));
+      return route.fallback();
+    });
+    for (const r of ["1M", "5D", "6M", "5D", "5Y", "1D", "3M"]) {
+      await pg.locator("#price").getByRole("radio", { name: r }).click();
+      await pg.waitForTimeout(1800);
+    }
+    check("switching between 5D and daily ranges throws no chart errors", chartErrors.length === 0, `${chartErrors.length}: ${chartErrors.slice(0, 2).join(" | ")}`);
+    await live.close();
+  }
+  await page.goto(`${BASE}/t/NVDA`);
+  await page.waitForSelector("#verdict");
+
+  // Bull/bear case lists only what the verdict's reasons above leave out.
+  const heroReasons = await page.locator("#verdict ul").first().locator("li").allTextContents();
+  const caseText = (await page.locator("#case").textContent()) ?? "";
+  check("bull/bear case doesn't repeat the hero's reasons", heroReasons.length > 0 && heroReasons.every((r) => !caseText.includes(r.trim())), heroReasons.join(" | "));
+
+  // Signal pulse: a window of six days or more labels its ends with dates. (A fresh context:
+  // this one already maps AAPL to the SPARSE/LIVE payloads that carry that ticker.)
+  const desk = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "en-US", timezoneId: "America/New_York" });
+  await installMocks(desk);
+  const aapl = await desk.newPage();
+  await aapl.clock.setFixedTime(NOW);
+  aapl.on("pageerror", (e) => errors.push(`pageerror (aapl): ${e.message}`));
+  await aapl.goto(`${BASE}/t/AAPL`);
+  await aapl.waitForSelector("#narratives ol");
+  const axis = await aapl.locator("#narratives").getByText("bullish items above").locator("xpath=..").locator(":scope > span").allTextContents();
+  check("pulse axis ends carry distinct dates", axis.length >= 2 && axis[0] !== axis[axis.length - 1] && /[A-Z][a-z]{2} \d/.test(axis[0]), axis.join(" … "));
+
+  // Desktop layout: the case follows the stories directly — no void beside a long rail.
+  const gap = await aapl.evaluate(() => {
+    const n = document.getElementById("narratives")?.getBoundingClientRect();
+    const c = document.getElementById("case")?.getBoundingClientRect();
+    const i = document.getElementById("insights")?.getBoundingClientRect();
+    return n && c && i ? { gap: Math.round(c.top - n.bottom), topsAligned: Math.abs(n.top - i.top) < 2, caseLeftCol: c.right <= i.left } : null;
+  });
+  check("bull/bear case sits right under the stories", gap != null && gap.gap <= 20 && gap.topsAligned && gap.caseLeftCol, JSON.stringify(gap));
+  await desk.close();
+
+  // Score components: shares are effective (n/a inputs carry none), and add to 100.
+  await page.goto(`${BASE}/t/BTC-USD`);
+  await page.waitForSelector("#verdict");
+  const comp = await page.locator("#verdict ul").last().locator("li").evaluateAll((lis) =>
+    lis.map((li) => {
+      const cells = [...(li.querySelector("[tabindex]")?.children ?? [])].map((e) => e.textContent?.trim() ?? "");
+      return { label: cells[0], score: cells[2], share: cells[3] };
+    }),
+  );
+  const pcts = comp.filter((c) => /%$/.test(c.share ?? "")).map((c) => Number(c.share.replace("%", "")));
+  check("n/a components show no share", comp.filter((c) => c.score === "n/a").every((c) => c.share === "—"), JSON.stringify(comp));
+  check("component shares add to 100%", pcts.length > 0 && pcts.reduce((s, v) => s + v, 0) === 100, pcts.join("+"));
+
+  // A single analyst's target (low == high) gets one label inside the panel, cents precision.
+  const one = fix("analysis.AAPL.json");
+  Object.assign(one.analysts, { target_low: 0.5, target_high: 0.5, target_mean: 0.5, target_median: 0.5, total: 1, upside_pct: -74 });
+  one.quote.price = 1.92;
+  await page.route("**/api/analyze/AAPL/stream*", (route) => route.fulfill({ status: 200, headers: { "content-type": "text/event-stream" }, body: sse(one) }));
+  await page.goto(`${BASE}/t/AAPL`);
+  await page.waitForSelector("#smart-money");
+  await page.evaluate(() => document.getElementById("smart-money")?.scrollIntoView({ block: "start" }));
+  await settle(300);
+  const analysts = page.locator("#smart-money section, #smart-money > *").filter({ hasText: "Price targets" }).first();
+  const spill = await analysts.evaluate((panel) => {
+    const box = panel.getBoundingClientRect();
+    return [...panel.querySelectorAll("div, span")]
+      .filter((el) => el.children.length === 0 && (el.textContent ?? "").trim())
+      .filter((el) => {
+        const r = el.getBoundingClientRect();
+        return r.left < box.left - 0.5 || r.right > box.right + 0.5;
+      })
+      .map((el) => el.textContent);
+  });
+  const labels = (await analysts.textContent()) ?? "";
+  check("single-target labels stay inside the panel", spill.length === 0, spill.join(" | "));
+  check("…merged into one label at cents precision", labels.includes("target $0.50 · 1 analyst") && !labels.includes("0.5000"), labels.slice(0, 200));
+  await page.unroute("**/api/analyze/AAPL/stream*");
+
+  // Late GDELT tone: the page draws tone from the history meanwhile, then quietly re-reads
+  // the analysis and swaps in the version that carries it.
+  const late = fix("analysis.NVDA.json");
+  late.tone = null;
+  late.insights = [{ kind: "quality", severity: "info", polarity: "neutral", title: "Global news tone still loading", detail: "GDELT history is still being fetched; it will be included in the next refresh." }, ...late.insights];
+  await page.route("**/api/analyze/NVDA/stream*", (route) => route.fulfill({ status: 200, headers: { "content-type": "text/event-stream" }, body: sse(late) }));
+  // History arrives after the candles: the chart must not narrow under its first fit.
+  await page.route("**/api/history/NVDA*", async (route) => {
+    await new Promise((r) => setTimeout(r, 1500));
+    return route.fallback();
+  });
+  mark = since();
+  await page.goto(`${BASE}/t/NVDA`);
+  await page.waitForSelector("#verdict");
+  await page.evaluate(() => document.getElementById("price")?.scrollIntoView({ block: "start" }));
+  const pricePanel = page.locator("#price section").filter({ hasText: "Price × news tone" }).first();
+  await page.locator("#price canvas").first().waitFor();
+  const w0 = (await pricePanel.boundingBox())?.width;
+  await settle(2000);
+  const w1 = (await pricePanel.boundingBox())?.width;
+  check("price chart keeps its width when the lead/lag column arrives", w0 != null && w0 === w1, `${w0} → ${w1}`);
+  await page.unroute("**/api/history/NVDA*");
+  check("tone-less result still draws GDELT tone from the 90-day history", await page.locator("#price").getByText("Daily global news tone (GDELT) in its own pane below").isVisible());
+  check("…the insights rail says tone is still loading", await page.locator("#insights").getByText("Global news tone still loading").isVisible());
+  await page.waitForTimeout(21_000);
+  check("the analysis is re-read without a forced refresh", mark().includes("GET /analyze/NVDA"), mark().filter((c) => c.includes("analyze")).join(", "));
+  await settle(300);
+  check("…and the late tone replaces the 'still loading' result", (await page.locator("#insights").getByText("Global news tone still loading").count()) === 0);
+  await page.unroute("**/api/analyze/NVDA/stream*");
+
+  // Compare: a ticker that fails to analyze says so in every row and can be removed.
+  await page.goto(`${BASE}/compare?t=NVDA,XQZQZQ`);
+  await page.waitForSelector("text=Component matrix");
+  await settle(1200);
+  const matrix = page.locator("table").first();
+  const col = await matrix.locator("tbody tr").evaluateAll((rows) => rows.map((r) => r.querySelectorAll("td")[2]?.textContent?.trim()));
+  check("a failed ticker's matrix column reads '—', never a forever '…'", col.length > 0 && col.every((t) => t === "—"), col.join(" "));
+  await page.getByRole("button", { name: "Remove XQZQZQ" }).last().click();
+  await page.waitForURL(/t=NVDA$/);
+  check("…and its card offers to remove it", page.url().endsWith("t=NVDA"), page.url());
+
+  // Alert form: a real default per condition, range-checked next to the field.
+  await page.goto(`${BASE}/watchlist`);
+  await page.waitForSelector("text=Alert rules");
+  await page.getByLabel("Alert condition").selectOption("score_above");
+  const thr = page.getByRole("textbox", { name: /^Threshold/ });
+  check("choosing a condition fills its default threshold", (await thr.inputValue()) === "65", await thr.inputValue());
+  await page.getByLabel("Alert ticker").fill("nvda");
+  check("ticker + default threshold is enough to add", await page.getByRole("button", { name: "Add rule" }).isEnabled());
+  await thr.fill("150");
+  check("an out-of-range threshold is flagged inline", await page.getByText("Threshold must be between 1 and 99.").isVisible());
+  check("…and blocks submit", !(await page.getByRole("button", { name: "Add rule" }).isEnabled()));
+
+  // First-load scan on a phone: every chip (label, count, latency, badge) stays inside the card.
+  const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: "en-US", timezoneId: "America/New_York" });
+  await installMocks(phone, { hold: new Set(["LIVE"]) });
+  const scan = await phone.newPage();
+  scan.on("pageerror", (e) => errors.push(`pageerror (scan): ${e.message}`));
+  await scan.goto(`${BASE}/t/LIVE`);
+  await scan.waitForSelector("text=Scanning");
+  await scan.waitForTimeout(900);
+  const scanFit = await scan.evaluate(() => {
+    const card = document.querySelector("section.panel")?.getBoundingClientRect();
+    const chips = [...document.querySelectorAll("section.panel li")].map((li) => li.getBoundingClientRect());
+    return card ? { card: Math.round(card.right), chips: chips.length, worst: Math.round(Math.max(...chips.map((r) => r.right))) } : null;
+  });
+  check("scan chips fit the card at 390px", scanFit != null && scanFit.chips > 0 && scanFit.worst <= scanFit.card, JSON.stringify(scanFit));
+  const badges = await scan.locator("section.panel li").filter({ hasText: /needs .*API key/ }).allTextContents();
+  check("…keyless sources say 'key'", badges.length > 0 && badges.every((t) => /key/.test(t)), badges.slice(0, 2).join(" | "));
+  await scan.goto("about:blank");
+  await phone.close();
 
   console.log("errors");
   await page.goto(`${BASE}/t/APPL`);

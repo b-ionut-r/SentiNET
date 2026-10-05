@@ -18,6 +18,8 @@ weighs evidence per mention instead of string-matching:
     ≤0.45 named only as context for another entity ("Tesla rival Nikola files
           for bankruptcy", "… after delays in AT&T deal")
     ×0.75 when another company is the subject ("Cerebras stock … on Nvidia pressure")
+    0     a separately listed sister company sharing the brand ("Toyota Industries",
+          "Vodafone Idea", "Meta Materials") — not a mention of the company at all
     ≤0.40 roundups/listicles (≥ 4 cashtags, "3 AI Chip Stocks To Watch", "X, Y, Z and More"),
           unless the company leads the headline ("Bitcoin beats Gold, SPY, Silver, QQQ");
           0.30 when it is one tag in a hashtag soup
@@ -143,6 +145,42 @@ _VENUE_AFTER_RE = re.compile(r"^\s+(?-i:Stadium|Arena|Center|Centre|Field|Park|B
                              r"Theat(?:er|re)|Dome|Coliseum|Pavilion|Forum|Garden|Gardens|Ballpark|Speedway|"
                              r"Championship|Invitational)\b")
 _PAREN_TICKER_RE = re.compile(r"^\s*\((?:[A-Z]{2,12}\s?:\s?)?([A-Z][A-Z0-9.\-]{0,9})(?:\.[A-Z]{1,3})?\)")
+# Separately listed companies that share the brand: "Toyota Industries", "Toyota
+# Tsusho", "Vodafone Idea", "Mitsubishi Heavy", "Samsung Biologics". The word
+# after the brand names another issuer — unless it is part of the company's own
+# name ("Toyota Motor" for Toyota Motor) or its own industry ("Dow Chemical" for
+# Dow) — so the mention is not the company.
+_SISTER_WORDS = wordset("""industries tsusho boshoku shatai heavy chemical chemicals chem steel estate realty fudosan
+hospitality materials biologics mobis glovis hynix innotek uplus healthineers vernova otosan hexacom finserv""")
+_BRAND_SISTERS: dict[str, frozenset[str]] = {
+    "toyota": wordset("motor motors industries tsusho boshoku"),
+    "vodafone": wordset("idea"),
+    "mitsubishi": wordset("ufj heavy electric estate chemical motors"),
+    "mitsui": wordset("fudosan osk chemicals"),
+    "sumitomo": wordset("mitsui chemical metal realty electric"),
+    "samsung": wordset("electronics sdi biologics heavy life fire securities sds"),
+    "hyundai": wordset("motor mobis steel glovis heavy engineering"),
+    "tata": wordset("motors steel power consultancy chemicals elxsi communications"),
+    "adani": wordset("enterprises ports power green energy transmission total wilmar"),
+    "reliance": wordset("power infrastructure infra capital communications home"),
+    "bajaj": wordset("finance finserv auto housing"),
+    "siemens": wordset("energy healthineers"),
+    "alibaba": wordset("health pictures"),
+    "tencent": wordset("music"),
+    "airtel": wordset("africa hexacom"),
+    "sony": wordset("financial"),
+    "daimler": wordset("truck"),
+    "nissan": wordset("chemical"),
+    "berkshire": wordset("hills"),
+}
+# Words after a brand that never start another issuer's name ("Toyota ADR", "Alphabet Class A").
+_NOT_SISTER = wordset("class series adr adrs ads gdr gdrs ordinary preferred pref common unit units")
+# After "<Brand> <Word>": legal suffixes always mark an issuer; "stock"/"shares" do so
+# only in sentence case, where a capitalized word is a name ("Vodafone Idea shares").
+_SISTER_LEGAL_AFTER_RE = re.compile(r"^\s+(?:Ltd|Limited|plc|PLC|Inc|Corp|Corporation|Co|Company|AG|SA|NV|SE|Bhd|"
+                                    r"Tbk|ASA|AB|Oyj|K\.?K)\b")
+_SISTER_SHARES_AFTER_RE = re.compile(r"^\s+(?:stock|stocks|shares|share price|shareholders|stockholders|ipo)\b")
+_NEXT_NAME_RE = re.compile(r"^\s+((?-i:[A-Z])[\w&]*(?:&[A-Z]+)?)")
 _HYPHEN_OK = wordset("backed owned led based made branded related linked focused funded parent maker rival supplier "
                        "partner like style designed built powered approved listed")
 # "Nvidia-backed CoreWeave", "Tesla-like margins": the name qualifies something else.
@@ -628,6 +666,7 @@ class _Matcher:
     hashtag: re.Pattern[str] | None = None  # "#NVDA", "#Bitcoin", "$NVIDIA"
     confirmed_bare: re.Pattern[str] | None = None  # short/word-like ticker + "stock": "MU stock soars"
     index_fund: bool = False  # tracks a broad index (SPY, QQQ): market-wide news is about it
+    industry_text: str = ""  # lower-case industry + sector ("auto manufacturers consumer cyclical")
 
 
 @dataclass(frozen=True)
@@ -768,6 +807,7 @@ def _matcher_for(ticker: str, name: str, short_name: str, aliases: tuple[str, ..
                         if word_like and base_symbol not in WORD_TICKERS and len(base_symbol) >= 2 else None),
         index_fund=quote_type in {"ETF", "INDEX", "MUTUALFUND"} and bool(
             _BROAD_INDEX_RE.search(" ".join((name, short_name, *aliases)))),
+        industry_text=industry_text.strip().lower(),
     )
 
 
@@ -850,6 +890,32 @@ def _classify(text: str, start: int, end: int, variant: _NameVariant, matcher: _
     if clause_start and coordinated and _PLURAL_VERB_RE.match(after[coordinated.end():]):
         return 1  # "Ford and JPMorganChase launch Michigan LIFT"
     return 0
+
+
+def _sister_issuer(text: str, end: int, variant: _NameVariant, matcher: _Matcher, title_case: bool) -> str | None:
+    """The name of a separately listed sister company when the brand at
+    [.., end) is the first word of it: "Toyota Industries", "Vodafone Idea
+    shares", "Samsung Biologics Co" (see _SISTER_WORDS)."""
+    nxt = _NEXT_NAME_RE.match(text[end:end + 40])
+    if not nxt:
+        return None
+    word = nxt.group(1)
+    low = word.lower()
+    forms = {low, low.removesuffix("s"), low + "s"}
+    products = variant.rule.products if variant.rule else ()
+    if forms & matcher.own_words or low in products or low in _NOT_SISTER or re.match(_CORP_SUFFIX, nxt.group(0)):
+        return None
+    name = f"{variant.text} {word}"
+    if low in _BRAND_SISTERS.get(variant.text.lower(), ()):
+        return name
+    if low in _SISTER_WORDS:
+        return None if low[:5] in matcher.industry_text else name  # "Dow Chemical" is Dow's own
+    if low in _VERBISH or low in DETERMINERS or _FOLLOWER_RE.match(nxt.group(0)) or _VENUE_AFTER_RE.match(nxt.group(0)):
+        return None
+    rest = text[end + nxt.end():end + nxt.end() + 30]
+    if _SISTER_LEGAL_AFTER_RE.match(rest) or (not title_case and _SISTER_SHARES_AFTER_RE.match(rest)):
+        return name  # "Toyota Tsusho Corp", "Vodafone Idea shares slump"
+    return None
 
 
 def _is_given_name(word: str, text: str, pos: int) -> bool:
@@ -1000,6 +1066,7 @@ def explain_relevance(text: str, company: CompanyRef) -> RelevanceResult:
     t = fold(text)
     matcher = _matcher(company)
     shouting = is_mostly_upper(t)
+    title_case = is_title_case(t)
     evidence: list[str] = []
     positions: list[int] = []
     spans: list[Mention] = []
@@ -1088,6 +1155,10 @@ def explain_relevance(text: str, company: CompanyRef) -> RelevanceResult:
             if any(s <= m.start() < e for s, e in taken):
                 continue
             taken.append(m.span())
+            sister = None if variant.strong else _sister_issuer(t, m.end(), variant, matcher, title_case)
+            if sister:
+                evidence.append(f"sister company '{sister}'")
+                continue
             verdict = _classify(t, m.start(), m.end(), variant, matcher, neg_spans)
             if verdict > 0 and matcher.broker and _broker_actor(t, m.start(), m.end(), matcher.brand_cues):
                 actor_mentions += 1

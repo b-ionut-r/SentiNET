@@ -16,8 +16,15 @@ Guarantees
 * Cold runs stay under ~12 s: one budget from the start (resolution included)
   plus a tail rule, so slow name-search intel never idles the run.
 * Unknown symbols (typos, delisted) fail fast with 404 — decided only from
-  symbol-keyed evidence, never from keyword-search hits — and are negatively
-  cached for `UNKNOWN_TTL`.
+  symbol-keyed evidence, never from keyword-search hits, and only while the
+  providers demonstrably answer (an outage is not "no such symbol") — and are
+  negatively cached for `UNKNOWN_TTL`.
+* A run is judged before it is stored (`run_quality`). With no evidence at all
+  (every source and feed failed) it is returned but never stored, alerted on or
+  cached past `SHORT_CACHE_TTL`. A *degraded* run (several score inputs failed)
+  is stored flagged — its stories and analyst actions still count as seen —
+  but its score is never a baseline or an alert trigger, and it is cached only
+  briefly so the next load retries.
 
 Provider modules are imported inside functions so this module imports cleanly
 even while those packages are being edited; tests replace them with fakes.
@@ -84,12 +91,23 @@ MIN_TIME_BOX = 1.0
 # recomputes with it.
 TAIL_GRACE = 3.0
 TAIL_KEYS = frozenset({"tone", "wiki"})
+# One-shot callers (the CLI) exit right after the run, which would cancel those
+# stragglers: they pass `tail_wait` to wait that long for them instead, so the
+# result — and the provider caches for the next run — include them.
 # A `refresh` within this many seconds of the last run returns that run (flagged
 # cached): news does not change that fast, and free APIs deserve politeness.
 MIN_REFRESH_SECONDS = 45.0
 # Fresh runs allowed at once. Time boxes include rate-limiter waits, so a burst
 # of parallel runs would degrade *every* result; extra runs queue instead.
 MAX_CONCURRENT_RUNS = 4
+# Run quality: a run is degraded when this many of its score inputs failed
+# (text/crowd sources, the sentiment engine, or the structured feeds behind score
+# components) — the bar at which analytics already cuts confidence — or when
+# at least half of them did (small source sets: crypto, foreign listings).
+DEGRADED_FAILURES = 3
+SCORE_INTEL = ("analysts", "insiders", "technicals")
+# Degraded and evidence-free results are served from cache this long at most.
+SHORT_CACHE_TTL = 60.0
 
 
 # --------------------------------------------------------------------------- #
@@ -101,10 +119,18 @@ _runs: dict[str, _Run] = {}
 _slots: tuple[asyncio.AbstractEventLoop, asyncio.Semaphore] | None = None
 # symbol -> generated_at of a cached analysis superseded by late-arriving data
 _stale: dict[str, datetime] = {}
+# symbol -> (generated_at, monotonic expiry) of a cached degraded/evidence-free result
+_short: dict[str, tuple[datetime, float]] = {}
 # Negative cache: symbols just found not to exist (a typo re-submitted should not
 # fan out to ~30 provider calls again). `refresh=True` bypasses it.
 UNKNOWN_TTL = 600
 _unknown = TTLStore(ttl=UNKNOWN_TTL, maxsize=256)
+# Configured engines (settings.sentiment_engine) already built in this process:
+# the first lookup may build one (seconds for a transformer), so it runs off the
+# loop; afterwards reading its name is instant and no run queues on a CPU pool
+# just to learn a label.
+_engines_built: set[str] = set()
+ENGINE_TIMEOUT = 5.0
 
 
 def _run_slots() -> asyncio.Semaphore:
@@ -148,6 +174,9 @@ def _cache_get(symbol: str) -> Analysis | None:
     hit = _cache.get(symbol)
     if hit is None:
         return None
+    short = _short.get(symbol)
+    if short is not None and short[0] == hit.generated_at and time.monotonic() >= short[1]:
+        return None
     stale = _stale.get(symbol)
     return None if stale is not None and hit.generated_at <= stale else hit
 
@@ -175,7 +204,9 @@ def reset() -> None:
     _latest.clear()
     _runs.clear()
     _stale.clear()
+    _short.clear()
     _unknown.clear()
+    _engines_built.clear()
     _slots = None
 
 
@@ -210,8 +241,9 @@ async def _deliver(cb: ProgressCallback, event: ProgressEvent) -> bool:
 class _Run:
     """One in-flight analysis of a ticker, shared by every concurrent caller."""
 
-    def __init__(self, symbol: str) -> None:
+    def __init__(self, symbol: str, tail_wait: float | None = None) -> None:
         self.symbol = symbol
+        self.tail_wait = tail_wait  # seconds to wait for slow name-search intel (one-shot callers)
         self.events: list[ProgressEvent] = []
         self.task: asyncio.Task[Analysis] | None = None
         self._listeners: list[ProgressCallback] = []
@@ -244,8 +276,14 @@ def _finish_run(symbol: str, run: _Run, task: asyncio.Task[Analysis]) -> None:
         task.exception()  # mark retrieved: every caller may have gone away
 
 
-async def analyze(ticker: str, refresh: bool = False, progress: ProgressCallback | None = None) -> Analysis:
+async def analyze(ticker: str, refresh: bool = False, progress: ProgressCallback | None = None, *,
+                  tail_wait: float | None = None) -> Analysis:
     """Full analysis of `ticker` (cached unless `refresh`); streams `ProgressEvent`s to `progress`.
+
+    `tail_wait` is for one-shot callers that exit right after (the CLI): the
+    slow name-search intel (GDELT tone, Wikipedia) gets up to that many seconds
+    instead of the tail rule, since a straggler left running would be cancelled
+    on exit. A run already in flight is joined as it is.
 
     Raises `ServiceError` subclasses only (invalid/unknown ticker, synthesis
     failure); provider failures are absorbed into the result.
@@ -270,7 +308,7 @@ async def analyze(ticker: str, refresh: bool = False, progress: ProgressCallback
 
     run = _runs.get(symbol)
     if run is None:
-        run = _Run(symbol)
+        run = _Run(symbol, tail_wait)
         run.task = asyncio.create_task(_execute(run), name=f"analyze:{symbol}")
         run.task.add_done_callback(functools.partial(_finish_run, symbol, run))
         _runs[symbol] = run
@@ -327,6 +365,12 @@ _ASSET_NAMES = {"CRYPTOCURRENCY": "crypto", "ETF": "ETFs", "MUTUALFUND": "funds"
 # Evidence that an instrument exists must be keyed by the *symbol*: keyword
 # searches (news, Bluesky, Hacker News) return something for almost any string.
 _SYMBOL_KEYED_METRICS = ("stocktwits_", "reddit_", "wsb_")
+# yfinance turns transport failures (no network, proxy down) into an empty
+# answer ("possibly delisted"), so Yahoo's "no quote" means "no such symbol"
+# only while Yahoo demonstrably answers: a liquid witness symbol is quoted
+# (cached) before any 404.
+MARKET_WITNESS = "SPY"
+WITNESS_TIMEOUT = 5.0
 
 
 async def _execute(run: _Run) -> Analysis:
@@ -382,13 +426,11 @@ async def _execute_inner(run: _Run) -> Analysis:
     core_done = asyncio.Event()  # every source and non-tail intel task has answered
     try:
         async with asyncio.TaskGroup() as tg:
-            engine_task = tg.create_task(run_cpu(_engine_name))
+            engine_task = tg.create_task(_engine_label())
             previous_task = tg.create_task(_previous_snapshot(symbol, now))
             source_tasks = [tg.create_task(_run_source(run, s, company, deadline)) for s in planned]
-            intel_tasks = {
-                s.key: tg.create_task(_run_intel(run, s, deadline, core_done if s.key in TAIL_KEYS else None))
-                for s in specs if s.key != "analysts"
-            }
+            intel_tasks = {s.key: tg.create_task(_start_intel(run, s, deadline, core_done))
+                           for s in specs if s.key != "analysts"}
             analysts_spec = next((s for s in specs if s.key == "analysts"), None)
             if analysts_spec is not None:
                 intel_tasks["analysts"] = tg.create_task(
@@ -398,7 +440,8 @@ async def _execute_inner(run: _Run) -> Analysis:
             tg.create_task(_set_when_done(core, core_done))
             # Fail fast on typos: decide "unknown symbol" as soon as market data and
             # sources have answered (raising here cancels the slower tasks).
-            tg.create_task(_early_unknown_check(symbol, company, source_tasks, skipped_runs, intel_tasks))
+            tg.create_task(_early_unknown_check(symbol, company, source_tasks, skipped_runs, intel_tasks,
+                                                deadline))
     except* UnknownSymbol as group:
         _unknown.set(symbol, str(group.exceptions[0]))
         raise group.exceptions[0] from None
@@ -441,18 +484,26 @@ async def _execute_inner(run: _Run) -> Analysis:
         "ticker": symbol, "generated_at": now, "cached": False,
         "elapsed_ms": int((time.perf_counter() - started) * 1000),
     })
-    await _persist_and_alert(analysis)
+    quality = run_quality(analysis, source_runs, status)
+    await _persist_and_alert(analysis, quality)
 
     _cache.set(symbol, analysis)
+    if quality.degraded:
+        _short[symbol] = (now, time.monotonic() + SHORT_CACHE_TTL)
+    else:
+        _short.pop(symbol, None)
     _latest[symbol] = analysis
     _latest.move_to_end(symbol)
     while len(_latest) > LATEST_KEEP:
         _latest.popitem(last=False)
 
     v = analysis.verdict
+    detail = f"SentiNET {v.score} · {v.label}"
+    if quality.note:
+        detail += f" · {quality.note}"
     await run.emit(ProgressEvent(
         stage="done", key="done", label="Analysis complete", status="ok",
-        count=len(analysis.signals), ms=analysis.elapsed_ms, detail=f"SentiNET {v.score} · {v.label}",
+        count=len(analysis.signals), ms=analysis.elapsed_ms, detail=detail,
     ))
     return analysis
 
@@ -516,20 +567,42 @@ def bare_company(symbol: str) -> CompanyRef:
 
 
 def _engine_name() -> str:
-    try:
-        from app.nlp.engine import get_engine
+    from app.nlp.engine import get_engine
 
-        return str(get_engine().name)
-    except Exception as exc:  # noqa: BLE001 - name is cosmetic; analytics loads the engine itself
-        logger.warning("sentiment engine unavailable: %s", exc)
-        return settings.sentiment_engine
+    return str(get_engine().name)
+
+
+async def _engine_label() -> str:
+    """Name of the sentiment engine serving this run (cosmetic; never raises).
+
+    Read directly once the configured engine is built (the name of an ensemble
+    engine is live: it reports what scored its last batch). The first lookup
+    may build the engine, so it runs on the CPU pool, time-boxed: a busy pool
+    can cost one run its label, never hold the run hostage.
+    """
+    key = settings.sentiment_engine
+    if key in _engines_built:
+        try:
+            return _engine_name()
+        except Exception as exc:  # noqa: BLE001 - name is cosmetic; analytics loads the engine itself
+            logger.warning("sentiment engine unavailable: %s", exc)
+            return key
+    out = await run_bounded(lambda: run_cpu(_engine_name), ENGINE_TIMEOUT, name="engine")
+    if out.ok and out.value:
+        _engines_built.add(key)
+        return str(out.value)
+    logger.warning("sentiment engine unavailable: %s", out.error)
+    return key
 
 
 async def _previous_snapshot(symbol: str, now: datetime) -> tuple[Snapshot | None, list[list[str]] | None]:
-    """The latest stored snapshot old enough to diff against, plus its stories' member ids."""
+    """The latest sound snapshot old enough to diff against, plus its stories' member ids.
+
+    Degraded runs are skipped: "what changed" against a run missing half its
+    inputs would report the outage as news."""
     from app.storage import db
 
-    out = await run_bounded(lambda: db.latest_record(symbol, before=now - PREVIOUS_MIN_AGE),
+    out = await run_bounded(lambda: db.latest_record(symbol, before=now - PREVIOUS_MIN_AGE, sound_only=True),
                             STORAGE_TIMEOUT, name="previous-snapshot")
     rec = out.value if out.ok else None
     if rec is None:
@@ -621,13 +694,23 @@ def _intel_specs(company: CompanyRef) -> list[_IntelSpec]:
     return specs
 
 
+def _start_intel(run: _Run, spec: _IntelSpec, deadline: float, core_done: asyncio.Event) -> Awaitable[Outcome[Any]]:
+    """Core intel: the run budget. Tail intel: the tail rule — or, for a one-shot run, `tail_wait`."""
+    if spec.key not in TAIL_KEYS:
+        return _run_intel(run, spec, deadline)
+    if run.tail_wait:
+        return _run_intel(run, spec, None, limit=run.tail_wait)
+    return _run_intel(run, spec, deadline, core_done)
+
+
 async def _run_intel(run: _Run, spec: _IntelSpec, deadline: float | None = None,
-                     tail: asyncio.Event | None = None) -> Outcome[Any]:
-    """One intel task, time-boxed by the run budget (and the tail rule when `tail` is given)."""
+                     tail: asyncio.Event | None = None, limit: float | None = None) -> Outcome[Any]:
+    """One intel task, time-boxed by `limit` (default `intel_timeout`) and the run budget (and the
+    tail rule when `tail` is given)."""
     if spec.skip:
         return Outcome()
-    out = await run_bounded(spec.call, _time_box(settings.intel_timeout, deadline), keep_alive=spec.keep_alive,
-                            name=f"intel:{spec.key}", until=tail, grace=TAIL_GRACE)
+    out = await run_bounded(spec.call, _time_box(limit or settings.intel_timeout, deadline),
+                            keep_alive=spec.keep_alive, name=f"intel:{spec.key}", until=tail, grace=TAIL_GRACE)
     if out.ok and out.value is not None and not isinstance(out.value, spec.expect):
         logger.warning("intel %s returned %s, expected %s", spec.key, type(out.value).__name__, spec.expect)
         out = Outcome(error=f"unexpected payload ({type(out.value).__name__})", ms=out.ms)
@@ -721,13 +804,25 @@ def _intel_detail(key: str, value: Any) -> str | None:
 
 # ---- synthesis, persistence ------------------------------------------------------ #
 async def _early_unknown_check(symbol: str, company: CompanyRef, source_tasks: list[asyncio.Task[Any]],
-                               skipped_runs: list[Any], intel_tasks: dict[str, asyncio.Task[Outcome[Any]]]) -> None:
+                               skipped_runs: list[Any], intel_tasks: dict[str, asyncio.Task[Outcome[Any]]],
+                               deadline: float | None = None) -> None:
     decisive = {k: intel_tasks[k] for k in ("quote", "technicals", "profile") if k in intel_tasks}
     pending = [*decisive.values(), *source_tasks]
     if pending:
         await asyncio.wait(pending)
-    _check_known(symbol, company, [t.result() for t in source_tasks] + skipped_runs,
-                 {k: t.result() for k, t in decisive.items()})
+    runs = [t.result() for t in source_tasks] + skipped_runs
+    if not _looks_unknown(symbol, company, runs, {k: t.result() for k, t in decisive.items()}):
+        return
+    if await _market_data_answering(_time_box(WITNESS_TIMEOUT, deadline)):
+        raise UnknownSymbol(_unknown_message(symbol))
+    logger.info("%s: no quote, but market data is not answering (outage?): not declared unknown", symbol)
+
+
+async def _market_data_answering(timeout: float) -> bool:
+    """True when Yahoo quotes the liquid witness symbol: its "nothing" for another symbol is an answer."""
+    out = await run_bounded(deferred("app.intel.market_data", "get_quote", MARKET_WITNESS), timeout,
+                            name="witness-quote")
+    return out.ok and has_data(out.value)
 
 
 def _symbol_coverage(run: Any) -> bool:
@@ -740,31 +835,35 @@ def _symbol_coverage(run: Any) -> bool:
             or any(k.startswith(_SYMBOL_KEYED_METRICS) for k in batch.metrics))
 
 
-def _check_known(symbol: str, company: CompanyRef, runs: list[Any], intel: dict[str, Outcome[Any]]) -> None:
-    """404 when market data positively says "no such instrument" and nothing keyed by the symbol exists.
+def _looks_unknown(symbol: str, company: CompanyRef, runs: list[Any], intel: dict[str, Outcome[Any]]) -> bool:
+    """True when market data says "no such instrument", nothing keyed by the symbol exists,
+    and the sources demonstrably answered (the caller still checks Yahoo with a witness).
 
     Yahoo's quote is the authority on whether a symbol trades: only an *answer*
     of "nothing" counts (a failed quote could be an outage, so the degraded
     analysis proceeds and reports it). Keyword searches (news feeds, Bluesky,
     Hacker News, GDELT, Wikipedia) say nothing about existence — "APPL" or a
     delisted "SIVB" still matches articles — so only symbol-keyed coverage
-    (StockTwits stream, issuer-tagged items, Reddit/WSB boards) counts.
+    (StockTwits stream, issuer-tagged items, Reddit/WSB boards) counts. A typo
+    still gets answers (empty boards, keyword hits); in an outage every source
+    errors, and then nothing is concluded.
     """
     if company.cik or company.name != symbol:
-        return
+        return False
     quote = intel.get("quote")
     if quote is None or not quote.ok or has_data(quote.value):
-        return
+        return False
     technicals = intel.get("technicals")
     if technicals is not None and technicals.ok and has_data(technicals.value):
-        return
+        return False
     profile = intel.get("profile")
     p = profile.value if profile is not None and profile.ok else None
     if isinstance(p, Profile) and (p.name != symbol or p.sector or p.exchange):
-        return
+        return False
     if any(_symbol_coverage(r) for r in runs):
-        return
-    raise UnknownSymbol(_unknown_message(symbol))
+        return False
+    tried = [r for r in runs if getattr(r, "status", None) in ("ok", "empty", "error")]
+    return not tried or any(r.status in ("ok", "empty") for r in tried)
 
 
 def _unknown_message(symbol: str) -> str:
@@ -777,25 +876,28 @@ async def ensure_known(symbol: str) -> CompanyRef:
 
     Cheap: a stored snapshot or recent analysis proves it; otherwise the
     (cached) resolver, then one quote lookup. Only a positive "no quote" for an
-    unresolvable symbol rejects — provider outages accept (the monitor backs
-    off from tickers that keep failing).
+    unresolvable symbol, while Yahoo quotes the witness symbol, rejects —
+    provider outages accept (the monitor backs off from tickers that keep failing).
     """
     from app.storage import db
 
     recent = latest_analysis(symbol)
-    if recent is not None:
+    if recent is not None and has_evidence(recent):
         name = recent.profile.name if recent.profile is not None else symbol
         return CompanyRef(ticker=symbol, name=name or symbol, short_name=name or symbol)
     company = await resolve_or_bare(symbol, timeout=RESOLVE_TIMEOUT)
     if company.cik or company.name != symbol:
         return company
-    stored = await run_bounded(lambda: db.latest_snapshot(symbol), STORAGE_TIMEOUT, name="known-snapshot")
+    stored = await run_bounded(lambda: db.latest_snapshot(symbol, sound_only=True), STORAGE_TIMEOUT,
+                               name="known-snapshot")
     if stored.ok and stored.value is not None:
         return company
     quote = await run_bounded(deferred("app.intel.market_data", "get_quote", symbol), RESOLVE_TIMEOUT,
                               name="known-quote")
     if not quote.ok or has_data(quote.value):
         return company
+    if not await _market_data_answering(RESOLVE_TIMEOUT):
+        return company  # Yahoo is not answering at all: "no quote" proves nothing
     raise UnknownSymbol(_unknown_message(symbol))
 
 
@@ -827,11 +929,75 @@ async def _synthesize(run: _Run, inputs: Any) -> Analysis:
     return analysis
 
 
-async def _persist_and_alert(analysis: Analysis) -> None:
-    """Store the snapshot and evaluate alert rules; failures are logged, never raised."""
+# ---- run quality ------------------------------------------------------------------ #
+@dataclass(frozen=True)
+class RunQuality:
+    """How much of a run's evidence actually arrived (decides storage, alerts and caching)."""
+
+    evidence: bool  # any scored text or any available score component
+    failed: tuple[str, ...] = ()  # score inputs that failed this run (labels)
+    attempted: int = 0  # score inputs that were tried
+
+    @property
+    def degraded(self) -> bool:
+        n = len(self.failed)
+        return not self.evidence or n >= DEGRADED_FAILURES or (n >= 2 and 2 * n >= self.attempted)
+
+    @property
+    def note(self) -> str | None:
+        """Short progress-panel explanation, None for a sound run."""
+        if not self.evidence:
+            return "no evidence (every source and feed failed): not stored, no alerts"
+        if self.degraded:
+            return f"degraded ({len(self.failed)} of {self.attempted} inputs failed): no score alerts or baselines"
+        return None
+
+
+def has_evidence(analysis: Analysis) -> bool:
+    """True when the analysis rests on something: a scored text or an available score component."""
+    from app.storage.db import evidence_free
+
+    return not evidence_free(analysis)
+
+
+def run_quality(analysis: Analysis, source_runs: list[Any], intel_status: dict[str, str]) -> RunQuality:
+    """Judge a run from what failed: text/crowd sources, the sentiment engine, structured score feeds.
+
+    A slow GDELT/Wikipedia tail is not a failure (momentum and attention fall back
+    and fill in on the next load); disabled/unconfigured sources were never tried.
+    """
+    failed = [r.source.label for r in source_runs if r.status == "error"]
+    attempted = sum(1 for r in source_runs if r.status in ("ok", "empty", "error"))
+    if analysis.signals and analysis.sentiment.n == 0:  # texts kept, none scored: the engine failed
+        failed.append("sentiment engine")
+        attempted += 1
+    for key in SCORE_INTEL:
+        state = intel_status.get(key)  # absent: not applicable to this asset
+        if state is not None:
+            attempted += 1
+            if state.startswith("error"):
+                failed.append(_INTEL_LABELS[key])
+    return RunQuality(evidence=has_evidence(analysis), failed=tuple(failed), attempted=attempted)
+
+
+async def _persist_and_alert(analysis: Analysis, quality: RunQuality | None = None) -> None:
+    """Store the snapshot and evaluate alert rules; failures are logged, never raised.
+
+    An evidence-free run is neither: storing it would make "No read" (score 50,
+    n = 0) look like a reading, and alert rules would fire on it. A degraded run
+    is stored flagged (see `db`), and alert rules skip its score.
+    """
     from app.storage import db
 
-    out = await run_bounded(lambda: db.save_snapshot(analysis), STORAGE_TIMEOUT, name="save-snapshot")
+    quality = quality or RunQuality(evidence=has_evidence(analysis))
+    if not quality.evidence:
+        logger.warning("no evidence for %s (every source and feed failed): not stored, no alerts",
+                       analysis.ticker)
+        return
+    if quality.degraded:
+        logger.info("degraded run for %s (%s failed): stored flagged", analysis.ticker, ", ".join(quality.failed))
+    out = await run_bounded(lambda: db.save_snapshot(analysis, degraded=quality.degraded), STORAGE_TIMEOUT,
+                            name="save-snapshot")
     if not out.ok:
         logger.warning("snapshot not saved for %s: %s", analysis.ticker, out.error)
         return

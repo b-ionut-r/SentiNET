@@ -7,21 +7,27 @@ Checks (thresholds):
                available) >= 1.64 SE off 62% on >= 10 tags, social
                text ±0.10, WSB ±0.15); price vs news (the 1M / 5D move >= 1σ / 1.5σ against
                the news lean)
-* attention    GDELT volume z >= 2, Reddit mentions >= +100% (>= 10 mentions),
+* attention    GDELT volume z >= 2, Reddit mentions >= +100% (>= 10 mentions), a Reddit
+               rank breakout (top 25 from outside the top 100, >= 10 mentions),
                Wikipedia views z >= 2, Reddit mentions collapsing <= -60% (>= 15 before)
 * crowding     StockTwits bull share >= 85% or <= 35% with >= 15 tags (per account when
                available); top-5 WSB ticker
 * reversal     GDELT 7d vs 30d tone sign flip (|Δ| >= 0.5); SentiNET Δ vs previous >= 12
 * momentum     GDELT tone at a 90d high/low (shown pct >= 90th / <= 10th); 48h headline
                tone shift >= 0.2 after discounting decay toward the typical tone (>= 8 items
-               each side); otherwise the momentum component itself when it reads <= 35 or
-               >= 65 and moves the score >= 1 point
+               each side; a mere return toward typical is never a "turn"); otherwise the
+               momentum component itself when it reads <= 35 or >= 65 and moves the score
+               >= 1 point (not when a GDELT sign flip already tells the story)
 * smart_money  >= 2 upgrades/downgrades or >= 3 PT raises/cuts in 30d; >= 2 insider
                buyers in 90d or an officer buy >= $500K; insider sales >= 0.5% of market cap
 * catalyst     earnings <= 14 days; ex-dividend <= 7 days
+* deal         a pending acquisition of the company (signed merger agreement in its 8-Ks,
+               see deals.py) — always an alert, ranked first
 * risk         lawsuit/probe/regulatory-setback events (>= 3 articles — or 2 incl. a major
                outlet — from >= 2 outlets, tone <= -0.1); red-flag 8-Ks; bankruptcy/going
-               concern, delisting, short reports (corroborated); dilution
+               concern, delisting, short reports (corroborated); dilution. A listing-rule
+               notice is not raised once a later filing reports regained compliance or
+               while the company is being acquired; a compliance notice is not a red flag
 * quality      no relevant text at all (whatever the source statuses); < 8 relevant items;
                >= 3 sources failed; engine failure; a component that failed on bad data;
                slow/failed feeds
@@ -29,16 +35,17 @@ Checks (thresholds):
 from __future__ import annotations
 
 import math
+import re
 from collections import Counter
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import date, timedelta
 from typing import Literal
 
 from app.analytics import textkit
 from app.analytics.composite import NEWS_BASELINE, SOCIAL_BASELINE, crowded, headline_shift
 from app.analytics.composite import STOCKTWITS_BASELINE as STOCKTWITS_NORM
-from app.analytics.crowd import reddit_change_pct
+from app.analytics.crowd import BREAKOUT_RANK, reddit_breakout, reddit_change_pct
 from app.analytics.facts import Facts
 from app.analytics.prepare import Item
 from app.analytics.util import (
@@ -97,10 +104,12 @@ def build_insights(f: Facts, verdict: Verdict, delta: DeltaView) -> list[Insight
     checks: list[Callable[[], Iterator[_Cand]]] = [
         lambda: _divergences(f), lambda: _attention(f), lambda: _crowding(f),
         lambda: _reversals(f, verdict, delta), lambda: _momentum(f), lambda: _smart_money(f),
-        lambda: _catalysts(f), lambda: _risks(f), lambda: _quality(f),
+        lambda: _catalysts(f), lambda: _deals(f), lambda: _risks(f), lambda: _quality(f),
     ]
     for check in checks:
         cands.extend(check())
+    if all(c.insight.kind == "quality" for c in cands):
+        cands.extend(_main_drag(f, verdict))  # the headline names it, so the rail must not say "nothing"
     cands.sort(key=lambda c: (_SEVERITY_RANK[c.insight.severity], -c.priority))
     seen: set[str] = set()
     out: list[Insight] = []
@@ -201,7 +210,16 @@ def _attention(f: Facts) -> Iterator[_Cand]:
                     f"GDELT article count is {multiple} 4-week norm ({recent:,.0f}/day over the last 2 days vs "
                     f"{typical:,.0f} typical; {sigma}).", min(att.news_volume_z, 10.0))
     change = reddit_change_pct(crowd)
-    if crowd is not None and change is not None and crowd.reddit_mentions is not None:
+    breakout = reddit_breakout(crowd)
+    if breakout and crowd is not None and crowd.reddit_rank is not None:
+        tracked = f.metrics.get("reddit_tracked")
+        of = f" of {tracked} tracked tickers" if isinstance(tracked, int) else ""
+        since = f"from #{crowd.reddit_rank_prev}" if crowd.reddit_rank_prev is not None else "from unranked"
+        before = (f" vs {crowd.reddit_mentions_prev} a day earlier" if crowd.reddit_mentions_prev is not None else "")
+        yield _make("attention", "watch", "neutral", f"Reddit breakout: #{crowd.reddit_rank} {since}",
+                    f"{crowd.reddit_mentions} mentions in 24h{before} — {f.name} jumped into Reddit's top "
+                    f"{BREAKOUT_RANK}{of}.", 3.0)
+    if crowd is not None and change is not None and crowd.reddit_mentions is not None and not breakout:
         rank = ""
         if crowd.reddit_rank is not None:
             rank = f"; rank #{crowd.reddit_rank}" + (
@@ -271,6 +289,34 @@ def _reversals(f: Facts, verdict: Verdict, delta: DeltaView) -> Iterator[_Cand]:
                        else "") + ".", abs(d) / 10)
 
 
+def _main_drag(f: Facts, verdict: Verdict) -> Iterator[_Cand]:
+    """The component the headline names as the main drag (or offset), as a watch item.
+
+    Only used when no other check fired: every clause of the headline then
+    still has its evidence on the rail."""
+    if verdict.stance == "neutral":
+        return
+    sign = 1 if verdict.stance == "bullish" else -1
+    comp = f.composite
+    against = [(k, c) for k, c in comp.contributions.items()
+               if c * sign <= -1.0 and comp.parts[k].phrase and comp.parts[k].reason]
+    if not against:
+        return
+    key, points = min(against, key=lambda kc: kc[1] * sign)
+    part = comp.parts[key]
+    lead, _, evidence = (part.reason or "").partition(": ")
+    role = "drag on" if sign > 0 else "offset to"
+    yield _make(part_kind(key), "watch", "bear" if sign > 0 else "bull", lead,
+                f"{_cap(evidence)} — the main {role} the {verdict.label} read ({signed(points, '.1f')} points).",
+                abs(points))
+
+
+def part_kind(key: str) -> InsightKind:
+    """Insight kind for a component's evidence."""
+    return {"momentum": "momentum", "analysts": "smart_money", "insiders": "smart_money",
+            "social": "crowding"}.get(key, "divergence")  # type: ignore[return-value]
+
+
 def _gdelt_flip(f: Facts) -> bool:
     """GDELT 7-day tone on the other side of zero from its 30-day level (by >= 0.5)."""
     tone = f.inputs.tone
@@ -294,8 +340,10 @@ def _momentum(f: Facts) -> Iterator[_Cand]:
                         f"percentile of the last 90 days.", abs(p - 0.5) * 2)
     r, o = f.news_recent, f.news_older
     shift = headline_shift(r, o)
-    # The decay-discounted change: tone drifting back to normal after an event day is not a turn.
-    if shift is not None and r.n >= 8 and o.n >= 8 and abs(shift.effective) >= HEADLINE_TURN:
+    # Tone drifting back to normal after an event day is not a turn (the component may still
+    # report it below, worded "Headline tone normalizing", when it clearly moves the score).
+    if shift is not None and r.n >= 8 and o.n >= 8 and not shift.normalizing \
+            and abs(shift.effective) >= HEADLINE_TURN:
         up = shift.change > 0
         fired = True
         yield _make("momentum", "watch", "bull" if up else "bear",
@@ -356,21 +404,21 @@ def _smart_money(f: Facts) -> Iterator[_Cand]:
     if len(buyers) >= 2:
         top = max(buys, key=lambda t: t.value or 0)
         lead = f"; largest: {top.insider}" + (f" ({top.position})" if top.position else "") + (
-            f" {money(top.value)} on {short_date(top.date)}" if top.value else "")
+            f" {money(top.value, currency=f.reporting_currency)} on {short_date(top.date)}" if top.value else "")
         yield _make("smart_money", "alert" if len(buyers) >= 3 else "watch", "bull", "Insider cluster buying",
-                    f"{count(len(buyers), 'insider')} bought {money(total)} on the open market in the last 90 days"
+                    f"{count(len(buyers), 'insider')} bought {money(total, currency=f.reporting_currency)} on the open market in the last 90 days"
                     f"{lead}.", 2 + len(buyers))
     elif buys:
         top = max(buys, key=lambda t: t.value or 0)
         role = (top.position or "").lower()
         if (top.value or 0) >= 500_000 and any(k in role for k in _OFFICER):
-            yield _make("smart_money", "watch", "bull", f"{top.position} bought {money(top.value or 0)}",
-                        f"{top.insider} bought {money(top.value or 0)} of stock on the open market on "
+            yield _make("smart_money", "watch", "bull", f"{top.position} bought {money(top.value or 0, currency=f.reporting_currency)}",
+                        f"{top.insider} bought {money(top.value or 0, currency=f.reporting_currency)} of stock on the open market on "
                         f"{short_date(top.date)} — officers rarely buy without conviction.", 2)
     bps = f.composite.parts["insiders"].facts.get("sell_bps")
     if bps is not None and bps >= 50 and not buys:
         yield _make("smart_money", "watch", "bear", "Heavy insider selling",
-                    f"Insiders sold {money(view.sell_value)} in {view.window_days} days — {bps / 100:.2f}% of market "
+                    f"Insiders sold {money(view.sell_value, currency=f.reporting_currency)} in {view.window_days} days — {bps / 100:.2f}% of market "
                     f"cap, well above routine levels.", bps / 50)
 
 
@@ -391,7 +439,7 @@ def _catalysts(f: Facts) -> Iterator[_Cand]:
         if last is not None and last.surprise_pct is not None:
             bits.append(f"last surprise {pct(last.surprise_pct)}")
         if e.eps_estimate is not None:
-            bits.append(f"consensus EPS {money(e.eps_estimate, price=True)}")
+            bits.append(f"consensus EPS {money(e.eps_estimate, price=True, currency=f.reporting_currency)}")
         yield _make("catalyst", "watch" if days <= 7 else "info", "neutral", f"Earnings {when}",
                     "; ".join(bits) + ".", 3 - days / 7)
     for c in f.inputs.calendar_catalysts:
@@ -405,8 +453,39 @@ def _catalysts(f: Facts) -> Iterator[_Cand]:
 
 
 # --------------------------------------------------------------------------- #
+# Pending acquisition
+# --------------------------------------------------------------------------- #
+def _deals(f: Facts) -> Iterator[_Cand]:
+    d = f.deal
+    if d is None:
+        return
+    items = f" (item {', '.join(d.items)})" if d.items else ""
+    said = d.excerpt.rstrip(".") + ("" if d.excerpt.endswith("…") else ".")
+    yield _make("risk", "alert", "neutral", f"Pending acquisition: merger agreement ({d.when})",
+                f"Form {d.form}{items}: {said} {f.name} is the company being acquired{d.by}, so its share price "
+                f"now tracks the deal terms and the odds of closing; analyst targets and the price trend are "
+                f"discounted in the score.", 20)
+
+
+# --------------------------------------------------------------------------- #
 # Risks
 # --------------------------------------------------------------------------- #
+_COMPLIANCE_RE = re.compile(r"\bregained compliance\b|\bback in compliance\b|\bcompliance (?:has been|was) regained\b",
+                            re.IGNORECASE)
+_LISTING_RE = re.compile(r"\bdelist|\blisting[- ]rule|\bminimum bid price\b|\bcontinued listing\b", re.IGNORECASE)
+
+
+def _listing_cleared(f: Facts) -> date | None:
+    """Date of the latest filing reporting regained listing compliance (None when there is none)."""
+    dates = [x.date for x in f.inputs.filings if _COMPLIANCE_RE.search(x.title)]
+    return max(dates) if dates else None
+
+
+def _stale_listing_flag(f: Facts, when: date, cleared: date | None) -> bool:
+    """A listing-rule problem dated `when` that a later compliance notice or a pending deal supersedes."""
+    return f.deal is not None or (cleared is not None and cleared >= when)
+
+
 def _corroborated(hits: list[Item]) -> bool:
     """>= 2 outlets, or one major outlet clearly about the company."""
     outlets = {o for it in hits for o in it.outlets()}
@@ -437,8 +516,13 @@ def _risks(f: Facts) -> Iterator[_Cand]:
                     f"{count(len(solicitations), 'law-firm press release')} soliciting shareholders — usually filed "
                     f"after a sharp drop; check for an underlying lawsuit.", len(solicitations) / 3)
 
+    cleared = _listing_cleared(f)
     for key, title in RED_FLAG_EVENTS.items():
         hits = [it for it in news if key in it.event_keys and it.relevance >= 0.6 and not it.press_release]
+        if key == "delisting" and hits:
+            latest = max((it.timestamp.date() for it in hits if it.timestamp), default=None)
+            if latest is not None and _stale_listing_flag(f, latest, cleared):
+                continue
         if hits and _corroborated(hits):
             top = max(hits, key=lambda it: it.weight)
             yield _make("risk", "alert", "bear", title,
@@ -460,6 +544,11 @@ def _risks(f: Facts) -> Iterator[_Cand]:
         label, desc = filing_parts(filing.title)
         said = trim(desc or label, 160).rstrip(".")
         said += "" if said.endswith("…") else "."
+        if _COMPLIANCE_RE.search(filing.title):
+            continue  # "regained compliance" resolves a listing problem; it is not a red flag
+        listing = "3.01" in filing.items or bool(_LISTING_RE.search(filing.title))
+        if listing and _stale_listing_flag(f, filing.date, cleared):
+            continue
         if filing.importance == "high" and filing.polarity == "bear" and 0 <= age <= 120:
             yield _make("risk", "alert", "bear", f"Red-flag filing: {trim(label, 60)}",
                         f"Form {filing.form}{items} filed {short_date(filing.date)}: {said}", 6 - age / 30)

@@ -23,8 +23,14 @@ holds most of the weight.
 A routine target tweak (a structured analyst action keeping the rating and
 moving the target < 3%, matched by firm within 4 days) is not a development:
 a story whose only material events are target revisions explained by such
-actions has its intensity capped at 0.3, so "X maintains Buy, trims target
-to $355" cannot become the top story.
+actions has its intensity capped at 0.3 and is never featured as "the" story
+(see `featured`), so "X maintains Buy, trims target to $355" cannot become
+the top story.
+
+The headline is a complete statement about the company: a representative
+whose title is cut off ("…") or that is clearly less about the company than
+another member (a peer's headline) gives way to the best member that is
+neither, preferring one that carries a material event.
 
 An event is part of a story when the representative carries it or members
 carrying it hold >= 35% of the story's weighted coverage (and number >= 2), so
@@ -51,7 +57,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 from app.analytics import textkit
-from app.analytics.prepare import Item
+from app.analytics.prepare import PRICE_EVENTS, Item, price_recap
 from app.analytics.util import stable_id, tone_label, weighted_mean
 from app.nlp.types import ClusterItem
 from app.schemas import AnalystAction, Narrative, Snapshot
@@ -79,7 +85,8 @@ NEW_FRESH_SHARE = 0.5  # share of a story's dated coverage that must (strictly) 
 NEW_SHARED_IDS = 1 / 3  # shared member articles (of the smaller story) that make two stories one
 
 # Events that are developments in their own right (price moves merely describe the tape).
-PRICE_EVENTS = frozenset({"price_up", "price_down", "all_time_high", "high_52w", "low_52w"})
+STORY_MIN_IMPACT = 0.35  # a story below this impact is never quoted as "the" story
+INSIDER_EVENTS = frozenset({"insider_buy", "insider_sell"})
 REVISION_EVENTS = frozenset({"pt_raise", "pt_cut"})
 ROUTINE_REVISION = 0.03  # |target change| below which a rating-unchanged revision is routine
 ROUTINE_REVISION_INTENSITY = 0.3
@@ -117,6 +124,7 @@ class Story:
     spread: float = 0.0
     core_share: float = 1.0
     intensity: float = 1.0  # max(|tone| / 0.4, 0.6 if material) capped at 1 (see module docstring)
+    routine: bool = False  # a rating-unchanged target tweak (see `routine_revision`)
 
     def cap_intensity(self, cap: float) -> None:
         """Lower the story's intensity to `cap`, rescaling its impact accordingly."""
@@ -143,6 +151,30 @@ class Story:
         tone, rep = self.narrative.score, self.lead.score
         return (abs(tone) >= STORY_TONE and abs(rep) >= STORY_TONE and tone * rep > 0
                 and self.core_share >= CORE_SHARE)
+
+    @property
+    def price_only(self) -> bool:
+        """The story is the price move itself ('stock craters 43% in 2026'): no material event,
+        and its headline is a price recap. The technicals component already measures it."""
+        return not self.material_events and price_recap(self.lead)
+
+    @property
+    def insider_only(self) -> bool:
+        """Its only development is an insider trade, which the insiders component states from
+        the Form 4 data (the story would say it twice)."""
+        return bool(self.material_events) and set(self.material_events) <= INSIDER_EVENTS
+
+
+def featured(stories: list[Story]) -> list[Story]:
+    """Stories that may be quoted as *the* story (verdict reasons, headline, brief), ranked.
+
+    Price recaps (they restate the tape the technicals already count) and
+    routine target tweaks (not a development) are left out — unless no other
+    story clears STORY_MIN_IMPACT."""
+    substantive = [s for s in stories if not s.price_only and not s.routine]
+    if any(s.narrative.impact >= STORY_MIN_IMPACT for s in substantive):
+        return substantive
+    return list(stories)
 
 
 def build_narratives(items: list[Item], company: CompanyRef | None, now: datetime,
@@ -179,6 +211,7 @@ def build_narratives(items: list[Item], company: CompanyRef | None, now: datetim
 
     for story in stories:
         if routine_revision(story, actions):
+            story.routine = True
             story.cap_intensity(ROUTINE_REVISION_INTENSITY)
     stories.sort(key=lambda s: (-s.narrative.impact, -s.narrative.count, s.narrative.id))
     # Single-outlet stories only fill out a thin list; they never crowd out corroborated ones.
@@ -202,6 +235,7 @@ def build_narratives(items: list[Item], company: CompanyRef | None, now: datetim
 
 def _story(rep: Item, members: list[Item], now: datetime) -> Story | None:
     members = [rep] + sorted((m for m in members if m is not rep), key=lambda m: (-m.weight, m.id))
+    rep = headline_candidate(rep, members)
     rep, _, spread, core_share = pick_anchor(rep, members)
     members = [rep] + [m for m in members if m is not rep]
     tone = story_tone(members, rep)
@@ -249,6 +283,32 @@ def _story(rep: Item, members: list[Item], now: datetime) -> Story | None:
                  core_share=round(core_share, 3), intensity=intensity)
 
 
+TRUNCATED_RE = re.compile(r"(?:\.\.\.|…)\s*$")
+CLEARLY_MORE_RELEVANT = 0.1  # a member this much more about the company fronts the story instead
+
+
+def _good_title(m: Item) -> bool:
+    return not TRUNCATED_RE.search(m.title) and not WEAK_TITLE_RE.search(m.title)
+
+
+def headline_candidate(rep: Item, members: list[Item]) -> Item:
+    """The clusterer's representative, unless its title is cut off ('… eyei...') or another member
+    is clearly more about the company (LULU's guidance cut fronted by 'Nike Sinks 8% …').
+
+    The replacement has a complete statement headline, is at least as relevant, and carries one
+    of the story's material events when a member does."""
+    truncated = bool(TRUNCATED_RE.search(rep.title))
+    floor = rep.relevance - 0.05 if truncated else rep.relevance + CLEARLY_MORE_RELEVANT
+    better = [m for m in members if m is not rep and _good_title(m) and m.relevance >= floor - 1e-9]
+    if not better:
+        return rep
+
+    def material(m: Item) -> bool:
+        return any(k not in PRICE_EVENTS for k in m.event_keys)
+
+    return max(better, key=lambda m: (material(m), m.relevance, m.weight, m.id))
+
+
 def story_tone(members: list[Item], rep: Item) -> float:
     """Weighted mean tone of every member (the representative's own score without weight)."""
     tone, _ = weighted_mean((m.score, m.weight) for m in members)
@@ -290,9 +350,12 @@ def pick_anchor(rep: Item, members: list[Item]) -> tuple[Item, float, float, flo
     if share >= CORE_SHARE:
         return rep, tone, spread, share
     best: tuple[Item, float, float, float] | None = None
+    top = max((m.relevance for m in members if _good_title(m)), default=rep.relevance)
     for m in members:
-        if m is rep or WEAK_TITLE_RE.search(m.title) or m.relevance < rep.relevance - 0.15:
+        if m is rep or not _good_title(m) or m.relevance < rep.relevance - 0.15:
             continue
+        if m.relevance <= top - CLEARLY_MORE_RELEVANT + 1e-9:
+            continue  # a member clearly less about the company never fronts its story
         m_tone, _, m_share = anchored_tone(m, members)
         if m_share >= CORE_SHARE and (best is None or (m_share, m.weight) > (best[3], best[0].weight)):
             best = (m, m_tone, spread, m_share)

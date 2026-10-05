@@ -120,3 +120,82 @@ def test_env_example_has_no_inline_comments_and_parses():
             values[key.lower()] = value
     assert "monitor_interval_minutes" in values
     Settings(_env_file=None, **{k: v for k, v in values.items() if v})  # every literal value validates
+
+
+# ---- one-shot runs wait for the slow tail (GDELT tone) instead of abandoning it -------------- #
+def test_cli_waits_for_slow_tone_and_includes_it(world: FakeWorld, consoles, capsys, monkeypatch):
+    from tests.services.fakes import Sentinel
+
+    monkeypatch.setattr(cli, "CLI_TAIL_WAIT", 3.0)
+    world.intel["tone"] = Sentinel(delay=0.6, value=world.intel["tone"])  # slower than the 0.05 s grace
+    from app.services import analyzer
+
+    monkeypatch.setattr(analyzer, "TAIL_GRACE", 0.05)
+    assert cli.main(["analyze", "NVDA", "--json", "--quiet"]) == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data["tone"] is not None and data["tone"]["tone_7d"] == 1.2
+    assert world.inputs[-1].intel_status["tone"] == "ok"
+
+
+def test_cli_no_wait_leaves_the_tail_out_and_says_so(world: FakeWorld, consoles, capsys, monkeypatch):
+    from app.services import analyzer
+    from tests.services.fakes import Sentinel
+
+    monkeypatch.setattr(analyzer, "TAIL_GRACE", 0.05)
+    world.intel["tone"] = Sentinel(delay=0.6, value=world.intel["tone"])
+    assert cli.main(["analyze", "NVDA", "--json", "--no-wait"]) == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data["tone"] is None
+    stderr = consoles[1].export_text().replace("\n", " ")
+    assert "left out of this run (--no-wait)" in stderr and "reload to include" not in stderr
+
+
+def test_cli_detail_never_promises_a_reload():
+    note = "still loading after 30s; continuing in the background (reload to include)"
+    assert cli.cli_detail(note, waited=True) == "still loading after 30s; not loaded in time, left out of this run"
+    assert cli.cli_detail("HTTP 429", waited=True) == "HTTP 429" and cli.cli_detail(None, True) is None
+
+
+async def test_settle_lets_stragglers_reach_their_cache(world: FakeWorld):
+    import asyncio
+
+    from app.services import tasks
+
+    landed: list[str] = []
+
+    async def slow(tag: str, delay: float) -> str:
+        await asyncio.sleep(delay)
+        landed.append(tag)
+        return tag
+
+    fast_out = await tasks.run_bounded(lambda: slow("fast", 0.3), 0.01, keep_alive=True, name="a")
+    slow_out = await tasks.run_bounded(lambda: slow("slow", 5.0), 0.01, keep_alive=True, name="b")
+    assert fast_out.pending is not None and slow_out.pending is not None
+    await cli._settle_background(1.0, show=False)
+    assert landed == ["fast"]  # bounded: the 5 s one is left to the shutdown
+    await tasks.cancel_background()
+
+
+def test_numbers_read_like_an_analyst_wrote_them(consoles):
+    """Analyst repro: '$749,337.00', '1 mentions/24h (• +0%)', '+100%' for 1 → 2, '▲ +0.00'."""
+    from app.analytics.inputs import AnalysisInputs
+    from app.sources.base import CompanyRef
+
+    assert cli.money(749_337) == "$749K" and cli.money(1_499) == "$1.5K" and cli.money(12_345) == "$12.3K"
+    assert cli.money(999_950) == "$1.00M" and cli.money(20.3) == "$20.30" and cli.money(-3.3e6) == "-$3.30M"
+    assert cli.signed(0.004).plain == "• +0.00" and cli.signed(-0.004).plain == "• +0.00"
+    assert cli.signed(0.31).plain == "▲ +0.31" and cli.signed(-0.12).plain == "▼ -0.12"
+    assert cli.count(1, "buy") == "1 buy" and cli.count(9, "sell") == "9 sells"
+
+    a = FakeWorld().build(AnalysisInputs(company=CompanyRef(ticker="SOFI", name="SoFi", short_name="SoFi"),
+                                         now=NOW, engine_name="sentinel"))
+    a = a.model_copy(update={
+        "insiders": InsiderView(buys=1, sells=9, buy_value=749_337.0, sell_value=3.26e6, net_value=-2.51e6),
+        "crowd": CrowdView(stocktwits_bull_ratio=0.79, stocktwits_bullish=15, stocktwits_bearish=4,
+                           reddit_mentions=2, reddit_mentions_prev=1, reddit_rank=66),
+    })
+    cli.render_analysis(a, consoles[0])
+    text = consoles[0].export_text()
+    for needle in ("1 buy $749K · 9 sells $3.26M", "79% bullish of 19 tagged messages", "#66 · 2 mentions/24h"):
+        assert needle in text, needle
+    assert "+100%" not in text  # 1 → 2 mentions is not a trend

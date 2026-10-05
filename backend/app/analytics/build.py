@@ -4,7 +4,7 @@ Pure, synchronous and deterministic given its inputs (no network, no clock:
 `inputs.now` is the only notion of time). Steps:
 
     sanitize structured intel → prepare items → tone summaries → narratives → themes/keywords/timeline →
-    crowd & attention → six components → composite verdict → catalysts →
+    crowd & attention → pending-deal check → six components → composite verdict → catalysts →
     delta vs previous snapshot → insights → brief → ranked signals
 
 One bad provider value must never cost the user the whole analysis: structured
@@ -29,6 +29,7 @@ from app.analytics.composite import (
     Part,
     analysts_part,
     compose,
+    deal_anchored,
     insiders_part,
     momentum_part,
     news_part,
@@ -36,6 +37,7 @@ from app.analytics.composite import (
     technicals_part,
 )
 from app.analytics.crowd import as_float, as_int, attention_view, crowd_view, merged_metrics, stocktwits_tally
+from app.analytics.deals import pending_deal
 from app.analytics.delta import build_delta
 from app.analytics.facts import Facts
 from app.analytics.inputs import AnalysisInputs
@@ -75,18 +77,24 @@ def build_analysis(inputs: AnalysisInputs) -> Analysis:
     tally = stocktwits_tally(metrics)
     attention = attention_view(inputs.tone, inputs.wiki_views, crowd, items, now)
     market_cap = inputs.quote.market_cap if inputs.quote is not None else None
+    currency = (inputs.quote.currency if inputs.quote is not None else None) or "USD"
+    reporting = "USD" if currency == "USD" else None  # see Facts.reporting_currency
     asset = company.quote_type
     failed: list[str] = []
 
+    deal = _guard("Deal detection", lambda: pending_deal(inputs.filings, company, now.date()), lambda: None, failed)
+
     def part(key: ComponentKey, make: Callable[[], Part]) -> Part:
-        return _guard(LABELS[key], make, lambda: Part(key, detail="could not be computed"), failed)
+        built = _guard(LABELS[key], make, lambda: Part(key, detail="could not be computed"), failed)
+        # A pending acquisition pins the price to the deal terms (see deals.py).
+        return deal_anchored(built) if deal is not None and key in ("analysts", "technicals") else built
 
     composite = compose([
         part("news", lambda: news_part(news, as_float(metrics.get("av_sentiment")),
                                        as_int(metrics.get("av_articles")))),
         part("social", lambda: social_part(social, crowd, tally)),
-        part("analysts", lambda: analysts_part(inputs.analysts, now, asset)),
-        part("insiders", lambda: insiders_part(inputs.insiders, market_cap, now, asset)),
+        part("analysts", lambda: analysts_part(inputs.analysts, now, asset, currency)),
+        part("insiders", lambda: insiders_part(inputs.insiders, market_cap, now, asset, reporting)),
         part("momentum", lambda: momentum_part(inputs.tone, recent, older)),
         part("technicals", lambda: technicals_part(inputs.technicals)),
     ], max_distance=DEGRADED_MAX_DISTANCE if prepared.engine_error else None)
@@ -94,12 +102,12 @@ def build_analysis(inputs: AnalysisInputs) -> Analysis:
     facts = Facts(
         inputs=inputs, prepared=prepared, overall=overall, news=news, social=social, news_recent=recent,
         news_older=older, stories=stories, themes=themes, metrics=metrics, crowd=crowd, stocktwits=tally,
-        attention=attention, composite=composite, failed=failed,
+        attention=attention, composite=composite, failed=failed, deal=deal,
     )
     verdict = build_verdict(facts)
     facts.catalysts = _guard("Catalysts", lambda: build_catalysts(facts), list, failed)
     sentiment = overall.stat()
-    delta = build_delta(inputs.previous, verdict, sentiment, inputs.quote, stories)
+    delta = build_delta(inputs.previous, verdict, sentiment, inputs.quote, stories, inputs.previous_components)
     insights = build_insights(facts, verdict, delta)
     brief = build_brief(facts, verdict, insights)
 
@@ -136,9 +144,16 @@ def _previous_story_ids(inputs: AnalysisInputs) -> Collection[Collection[str]] |
 
 
 def select_signals(items: list[Item], stories: list[Story], limit: int = MAX_SIGNALS) -> list[Signal]:
-    """Heaviest items first, always including every narrative member (≤ `limit`)."""
+    """Heaviest items first (≤ `limit`): every narrative member, then published media up to half
+    the list when there is that much of it, then the heaviest of the rest — so a busy StockTwits
+    stream cannot crowd the reporting out of the explorer."""
     members = {it.id for s in stories for it in s.members}
     chosen = [it for it in items if it.id in members]
-    chosen += [it for it in items if it.id not in members][: max(0, limit - len(chosen))]
+    rest = [it for it in items if it.id not in members]  # `items` is heaviest first
+    media = [it for it in rest if it.group == "news"]
+    reserved = media[: max(0, min(limit // 2 - sum(it.group == "news" for it in chosen), limit - len(chosen)))]
+    taken = {it.id for it in reserved}
+    chosen += reserved
+    chosen += [it for it in rest if it.id not in taken][: max(0, limit - len(chosen))]
     chosen.sort(key=lambda it: (-it.weight, it.id))
     return [it.to_signal() for it in chosen[:limit]]

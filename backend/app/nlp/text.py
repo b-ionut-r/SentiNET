@@ -237,6 +237,7 @@ signals warn warns warned add adds added boost boosts boosted lift lifts lifted 
 remain remains stay stays turn turns turned call calls called name names named announce announces announced plan
 plans planned prepare prepares weigh weighs consider considers explore explores join joins reach reaches reached
 top tops topped lead leads drive drives driven put puts open opens deliver delivers return returns hold holds
+sit sits sat sitting
 """)
 # Price-move words: a move is not a story ("stock rises").
 MOVE_WORDS: frozenset[str] = wordset("""

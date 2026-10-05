@@ -13,6 +13,7 @@ from typing import Optional
 from app.schemas import (
     AnalystView,
     Catalyst,
+    Component,
     EarningsView,
     Filing,
     InsiderView,
@@ -58,4 +59,7 @@ class AnalysisInputs:
     previous: Optional[Snapshot] = None  # latest stored snapshot older than ~15 min
     # Member signal ids of each story in `previous` (for NEW-story detection by shared articles).
     previous_story_ids: Optional[list[list[str]]] = None
+    # The previous snapshot's verdict components (its stored verdict), so "what changed" can tell a
+    # sentiment move from a component becoming available or unavailable (e.g. GDELT tone loading).
+    previous_components: Optional[list[Component]] = None
     intel_status: dict[str, str] = field(default_factory=dict)  # task key -> "ok"|"empty"|"error: …"

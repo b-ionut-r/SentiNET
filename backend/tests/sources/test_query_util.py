@@ -189,6 +189,51 @@ def test_mentions_rules(ticker, text, social, expected):
     assert Mentions(search_terms(company(ticker))).about(text, social=social) is expected
 
 
+# QQQ as `resolve_company` returned it live on 2026-10-05 (names: "Nasdaq 100", "Nasdaq", "Nasdaq-100").
+QQQ_LIVE = CompanyRef(ticker="QQQ", name="Invesco QQQ Trust", short_name="Nasdaq 100",
+                      aliases=["Nasdaq-100", "Invesco QQQ", "Nasdaq"], quote_type="ETF")
+
+
+@pytest.mark.parametrize(
+    ("text", "about"),
+    [  # real Google News headlines for QQQ's `intitle:Nasdaq` query, 2026-10-05
+        ('Sprouts Farmers Market, Inc. (NASDAQ:SFM) Stock Now Rated "Hold" by Sell-Side Analysts', False),
+        ("Citigroup (NYSE: C) Doubles Price Target On Strategy (NASDAQ: MSTR) To $240 As Stock Surges 30%", False),
+        ("AMG Pantheon Infrastructure Fund, LLC- Class M Financial Statements – NASDAQ:PBLBX", False),
+        ("Q2 Earnings Highlights: Dave & Buster's (NASDAQ:PLAY) Vs The Rest Of The Leisure Facilities Stocks", False),
+        ("GT Biopharma regains Nasdaq compliance: what it means for GT Biopharma stock", False),
+        ("Nextdoor to Transfer Stock Exchange Listing to Nasdaq Capital Market", False),
+        ("Bluerock Acquisition Corp. II Rings the Nasdaq Stock Market Opening Bell", False),
+        ("Payments firm OpenPayd targets year-end Nasdaq listing to fund U.S. expansion", False),
+        ("Magic Empire Global, a Nasdaq-listed firm, stock jumps", False),
+        ("HSBC upgrades Sprouts to Buy (SFM:NASDAQ) shares rise", False),
+        # the index itself, its own listing, and market news that names it
+        ("Nasdaq Hits Record High as Treasury Yields Retreat", True),
+        ("Nasdaq gains 1.2% as weak jobs data lifts U.S. stocks", True),
+        ("Invesco QQQ (NASDAQ:QQQ) Sets New 12-Month High - Here's What Happened", True),
+        ("Nasdaq 100 Hits Record High As Fed Hike Bets Cool - Invesco QQQ Trust, Series 1 (NASDAQ:QQQ)", True),
+        ("Moderna to join Nasdaq-100 index on Oct. 9, replacing Warner Bros.", True),
+        ("Micron (NASDAQ:MU) leads the Nasdaq higher", True),
+        ("LIVE: Nasdaq stocks slide as yields jump", True),  # a caps word + colon is not an exchange tag
+    ],
+)
+def test_exchange_listing_tags_do_not_name_the_index(text, about):
+    """QQQ took 19 single-stock "(NASDAQ:XYZ)" headlines as Nasdaq-100 news (one became a narrative)."""
+    mentions = Mentions(search_terms(QQQ_LIVE))
+    assert mentions.about(text) is about
+    assert mentions.homonym_only(text) is (not about)  # Google's `intitle:Nasdaq` matches: drop them there
+
+
+def test_exchange_tags_still_identify_the_listed_company():
+    assert Mentions(search_terms(company("TGT"))).about("Should You Be Adding Target (NYSE:TGT) To Your Watchlist?")
+    mu = Mentions(search_terms(company("MU")))
+    assert mu.about("6 Stocks Priced To Swing Most This Week - PepsiCo (NASDAQ:PEP), Micron Technology (NASDAQ:MU)")
+    assert mu.named("Micron: The Market Is In Disbelief. Ignore Them (NASDAQ:MU)") == "Micron"
+    nasdaq_inc = CompanyRef(ticker="NDAQ", name="Nasdaq, Inc.", short_name="Nasdaq")
+    m = Mentions(search_terms(nasdaq_inc))
+    assert m.about("Nasdaq Inc (NASDAQ:NDAQ) beats estimates") and not m.about("Sprouts (NASDAQ:SFM) rated Hold")
+
+
 @pytest.mark.parametrize(
     ("ticker", "expected"),
     [("NVDA", "NVDA"), ("BRK-B", "BRK.B"), ("SPY", "SPY"), ("SHOP.TO", None), ("BTC-USD", None), ("^GSPC", None)],

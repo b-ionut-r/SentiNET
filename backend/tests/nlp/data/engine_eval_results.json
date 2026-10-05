@@ -1,14 +1,7 @@
 {
   "generated": "2026-10-05",
-  "protocol": "News lexicon/rules/blend tuned on twitter-financial-news-sentiment TRAIN only; social register on StockTwits even ids. Everything under 'held_out' was not used for tuning. Labels via engine.label_for (NEUTRAL_BAND=0.05); VADER uses its standard +-0.05 compound thresholds. Caveat: the first build session inspected some PhraseBank AllAgree and Twitter-valid sentences (a few appeared verbatim in unit tests; replaced), so those two numbers may be mildly optimistic. FiQA texts and errors were never inspected (only label counts and aggregate scores at a few checkpoints; no setting was chosen on them), so it is the cleanest held-out estimate. FiQA is ~88% polar, which penalizes an engine calibrated to abstain (neutral) on weak evidence: the news dead zone (0.28) was fitted to Twitter's neutral-heavy labels, so on FiQA headlines Sentinel commits on only ~half the polar items (see 'polar': share of polar items it commits on, and its accuracy when it does). Review fixes (sign flips on guidance metrics, negated approvals, size-cap compounds, the retailer Target, bare 'record', signed percents, 'stock up/down', forum prose, limited upside, Form-4 plan trades, enforcement actions, 'wiped out', rating infinitives, 13F bot headlines, purpose and relative clauses) were selected on the Twitter train split and hand-written regression cases only; held-out sets were re-run for reporting, not selection. 'calibration': news polar confidence is remapped by an isotonic fit on Twitter train (ECE on train/valid shows the fit holds); neutral confidence is deliberately prior-agnostic (0.5 when nothing was found, higher for explicit 'in line'/'unchanged' cues), because whether 'no evidence' means neutral depends on the stream's base rate (about 90% of neutral calls are right on Twitter, under 20% on the ~88%-polar FiQA sets), so neutral ECE is large on every set by construction.",
+  "protocol": "News lexicon/rules/blend tuned on twitter-financial-news-sentiment TRAIN only; social register on StockTwits even ids. Everything under 'held_out' was not used for tuning. Labels via engine.label_for (NEUTRAL_BAND=0.05); VADER uses its standard +-0.05 compound thresholds. Caveat: the first build session inspected some PhraseBank AllAgree and Twitter-valid sentences (a few appeared verbatim in unit tests; replaced), so those two numbers may be mildly optimistic. FiQA texts and errors were never inspected (only label counts and aggregate scores at a few checkpoints; no setting was chosen on them), so it is the cleanest held-out estimate. FiQA is ~88% polar, which penalizes an engine calibrated to abstain (neutral) on weak evidence: the news dead zone (0.28) was fitted to Twitter's neutral-heavy labels, so on FiQA headlines Sentinel commits on only ~half the polar items (see 'polar': share of polar items it commits on, and its accuracy when it does). Review fixes (sign flips on guidance metrics, negated approvals, size-cap compounds, the retailer Target, bare 'record', signed percents, 'stock up/down', forum prose, limited upside, Form-4 plan trades, enforcement actions, 'wiped out', rating infinitives, 13F bot headlines, purpose and relative clauses; final review: distance below a high, valuation calls, rating templates, bad-news quantities such as recalls or withdrawal queues, 'top analyst' column titles) were selected on the Twitter train split and hand-written regression cases only; held-out sets were re-run for reporting, not selection. Subject attribution (the optional per-text target: peers' and the market's clauses count as context) is not exercised here, since no benchmark names an analysed company; it is covered by unit tests on live headlines. 'calibration': news polar confidence is remapped by an isotonic fit on Twitter train (ECE on train/valid shows the fit holds); neutral confidence is deliberately prior-agnostic (0.5 when nothing was found, higher for explicit 'in line'/'unchanged' cues), because whether 'no evidence' means neutral depends on the stream's base rate (about 90% of neutral calls are right on Twitter, under 20% on the ~88%-polar FiQA sets), so neutral ECE is large on every set by construction.",
   "datasets": {
-    "twitter_train": {
-      "source": "huggingface.co/datasets/zeroshot/twitter-financial-news-sentiment (sent_train.csv)",
-      "license": "MIT",
-      "register": "news",
-      "role": "tuning",
-      "n": 9543
-    },
     "twitter_valid": {
       "source": "huggingface.co/datasets/zeroshot/twitter-financial-news-sentiment (sent_valid.csv)",
       "license": "MIT",
@@ -35,12 +28,6 @@
       "labels": "score >= 0.1 bullish, < -0.1 bearish, else neutral",
       "n": 675
     },
-    "stocktwits_even": {
-      "source": "api.stocktwits.com public symbol streams; author-tagged; even message ids",
-      "register": "social",
-      "role": "tuning",
-      "n": 1190
-    },
     "stocktwits_odd": {
       "source": "api.stocktwits.com public symbol streams; author-tagged Bullish/Bearish; odd message ids (even ids tuned the social register)",
       "register": "social",
@@ -49,20 +36,6 @@
     }
   },
   "summary": {
-    "twitter_train": {
-      "vader": {
-        "accuracy": 0.4814,
-        "macro_f1": 0.4383,
-        "polar_coverage": 0.6053,
-        "polar_accuracy_committed": 0.7585
-      },
-      "sentinel": {
-        "accuracy": 0.8222,
-        "macro_f1": 0.7876,
-        "polar_coverage": 0.8273,
-        "polar_accuracy_committed": 0.9738
-      }
-    },
     "twitter_valid": {
       "vader": {
         "accuracy": 0.4941,
@@ -71,8 +44,8 @@
         "polar_accuracy_committed": 0.7568
       },
       "sentinel": {
-        "accuracy": 0.809,
-        "macro_f1": 0.7696,
+        "accuracy": 0.8099,
+        "macro_f1": 0.7704,
         "polar_coverage": 0.8066,
         "polar_accuracy_committed": 0.9713
       }
@@ -113,22 +86,10 @@
         "polar_accuracy_committed": 0.7163
       },
       "sentinel": {
-        "accuracy": 0.7037,
-        "macro_f1": 0.5672,
-        "polar_coverage": 0.814,
-        "polar_accuracy_committed": 0.8781
-      }
-    },
-    "stocktwits_even": {
-      "vader": {
-        "coverage": 0.5857,
-        "accuracy_covered": 0.7044,
-        "balanced_accuracy_covered": 0.6595
-      },
-      "sentinel": {
-        "coverage": 0.6101,
-        "accuracy_covered": 0.8196,
-        "balanced_accuracy_covered": 0.8207
+        "accuracy": 0.7007,
+        "macro_f1": 0.5655,
+        "polar_coverage": 0.8109,
+        "polar_accuracy_committed": 0.8776
       }
     },
     "stocktwits_odd": {
@@ -196,13 +157,13 @@
       },
       "sentinel": {
         "n": 2388,
-        "accuracy": 0.809,
-        "macro_f1": 0.7696,
+        "accuracy": 0.8099,
+        "macro_f1": 0.7704,
         "per_class": {
           "bullish": {
-            "precision": 0.729,
+            "precision": 0.7319,
             "recall": 0.7874,
-            "f1": 0.7571,
+            "f1": 0.7586,
             "support": 475
           },
           "bearish": {
@@ -212,9 +173,9 @@
             "support": 347
           },
           "neutral": {
-            "precision": 0.8901,
-            "recall": 0.8225,
-            "f1": 0.855,
+            "precision": 0.8903,
+            "recall": 0.8238,
+            "f1": 0.8557,
             "support": 1566
           }
         },
@@ -230,22 +191,22 @@
             "neutral": 67
           },
           "neutral": {
-            "bullish": 129,
+            "bullish": 127,
             "bearish": 149,
-            "neutral": 1288
+            "neutral": 1290
           }
         },
         "calibration": {
           "polar": {
-            "n": 941,
+            "n": 939,
             "mean_confidence": 0.7104,
-            "accuracy": 0.6844,
-            "ece": 0.0408
+            "accuracy": 0.6858,
+            "ece": 0.0394
           },
           "neutral": {
-            "n": 1447,
-            "mean_confidence": 0.4802,
-            "accuracy": 0.8901,
+            "n": 1449,
+            "mean_confidence": 0.4804,
+            "accuracy": 0.8903,
             "ece": 0.4099
           }
         },
@@ -532,13 +493,13 @@
       },
       "sentinel": {
         "n": 675,
-        "accuracy": 0.7037,
-        "macro_f1": 0.5672,
+        "accuracy": 0.7007,
+        "macro_f1": 0.5655,
         "per_class": {
           "bullish": {
-            "precision": 0.894,
-            "recall": 0.7307,
-            "f1": 0.8041,
+            "precision": 0.8934,
+            "recall": 0.726,
+            "f1": 0.801,
             "support": 427
           },
           "bearish": {
@@ -548,17 +509,17 @@
             "support": 218
           },
           "neutral": {
-            "precision": 0.1045,
+            "precision": 0.1029,
             "recall": 0.4667,
-            "f1": 0.1707,
+            "f1": 0.1687,
             "support": 30
           }
         },
         "confusion": {
           "bullish": {
-            "bullish": 312,
+            "bullish": 310,
             "bearish": 33,
-            "neutral": 82
+            "neutral": 84
           },
           "bearish": {
             "bullish": 31,
@@ -573,22 +534,22 @@
         },
         "calibration": {
           "polar": {
-            "n": 541,
-            "mean_confidence": 0.6555,
-            "accuracy": 0.8521,
-            "ece": 0.1967
+            "n": 539,
+            "mean_confidence": 0.6556,
+            "accuracy": 0.8516,
+            "ece": 0.196
           },
           "neutral": {
-            "n": 134,
-            "mean_confidence": 0.4642,
-            "accuracy": 0.1045,
-            "ece": 0.3597
+            "n": 136,
+            "mean_confidence": 0.4639,
+            "accuracy": 0.1029,
+            "ece": 0.3609
           }
         },
         "polar": {
           "n": 645,
-          "coverage": 0.814,
-          "accuracy_covered": 0.8781,
+          "coverage": 0.8109,
+          "accuracy_covered": 0.8776,
           "flipped": 0.0992
         }
       }
@@ -626,164 +587,19 @@
       }
     }
   },
-  "tuning": {
-    "twitter_train": {
-      "vader": {
-        "n": 9543,
-        "accuracy": 0.4814,
-        "macro_f1": 0.4383,
-        "per_class": {
-          "bullish": {
-            "precision": 0.2699,
-            "recall": 0.4415,
-            "f1": 0.335,
-            "support": 1923
-          },
-          "bearish": {
-            "precision": 0.3446,
-            "recall": 0.4827,
-            "f1": 0.4021,
-            "support": 1442
-          },
-          "neutral": {
-            "precision": 0.6966,
-            "recall": 0.4935,
-            "f1": 0.5777,
-            "support": 6178
-          }
-        },
-        "confusion": {
-          "bullish": {
-            "bullish": 849,
-            "bearish": 187,
-            "neutral": 887
-          },
-          "bearish": {
-            "bullish": 305,
-            "bearish": 696,
-            "neutral": 441
-          },
-          "neutral": {
-            "bullish": 1992,
-            "bearish": 1137,
-            "neutral": 3049
-          }
-        },
-        "polar": {
-          "n": 3365,
-          "coverage": 0.6053,
-          "accuracy_covered": 0.7585,
-          "flipped": 0.1462
-        }
-      },
-      "sentinel": {
-        "n": 9543,
-        "accuracy": 0.8222,
-        "macro_f1": 0.7876,
-        "per_class": {
-          "bullish": {
-            "precision": 0.7603,
-            "recall": 0.818,
-            "f1": 0.7881,
-            "support": 1923
-          },
-          "bearish": {
-            "precision": 0.6473,
-            "recall": 0.7892,
-            "f1": 0.7113,
-            "support": 1442
-          },
-          "neutral": {
-            "precision": 0.8984,
-            "recall": 0.8312,
-            "f1": 0.8635,
-            "support": 6178
-          }
-        },
-        "confusion": {
-          "bullish": {
-            "bullish": 1573,
-            "bearish": 35,
-            "neutral": 315
-          },
-          "bearish": {
-            "bullish": 38,
-            "bearish": 1138,
-            "neutral": 266
-          },
-          "neutral": {
-            "bullish": 458,
-            "bearish": 585,
-            "neutral": 5135
-          }
-        },
-        "calibration": {
-          "polar": {
-            "n": 3827,
-            "mean_confidence": 0.7038,
-            "accuracy": 0.7084,
-            "ece": 0.0119
-          },
-          "neutral": {
-            "n": 5716,
-            "mean_confidence": 0.4796,
-            "accuracy": 0.8984,
-            "ece": 0.4187
-          }
-        },
-        "polar": {
-          "n": 3365,
-          "coverage": 0.8273,
-          "accuracy_covered": 0.9738,
-          "flipped": 0.0217
-        }
-      }
-    },
-    "stocktwits_even": {
-      "vader": {
-        "n": 1190,
-        "gold": {
-          "bullish": 954,
-          "bearish": 236
-        },
-        "coverage": 0.5857,
-        "accuracy_covered": 0.7044,
-        "balanced_accuracy_covered": 0.6595,
-        "recall_covered": {
-          "bullish": 0.7368,
-          "bearish": 0.5822
-        },
-        "flipped": 0.1731
-      },
-      "sentinel": {
-        "n": 1190,
-        "gold": {
-          "bullish": 954,
-          "bearish": 236
-        },
-        "coverage": 0.6101,
-        "accuracy_covered": 0.8196,
-        "balanced_accuracy_covered": 0.8207,
-        "recall_covered": {
-          "bullish": 0.8188,
-          "bearish": 0.8227
-        },
-        "flipped": 0.1101
-      }
-    }
-  },
+  "tuning": null,
   "throughput_texts_per_s": {
-    "vader": 30079,
-    "sentinel": 5439
+    "vader": 29628,
+    "sentinel": 4594
   },
   "lexicon": {
-    "entries": 2210,
-    "lemma_groups": 2036,
-    "valence_entries": 1333,
+    "entries": 2222,
+    "lemma_groups": 2047,
+    "valence_entries": 1338,
     "direction_entries": 478,
-    "metric_entries": 470,
-    "multiword_entries": 1006,
-    "with_inflections": 3395,
-    "neutralizers": 290
+    "metric_entries": 480,
+    "multiword_entries": 1014,
+    "with_inflections": 3407,
+    "neutralizers": 302
   }
 }

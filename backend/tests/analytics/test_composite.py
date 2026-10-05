@@ -140,6 +140,47 @@ def test_analyst_downside_phrase() -> None:
     assert p.phrase == "a Sell consensus with targets 45% below the price"
 
 
+def test_mean_and_median_targets_that_disagree_mean_targets_at_the_price() -> None:
+    # Live AAPL: mean $328.09 (−1.7%, dragged by a $215 low) but median $340 (+1.9%) was written
+    # "Analysts cautious: Buy consensus …; mean target is 1.7% below the price".
+    split = analysts(mean=2.5, total=44, upside=-1.7, price=333.69)
+    split.target_median, split.consensus = 340.0, "buy"  # the provider's consensus for AAPL
+    p = analysts_part(split, NOW)
+    assert p.facts["upside"].split and p.facts["upside"].value == 0.0
+    assert p.reason.startswith("Analysts mixed: Buy consensus (mean 2.50 from 44 analysts), but targets sit at about "
+                               "the price (mean $328.02, −1.7%; median $340.00, +1.9%)")
+    assert "target ≈ price" in p.detail
+    # One outlier target skews the mean: the median carries the read.
+    skew = analysts(mean=2.0, total=30, upside=29.0, price=15.77)
+    skew.target_median = 19.0
+    q = analysts_part(skew, NOW)
+    assert q.facts["upside"].skewed and q.facts["upside"].value == pytest.approx(20.5, abs=0.1)
+    assert "median target $19.00 is 21% above the price (mean $20.34, +29%)" in q.reason
+    # Agreeing mean and median: unchanged wording.
+    agree = analysts(mean=2.0, total=30, upside=40.0, price=234.0)
+    agree.target_median = 325.0
+    assert "mean target $327.60 is 40% above the price" in analysts_part(agree, NOW).reason
+
+
+def test_buy_consensus_with_no_upside_left_is_mixed_not_cautious() -> None:
+    # Live TWLO: 'Analysts cautious: Buy consensus …; mean target $263.04 is 11% below the price'.
+    p = analysts_part(analysts(mean=1.9, total=30, upside=-10.7, price=294.58), NOW)
+    assert p.reason.startswith("Analysts mixed: Buy consensus (mean 1.90 from 30 analysts), but mean target")
+
+
+def test_targets_are_written_in_the_quote_currency() -> None:
+    # Live VOD.L (GBp) read 'mean target $121.82'; 7203.T (JPY) 'mean target $3,698.63'.
+    from app.analytics.util import money
+
+    pence = analysts_part(analysts(mean=2.9, total=16, upside=-3.9, price=126.8), NOW, currency="GBp")
+    assert "mean target 121.85p is 3.9% below the price" in pence.reason
+    yen = analysts_part(analysts(mean=2.2, total=20, upside=28.0, price=2889.55), NOW, currency="JPY")
+    assert "mean target ¥3,699 is 28% above the price" in yen.reason
+    assert money(13.3e12, currency="JPY") == "¥13.3T" and money(5e8, currency="GBp") == "£5M"
+    assert money(237.91, price=True, currency="CAD") == "C$237.91" and money(12.4, True, "NOK") == "12.40 NOK"
+    assert money(3.74e9, currency=None) == "3.74B"  # unknown reporting currency: no symbol is invented
+
+
 # --------------------------------------------------------------------------- #
 # Insiders
 # --------------------------------------------------------------------------- #
@@ -177,7 +218,9 @@ def test_momentum_from_gdelt_and_headline_shift() -> None:
     assert improving.score > 75 and worsening.score < 25
     assert worsening.reason.startswith("Sentiment deteriorating")
     cooling = momentum_part(None, summary(0.10, 40, spread=0.2), summary(0.40, 40, spread=0.2))
-    assert cooling.score < 45 and cooling.reason.startswith("Sentiment cooling")  # still positive, just less so
+    # Still above the typical tone, just less so: a decisive drop, but worded as what it is.
+    assert cooling.score < 45 and cooling.reason.startswith("Headline tone normalizing")
+    assert cooling.strong and cooling.phrase.startswith("fading headline optimism")
     noisy = momentum_part(None, summary(0.10, 6, spread=0.6), summary(0.30, 6, spread=0.6))
     assert noisy.score > cooling.score  # a small, noisy shift is damped
     assert not momentum_part(None, summary(0.1, 3), summary(0.2, 3)).available
@@ -189,14 +232,21 @@ def test_headline_decay_toward_typical_tone_is_not_bearish_momentum() -> None:
     # typical +0.04 — the news cycle decaying after an event day, not sentiment deteriorating.
     decay = momentum_part(None, summary(0.13, 82, spread=0.3), summary(0.27, 64, spread=0.3))
     assert 42 <= decay.score < 50 and not decay.strong
-    assert decay.reason.startswith("Sentiment trend flat")
+    assert decay.reason.startswith("Headline tone normalizing") and "typical is +0.04" in decay.reason
+    assert decay.phrase is None  # a mild shift-only lean is never named in the headline
+    assert decay.facts["normalizing"]
     # The same size of move *away* from typical is a real turn and counts in full.
     souring = momentum_part(None, summary(-0.10, 82, spread=0.3), summary(0.04, 64, spread=0.3))
     assert souring.score < decay.score - 3
+    assert souring.reason.startswith("Sentiment deteriorating") and not souring.facts["normalizing"]
+    # With GDELT present the shift is one input among others: the GDELT wording leads.
+    with_gdelt = momentum_part(tone_trend(base=0.5, recent=0.5), summary(0.13, 82, spread=0.3),
+                               summary(0.27, 64, spread=0.3))
+    assert not with_gdelt.facts["normalizing"]
     # And a lone 48h shift is shrunk by its sample: a decisive turn reads strongly only on volume.
     thin = momentum_part(None, summary(-0.25, 6, spread=0.2), summary(0.15, 6, spread=0.2))
     thick = momentum_part(None, summary(-0.25, 60, spread=0.2), summary(0.15, 60, spread=0.2))
-    assert 40 < thin.score < thick.score + 12 and thick.score < 40 and thick.strong
+    assert thick.score < 40 < thin.score and thin.score > thick.score + 12 and thick.strong
 
 
 def test_reverting_change_discounts_only_the_return_toward_typical() -> None:

@@ -6,7 +6,11 @@ never absolute volume, which depends on company size:
     GDELT article volume (w 0.40)  50 + 15·z   z of the last 2 days vs the prior 28 (log scale)
     Wikipedia pageviews  (w 0.25)  50 + 15·z   same method
     Reddit mentions      (w 0.35)  50 + 20·log2((now+1)/(24h ago+1))   needs >= 5 mentions;
-                                   reliability min(1, mentions/50)
+                                   reliability min(1, mentions/50) — except a rank
+                                   breakout (into the top 25 from outside the top 100
+                                   or unranked, on >= 10 mentions): at least 85 at full
+                                   reliability, since the rank is relative to every
+                                   tracked ticker (META 675 -> 7 on 14 mentions vs 2)
 
     heat = 50 + Σ w·r·(gauge − 50) / max(Σ w of available gauges, 0.6)
 
@@ -38,6 +42,10 @@ REDDIT_MIN_PREV_FOR_PCT = 3
 HEAT_WEIGHTS = {"news": 0.40, "wiki": 0.25, "reddit": 0.35}
 HEAT_MIN_DENOMINATOR = 0.6
 REDDIT_FULL_RELIABILITY = 50
+BREAKOUT_RANK = 25  # a rank breakout lands inside this rank …
+BREAKOUT_FROM = 100  # … from outside this one (or unranked) …
+BREAKOUT_MENTIONS = 10  # … on at least this many mentions
+BREAKOUT_HEAT = 85.0
 
 
 def merged_metrics(runs: list[SourceRun]) -> dict[str, Any]:
@@ -183,6 +191,18 @@ def reddit_change_pct(crowd: CrowdView | None) -> float | None:
     return round((crowd.reddit_mentions - prev) / prev * 100.0, 1)
 
 
+def reddit_breakout(crowd: CrowdView | None) -> bool:
+    """Jumped into Reddit's top 25 from outside the top 100 (or unranked) on >= 10 mentions.
+
+    The mention change cannot show it when the prior count is tiny (14 vs 2), but
+    the rank is relative to every tracked ticker, so the jump itself is the signal."""
+    if crowd is None or crowd.reddit_rank is None or crowd.reddit_mentions is None:
+        return False
+    prev = crowd.reddit_rank_prev
+    return (crowd.reddit_rank <= BREAKOUT_RANK and (prev is None or prev >= BREAKOUT_FROM)
+            and crowd.reddit_mentions >= BREAKOUT_MENTIONS)
+
+
 def reddit_move(crowd: CrowdView | None) -> str | None:
     """'fell 67% in 24h (21 → 7)' / 'rose 240% in 24h (10 → 34)'."""
     change = reddit_change_pct(crowd)
@@ -210,6 +230,9 @@ def attention_view(tone: ToneTrend | None, wiki: list[tuple[date, float]] | None
         if max(m, p) >= REDDIT_MIN_MENTIONS:
             parts["reddit"] = (clamp(50 + 20 * math.log2((m + 1) / (p + 1)), 0, 100),
                                min(1.0, max(m, p) / REDDIT_FULL_RELIABILITY))
+    if reddit_breakout(crowd):
+        h, _ = parts.get("reddit", (50.0, 0.0))
+        parts["reddit"] = (max(h, BREAKOUT_HEAT), 1.0)
     if not parts:
         return None
     total = max(sum(HEAT_WEIGHTS[k] for k in parts), HEAT_MIN_DENOMINATOR)

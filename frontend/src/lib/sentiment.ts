@@ -33,6 +33,16 @@ export function polarityOf100(score: number | null | undefined): Polarity {
   return "neutral";
 }
 
+/**
+ * A 0–100 component score as a matrix cell shows it: rounded FIRST, so the number on
+ * screen, its ▲/▼ mark and its tint always agree (44.9 and 45.2 both read "45", bearish).
+ * `tint` is the signed distance from neutral for divergingFill (0 inside 50 ± 5).
+ */
+export function scoreCell100(v: number): { value: number; polarity: Polarity; tint: number } {
+  const value = Math.round(v);
+  return { value, polarity: polarityOf100(value), tint: Math.abs(value - 50) < 5 ? 0 : (value - 50) / 30 };
+}
+
 export function polarityOfLabel(label: SentimentLabel | null | undefined): Polarity {
   return label === "bullish" ? "bull" : label === "bearish" ? "bear" : "neutral";
 }

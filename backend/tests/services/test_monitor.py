@@ -146,3 +146,21 @@ async def test_monitor_cycle_posts_each_alert_once(world: FakeWorld, monkeypatch
     await alerts.drain()
     assert len(posts) == 1 and posts[0].startswith("**NVDA SentiNET 64 ≥ 60**")
     assert (await db.list_alert_events(5))[0].delivered is True
+
+
+async def test_evidence_free_run_counts_as_a_failure_and_backs_off(world: FakeWorld):
+    """Secops repro: an all-providers-down run was counted as a success (stored, alerted, no backoff)."""
+    from tests.services.fakes import FakeSource, Sentinel
+
+    await db.add_watch("NVDA")
+    world.evidence = None
+    world.sources = [(FakeSource("google_news", error=RuntimeError("ConnectError")), "enabled")]
+    for key in ("profile", "quote", "technicals", "analysts", "insiders", "earnings", "tone", "wiki"):
+        world.intel[key] = Sentinel(exc=RuntimeError("ConnectError"))
+    mon = Monitor(interval_minutes=30, pause_seconds=0)
+    t0 = datetime.now(UTC)
+    assert await mon.run_once(t0) == []
+    fail = mon.status.failing["NVDA"]
+    assert fail.failures == 1 and not fail.unknown and "every source and data feed failed" in fail.error
+    assert await db.list_snapshots("NVDA", 5) == [] and await db.latest_record("NVDA") is None
+    assert await mon.due_tickers(t0 + timedelta(minutes=5)) == []  # backs off, no retry every tick

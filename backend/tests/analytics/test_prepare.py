@@ -176,3 +176,54 @@ def test_ticker_keyed_roundups_stay_capped() -> None:
     assert p.items[0].relevance <= 0.4
     p = kept([run(FINNHUB, [raw("Acme and four peers to watch", ticker_specific=True, extra={"symbols": 5})])])
     assert p.items[0].relevance >= 0.7  # names the company: only a mild roundup cut
+
+
+def test_price_recaps_count_less_than_developments() -> None:
+    # Live SOFI: 'Stock Craters 43% In 2026' recaps held 20% of the news weight and turned the
+    # news tone negative, restating the drawdown the technicals component already measures.
+    from app.analytics.prepare import PRICE_RECAP_WEIGHT, price_recap
+
+    import dataclasses
+
+    items = kept([run(GOOGLE, [raw("Acme stock plunges", 3, "Reuters"),
+                               raw("Acme plunges after fraud probe announced", 3, "Bloomberg"),
+                               raw("Acme drops as fraud allegations mount", 3, "CNBC")])]).items
+    by_title = {it.title: it for it in items}
+    recap = by_title["Acme stock plunges"]
+    probe = by_title["Acme plunges after fraud probe announced"]  # a development that also moved the price
+    driven = by_title["Acme drops as fraud allegations mount"]  # only a price event, but 'fraud' drives the tone
+    assert price_recap(recap) and not price_recap(probe) and not price_recap(driven)
+    full = item_weight(dataclasses.replace(recap, events=[]), NOW)
+    assert recap.weight == pytest.approx(full * PRICE_RECAP_WEIGHT, rel=1e-3)
+    assert driven.weight == pytest.approx(item_weight(driven, NOW), rel=1e-3) and driven.weight > recap.weight
+
+
+def test_user_posts_start_below_published_reporting() -> None:
+    # Live NVDA: '$NVDA Looking for a huge day Monday. New ATHs all week. 🚀🚀🚀🚀🚀' (0.89) outweighed
+    # Barron's (0.85): social trust was fixed at 1.0 while outlets carry their own trust <= 1.
+    from app.analytics.prepare import SOCIAL_TRUST
+
+    items = kept([run(GOOGLE, [raw("Acme expands growth plan", 3, "Benzinga")]),
+                  run(STOCKTWITS, [post("$ACME new highs all week 🚀🚀🚀", 3, "u1", likes=3)])]).items
+    news = next(it for it in items if it.group == "news")
+    social = next(it for it in items if it.group == "social")
+    assert social.trust == SOCIAL_TRUST and social.weight < news.weight
+
+
+def test_signal_list_keeps_half_for_reporting_when_there_is_enough() -> None:
+    from app.analytics.build import select_signals
+    from app.analytics.prepare import Item
+
+    def item(i: int, group: str, weight: float) -> Item:
+        return Item(id=f"{group}{i}", source="s", source_label="S", source_weight=1.0,
+                    kind="social" if group == "social" else "news", title=f"{group} {i}", weight=weight)
+
+    def picked(n_news: int, n_social: int) -> tuple[int, int]:
+        items = sorted([item(i, "news", 0.1) for i in range(n_news)] + [item(i, "social", 0.9) for i in range(n_social)],
+                       key=lambda it: -it.weight)
+        out = select_signals(items, [], limit=200)
+        return sum(s.kind == "news" for s in out), sum(s.kind == "social" for s in out)
+
+    assert picked(150, 300) == (100, 100)  # heavier chatter cannot take more than half of the list
+    assert picked(40, 300) == (40, 160)  # little reporting: all of it, chatter fills the rest
+    assert picked(300, 10) == (190, 10)  # no chatter to speak of: reporting fills the list

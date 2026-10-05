@@ -170,6 +170,12 @@ async def run_bounded(
         return Outcome(error=describe_error(exc), ms=elapsed())
 
 
+def pending_background() -> list[asyncio.Task[Any]]:
+    """Kept-alive stragglers still running on this loop (a one-shot caller may let them finish)."""
+    loop = asyncio.get_running_loop()
+    return [t for t in _background if not t.done() and t.get_loop() is loop]
+
+
 async def cancel_background() -> None:
     """Cancel kept-alive stragglers on the running loop (application shutdown / tests)."""
     loop = asyncio.get_running_loop()
