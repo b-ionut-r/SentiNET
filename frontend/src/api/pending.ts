@@ -12,13 +12,27 @@
  * other feeds' gaps ("Market data not loaded in time") are not a reason to re-read.
  * A hard failure ("could not be loaded this run") is not pending either.
  */
-import type { Analysis, Insight, ProgressEvent } from "./types";
+import type { Analysis, HistoryResponse, Insight, ProgressEvent } from "./types";
 
 const SOFT_PENDING = /still loading|not loaded this run|did not arrive in time/i;
 const ABOUT_TONE = /\b(tone|gdelt)\b/i;
 
 /** Re-read the analysis this long after a result that is still waiting on tone (ms). */
 export const TONE_FOLLOW_UP_MS = [20_000, 45_000, 90_000] as const;
+
+/** Re-read a /api/history response whose GDELT call is still running this often, this many times. */
+export const HISTORY_TONE_RETRY_MS = 30_000;
+export const HISTORY_TONE_RETRIES = 3;
+
+/**
+ * /api/history went out while its GDELT call was still running ("error: still loading
+ * after 22s; continuing in the background (reload to include)") — a temporary gap the
+ * next read fills, unlike a real error (rate limit, HTTP 5xx) or an empty series.
+ */
+export function historyTonePending(h: Pick<HistoryResponse, "status"> | undefined): boolean {
+  const st = h?.status?.tone ?? "";
+  return st.startsWith("error") && SOFT_PENDING.test(st);
+}
 
 /** A "quality" insight saying this run's GDELT tone timed out but is still on its way. */
 export function isTonePendingInsight(i: Pick<Insight, "kind" | "title" | "detail">): boolean {

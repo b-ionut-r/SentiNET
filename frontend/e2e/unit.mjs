@@ -369,5 +369,69 @@ check("a sliver reads '<0.01%'", IM.sellShareOfCap(1e6, 5e12, "USD") === "<0.01%
 check("large shares never go exponential (toPrecision(1) read '1e+1%')", IM.sellShareOfCap(1.2e9, 1e10, "USD") === "12.00%", String(IM.sellShareOfCap(1.2e9, 1e10, "USD")));
 check("no cap or no sales → no share", IM.sellShareOfCap(1e6, null, "USD") === null && IM.sellShareOfCap(0, 1e9, "USD") === null);
 
+// Bull/bear case vs hero: the live labels and suffixes differ from the hero's line (final3 QA).
+{
+  // Live INTC (Oct 5): the hero says "Top story:", the case "Story:" — same story.
+  const intcHero = [
+    { text: "News flow positive: +0.16 average tone across 114 articles (+51 syndicated copies) from 44 outlets (45 bullish vs 10 bearish)" },
+    { text: "Top story: ‘INTC, ARM, AMD Stocks Gain Today — Bernstein Supercharges AI Chip Bull Case’ — 4 articles from 3 outlets, tone +0.45" },
+  ];
+  const intcBull = [
+    "News flow positive: +0.16 average tone across 114 articles (+51 syndicated copies) from 44 outlets (45 bullish vs 10 bearish)",
+    "Story: ‘INTC, ARM, AMD Stocks Gain Today — Bernstein Supercharges AI Chip Bull Case’ — 4 articles from 3 outlets, tone +0.45",
+    "Chief Executive Officer bought $10M: Lip-Bu Tan bought $10M of stock on the open market on Aug 11 — officers rarely buy without conviction.",
+    "Story: ‘Intel Stock Has More Than Doubled This Year as AI Chip Demand Explodes’ — 5 articles from 2 outlets, tone +0.41",
+  ];
+  const r = freshPoints(intcBull, intcHero);
+  check("'Story:' in the case repeats the hero's 'Top story:' line", r.repeated === 2 && r.fresh.length === 2 && r.fresh[1].includes("More Than Doubled"), JSON.stringify(r.fresh));
+  const vodHero = [
+    { text: "Top story: ‘Vodafone (LSE:VOD) Stock Gets Fair Value Bump After Q1 Trading And Analyst Upgrades’ — 11 articles from 9 outlets, tone +0.56" },
+    { text: "Analysts cautious: Hold consensus (mean 2.50 from 18 analysts); median target 127.21p is 0.3% above the price (mean 128.40p, +1.3%)" },
+  ];
+  const vodBull = freshPoints(["Story: ‘Vodafone (LSE:VOD) Stock Gets Fair Value Bump After Q1 Trading And Analyst Upgrades’ — 11 articles from 9 outlets, tone +0.56"], vodHero);
+  check("VOD.L: the case's 'Story:' line repeats the hero's 'Top story:'", vodBull.fresh.length === 0, JSON.stringify(vodBull));
+  const vodBear = freshPoints(
+    ["Analysts cautious: Hold consensus (mean 2.50 from 18 analysts); median target 127.21p is 0.3% above the price (mean 128.40p, +1.3%) — the main drag on the Leaning Bullish read (−3.6 points)."],
+    vodHero,
+  );
+  check("VOD.L: a hero reason + ' — the main drag on … read' suffix is a repeat", vodBear.fresh.length === 0, JSON.stringify(vodBear));
+  const counter = freshPoints(["Story: ‘Bitcoin’s Largest Overhead Liquidation Cluster Sits Near $90,000’ — 6 articles from 6 outlets, tone −0.28"], [{ text: "Counter-story: ‘Bitcoin’s Largest Overhead Liquidation Cluster Sits Near $90,000’ — 6 articles from 6 outlets, tone −0.28" }]);
+  check("'Counter-story:' is the same story too", counter.fresh.length === 0);
+  const tally = freshPoints(["Story: ‘Same headline here’ — 3 articles, tone +0.50"], [{ text: "Top story: ‘Same headline here’ — 3 articles from 0 outlets, tone +0.50" }]);
+  check("a story is matched by its headline whatever its tally wording", tally.fresh.length === 0);
+  const other = freshPoints(["Story: ‘A different headline’ — 3 articles from 2 outlets, tone +0.50"], vodHero);
+  check("a different story stays", other.fresh.length === 1);
+  const sharedLead = freshPoints(["Price trend supportive: +36% over 3 months — the strongest leg since July"], [{ text: "Price trend supportive: +20% over 3 months, +4.2% over 1 month" }]);
+  check("a shared lead with different evidence is not a repeat", sharedLead.fresh.length === 1, JSON.stringify(sharedLead));
+  const midWord = freshPoints(["Insider selling: 9 open-market sales worth $1.37B and more"], [{ text: "Insider selling: 9 open-market sales worth $1.3" }]);
+  check("a prefix that ends mid-token is not a repeat", midWord.fresh.length === 1);
+}
+
+// Lead/lag notice: a still-loading GDELT call is not an error, and is re-read on its own.
+{
+  const { historyTonePending, HISTORY_TONE_RETRIES } = await load("src/api/pending.ts");
+  const { lagMissingReason } = await load("src/features/intel/lagRule.ts");
+  const soft = { status: { tone: "error: still loading after 22s; continuing in the background (reload to include)" }, interpretation: "" };
+  const hard = { status: { tone: "error: HTTP 429 Too Many Requests" }, interpretation: "" };
+  check("history tone 'still loading' is pending", historyTonePending(soft));
+  check("a real GDELT error, an empty series or ok are not", !historyTonePending(hard) && !historyTonePending({ status: { tone: "empty" } }) && !historyTonePending({ status: { tone: "ok" } }) && !historyTonePending(undefined));
+  check("…and the re-read is bounded", HISTORY_TONE_RETRIES >= 1 && HISTORY_TONE_RETRIES <= 4);
+  const softMsg = lagMissingReason("VOD.L", soft, null);
+  check("still loading reads as loading, not 'couldn't be fetched', with no nested parentheses", /still loading in the background/.test(softMsg) && !/couldn't be fetched/.test(softMsg) && !/\(.*\(/.test(softMsg), softMsg);
+  const hardMsg = lagMissingReason("VOD.L", hard, null);
+  check("a real error keeps the rate-limit wording", /couldn't be fetched \(HTTP 429 Too Many Requests\)/.test(hardMsg) && /rate-limits/.test(hardMsg), hardMsg);
+  check("an empty series names the ticker", lagMissingReason("GPRO", { status: { tone: "empty" }, interpretation: "" }, null).includes("GPRO"));
+  check("a request error says so", lagMissingReason("X", undefined, new Error("HTTP 502")).includes("HTTP 502"));
+}
+
+// Header absolute change: the price's unit, grouping and precision ("+1192.52" / "+2.70" next to "126.80p" read wrong).
+check("BTC: the move is grouped, in dollars, at the price's precision", F.priceMove(1192.52, "USD", 86291) === "+$1,193", F.priceMove(1192.52, "USD", 86291));
+check("VOD.L: the move carries the pence unit", F.priceMove(2.7, "GBp", 126.8) === "+2.70p", F.priceMove(2.7, "GBp", 126.8));
+check("a fall: minus sign before the symbol", F.priceMove(-0.05, "USD", 12.34) === "−$0.05", F.priceMove(-0.05, "USD", 12.34));
+check("a penny stock keeps its finer precision", F.priceMove(0.0012, "USD", 0.0456) === "+$0.0012", F.priceMove(0.0012, "USD", 0.0456));
+check("a move that rounds to zero is unsigned", F.priceMove(0.001, "USD", 187.2) === "$0.00", F.priceMove(0.001, "USD", 187.2));
+check("no currency: bare signed number, no guessed symbol", F.priceMove(1.5, null, 20) === "+1.50");
+check("no change → dash", F.priceMove(null, "USD", 10) === "—");
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exitCode = failed ? 1 : 0;

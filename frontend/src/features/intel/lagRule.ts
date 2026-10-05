@@ -1,5 +1,6 @@
 /** Lead/lag reliability rule shared by the chart and its labels (pure, unit-tested in e2e/unit.mjs). */
-import type { LagStat } from "../../api/types";
+import { historyTonePending } from "../../api/pending";
+import type { HistoryResponse, LagStat } from "../../api/types";
 
 /**
  * The backend's reliability rule (analytics/stats.py): seven lags are tested,
@@ -39,4 +40,17 @@ export function lagVerdict(l: LagStat): string {
   if (reliableLag(l)) return `survives correction for ${LAGS_TESTED} tested lags`;
   if (l.p_value < ALPHA) return `p < 0.05 alone, but not after correcting for ${LAGS_TESTED} tested lags — noise`;
   return "not significant — noise";
+}
+
+/**
+ * Why there is no lead/lag readout, in one line: still loading (re-checked on its own),
+ * a real GDELT error, no series at all, or too little overlap with price.
+ */
+export function lagMissingReason(ticker: string, history: Pick<HistoryResponse, "status" | "interpretation"> | undefined, error: Error | null): string {
+  if (error) return `Couldn't load the tone/price history (${error.message}).`;
+  if (historyTonePending(history)) return "GDELT tone is still loading in the background — this re-checks on its own; Retry in a minute to include it.";
+  const st = history?.status?.tone ?? "";
+  if (st.startsWith("error")) return `GDELT tone couldn't be fetched (${st.replace(/^error:\s*/, "")}) — GDELT rate-limits hard; Retry in a minute.`;
+  if (st === "empty") return `GDELT has no daily tone series for ${ticker}, so there is nothing to correlate with price.`;
+  return history?.interpretation || "Not enough overlapping tone and price days to test a lead/lag link yet.";
 }

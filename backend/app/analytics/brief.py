@@ -376,7 +376,9 @@ def _analyst_points(f: Facts, a: AnalystView) -> list[tuple[str, float, str, str
 def _watch(f: Facts, insights: list[Insight], said: set[str] | None = None) -> list[str]:
     """Upcoming catalysts first, then the forward-looking flags (divergences, crowding, attention, data gaps).
 
-    Lines already in the bull or bear case (`said`) are not repeated."""
+    Facts already in the bull or bear case (`said`) are not repeated — nor is an insight whose title leads
+    a case line (QQQ's main-drag 'Retail leaning bearish' restates the bear case's component line)."""
+    said = said or set()
     out: list[str] = []
     if f.deal is not None:
         d = f.deal
@@ -390,6 +392,7 @@ def _watch(f: Facts, insights: list[Insight], said: set[str] | None = None) -> l
         if c.upcoming and not _payment_date(c):
             out.append(f"{c.title} ({short_date(c.date)})" + (f": {c.detail}" if c.detail else ""))
     for ins in insights:
-        if ins.kind in WATCH_KINDS and ins.kind != "catalyst" and (ins.severity != "info" or ins.kind == "attention"):
+        if ins.kind in WATCH_KINDS and ins.kind != "catalyst" and (ins.severity != "info" or ins.kind == "attention") \
+                and not any(line.startswith(f"{ins.title}: ") for line in said):
             out.append(f"{ins.title}: {ins.detail}")
-    return [w for w in dict.fromkeys(out) if w not in (said or set())][:MAX_POINTS]
+    return [w for w in dict.fromkeys(out) if w not in said][:MAX_POINTS]

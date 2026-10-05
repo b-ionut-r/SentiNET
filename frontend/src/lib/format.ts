@@ -95,8 +95,23 @@ function withUnit(n: number, body: string, currency: string | null | undefined):
 export function price(n: number | null | undefined, currency?: string | null): string {
   if (!isNum(n)) return DASH;
   const abs = Math.abs(n);
-  const digits = abs >= 10000 ? 0 : abs >= 1 ? 2 : abs >= 0.01 ? 4 : 6;
-  return withUnit(n, abs.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits }), currency);
+  return withUnit(n, abs.toLocaleString("en-US", { minimumFractionDigits: priceDigits(abs), maximumFractionDigits: priceDigits(abs) }), currency);
+}
+
+const priceDigits = (abs: number) => (abs >= 10000 ? 0 : abs >= 1 ? 2 : abs >= 0.01 ? 4 : 6);
+
+/**
+ * A signed move in price, in the price's unit, grouping and precision ("+$1,193" beside
+ * "$86,291", "+2.70p" beside "126.80p", "−$0.05" beside "$12.34"). `ref` is the price it
+ * moved (its precision wins: a move is never shown finer than the price); without it the
+ * move's own magnitude picks the precision.
+ */
+export function priceMove(n: number | null | undefined, currency?: string | null, ref?: number | null): string {
+  if (!isNum(n)) return DASH;
+  const digits = priceDigits(Math.abs(isNum(ref) ? ref : n));
+  const body = Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  if (Number(body.replace(/,/g, "")) === 0) return withUnit(0, body, currency);
+  return `${n > 0 ? "+" : ""}${withUnit(n, body, currency)}`;
 }
 
 /**

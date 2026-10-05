@@ -62,6 +62,7 @@ from app.nlp.text import (
     GENERIC_WORDS,
     HEADLINE_VERBS,
     MOVE_WORDS,
+    SESSION_WORDS,
     STOPWORDS,
     fold,
     is_mostly_upper,
@@ -520,7 +521,7 @@ def _raw_features(title: str, own: frozenset[str], proper: frozenset[str], compa
             content.append(("", "", False))
         elif tok in GENERIC_WORDS or tok.startswith("$"):
             content.append((tok, surface, True))
-        elif tok in CALENDAR_WORDS:
+        elif tok in CALENDAR_WORDS or tok in SESSION_WORDS:
             weak(tok, _W_MONTH, surface)
             content.append(("", "", False))
         elif "-" in tok and tok in _CONCEPTS:
@@ -1117,7 +1118,7 @@ def _representative(group: list[int], items: list[ClusterItem], docs: list[_Doc]
     return max(group, key=lambda i: (score(i), -i))
 
 
-_WEAK_WORDS = HEADLINE_VERBS | MOVE_WORDS | CALENDAR_WORDS
+_WEAK_WORDS = HEADLINE_VERBS | MOVE_WORDS | CALENDAR_WORDS | SESSION_WORDS
 _WEAK_STEMS = frozenset({stem(w) for w in _WEAK_WORDS} | _WEAK_WORDS)
 _CONCEPT_LABELS = {
     "record-high": "record high", "price-target": "price target", "market-cap": "market cap", "top-pick": "top pick",

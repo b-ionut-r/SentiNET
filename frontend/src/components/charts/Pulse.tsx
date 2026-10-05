@@ -67,12 +67,13 @@ export function Pulse({ buckets: raw, height = 56 }: { buckets: TimelineBucket[]
           );
         })}
       </div>
-      <div className="mt-1 flex justify-between text-2xs text-muted">
-        <span>{fmt(first)}</span>
-        <span>
+      {/* Phones: the two dates on the axis line, the legend wrapped under them (side by side they ran together). */}
+      <div className="mt-1 flex flex-wrap justify-between gap-x-3 gap-y-0.5 text-2xs text-muted" data-pulse-axis>
+        <span className="whitespace-nowrap">{fmt(first)}</span>
+        <span className="order-last basis-full text-center sm:order-none sm:basis-auto">
           <span className="text-bull-ink">▲</span> bullish items above · <span className="text-bear-ink">▼</span> bearish below
         </span>
-        <span>{fmt(last)}</span>
+        <span className="whitespace-nowrap">{fmt(last)}</span>
       </div>
     </div>
   );

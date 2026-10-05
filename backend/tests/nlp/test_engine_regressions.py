@@ -204,6 +204,16 @@ CASES: list[tuple[str, str, str]] = [
     # "top"/"best" after a possessive or determiner are adjectives, not a beat
     ("Here are Wall Street's top analyst calls", "neutral", "news"),
     ("Acme tops analysts' estimates", "bullish", "news"),
+    # chart levels: a support level is a price, not "support"; holding it is a non-move
+    ("Acme Coin Holds Key Support Levels", "neutral", "news"),
+    ("Acme coin falls below key support at $60,000", "bearish", "news"),
+    ("Acme coin breaks key support", "bearish", "news"),
+    # a rally that cracks has ended
+    ("Acme's AI rally cracked", "bearish", "news"),
+    ("Chip rally crumbles", "bearish", "news"),
+    ("Selloff falters as buyers return", "bullish", "news"),
+    # "Bros." is an abbreviation, and "Warner Bros. Discovery" a name, not a find
+    ("Warner Bros. Discovery to be acquired; terms not disclosed", "neutral", "news"),
 ]
 
 
@@ -363,3 +373,18 @@ def test_sitting_out_a_move_is_mild_and_signed_by_what_was_missed(engine: Sentin
 def test_holding_steady_is_a_stated_non_move(engine: SentinelEngine) -> None:
     a = engine.analyze("Acme shares hold steady")
     assert a.label == "neutral" and not a.drivers and a.confidence >= 0.7
+
+
+def test_chart_support_is_a_level_not_praise(engine: SentinelEngine) -> None:
+    held = engine.analyze("Acme Coin Holds Key Support")
+    assert held.label == "neutral" and not held.drivers and held.confidence >= 0.7  # said, not defaulted
+    broke = engine.analyze("Acme coin falls below key support at $60,000")
+    assert broke.drivers and all(v < 0 for _, v in broke.drivers), broke.drivers
+
+
+def test_bros_abbreviation_does_not_end_the_sentence() -> None:
+    from app.nlp.rules import normalize
+
+    assert normalize("Replacing Warner Bros. Discovery") == "Replacing Warner Bros Discovery"
+    assert not SentinelEngine().analyze("Moderna to Join Nasdaq-100, Replacing Warner Bros. Discovery").drivers[1:]
+

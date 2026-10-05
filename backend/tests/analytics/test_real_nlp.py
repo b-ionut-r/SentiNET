@@ -122,3 +122,19 @@ def test_real_apple_headline_only_initiation_is_a_catalyst() -> None:
     found = [c for c in a.catalysts if c.kind == "analyst" and "from the headlines" in (c.detail or "")]
     assert [c.title for c in found] == ["Citi Initiates Apple(AAPL.US) With Buy Rating, Announces Target Price $365"]
     assert found[0].polarity == "bull" and "by Citi · PT $365.00 · Moomoo" in (found[0].detail or "")
+
+
+def test_real_bystander_headline_is_not_lifted_by_its_snippet() -> None:
+    # Live LULU: title relevance 0.40 (a bystander of Nike's news), signal relevance 0.64 after the snippet lift.
+    from app.analytics.narratives import MIN_RELEVANCE  # the story bar
+    from app.analytics.prepare import prepare
+
+    company = CompanyRef(ticker="LULU", name="lululemon athletica inc.", short_name="Lululemon")
+    title = "Nike Sinks 8% as Weak Outlook and Layoffs Follow Revenue Miss; Lululemon and On Holding Remain Flat"
+    raw = RawSignal(title=title, body="Lululemon stock slips as investors weigh Nike read-through  MarketWatch",
+                    publisher="Yahoo Finance", timestamp=datetime(2026, 10, 2, 13, 1, tzinfo=UTC), url="https://x/1")
+    own = RawSignal(title="Lululemon stock slips as investors weigh Nike read-through", publisher="MarketWatch",
+                    timestamp=datetime(2026, 10, 2, 14, 0, tzinfo=UTC), url="https://x/2")
+    items = {it.url: it for it in prepare(company, [run(GOOGLE, [raw, own])], datetime(2026, 10, 5, tzinfo=UTC)).items}
+    assert items["https://x/1"].relevance <= 0.4 < MIN_RELEVANCE
+    assert items["https://x/2"].relevance >= 0.8

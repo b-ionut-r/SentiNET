@@ -39,13 +39,19 @@
    "PT cut on limited upside"), questions ("Is X a buy?" asks; "Why is X
    down?" presupposes the drop) and listicles.
 5. Optional subject attribution (``target``): evidence in a clause that opens with
-   another company or the market ("Nike sinks 8%; Lululemon flat", "Twilio
-   downgraded, Synopsys upgraded", "Stocks tumble; Apple rises 2%"), and a move or
-   results event whose nearest subject is another company ("... as Affirm drops
-   4%"), counts 0.3x - 0.1x when the target's own clause states its non-move
-   ("remain flat", "sit out the rally") - and never overturns the target's own
-   evidence. ``Evidence.bystander`` / ``is_bystander`` flag texts that name the
-   target only beside someone else's news.
+   another company, crypto asset or the market ("Nike sinks 8%; Lululemon flat",
+   "Twilio downgraded, Synopsys upgraded", "ZEC Plunges as Bitcoin Holds Key
+   Support", "Stocks tumble; Apple rises 2%"), and a move or results event whose
+   nearest subject is another company or asset ("... as Affirm drops 4%", "Ethereum
+   liquidity drops"), counts 0.3x - 0.1x when the target's own clause states its
+   non-move ("remain flat", "holds key support", "sit out the rally") - and never
+   overturns the target's own evidence. Clauses split at commas, colons after a
+   kicker, and "as"/"while" when the next clause has its own subject; the target's
+   own "as" clause after someone else's news is its main news, not background
+   ("AMD Jumps 5% As Nvidia Slips" is bearish for Nvidia). An index change is the
+   joining company's: neutral for an index fund ("Moderna to Join Nasdaq-100").
+   ``Evidence.bystander`` / ``is_bystander`` flag texts that name the target only
+   beside someone else's news.
 
 In the social register, trader words ("long", "calls", "buying") only count
 in trading talk (a cashtag, an amount, trading vocabulary) and in a position
@@ -957,7 +963,8 @@ _RULES: list[tuple[str, re.Pattern[str], Callable[[re.Match[str]], Optional[Rule
         r"\b(?P<what>boom|rally|run|bull\s+market|bull\s+run|growth|expansion|recovery|upswing|selloff|sell\s+off|"
         r"slump|decline|bear\s+market|downturn|recession|crisis|slide|rout|downtrend|uptrend)\s+(?:is\s+|was\s+|may\s+be\s+|"
         r"could\s+be\s+|appears\s+)?(?:coming\s+to\s+an\s+end|over|ends|ended|is\s+ending|fizzles|fizzled|fades|faded|"
-        r"runs\s+out\s+of\s+steam|ran\s+out\s+of\s+steam|stalls|stalled)\b"), _trend_end),
+        r"runs\s+out\s+of\s+steam|ran\s+out\s+of\s+steam|stalls|stalled|cracks|cracked|crumbles|crumbled|unravels|"
+        r"unravel+ed|falters|faltered|sputters|sputtered)\b"), _trend_end),
     ("metric_hit", re.compile(r"\b(?:revenues?|sales|earnings|profits?|margins?|results|demand|growth|eps)\s+hit\b"
                               r"(?!\s+(?:a\s+|an\s+|the\s+|new\s+|fresh\s+)?(?:record|all\s+time|high|highs|peak|"
                               r"milestone|target|\$|\d))"), _fixed(-0.7, "revenue hit", "metric_hit")),
@@ -1167,7 +1174,7 @@ _TRIGGERS: dict[str, tuple[str, ...]] = {
     "metric_hit": (" hit",),
     "pct_loss": ("% loss", "% gain", "% return", "%loss", "%gain"),
     "trend_end": ("end", "over", "fizzle", "fade", "steam", "stall", "so long", "goodbye", "good bye", "bye bye",
-                  "farewell"),
+                  "farewell", "crack", "crumble", "unravel", "falter", "sputter"),
     "options_flow": ("calls", "puts"),
     "insider": ("ceo", "cfo", "coo", "chair", "founder", "director", "insider", "exec", "president", "chief",
                 "board"),
@@ -2439,6 +2446,7 @@ october november december jan feb mar apr jun jul aug sep sept oct nov dec morga
 citi citigroup barclays ubs hsbc rbc bmo jefferies bernstein evercore mizuho nomura wedbush piper sandler
 oppenheimer needham keybanc truist stifel baird wells fargo deutsche macquarie cantor rosenblatt bofa bank
 america analysts' wolfe redburn loop benchmark td cowen raymond james daiwa
+next first last key major main
 """.split())
 _SPEECH = frozenset({"says", "said", "say", "sees", "warns", "warned", "tells", "told", "predicts", "predicted",
                      "thinks", "believes", "notes", "noted", "argues", "argued", "claims", "claimed", "touts",
@@ -2522,17 +2530,17 @@ def _company_like(norm: str, tokens: list[Token], lo: int, hi: int, h: Hit, titl
                   assets: frozenset[str]) -> bool:
     """Is the name run tokens[lo:hi] a company acting as the subject of ``h``? Without NER we ask for
     a company signal: a cashtag; a possessive or price noun after it ("BYD's", "Cerebras stock"); or
-    the run right before the evidence ("Qualcomm Is Losing", "Nvidia revenue rises") - which in Title
-    Case also needs a number in the evidence, the run to open a clause ("Affirm Drops 4%", not "Using
-    Less Leverage") or the run to be a crypto asset ("Ether Jumps")."""
+    the run right before the evidence ("Qualcomm Is Losing") - which in Title Case also needs a number
+    in the evidence, the run to open a clause ("Affirm Drops 4%", not "Using Less Leverage") or the
+    run to be a crypto asset ("Ether Jumps"). Only an asset may own a noun phrase before the evidence
+    ("Ethereum liquidity drops"): "Toyota stock falls as China sales drop" is Toyota's China sales."""
     if any(t.kind == "tag" for t in tokens[lo:hi]):
         return True
     last = tokens[hi - 1]
     if norm[last.start: last.end].lower().endswith("'s") or (
             hi < len(tokens) and tokens[hi].text in ("stock", "stocks", "shares")):
         return True
-    stop = h.anchor if h.start < hi else min(h.start, h.anchor)  # the evidence's own metric is no gap
-    gap = [t for t in tokens[hi:stop] if t.text not in _AUX]
+    gap = [t for t in tokens[hi:h.anchor] if t.text not in _AUX]
     asset = any(t.text in assets for t in tokens[lo:hi])
     if gap and not (asset and len(gap) <= _ASSET_GAP and all(
             t.kind == "w" and t.text not in _ASSET_GAP_STOP for t in gap)):
@@ -2614,8 +2622,8 @@ def _opening_subject(norm: str, tokens: list[Token], at: list[Optional[_Span]], 
     common noun). Coordinated names are one run ("Bitcoin and Ether Hold Key Support").
 
     A run counts only with a signal: its own predicate right after it ("Nike Sinks 8%", "Synopsys
-    upgraded" - in Title Case a verb-like one, since every word is capitalized there; "Nvidia revenue
-    jumps"; a stated non-move), a possessive or price noun ("Nike's", "Nike shares"), a cashtag or a
+    upgraded" - in Title Case a verb-like one, since every word is capitalized there - or a stated
+    non-move), a possessive or price noun ("Nike's", "Nike shares"), a cashtag or a
     crypto asset."""
     j = lo
     while j < hi and tokens[j].kind == "soft":
@@ -2638,8 +2646,6 @@ def _opening_subject(norm: str, tokens: list[Token], at: list[Optional[_Span]], 
         k += 1
     last = tokens[j - 1]
     pred = anchors.get(k) if k < hi else None
-    if pred is None and k < hi and at[k] is not None and at[k].metric is not None:  # type: ignore[union-attr]
-        pred = next((h for h in anchors.values() if h.start == k), None)  # "Nvidia revenue jumps 20%"
     signal = (pred is not None and (not title or _verb_like(tokens, at, pred))) \
         or _states_non_move(at, k, hi) \
         or norm[last.start: last.end].lower().endswith("'s") \
@@ -2766,29 +2772,6 @@ def _anchor_hits(hits: list[Hit]) -> dict[int, Hit]:
     return anchors
 
 
-_REPLACING = frozenset({"replacing", "replaces", "replace", "supplanting", "supplants"})
-
-
-def _replaced_target(norm: str, tokens: list[Token], at: list[Optional[_Span]], claimed: bytearray,
-                     targets: set[int], h: Hit) -> Optional[tuple[int, int]]:
-    """"Moderna to join Nasdaq-100, replacing Warner Bros. Discovery": the span "replacing <target>"
-    when the target is the company the index inclusion ``h`` removes."""
-    verb = h.end
-    while verb < len(tokens) and tokens[verb].kind != "sep" and tokens[verb].text not in _REPLACING:
-        verb += 1
-    if verb >= len(tokens) or tokens[verb].kind == "sep":
-        return None
-    j, found = verb + 1, None
-    while j < len(tokens) and (j in targets or tokens[j].text in ("the", "and", "&", ",")
-                               or _is_name(norm, tokens, at, claimed, j)):
-        if j in targets:
-            found = j + 1
-        elif found is not None:
-            break
-        j += 1
-    return (verb, found) if found is not None else None
-
-
 def _attribute(norm: str, tokens: list[Token], at: list[Optional[_Span]], claimed: bytearray, hits: list[Hit],
                owners: _Owners, ev: Evidence) -> None:
     """Down-weight evidence that belongs to another named company (see ``_owners``).
@@ -2802,28 +2785,19 @@ def _attribute(norm: str, tokens: list[Token], at: list[Optional[_Span]], claime
     * When the target's own clause states its (non-)move ("remain flat", "unchanged", "holds key
       support", "sit out the rally"), the text has told us what happened to the target: peers' news
       counts even less.
-    * An index change belongs to the company joining or leaving. When the target is the index
-      itself ("Moderna to Join Nasdaq-100" for a Nasdaq-100 fund) it says nothing about the target's
-      direction and is dropped (a recognized neutral event); when the target is the company the
-      newcomer replaces, it is the target's deletion.
+    * An index change belongs to the company joining or leaving ("FormFactor to Join S&P MidCap 400,
+      Replacing Twilio" is FormFactor's; Twilio leaves because it moves up to the S&P 500). When the
+      target is the index itself ("Moderna to Join Nasdaq-100" for a Nasdaq-100 fund) it says
+      nothing about the target's direction and is dropped (a recognized neutral event).
     """
     targets, title, seg = owners.targets, owners.title, owners.seg
     seg_target, seg_context = owners.seg_target, owners.seg_context
-    keep: set[int] = set()  # ids of hits that stay the target's whatever their subject
-    for h in list(hits):
-        if h.source != "rule:index_change":
-            continue
+    for h in [h for h in hits if h.source == "rule:index_change"]:
         if any(h.start <= j < h.end for j in targets):  # the target is the index whose members change
             hits.remove(h)
             ev.neutral_cues += 1
-        elif h.valence > 0 and (span := _replaced_target(norm, tokens, at, claimed, targets, h)) is not None:
-            h.start, h.end = span  # the driver shows "Replacing Warner Bros. Discovery"
-            h.anchor, h.valence, h.term = span[0], -h.valence, ""
-            keep.add(id(h))
     off: list[Hit] = []
     for h in hits:
-        if id(h) in keep:
-            continue
         s = seg[min(h.anchor, len(seg) - 1)]
         if seg_context[s]:
             off.append(h)

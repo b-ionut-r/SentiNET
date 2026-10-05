@@ -378,3 +378,4 @@ def test_the_main_drag_is_stated_once_in_the_case() -> None:
     retail = titled(b.insights, "Retail leaning bearish")
     assert retail is not None and "the main drag on the" in retail.detail
     assert len([p for p in b.brief.bear_points if p.startswith("Retail leaning bearish")]) == 1
+    assert not any(w.startswith("Retail leaning bearish") for w in b.brief.watch)  # nor again on the watch list

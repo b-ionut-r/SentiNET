@@ -178,3 +178,100 @@ def test_bystander_needs_a_named_target_and_no_news_of_its_own() -> None:
     assert not is_bystander("Nike sinks 8% on weak outlook", LULU)  # not named at all
     assert not is_bystander("Lululemon cuts guidance; Nike sinks 8%", LULU)
     assert not is_bystander("Lululemon lags the rally as Nike surges 6%", LULU)  # Lululemon is the subject
+
+
+# --- final QA (live BTC-USD / QQQ / META items, 2026-10-05): peers joined by "as", crypto assets, index changes
+BTC = ["BTC-USD", "BTC", "Bitcoin"]  # target_terms() of the live CompanyRef
+ETH = ["ETH-USD", "ETH", "Ethereum", "Ether"]
+QQQ = ["QQQ", "Nasdaq 100", "Invesco QQQ Trust", "Nasdaq-100", "Invesco QQQ"]
+AMD = ["AMD", "Advanced Micro Devices"]
+
+
+@pytest.mark.parametrize(("text", "target"), [
+    ("Crypto Weekly: ZEC Plunges as Bitcoin and Ether Hold Key Support Levels", BTC),
+    ("Crypto Weekly: ZEC Plunges as Bitcoin and Ether Hold Key Support Levels", ETH),
+    ("Ethereum liquidity drops below 50% of Bitcoin's level", BTC),
+    ("Ethereum ETF outflows surge as Bitcoin holds steady", BTC),
+    ("LINK Hits 2026 High: Chainlink Rally Outpaces Bitcoin, Ethereum And XRP", ETH),
+])
+def test_another_crypto_assets_move_is_not_the_targets(engine: SentinelEngine, text: str,
+                                                       target: list[str]) -> None:
+    plain, aimed = engine.analyze(text), engine.analyze(text, "news", target)
+    assert plain.label != "neutral"  # read for nobody, the move is there ...
+    assert aimed.label == "neutral", aimed.drivers  # ... but it is ZEC's / Ethereum's / Chainlink's
+
+
+def test_the_named_assets_own_move_still_counts(engine: SentinelEngine) -> None:
+    assert engine.analyze("Ethereum liquidity drops below 50% of Bitcoin's level", "news", ETH).label == "bearish"
+    rises = engine.analyze("Bitcoin rises 3% as Ether jumps 8%", "news", BTC)
+    assert rises.label == "bullish" and rises.drivers[0][0] == "Bitcoin rises 3%"
+    ether = [h for h in engine.evidence("Bitcoin rises 3% as Ether jumps 8%", "news", BTC).hits if "Ether" in h.term]
+    assert ether and all(h.weight <= OFF_TARGET_FACTOR + 1e-9 for h in ether)
+    slides = engine.analyze("Ether drops 5% as Bitcoin slides", "news", BTC)
+    assert slides.label == "bearish" and slides.drivers[0][0] == "Bitcoin slides"
+    # a fund's own underlying is not "another asset"
+    ibit = ["IBIT", "iShares Bitcoin Trust ETF"]
+    text = "IBIT outflows hit a record as Bitcoin slides 5%"
+    assert engine.analyze(text, "news", ibit).score == pytest.approx(engine.analyze(text).score)
+
+
+@pytest.mark.parametrize(("text", "target", "lead"), [
+    ("AMD Jumps 5% As Nvidia Slips", NVDA, "Slips"),
+    ("Stocks fall as Nvidia slides 3%", NVDA, "slides 3%"),
+    ("Mark Zuckerberg Loses Nearly $10 Billion as Meta Shares Slide", META, "Shares Slide"),
+    ("ZEC plunges as Bitcoin slides", BTC, "Bitcoin slides"),
+])
+def test_targets_own_as_clause_after_someone_elses_news_is_its_main_news(engine: SentinelEngine, text: str,
+                                                                       target: list[str], lead: str) -> None:
+    # "X does A as <target> does B": for the target, B is the news - not background to X's move
+    aimed = engine.analyze(text, "news", target)
+    assert aimed.label == "bearish" and aimed.drivers[0][0] == lead, aimed.drivers
+    hit = next(h for h in engine.evidence(text, "news", target).hits if h.display == lead or h.term == lead)
+    assert hit.weight == pytest.approx(1.0)
+
+
+def test_an_as_clause_is_split_only_with_a_subject_of_its_own(engine: SentinelEngine) -> None:
+    for text, target in (("Tesla jumps as deliveries beat estimates", TSLA),
+                         ("Apple shares rise as investors cheer buyback", AAPL),
+                         ("Nvidia rises as well as AMD", NVDA),
+                         # "China sales" are Toyota's: a region is no owner of a metric
+                         ("Toyota stock falls as China sales drop on fuel price surge", ["7203.T", "Toyota"])):
+        assert engine.analyze(text, "news", target).score == pytest.approx(engine.analyze(text).score), text
+    assert engine.analyze("AMD Jumps 5% As Nvidia Slips", "news", AMD).label == "bullish"
+
+
+@pytest.mark.parametrize(("text", "target"), [
+    ("Moderna to Join Nasdaq-100, Replacing Warner Bros. Discovery", QQQ),
+    ("Moderna, Inc. to Join the Nasdaq-100 Index Beginning October 9, 2026", QQQ),
+    ("Coinbase added to S&P 500", ["SPY", "S&P 500", "SPDR S&P 500 ETF Trust"]),
+])
+def test_a_constituent_change_says_nothing_about_the_index_fund(engine: SentinelEngine, text: str,
+                                                                target: list[str]) -> None:
+    assert engine.analyze(text).label == "bullish"  # read for the company joining
+    fund = engine.analyze(text, "news", target)
+    assert fund.score == 0.0 and not fund.drivers
+    assert fund.confidence >= 0.7  # recognized as neutral news, not "found nothing"
+
+
+def test_an_index_change_belongs_to_the_company_joining(engine: SentinelEngine) -> None:
+    text = "Moderna to Join Nasdaq-100, Replacing Warner Bros. Discovery"
+    assert engine.analyze(text, "news", ["MRNA", "Moderna"]).label == "bullish"
+    # the replaced company: often moving up to a bigger index, so no direction either way
+    assert engine.analyze(text, "news", ["WBD", "Warner Bros. Discovery"]).label == "neutral"
+    assert engine.analyze("FormFactor to Join S&P MidCap 400, Replacing Twilio", "news", TWLO).label == "neutral"
+    assert engine.analyze("Coinbase added to S&P 500", "news", ["COIN", "Coinbase"]).label == "bullish"
+
+
+def test_peer_led_crypto_headline_is_a_bystander_for_the_target() -> None:
+    from app.nlp.rules import is_bystander
+
+    assert is_bystander("Crypto Weekly: ZEC Plunges as Bitcoin and Ether Hold Key Support Levels", BTC)
+    assert is_bystander("Affirm Drops 4% as SoFi holds steady", SOFI)
+    assert not is_bystander("ZEC plunges as Bitcoin slides", BTC)  # Bitcoin has news of its own
+
+
+def test_capitalized_level_words_are_not_companies(engine: SentinelEngine) -> None:
+    # trade-plan posts capitalize "Next", "First", "Key": none of them opens a peer's clause
+    text = "$ACME KEY LEVELS — Next Upside Target 740 — First Bullish Trigger 730 — Key Support 725"
+    aimed = engine.evidence(text, "social", ["ACME", "Acme"])
+    assert [h.weight for h in aimed.hits] == pytest.approx([h.weight for h in engine.evidence(text, "social").hits])

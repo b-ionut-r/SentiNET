@@ -245,6 +245,16 @@ def test_machine_written_daily_recaps_count_as_price_recaps() -> None:
     assert not price_recap(probe) and not price_recap(beat)
 
 
+def test_a_bystander_headline_keeps_its_title_relevance() -> None:
+    # Live LULU: 'Nike Sinks 8% …; Lululemon and On Holding Remain Flat' scored 0.40 on its title (a bystander
+    # of Nike's news) but 0.64 after the snippet lift — back above the story bar. A feed tag cannot lift it either.
+    title = "Globex sinks 8% on weak outlook; Acme and Initech remain flat"
+    tagged = kept([run(FINNHUB, [raw(title, ticker_specific=True, extra={"provider_relevance": 0.9})])]).items[0]
+    assert tagged.relevance == pytest.approx(0.4)
+    own = kept([run(FINNHUB, [raw("Acme remains flat as Globex sinks 8%", ticker_specific=True)])]).items[0]
+    assert own.relevance >= 0.7  # the company's own headline still gets the feed floor
+
+
 def test_user_posts_start_below_published_reporting() -> None:
     # Live NVDA: '$NVDA Looking for a huge day Monday. New ATHs all week. 🚀🚀🚀🚀🚀' (0.89) outweighed
     # Barron's (0.85): social trust was fixed at 1.0 while outlets carry their own trust <= 1.

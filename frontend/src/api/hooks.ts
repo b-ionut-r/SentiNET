@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { type BusyWait, retryWhenBusy } from "./busy";
 import { api, streamAnalysis } from "./client";
-import { TONE_FOLLOW_UP_MS, tonePending } from "./pending";
+import { HISTORY_TONE_RETRIES, HISTORY_TONE_RETRY_MS, historyTonePending, TONE_FOLLOW_UP_MS, tonePending } from "./pending";
 import type { AlertRuleIn, Analysis, PriceRange, ProgressEvent, ScoreRequest, WatchItem } from "./types";
 
 const MIN = 60_000;
@@ -123,6 +123,11 @@ export function usePrice(ticker: string, range: PriceRange) {
   });
 }
 
+/**
+ * Tone ↔ price history. A response that went out while its GDELT call was still
+ * running (the server keeps it alive) is re-read a few times on its own, so the tone
+ * pane and the lead/lag readout fill in without a manual Retry.
+ */
 export function useHistory(ticker: string, days = 90, enabled = true) {
   return useQuery({
     queryKey: keys.history(ticker, days),
@@ -130,6 +135,7 @@ export function useHistory(ticker: string, days = 90, enabled = true) {
     staleTime: 30 * MIN,
     retry: 1,
     enabled,
+    refetchInterval: (q) => (historyTonePending(q.state.data) && q.state.dataUpdateCount <= HISTORY_TONE_RETRIES ? HISTORY_TONE_RETRY_MS : false),
   });
 }
 

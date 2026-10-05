@@ -1,6 +1,6 @@
 {
   "generated": "2026-10-05",
-  "protocol": "News lexicon/rules/blend tuned on twitter-financial-news-sentiment TRAIN only; social register on StockTwits even ids. Everything under 'held_out' was not used for tuning. Labels via engine.label_for (NEUTRAL_BAND=0.05); VADER uses its standard +-0.05 compound thresholds. Caveat: the first build session inspected some PhraseBank AllAgree and Twitter-valid sentences (a few appeared verbatim in unit tests; replaced), so those two numbers may be mildly optimistic. FiQA texts and errors were never inspected (only label counts and aggregate scores at a few checkpoints; no setting was chosen on them), so it is the cleanest held-out estimate. FiQA is ~88% polar, which penalizes an engine calibrated to abstain (neutral) on weak evidence: the news dead zone (0.28) was fitted to Twitter's neutral-heavy labels, so on FiQA headlines Sentinel commits on only ~half the polar items (see 'polar': share of polar items it commits on, and its accuracy when it does). Review fixes (sign flips on guidance metrics, negated approvals, size-cap compounds, the retailer Target, bare 'record', signed percents, 'stock up/down', forum prose, limited upside, Form-4 plan trades, enforcement actions, 'wiped out', rating infinitives, 13F bot headlines, purpose and relative clauses; final review: distance below a high, valuation calls, rating templates, bad-news quantities such as recalls or withdrawal queues, 'top analyst' column titles) were selected on the Twitter train split and hand-written regression cases only; held-out sets were re-run for reporting, not selection. Subject attribution (the optional per-text target: peers' and the market's clauses count as context) is not exercised here, since no benchmark names an analysed company; it is covered by unit tests on live headlines. 'calibration': news polar confidence is remapped by an isotonic fit on Twitter train (ECE on train/valid shows the fit holds); neutral confidence is deliberately prior-agnostic (0.5 when nothing was found, higher for explicit 'in line'/'unchanged' cues), because whether 'no evidence' means neutral depends on the stream's base rate (about 90% of neutral calls are right on Twitter, under 20% on the ~88%-polar FiQA sets), so neutral ECE is large on every set by construction.",
+  "protocol": "News lexicon/rules/blend tuned on twitter-financial-news-sentiment TRAIN only; social register on StockTwits even ids. Everything under 'held_out' was not used for tuning. Labels via engine.label_for (NEUTRAL_BAND=0.05); VADER uses its standard +-0.05 compound thresholds. Caveat: the first build session inspected some PhraseBank AllAgree and Twitter-valid sentences (a few appeared verbatim in unit tests; replaced), so those two numbers may be mildly optimistic. FiQA texts and errors were never inspected (only label counts and aggregate scores at a few checkpoints; no setting was chosen on them), so it is the cleanest held-out estimate. FiQA is ~88% polar, which penalizes an engine calibrated to abstain (neutral) on weak evidence: the news dead zone (0.28) was fitted to Twitter's neutral-heavy labels, so on FiQA headlines Sentinel commits on only ~half the polar items (see 'polar': share of polar items it commits on, and its accuracy when it does). Review fixes (sign flips on guidance metrics, negated approvals, size-cap compounds, the retailer Target, bare 'record', signed percents, 'stock up/down', forum prose, limited upside, Form-4 plan trades, enforcement actions, 'wiped out', rating infinitives, 13F bot headlines, purpose and relative clauses; final review: distance below a high, valuation calls, rating templates, bad-news quantities such as recalls or withdrawal queues, 'top analyst' column titles; final QA: chart support levels, 'holds key support', 'rally cracked', 'Warner Bros.') were selected on the Twitter train split and hand-written regression cases only; held-out sets were re-run for reporting, not selection. Subject attribution (the optional per-text target: peers', other crypto assets' and the market's clauses count as context, including clauses joined by 'as'/'while'; an index change is the joining company's) is not exercised here, since no benchmark names an analysed company; it is covered by unit tests on live headlines and was checked on ~2,400 live items from 17 tickers (old vs new scores). 'calibration': news polar confidence is remapped by an isotonic fit on Twitter train (ECE on train/valid shows the fit holds); neutral confidence is deliberately prior-agnostic (0.5 when nothing was found, higher for explicit 'in line'/'unchanged' cues), because whether 'no evidence' means neutral depends on the stream's base rate (about 90% of neutral calls are right on Twitter, under 20% on the ~88%-polar FiQA sets), so neutral ECE is large on every set by construction.",
   "datasets": {
     "twitter_valid": {
       "source": "huggingface.co/datasets/zeroshot/twitter-financial-news-sentiment (sent_valid.csv)",
@@ -88,8 +88,8 @@
       "sentinel": {
         "accuracy": 0.7007,
         "macro_f1": 0.5655,
-        "polar_coverage": 0.8109,
-        "polar_accuracy_committed": 0.8776
+        "polar_coverage": 0.8078,
+        "polar_accuracy_committed": 0.881
       }
     },
     "stocktwits_odd": {
@@ -207,7 +207,7 @@
             "n": 1449,
             "mean_confidence": 0.4804,
             "accuracy": 0.8903,
-            "ece": 0.4099
+            "ece": 0.4098
           }
         },
         "polar": {
@@ -497,9 +497,9 @@
         "macro_f1": 0.5655,
         "per_class": {
           "bullish": {
-            "precision": 0.8934,
+            "precision": 0.8986,
             "recall": 0.726,
-            "f1": 0.801,
+            "f1": 0.8031,
             "support": 427
           },
           "bearish": {
@@ -509,9 +509,9 @@
             "support": 218
           },
           "neutral": {
-            "precision": 0.1029,
+            "precision": 0.1014,
             "recall": 0.4667,
-            "f1": 0.1687,
+            "f1": 0.1667,
             "support": 30
           }
         },
@@ -522,9 +522,9 @@
             "neutral": 84
           },
           "bearish": {
-            "bullish": 31,
+            "bullish": 29,
             "bearish": 149,
-            "neutral": 38
+            "neutral": 40
           },
           "neutral": {
             "bullish": 6,
@@ -534,23 +534,23 @@
         },
         "calibration": {
           "polar": {
-            "n": 539,
-            "mean_confidence": 0.6556,
-            "accuracy": 0.8516,
-            "ece": 0.196
+            "n": 537,
+            "mean_confidence": 0.6558,
+            "accuracy": 0.8547,
+            "ece": 0.1989
           },
           "neutral": {
-            "n": 136,
-            "mean_confidence": 0.4639,
-            "accuracy": 0.1029,
-            "ece": 0.3609
+            "n": 138,
+            "mean_confidence": 0.4641,
+            "accuracy": 0.1014,
+            "ece": 0.3627
           }
         },
         "polar": {
           "n": 645,
-          "coverage": 0.8109,
-          "accuracy_covered": 0.8776,
-          "flipped": 0.0992
+          "coverage": 0.8078,
+          "accuracy_covered": 0.881,
+          "flipped": 0.0961
         }
       }
     },
@@ -589,17 +589,17 @@
   },
   "tuning": null,
   "throughput_texts_per_s": {
-    "vader": 29628,
-    "sentinel": 4594
+    "vader": 25891,
+    "sentinel": 4051
   },
   "lexicon": {
-    "entries": 2222,
-    "lemma_groups": 2047,
-    "valence_entries": 1338,
+    "entries": 2226,
+    "lemma_groups": 2051,
+    "valence_entries": 1342,
     "direction_entries": 478,
     "metric_entries": 480,
-    "multiword_entries": 1014,
-    "with_inflections": 3407,
-    "neutralizers": 302
+    "multiword_entries": 1018,
+    "with_inflections": 3411,
+    "neutralizers": 301
   }
 }

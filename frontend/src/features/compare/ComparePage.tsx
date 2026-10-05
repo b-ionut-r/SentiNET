@@ -7,7 +7,7 @@ import { Plus, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
-import { useAnalysisPlain } from "../../api/hooks";
+import { useAnalysisPlain, useHistory } from "../../api/hooks";
 import type { Analysis, ComponentKey } from "../../api/types";
 import { Dial, VERDICT_DIAL } from "../../components/charts/Dial";
 import { LineChart, type LineSeries } from "../../components/charts/LineChart";
@@ -17,6 +17,7 @@ import { Panel } from "../../components/ui/Panel";
 import { cx } from "../../lib/cx";
 import { money, pct, price, ratioPct, signed } from "../../lib/format";
 import { divergingFill, polarityOf100, scoreCell100, textTone } from "../../lib/sentiment";
+import { needsHistory, toneGapNotes, toneSource } from "./toneSource";
 
 const MAX = 4;
 /** Categorical identity colours, by slot (never by rank or position). */
@@ -321,24 +322,33 @@ function smoothedDaily(series: Array<{ date: string; tone: number | null }>): Ar
 }
 
 function ToneCompare({ tickers, colors, data }: { tickers: string[]; colors: string[]; data: Array<Analysis | null> }) {
-  const series = useMemo<LineSeries[]>(
-    () =>
-      data.flatMap((a, i) =>
-        a?.tone?.series.length
-          ? [{ key: tickers[i], label: tickers[i], color: colors[i], points: smoothedDaily(a.tone.series) }]
-          : [],
-      ),
-    [data, tickers, colors],
-  );
-  const missing = tickers.filter((_, i) => data[i] && !data[i]?.tone?.series.length);
+  // Fixed number of hooks, one per slot; each only fetches when its run went out without tone.
+  const h0 = useHistory(tickers[0] ?? "", 90, !!tickers[0] && needsHistory(data[0]));
+  const h1 = useHistory(tickers[1] ?? "", 90, !!tickers[1] && needsHistory(data[1]));
+  const h2 = useHistory(tickers[2] ?? "", 90, !!tickers[2] && needsHistory(data[2]));
+  const h3 = useHistory(tickers[3] ?? "", 90, !!tickers[3] && needsHistory(data[3]));
+  const hist = [h0, h1, h2, h3];
+  const sources = tickers.map((t, i) => {
+    const a = data[i];
+    return a ? { ticker: t, ...toneSource(a, hist[i].data, hist[i].isFetching) } : null;
+  });
+  const series: LineSeries[] = sources.flatMap((s, i) => (s?.series.length ? [{ key: s.ticker, label: s.ticker, color: colors[i], points: smoothedDaily(s.series) }] : []));
+  const notes = toneGapNotes(sources.filter((s) => s != null));
+  const allLoading = series.length === 0 && sources.some((s) => s?.gap === "loading");
   return (
     <Panel title="Global news tone" subtitle={`GDELT tone, ${SMOOTH_DAYS}-day trailing mean — one shared axis, same unit for every ticker; hover for the daily value`}>
-      {series.length === 0 ? (
-        <Empty title="No tone history">GDELT returned no series for these tickers.</Empty>
-      ) : (
+      {series.length > 0 ? (
         <LineChart series={series} height={230} baseline={0} endLabels yFormat={(v) => signed(v, 1)} valueFormat={(v) => signed(v)} ariaLabel="News tone comparison" />
+      ) : allLoading ? (
+        <Skeleton className="h-[230px] w-full" />
+      ) : (
+        <Empty title="No tone history">{sources.every((s) => !s || s.gap === "empty") ? "GDELT has no daily tone series for these tickers." : "No GDELT tone loaded for these tickers in this run."}</Empty>
       )}
-      {missing.length > 0 && <p className="mt-2 text-2xs text-muted">No GDELT series for {missing.join(", ")} in this run — GDELT allows one request every 5 s, so tone can lag behind; refresh later.</p>}
+      {notes.map((n) => (
+        <p key={n} className="mt-2 text-2xs text-muted">
+          {n}
+        </p>
+      ))}
     </Panel>
   );
 }

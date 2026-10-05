@@ -29,6 +29,7 @@ from app.nlp.text import (
     GENERIC_WORDS,
     HEADLINE_VERBS,
     MOVE_WORDS,
+    SESSION_WORDS,
     STOPWORDS,
     clean_text,
     fold,
@@ -240,7 +241,8 @@ def extract_keywords(texts: list[str], scores: Sequence[float] | None = None, co
             for tok in tokenize(segment):
                 word = tok.strip("'")
                 if (word in own or word.lstrip("$") in own or word in STOPWORDS or word in GENERIC_WORDS
-                        or word in _FILLER or word in MOVE_WORDS or word in CALENDAR_WORDS or word in HEADLINE_VERBS
+                        or word in _FILLER or word in MOVE_WORDS or word in CALENDAR_WORDS or word in SESSION_WORDS
+                        or word in HEADLINE_VERBS
                         or (len(word) < 3 and word not in _SHORT_TERMS) or word in _PUBLISHER_WORDS
                         or not re.match(r"^(?:[a-z][a-z0-9&_'-]*|[56]g)$", word)):
                     seq.append("")

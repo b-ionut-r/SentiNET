@@ -423,6 +423,17 @@ def test_an_insider_buying_spree_is_one_story_but_not_with_insider_selling():
     assert ["6", "7"] in groups
 
 
+def test_a_session_word_does_not_tie_a_guidance_raise_to_the_insider_story():
+    # live GME (2026-10-05): the raised EBITDA outlook joined the CEO's buying spree through
+    # "After-Hours" alone and no story, insight or catalyst ever named it
+    groups = _timed([("GME Pops 2% After-Hours After Ryan Cohen Buys $17M Worth Of Shares", 0),
+                     ("GameStop CEO Ryan Cohen Buys 700,000 Shares, GME Stock Edges Up", 1),
+                     ("GameStop (GME) CEO Ryan Cohen Buys $17 Million More Shares After-Hours", 2),
+                     ("GME Stock Jumps After-Hours — GameStop Hikes FY26 EBITDA Outlook To $600M, Nearly Double Of "
+                      "FY25", 2.5)], GME)
+    assert ["3"] in groups and ["0", "1", "2"] in groups
+
+
 def test_program_follow_ups_join_only_within_the_window():
     docs = [_Doc(vec={}, raw={}, anchors=frozenset(), surfaces={}, program=frozenset({"insider_buy"}))] * 4
     hour = 3600.0

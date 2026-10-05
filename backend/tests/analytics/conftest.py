@@ -87,7 +87,14 @@ class FakeNLP:
         if re.search(rf"\b{base}\b", text):
             return 0.9
         names = [company.short_name, *company.aliases]
-        return 0.85 if any(n and re.search(rf"\b{re.escape(n)}\b", text, re.I) for n in names) else 0.0
+        named = any(n and re.search(rf"\b{re.escape(n)}\b", text, re.I) for n in names)
+        return (0.4 if FakeNLP.bystander(text, company) else 0.85) if named else 0.0  # like the real cap
+
+    @staticmethod
+    def bystander(text: str, company: CompanyRef) -> bool:
+        """'Globex sinks 8%; Acme and Initech remain flat': named only beside another company's news."""
+        name = re.escape(company.short_name or company.name)
+        return bool(re.search(rf";[^;]*\b{name}\b[^;]*\b(?:remain|stay|sit)s?\b", text, re.I))
 
     @staticmethod
     def sister(text: str, company: CompanyRef) -> str | None:
@@ -164,6 +171,7 @@ def fake_nlp(request, monkeypatch):
     monkeypatch.setattr(textkit, "analyze", fake.analyze)
     monkeypatch.setattr(textkit, "relevance", fake.relevance)
     monkeypatch.setattr(textkit, "sister_company", fake.sister)
+    monkeypatch.setattr(textkit, "bystander", fake.bystander)
     monkeypatch.setattr(textkit, "duplicates", fake.duplicates)
     monkeypatch.setattr(textkit, "clusters", fake.clusters)
     monkeypatch.setattr(textkit, "keywords", fake.keywords)

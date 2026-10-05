@@ -155,6 +155,24 @@ def test_history(client: TestClient, world: FakeWorld):
     assert client.get("/api/history/NVDA", params={"days": 3}).status_code == 422
 
 
+def test_history_tone_supersedes_a_toneless_cached_analysis(client: TestClient, world: FakeWorld):
+    # The run's GDELT call hard-failed (rate limited: no straggler to wait for) ...
+    good = world.intel["tone"]
+    world.intel["tone"] = Sentinel(exc=RuntimeError("GDELT rate limited"))
+    first = client.get("/api/analyze/NVDA").json()
+    assert first["tone"] is None and client.get("/api/analyze/NVDA").json()["cached"] is True
+    # ... then the history endpoint gets the tone (same call, now in the provider cache).
+    world.intel["tone"] = good
+    assert client.get("/api/history/NVDA").json()["status"]["tone"] == "ok"
+    # The tone-less verdict is not served for the rest of its TTL next to a drawn tone pane.
+    second = client.get("/api/analyze/NVDA").json()
+    assert second["cached"] is False and second["tone"]["tone_7d"] == 1.2
+    # A run that has the tone is left alone: history reads never trigger pointless recomputes.
+    runs = len(world.inputs)
+    client.get("/api/history/NVDA")
+    assert client.get("/api/analyze/NVDA").json()["cached"] is True and len(world.inputs) == runs
+
+
 def test_market(client: TestClient, world: FakeWorld):
     r = client.get("/api/market")
     assert r.status_code == 200

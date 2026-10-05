@@ -8,7 +8,7 @@ import type { Analysis } from "../../api/types";
 import { TickerLogo } from "../../components/ui/Misc";
 import { Tip } from "../../components/ui/Tooltip";
 import { cx } from "../../lib/cx";
-import { compact, dayTime, money, ms, pct, price, signed, timeAgo } from "../../lib/format";
+import { compact, dayTime, money, ms, pct, price, priceMove, timeAgo } from "../../lib/format";
 import { glyph, polarityOf, textTone } from "../../lib/sentiment";
 import { useNow } from "../../lib/useNow";
 
@@ -57,7 +57,7 @@ export function HeaderStrip({ a, watched, onWatch, onRefresh, refreshing, progre
           {qt?.change_pct != null && (
             <span className={cx("text-sm font-semibold", textTone[chg])}>
               <span className="mr-0.5 text-[10px]">{glyph(chg)}</span>
-              {signed(qt.change, 2)} ({pct(qt.change_pct, 2)})
+              {qt.change != null && `${priceMove(qt.change, qt.currency, qt.price)} `}({pct(qt.change_pct, 2)})
             </span>
           )}
         </div>

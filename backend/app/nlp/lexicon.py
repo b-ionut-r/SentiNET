@@ -893,6 +893,7 @@ _HOLDS_SUPPORT = frozenset(f"{v} {q}support{tail}" for v in ("hold", "holds", "h
 # chart vocabulary: a support level is a price, not "support" for the company
 _SUPPORT_LEVELS = frozenset({f"{q}support {tail}".strip() for q in _SUPPORT_QUALIFIERS
                              for tail in ("", "level", "levels", "zone")} - {"support"})
+_generated(sorted((_HOLDS_SUPPORT | _SUPPORT_LEVELS) - {"holds key support", "key support level"}))
 
 # Crypto assets by name and ticker. A move whose subject is one of these is that asset's, not the
 # analysed company's ("ZEC Plunges as Bitcoin Holds Key Support" is not bearish for Bitcoin, nor
@@ -1035,7 +1036,7 @@ def lexicon_stats() -> dict[str, int]:
         "metric_entries": len(set(phrase_keys(METRICS))),
         "multiword_entries": sum(1 for k in authored if " " in k),
         "with_inflections": len(keys),
-        "neutralizers": len(NEUTRALIZERS),
+        "neutralizers": len(set(phrase_keys(NEUTRALIZERS)) - generated),
     }
 
 

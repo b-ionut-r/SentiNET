@@ -30,7 +30,7 @@ import { cx } from "../../lib/cx";
 import { compact, longDate, MINUS, ordinal, pct, price as fmtPrice, signed } from "../../lib/format";
 import { textTone } from "../../lib/sentiment";
 import { tokenColor, useTheme } from "../../lib/theme";
-import { criticalR, fmtP, LAGS_TESTED, lagVerdict, MIN_RELIABLE_N, reliableLag } from "./lagRule";
+import { criticalR, fmtP, LAGS_TESTED, lagMissingReason, lagVerdict, MIN_RELIABLE_N, reliableLag } from "./lagRule";
 import { buildRows, type Row, toneOf, TZ_SHIFT } from "./priceRows";
 
 const RANGES: PriceRange[] = ["1D", "5D", "1M", "3M", "6M", "1Y", "5Y"];
@@ -394,15 +394,6 @@ interface LeadLagProps {
   className?: string;
 }
 
-/** Why there is no lead/lag readout, in one line (rate limit, no series, or too little overlap). */
-function lagMissingReason(a: Analysis, history: HistoryResponse | undefined, error: Error | null): string {
-  if (error) return `Couldn't load the tone/price history (${error.message}).`;
-  const st = history?.status?.tone ?? "";
-  if (st.startsWith("error")) return `GDELT tone couldn't be fetched this run (${st.replace(/^error:\s*/, "")}) — GDELT rate-limits hard; refresh in a minute.`;
-  if (st === "empty") return `GDELT has no daily tone series for ${a.ticker}, so there is nothing to correlate with price.`;
-  return history?.interpretation || "Not enough overlapping tone and price days to test a lead/lag link yet.";
-}
-
 /** Compact stand-in for the lead/lag panel when there is nothing to chart. */
 function LeadLagNotice({ a, history, loading, error, onRetry, className }: LeadLagProps) {
   return (
@@ -415,7 +406,8 @@ function LeadLagNotice({ a, history, loading, error, onRetry, className }: LeadL
         </span>
       ) : (
         <>
-          <span className="min-w-0 flex-1 text-muted">{lagMissingReason(a, history, error)}</span>
+          {/* Its own line on phones (a flex-basis of 0 squeezed it into a ~90px column beside Retry). */}
+          <span className="min-w-0 grow basis-full text-muted sm:basis-0">{lagMissingReason(a.ticker, history, error)}</span>
           <button className="btn h-7 text-xs" onClick={onRetry}>
             <RotateCw className="size-3.5" /> Retry
           </button>
@@ -439,7 +431,7 @@ function ToneLeadPanel({ a, history, loading, error, onRetry, className }: LeadL
         </div>
       ) : error || !history || history.lags.length === 0 ? (
         <div className="flex items-start justify-between gap-3 rounded-md bg-sunken px-3 py-2.5 text-xs text-muted">
-          <span>{lagMissingReason(a, history, error)}</span>
+          <span>{lagMissingReason(a.ticker, history, error)}</span>
           <button className="btn h-7 shrink-0 text-xs" onClick={onRetry}>
             <RotateCw className="size-3.5" /> Retry
           </button>

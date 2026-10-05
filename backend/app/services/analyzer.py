@@ -11,8 +11,11 @@ Guarantees
 * A caller that goes away (closed SSE stream) does not abort the shared run;
   the result is still stored and cached.
 * Fresh results are cached for `settings.analyze_cache_ttl` and served with
-  `cached=True`; a cached result is superseded as soon as a provider call it
-  had to skip (see `TAIL_GRACE`) lands with data.
+  `cached=True`; a cached result is superseded as soon as data it lacked
+  becomes available: a provider call it had to skip (see `TAIL_GRACE`) lands
+  with data, or another caller fetching with the run's own arguments (the
+  history endpoint) obtains it (`intel_landed`) — the next load recomputes,
+  cheaply, from the now-warm provider cache.
 * Cold runs stay under ~12 s: one budget from the start (resolution included)
   plus a tail rule, so slow name-search intel never idles the run.
 * Unknown symbols (typos, delisted) fail fast with 404 — decided only from
@@ -126,6 +129,9 @@ _runs: dict[str, _Run] = {}
 _slots: tuple[asyncio.AbstractEventLoop, asyncio.Semaphore] | None = None
 # symbol -> generated_at of a cached analysis superseded by late-arriving data
 _stale: dict[str, datetime] = {}
+# symbol -> (generated_at, intel keys that run got no data for: failed, timed out or empty)
+_lacking: OrderedDict[str, tuple[datetime, frozenset[str]]] = OrderedDict()
+LACKING_KEEP = 256
 # symbol -> (generated_at, monotonic expiry) of a cached degraded/evidence-free result
 _short: dict[str, tuple[datetime, float]] = {}
 # Negative cache: symbols just found not to exist (a typo re-submitted should not
@@ -211,6 +217,7 @@ def reset() -> None:
     _latest.clear()
     _runs.clear()
     _stale.clear()
+    _lacking.clear()
     _short.clear()
     _unknown.clear()
     _engines_built.clear()
@@ -253,6 +260,7 @@ class _Run:
         self.tail_wait = tail_wait  # seconds to wait for slow name-search intel (one-shot callers)
         self.events: list[ProgressEvent] = []
         self.task: asyncio.Task[Analysis] | None = None
+        self.landed: set[str] = set()  # intel keys another caller obtained data for while this run was in flight
         self._listeners: list[ProgressCallback] = []
         self._lock = asyncio.Lock()
 
@@ -500,6 +508,15 @@ async def _execute_inner(run: _Run) -> Analysis:
         _short[symbol] = (now, time.monotonic() + SHORT_CACHE_TTL)
     else:
         _short.pop(symbol, None)
+    lacking = frozenset(k for k, state in status.items() if state != "ok")
+    _lacking.pop(symbol, None)
+    _lacking[symbol] = (now, lacking)
+    while len(_lacking) > LACKING_KEEP:
+        _lacking.popitem(last=False)
+    if landed := sorted(lacking & run.landed):  # obtained elsewhere after this run's own call gave up
+        _mark_stale(symbol, now)
+        logger.info("late data for %s (%s, fetched by another caller); cached analysis superseded",
+                    symbol, ", ".join(landed))
     _latest[symbol] = analysis
     _latest.move_to_end(symbol)
     while len(_latest) > LATEST_KEEP:
@@ -529,6 +546,28 @@ def _straggler_done(symbol: str, generated_at: datetime, task: asyncio.Task[Any]
         return
     _mark_stale(symbol, generated_at)
     logger.info("late data for %s (%s); cached analysis superseded", symbol, task.get_name())
+
+
+def intel_landed(symbol: str, key: str) -> bool:
+    """Another caller (the history endpoint) just obtained data for `symbol`'s intel task `key`
+    with the run's own arguments, so it now sits in that provider's cache.
+
+    A cached analysis whose run got no data for `key` (the call failed, timed out
+    or came back empty) is superseded: the next load recomputes, now with it. A run
+    in flight checks the same when it finishes. Returns True when a cached result
+    was superseded. A run that already had `key` is left alone, so this never
+    triggers a pointless recompute.
+    """
+    run = _runs.get(symbol)
+    if run is not None:
+        run.landed.add(key)
+    hit = _cache_get(symbol)
+    record = _lacking.get(symbol)
+    if hit is None or record is None or record[0] != hit.generated_at or key not in record[1]:
+        return False
+    _mark_stale(symbol, hit.generated_at)
+    logger.info("late data for %s (%s, fetched by another caller); cached analysis superseded", symbol, key)
+    return True
 
 
 def _time_box(limit: float, deadline: float | None) -> float:

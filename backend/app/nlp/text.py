@@ -282,6 +282,13 @@ spending capex cost costs ahead early late mixed upgrade downgrade guidance shar
 # Months and weekdays.
 CALENDAR_WORDS: frozenset[str] = wordset("january february march april may june july august september october november december jan feb mar "
                   "apr jun jul aug sep sept oct nov dec monday tuesday wednesday thursday friday saturday sunday")
+# Trading-session words: when a move happened, never what the story is ("GME Stock Jumps
+# After-Hours — GameStop Hikes FY26 EBITDA Outlook" and "GME Pops 2% After-Hours After Ryan
+# Cohen Buys $17M" share the session, not the development).
+SESSION_WORDS: frozenset[str] = wordset("""
+hours premarket pre pre-market postmarket post-market overnight intraday midday session sessions morning afternoon
+evening tonight weekend
+""")
 
 _TOKEN_RE = re.compile(
     r"[$€£]\d[\d,]*(?:\.\d+)?(?:\s?(?:trillion|billion|million|thousand|tln|trn|bln|mln|tn|bn|mn|[tbmk])\b)?"  # money

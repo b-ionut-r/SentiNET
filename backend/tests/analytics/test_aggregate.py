@@ -105,3 +105,6 @@ def test_keywords_come_from_items_about_the_company() -> None:
             [item(10 + i, f"Vodafone spectrum auction bid number {i}", 0.9) for i in range(3)]
     terms = {k.term for k in keyword_list(items, None)}
     assert "spectrum" in terms and "manappuram" not in terms
+    recaps = [item(20 + i, f"Vodafone Group stock outperforms competitors on strong trading day {i}", 0.9)
+              for i in range(3)]
+    assert "competitors" not in {k.term for k in keyword_list(items + recaps, None)}  # GPRO / SHOP.TO template words
