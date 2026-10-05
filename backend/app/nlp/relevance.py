@@ -978,6 +978,18 @@ def relevance(text: str, company: CompanyRef) -> float:
     return explain_relevance(text, company).score
 
 
+def brand_cue_mentions(text: str, company: CompanyRef) -> list[Mention]:
+    """Spans of `fold(text)` naming the company's own products or executives
+    ("Zuckerberg", "iPhone", "Cash App") — they stand for the company as a
+    party to launches and deals even when its name is absent."""
+    if not text or not company:
+        return []
+    matcher = _matcher(company)
+    if matcher.brand_cues is None:
+        return []
+    return [Mention(m.start(), m.end()) for m in matcher.brand_cues.finditer(fold(text))]
+
+
 @lru_cache(maxsize=256)
 def _terms_for(ticker: str, name: str, short_name: str, aliases: tuple[str, ...]) -> frozenset[str]:
     words: set[str] = set()
