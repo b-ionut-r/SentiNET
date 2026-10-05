@@ -75,6 +75,11 @@ for tuning: tuning used only the Twitter train split and half of a StockTwits sa
 Reproduce with `python -m scripts.eval_engine` (it downloads the datasets to `~/.cache/sentinet`;
 nothing is committed). Full results: `backend/tests/nlp/data/engine_eval_results.json`.
 
+Caveats, recorded in that file too:
+* Some PhraseBank and Twitter-validation sentences were looked at during development, so those two
+  rows may be mildly optimistic. FiQA is the cleanest held-out estimate.
+* The StockTwits row needs `--collect-stocktwits`, and a fresh collection is a different sample.
+
 ## Data sources
 
 | Source | Kind | Key | What it contributes |
@@ -162,8 +167,12 @@ Interactive docs at `/docs`. All routes live under `/api`:
 make test       # offline backend suite (recorded real payloads; no network)
 make test-live  # smoke tests against the real providers
 make lint       # ruff + TypeScript typecheck
-cd frontend && npm run screens   # Playwright screenshots of every page (fixtures)
-cd frontend && npm run smoke     # interaction checks
+
+# Frontend visual QA (serves the production build with recorded API fixtures)
+cd frontend && npm run build && npx playwright install chromium
+npm run screens   # screenshots of every page, desktop + phone, dark + light
+npm run smoke     # interaction checks
+npm run unit      # pure-logic checks (no browser)
 ```
 
 Layout: `backend/app/sources` (text and crowd sources), `intel` (market data, SEC, GDELT,
