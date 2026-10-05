@@ -394,12 +394,14 @@ async def get_indices() -> list[IndexQuote]:
     if not quotes:  # yf.download swallows per-symbol errors and returns an empty frame
         raise UpstreamError("Yahoo indices: no prices returned")
     for i, q in enumerate(quotes):
-        if q.change_pct is None and is_crypto_symbol(q.symbol):
-            # Yahoo skipped a daily crypto bar: use the quote's own 24 h change instead of a 2-day one.
+        if is_crypto_symbol(q.symbol):
+            # Crypto trades 24/7: the tape shows the same rolling 24 h change as the quote (and the
+            # Intel page), not the move since the 00:00 UTC daily bar (or a 2-day one when Yahoo
+            # skipped a bar). Falls back to the daily bars when the quote is unavailable.
             try:
                 live = await get_quote(q.symbol)
             except UpstreamError:
                 continue
             if live is not None and live.change_pct is not None:
-                quotes[i] = q.model_copy(update={"change_pct": live.change_pct})
+                quotes[i] = q.model_copy(update={"change_pct": live.change_pct, "price": live.price})
     return quotes

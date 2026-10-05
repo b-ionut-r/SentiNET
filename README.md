@@ -199,18 +199,7 @@ logs or responses.
 
 * Google News, Bing, Seeking Alpha, Nasdaq, StockTwits, CNN and Yahoo are free but unofficial
   endpoints. They can throttle or change without notice; SentiNET degrades and reports it.
-* GDELT allows one request every 5 seconds per IP, so news-tone history can arrive a refresh later.
+* GDELT allows one request every 5 seconds per IP, so news-tone history can arrive a few seconds
+  after the rest of the page; the Intel page re-reads the verdict on its own once it lands.
+* Crypto daily changes are over a rolling 24 h (on the Intel page and the Market tape alike).
 * Sentiment is a reading of what people are saying, not a forecast. **Not investment advice.**
-
-### Known rough edges (next up)
-
-* An 8-K that issues shares to pay for an acquisition (e.g. AMD buying World Labs) still adds a
-  generic "unregistered equity sale" dilution watch. Filing-based insights can also quote raw
-  8-K legal text instead of a short summary.
-* "90-day low/high" is used for tone readings near, not at, the extreme of the 90-day range.
-* The Insiders panel labels insider dollar values with the quote's currency on non-USD listings
-  (e.g. "£" for VOD.L). The values are in USD, which the verdict text states correctly.
-* When GDELT tone arrives after an analysis was cached, the page's tone chart updates, but the
-  verdict picks it up only on the next refresh.
-* Crypto's daily change is measured over a rolling 24 h on the Intel page but against the
-  previous daily close on the Market tape.

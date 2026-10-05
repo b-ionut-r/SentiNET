@@ -74,10 +74,13 @@ def test_pending_deal_leads_the_read_and_discounts_price_anchored_components() -
     v = a.verdict
     assert v.headline.startswith(f"{v.label}, but a pending acquisition dominates: GoPro agreed to be acquired by "
                                  f"Action Acquisitions LLC")
-    assert v.reasons[0].ref == "deal" and v.reasons[0].text.startswith("Pending acquisition by Action Acquisitions LLC")
+    assert v.reasons[0].ref == "deal" and v.reasons[0].text.startswith(
+        "Agreed to be acquired by Action Acquisitions LLC (merger agreement, 8-K ")
     first = a.insights[0]
     assert first.severity == "alert" and first.title.startswith("Pending acquisition: merger agreement")
     assert first.kind == "deal"  # a deal, not a risk (the schema's own insight kind)
+    assert first.detail.startswith("GoPro agreed to be acquired by Action Acquisitions LLC. Form 8-K")
+    assert "(the “" not in first.detail and '("' not in first.detail  # no defined-term legalese
     titles = [i.title for i in a.insights]
     assert not [t for t in titles if t.startswith("Red-flag filing")]  # superseded / resolved listing notices
     comps = {c.key: c for c in v.components}

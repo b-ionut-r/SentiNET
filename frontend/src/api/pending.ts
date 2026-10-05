@@ -47,3 +47,17 @@ export function tonePending(a: Pick<Analysis, "tone" | "insights">, progress: Re
     progress.some((p) => p.stage === "intel" && p.key === "tone" && p.status === "error" && SOFT_PENDING.test(p.detail ?? ""))
   );
 }
+
+/**
+ * The analysis went out without GDELT tone (for any reason: still loading, timed out,
+ * failed), but the history endpoint has since obtained it. The server supersedes its
+ * cached analysis when that happens (analyzer.intel_landed), so a plain re-read now
+ * comes back with tone in the verdict.
+ */
+export function toneArrivedViaHistory(
+  a: Pick<Analysis, "ticker" | "tone"> | undefined,
+  h: Pick<HistoryResponse, "ticker" | "status" | "points"> | undefined,
+): boolean {
+  if (!a || !h || a.ticker !== h.ticker || a.tone?.series.length) return false;
+  return h.status?.tone === "ok" && h.points.some((p) => p.tone != null);
+}

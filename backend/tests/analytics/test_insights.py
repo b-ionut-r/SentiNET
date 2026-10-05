@@ -105,8 +105,12 @@ def test_tone_flip_and_extremes() -> None:
     flipped = insights(run(GOOGLE, NEUTRAL_NEWS), tone=tone_trend(base=0.6, recent=-0.4))
     flip = titled(flipped, "flipped negative")
     assert flip is not None and "7-day tone is −0.40 vs +0.60" in flip.detail
-    low = titled(flipped, "90-day low")
-    assert low is not None and low.severity == "watch"
+    low = titled(flipped, "near the bottom of its 90-day range")  # 5th percentile: near, not at, the low
+    assert low is not None and low.severity == "watch" and "5th percentile" in low.detail
+    floor = insights(run(GOOGLE, NEUTRAL_NEWS), tone=tone_trend(base=0.6, recent=-0.4, percentile=0.0))
+    assert titled(floor, "News tone at a 90-day low") is not None  # only the very bottom is "the low"
+    top = insights(run(GOOGLE, NEUTRAL_NEWS), tone=tone_trend(base=0.2, recent=0.6, percentile=0.91))
+    assert titled(top, "News tone near the top of its 90-day range") is not None
     calm = insights(run(GOOGLE, NEUTRAL_NEWS), tone=tone_trend(base=0.5, recent=0.6, percentile=0.6))
     assert titled(calm, "flipped") is None and titled(calm, "90-day") is None
 
@@ -121,7 +125,7 @@ def test_gdelt_extremes_are_judged_as_shown_and_strong_momentum_is_never_silent(
 
     low = tone_trend(base=0.54, recent=0.30, percentile=0.101)
     found = insights(run(GOOGLE, NEUTRAL_NEWS), tone=low)
-    low_ins = titled(found, "90-day low")
+    low_ins = titled(found, "near the bottom of its 90-day range")
     assert low_ins is not None and "10th percentile" in low_ins.detail
     # A sharply cooling GDELT tone that is not at an extreme still surfaces through the
     # momentum component (it moves the verdict, so the rail must say why).
@@ -282,6 +286,25 @@ def test_red_flag_filings() -> None:
     assert titled(insights(run(GOOGLE, NEUTRAL_NEWS), filings=[old]), "Red-flag") is None
     dilution = filing(10, "8-K", "Unregistered sale of equity (dilution)", ["3.02"], "medium", "bear")
     assert titled(insights(run(GOOGLE, NEUTRAL_NEWS), filings=[dilution]), "Dilution") is not None
+
+
+def test_shares_issued_to_pay_for_an_acquisition_are_not_a_dilution_watch() -> None:
+    # Live AMD: an 8-K (items 2.01, 3.02) for shares paid to World Labs' holders, which sec.py relabels,
+    # still raised the generic "unregistered equity sale" dilution watch on the item code alone.
+    paid = filing(5, "8-K", "Completed acquisition or disposal; Acquisition paid in stock: On September 30, 2026, "
+                            "Advanced Micro Devices, Inc. (the “Company”) completed its acquisition of World Labs "
+                            "(the “Acquisition”) and issued 1.2 million shares to its holders.",
+                  ["2.01", "3.02"], "medium", "neutral")
+    assert titled(insights(run(GOOGLE, NEUTRAL_NEWS), filings=[paid]), "Dilution") is None
+    raise_ = filing(5, "8-K", "Unregistered sale of equity (dilution): On September 30, 2026, Acme Inc. (the "
+                              "“Company”) entered into a securities purchase agreement (the “Purchase Agreement”) "
+                              "with certain investors for a private placement of 5,000,000 shares. Closing is expected.",
+                    ["1.01", "3.02"], "medium", "bear")
+    watch = titled(insights(run(GOOGLE, NEUTRAL_NEWS), filings=[raise_]), "Dilution")
+    assert watch is not None and watch.severity == "watch"
+    # A short summary, not the 8-K's legalese: no filing-date preamble, defined terms or second sentence.
+    assert "Acme Inc. entered into a securities purchase agreement with certain investors" in watch.detail
+    assert "On September" not in watch.detail and "(the “" not in watch.detail and "Closing" not in watch.detail
 
 
 def test_red_flag_news_needs_corroboration() -> None:

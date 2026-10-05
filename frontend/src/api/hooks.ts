@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { type BusyWait, retryWhenBusy } from "./busy";
 import { api, streamAnalysis } from "./client";
-import { HISTORY_TONE_RETRIES, HISTORY_TONE_RETRY_MS, historyTonePending, TONE_FOLLOW_UP_MS, tonePending } from "./pending";
+import { HISTORY_TONE_RETRIES, HISTORY_TONE_RETRY_MS, historyTonePending, TONE_FOLLOW_UP_MS, toneArrivedViaHistory, tonePending } from "./pending";
 import type { AlertRuleIn, Analysis, PriceRange, ProgressEvent, ScoreRequest, WatchItem } from "./types";
 
 const MIN = 60_000;
@@ -76,7 +76,11 @@ export function useAnalysis(ticker: string) {
  */
 export function useLateToneFollowUp(ticker: string, data: Analysis | undefined, progress: ProgressEvent[], busy: boolean) {
   const qc = useQueryClient();
-  const pending = !!data && data.ticker === ticker && tonePending(data, progress);
+  // Observes the tone ↔ price history the page loads anyway (never fetches it itself): once
+  // that call has tone and this result does not, the server has superseded it — re-read now.
+  const history = useHistory(ticker, 90, false).data;
+  const arrived = toneArrivedViaHistory(data, history);
+  const pending = !!data && data.ticker === ticker && (arrived || tonePending(data, progress));
   const stamp = data?.generated_at;
   useEffect(() => {
     if (!pending || busy) return;
@@ -92,12 +96,12 @@ export function useLateToneFollowUp(ticker: string, data: Analysis | undefined, 
         })
         .catch(() => undefined); // best effort: the page already shows a complete result
     };
-    timer = window.setTimeout(() => attempt(0), TONE_FOLLOW_UP_MS[0]);
+    timer = window.setTimeout(() => attempt(0), arrived ? 0 : TONE_FOLLOW_UP_MS[0]);
     return () => {
       ctrl.abort();
       window.clearTimeout(timer);
     };
-  }, [pending, busy, ticker, stamp, qc]);
+  }, [pending, arrived, busy, ticker, stamp, qc]);
 }
 
 /** Plain (non-streamed) analysis — shares the Intel page's cache entry. */

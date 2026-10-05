@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import math
+import re
 from collections.abc import Iterable
 from datetime import date, datetime
 
@@ -267,6 +268,21 @@ def trim(text: str, limit: int = 140) -> str:
     if len(t) > limit:
         t = t[: limit - 1].rsplit(" ", 1)[0].rstrip(",;:-") + "…"
     return t
+
+
+_LEGAL_DATE = re.compile(r"^(?:as previously (?:disclosed|reported)[^,]*,\s*)?(?:on|effective)\s+[A-Z][a-z]+\.?\s+\d{1,2},\s+\d{4},?\s*",
+                         re.IGNORECASE)
+_LEGAL_PAREN = re.compile(r"\s*\((?:the |each, a |collectively,? the )?[\"“”'‘’]+[^)]{1,40}[\"“”'‘’]+[^)]{0,40}\)")
+
+
+def gist(text: str, limit: int = 140) -> str:
+    """A filing excerpt as a reader-friendly line: the leading 'On May 4, 2026,' and defined-term
+    parentheticals ('(the “Company”)') dropped, first sentence only, trimmed to `limit`."""
+    t = _LEGAL_PAREN.sub("", " ".join(text.split()))
+    t = _LEGAL_DATE.sub("", t)
+    t = t[:1].upper() + t[1:]
+    first = re.split(r"(?<=[a-z0-9)])\.\s+(?=[A-Z])", t, maxsplit=1)[0]
+    return trim(first, limit).rstrip(".")
 
 
 def quote(text: str, limit: int = 90) -> str:

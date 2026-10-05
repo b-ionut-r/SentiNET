@@ -92,7 +92,7 @@ check(
 // Pin the zone so local-time labels are deterministic (the review's screenshots are New York).
 process.env.TZ = "America/New_York";
 const F = await load("src/lib/format.ts");
-const { tonePending, TONE_FOLLOW_UP_MS } = await load("src/api/pending.ts");
+const { tonePending, toneArrivedViaHistory, TONE_FOLLOW_UP_MS } = await load("src/api/pending.ts");
 const { toneOf } = await load("src/features/intel/priceRows.ts");
 const { skipReason, SKIP_BADGE } = await load("src/features/intel/scanChip.ts");
 const { thresholdProblem, KINDS, needsThreshold } = await load("src/features/watchlist/alertRules.ts");
@@ -145,6 +145,15 @@ check(
   tonePending({ tone: null, insights: [] }, [{ stage: "intel", key: "tone", status: "error", detail: "still loading (rate-limited)" }]),
 );
 check("tone-less result with no pending signal is not re-read (GDELT simply has nothing)", !tonePending({ tone: null, insights: [] }));
+{
+  const hist = (status, tones) => ({ ticker: "NVDA", status: { tone: status }, points: tones.map((tone) => ({ tone })) });
+  const bare = { ticker: "NVDA", tone: null };
+  check("tone that reached /api/history after a tone-less result triggers a re-read", toneArrivedViaHistory(bare, hist("ok", [null, -1.2])));
+  check("history without tone values does not trigger a re-read", !toneArrivedViaHistory(bare, hist("ok", [null])));
+  check("history whose tone call failed does not trigger a re-read", !toneArrivedViaHistory(bare, hist("error: HTTP 429", [-1.2])));
+  check("a result that already has tone is not re-read for history", !toneArrivedViaHistory({ ticker: "NVDA", tone: nvda.tone }, hist("ok", [-1.2])));
+  check("another ticker's history never triggers a re-read", !toneArrivedViaHistory({ ticker: "AMD", tone: null }, hist("ok", [-1.2])));
+}
 // The live wording since b4c6ad2 (backend/app/analytics/insights.py) — the old regex only knew "still loading".
 const liveLoading = {
   kind: "quality",

@@ -198,6 +198,16 @@ async def test_indices_use_the_24h_quote_when_a_crypto_bar_is_missing(
     assert expected is not None and btc.change_pct == expected.change_pct
 
 
+async def test_indices_show_crypto_on_the_quote_basis(_fixtures: dict[str, int]) -> None:
+    """The Market tape and the Intel page agree on crypto's daily change (rolling 24 h)."""
+    btc = next(q for q in await md.get_indices() if q.symbol == "BTC-USD")
+    expected = tx.quote_from_info(fx.info("BTC-USD"))
+    assert expected is not None
+    assert btc.change_pct == expected.change_pct and btc.price == expected.price
+    spy = next(q for q in await md.get_indices() if q.symbol == "SPY")
+    assert spy.change_pct is not None  # equities keep the previous-daily-close basis
+
+
 async def test_crypto_one_day_return_survives_a_missing_bar(
     _fixtures: dict[str, int], monkeypatch: pytest.MonkeyPatch
 ) -> None:

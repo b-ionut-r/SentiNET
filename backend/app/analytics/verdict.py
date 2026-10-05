@@ -126,7 +126,7 @@ def _deal_reason(f: Facts) -> Reason | None:
     d = f.deal
     if d is None:
         return None
-    return Reason(text=f"Pending acquisition{d.by}: {d.excerpt} (Form {d.form}, {d.when}) — the share price now "
+    return Reason(text=f"Agreed to be acquired{d.by} (merger agreement, 8-K {d.when}) — the share price now "
                        f"tracks the deal terms and the odds of closing", polarity="neutral", weight=1.0, ref="deal")
 
 

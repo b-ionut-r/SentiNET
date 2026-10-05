@@ -84,7 +84,7 @@ def test_bullish_large_cap_reads_bullish_with_evidence() -> None:
     smart = insight(a, "Analysts turning more bullish")
     assert smart is not None and smart.polarity == "bull"
     assert "Morgan Stanley" in smart.detail and "upgrade" in smart.detail
-    assert insight(a, "90-day high") is not None
+    assert insight(a, "near the top of its 90-day range") is not None
     assert not [i for i in a.insights if i.kind == "risk"]
 
     # Catalysts: earnings first (upcoming), then dated analyst actions with target moves.

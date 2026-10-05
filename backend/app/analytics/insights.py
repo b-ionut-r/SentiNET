@@ -67,6 +67,7 @@ from app.analytics.prepare import Item
 from app.analytics.util import (
     count,
     filing_parts,
+    gist,
     join_and,
     money,
     ordinal,
@@ -358,12 +359,15 @@ def _momentum(f: Facts) -> Iterator[_Cand]:
     tone = f.inputs.tone
     if tone is not None and tone.percentile_7d is not None and tone.tone_7d is not None:
         p = tone.percentile_7d
-        rank = round(p * 100)  # judged as shown ("10th pct" is a 90-day low)
+        rank = round(p * 100)  # judged as shown
         if rank >= 90 or rank <= 10:
             high = rank >= 90
             fired = True
+            # Only the very end of the range is a "90-day high/low"; the 90th percentile is near the top.
+            where = (f"at a 90-day {'high' if high else 'low'}" if rank >= 99 or rank <= 1
+                     else f"near the {'top' if high else 'bottom'} of its 90-day range")
             yield _make("momentum", "watch" if not high else "info", "bull" if high else "bear",
-                        f"News tone at a 90-day {'high' if high else 'low'}",
+                        f"News tone {where}",
                         f"GDELT 7-day tone of {signed(tone.tone_7d)} ranks in the {ordinal(rank)} "
                         f"percentile of the last 90 days.", abs(p - 0.5) * 2)
     r, o = f.news_recent, f.news_older
@@ -495,9 +499,10 @@ def _deals(f: Facts) -> Iterator[_Cand]:
     d = f.deal
     if d is not None:
         items = f" (item {', '.join(d.items)})" if d.items else ""
-        said = d.excerpt.rstrip(".") + ("" if d.excerpt.endswith("…") else ".")
+        said = gist(d.excerpt, 140)
+        said += "" if said.endswith("…") else "."
         yield _make("deal", "alert", "neutral", f"Pending acquisition: merger agreement ({d.when})",
-                    f"Form {d.form}{items}: {said} {f.name} is the company being acquired{d.by}, so its share price "
+                    f"{f.name} agreed to be acquired{d.by}. Form {d.form}{items}: {said} Its share price "
                     f"now tracks the deal terms and the odds of closing; analyst targets and the price trend are "
                     f"discounted in the score.", 20)
         return
@@ -602,7 +607,7 @@ def _risks(f: Facts) -> Iterator[_Cand]:
         age = (f.now.date() - filing.date).days
         items = f" (item {', '.join(filing.items)})" if filing.items else ""
         label, desc = filing_parts(filing.title)
-        said = trim(desc or label, 160).rstrip(".")
+        said = gist(desc or label, 160)
         said += "" if said.endswith("…") else "."
         if _COMPLIANCE_RE.search(filing.title):
             continue  # "regained compliance" resolves a listing problem; it is not a red flag
@@ -612,9 +617,11 @@ def _risks(f: Facts) -> Iterator[_Cand]:
         if filing.importance == "high" and filing.polarity == "bear" and 0 <= age <= 120:
             yield _make("risk", "alert", "bear", f"Red-flag filing: {trim(label, 60)}",
                         f"Form {filing.form}{items} filed {short_date(filing.date)}: {said}", 6 - age / 30)
-        elif "3.02" in filing.items and 0 <= age <= 60:
-            yield _make("risk", "watch", "bear", "Dilution: unregistered equity sale",
-                        f"Form {filing.form}{items} filed {short_date(filing.date)}: {said}", 2)
+        elif "3.02" in filing.items and 0 <= age <= 60 and "Acquisition paid in stock" not in label:
+            # Shares issued as acquisition consideration (sec.py relabels those) are not a cash raise.
+            yield _make("risk", "watch", "bear", "Dilution: unregistered sale of shares",
+                        f"New shares sold outside a public offering (8-K item 3.02, {short_date(filing.date)}): "
+                        f"{said}", 2)
 
 
 # --------------------------------------------------------------------------- #
