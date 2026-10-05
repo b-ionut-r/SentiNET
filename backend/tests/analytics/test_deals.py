@@ -78,6 +78,7 @@ def test_pending_deal_leads_the_read_and_discounts_price_anchored_components() -
     assert "deal pending" in comps["analysts"].detail and "deal pending" in comps["technicals"].detail
     assert "pending acquisition dominates" in a.brief.summary
     assert a.brief.watch[0].startswith("Deal outcome: pending acquisition by Action Acquisitions LLC")
+    assert not any(b.startswith(("Extended", "Overbought", "Oversold")) for b in a.brief.bear_points + a.brief.bull_points)
     # Without the deal, the unresolved delisting notice is still an alert.
     assert any(i.title.startswith("Red-flag filing: Delisting notice") for i in plain.insights)
 

@@ -92,6 +92,7 @@ authorize authorizes authorized agree agrees agreed pledge pledges pledged propo
 offload offloads offloaded add adds adding added finance seeking hire hires hired concern concerns read reads
 dollars hours after-hours premarket pre-market following heads sends send decline declines declined dip dips dipped
 slump slumps advance advances advanced trades extend extends extended follow follows followed behind
+gonna wanna gotta lol lmao imo tbh
 """)
 # Words that only say something next to another word: roles, sentiment labels,
 # generic nouns ("MongoDB CEO", "margin pressure", "iPhone Pro" are chips;

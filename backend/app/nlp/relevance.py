@@ -180,7 +180,7 @@ _NOT_SISTER = wordset("class series adr adrs ads gdr gdrs ordinary preferred pre
 _SISTER_LEGAL_AFTER_RE = re.compile(r"^\s+(?:Ltd|Limited|plc|PLC|Inc|Corp|Corporation|Co|Company|AG|SA|NV|SE|Bhd|"
                                     r"Tbk|ASA|AB|Oyj|K\.?K)\b")
 _SISTER_SHARES_AFTER_RE = re.compile(r"^\s+(?:stock|stocks|shares|share price|shareholders|stockholders|ipo)\b")
-_NEXT_NAME_RE = re.compile(r"^\s+((?-i:[A-Z])[\w&]*(?:&[A-Z]+)?)")
+_NEXT_NAME_RE = re.compile(r"^\s+([A-Za-z][\w&]*(?:&[A-Za-z]+)?)")
 _HYPHEN_OK = wordset("backed owned led based made branded related linked focused funded parent maker rival supplier "
                        "partner like style designed built powered approved listed")
 # "Nvidia-backed CoreWeave", "Tesla-like margins": the name qualifies something else.
@@ -910,8 +910,9 @@ def _sister_issuer(text: str, end: int, variant: _NameVariant, matcher: _Matcher
         return name
     if low in _SISTER_WORDS:
         return None if low[:5] in matcher.industry_text else name  # "Dow Chemical" is Dow's own
-    if low in _VERBISH or low in DETERMINERS or _FOLLOWER_RE.match(nxt.group(0)) or _VENUE_AFTER_RE.match(nxt.group(0)):
-        return None
+    if (not word[0].isupper() or low in _VERBISH or low in DETERMINERS or _FOLLOWER_RE.match(nxt.group(0))
+            or _VENUE_AFTER_RE.match(nxt.group(0))):
+        return None  # an unknown word names an issuer only when capitalized ("Vodafone Idea shares")
     rest = text[end + nxt.end():end + nxt.end() + 30]
     if _SISTER_LEGAL_AFTER_RE.match(rest) or (not title_case and _SISTER_SHARES_AFTER_RE.match(rest)):
         return name  # "Toyota Tsusho Corp", "Vodafone Idea shares slump"

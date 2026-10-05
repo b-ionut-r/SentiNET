@@ -426,6 +426,7 @@ DOW = _company(ticker="DOW", name="Dow Inc.", short_name="Dow", aliases=[], indu
     (VOD, "Vodafone Idea shares: CLSA maintains Hold with Rs 13 target on debt raising plan"),
     (VOD, "Bombay HC quashes ₹2,113 crore DoT demand against Vodafone Idea"),
     (VOD, "Vodafone Idea Ltd Share Price Today,, IDEA Share Price NSE, BSE"),
+    (VOD, "Vodafone Idea Plans. Latest vodafone idea 4g plans offers & updates"),  # live: lifted by the snippet
     (META, "Meta Materials files for bankruptcy"),
     (AAPL, "Apple Hospitality REIT shares rise"),
 ])

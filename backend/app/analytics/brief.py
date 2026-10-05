@@ -279,7 +279,8 @@ def _counterpoints(f: Facts, insights: list[Insight]) -> list[tuple[str, float, 
     if a is not None and f.composite.parts["analysts"].available:
         out.extend(_analyst_points(f, a))
     t = f.inputs.technicals
-    if t is not None and f.composite.parts["technicals"].available:
+    # While a deal is pending the price tracks its terms: stretched/washed-out levels say nothing.
+    if t is not None and f.composite.parts["technicals"].available and f.deal is None:
         if t.rsi_14 is not None and t.rsi_14 >= 70:
             run = f" after {pct(t.return_1m)} in a month" if t.return_1m is not None and t.return_1m > 0 else ""
             out.append(("bear", 0.3, f"Overbought: RSI {t.rsi_14:.0f}{run}", "technicals-extreme"))
