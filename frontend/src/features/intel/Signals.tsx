@@ -12,7 +12,7 @@ import { MetaGroup } from "../../components/ui/MetaGroup";
 import { Empty, Segmented } from "../../components/ui/Misc";
 import { Panel } from "../../components/ui/Panel";
 import { cx } from "../../lib/cx";
-import { compact, plural, timeAgo } from "../../lib/format";
+import { compact, plural, safeHref, timeAgo } from "../../lib/format";
 import { polarityOf } from "../../lib/sentiment";
 import { eventLabel, themeLabel } from "./themes";
 
@@ -158,6 +158,7 @@ export function SignalExplorer({ a }: { a: Analysis }) {
 }
 
 function SignalRow({ s }: { s: Signal }) {
+  const href = safeHref(s.url);
   // Social posts are about who said it; news is about which outlet ran it.
   const who = s.kind === "social" && s.author ? `@${s.author.replace(/^@/, "")}` : s.publisher ?? (s.author ? `@${s.author.replace(/^@/, "")}` : null);
   const sameAsSource = !who || who.toLowerCase().replace(/[^a-z0-9]/g, "") === s.source_label.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -194,16 +195,16 @@ function SignalRow({ s }: { s: Signal }) {
       <div className="min-w-0">
         <div className="flex items-start gap-2">
           <p className={cx("min-w-0 flex-1 text-[13px] leading-[19px]", s.kind === "news" ? "text-ink" : "text-ink-2")}>
-            {s.url ? (
-              <a href={s.url} target="_blank" rel="noreferrer" className="hover:text-ink">
+            {href ? (
+              <a href={href} target="_blank" rel="noreferrer" className="hover:text-ink">
                 <DriverText text={s.title} drivers={s.drivers} />
               </a>
             ) : (
               <DriverText text={s.title} drivers={s.drivers} />
             )}
           </p>
-          {s.url && (
-            <a href={s.url} target="_blank" rel="noreferrer" className="mt-0.5 text-muted hover:text-ink-2" aria-label="Open source">
+          {href && (
+            <a href={href} target="_blank" rel="noreferrer" className="mt-0.5 text-muted hover:text-ink-2" aria-label="Open source">
               <ExternalLink className="size-3.5" />
             </a>
           )}

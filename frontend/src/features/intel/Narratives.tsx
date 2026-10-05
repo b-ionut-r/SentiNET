@@ -11,7 +11,7 @@ import { Pulse } from "../../components/charts/Pulse";
 import { Chip, NewBadge, ScoreChip } from "../../components/ui/Badges";
 import { Panel } from "../../components/ui/Panel";
 import { cx } from "../../lib/cx";
-import { plural, signed, timeAgo } from "../../lib/format";
+import { plural, safeHref, signed, timeAgo } from "../../lib/format";
 import { polarityOf, toneFill } from "../../lib/sentiment";
 import { useRoving } from "../../lib/useRoving";
 import { themeLabel } from "./themes";
@@ -165,9 +165,9 @@ function NarrativeRow({ n, rank, members, defaultOpen }: { n: Narrative; rank: n
       </button>
       {open && (
         <ul className="mb-3 ml-12 mr-4 space-y-1.5 rounded-lg bg-sunken p-2.5 animate-fade-in">
-          {sorted.length === 0 && n.url && (
+          {sorted.length === 0 && safeHref(n.url) && (
             <li>
-              <a className="link text-xs" href={n.url} target="_blank" rel="noreferrer">
+              <a className="link text-xs" href={safeHref(n.url)} target="_blank" rel="noreferrer">
                 Open the representative article
               </a>
             </li>
@@ -176,8 +176,8 @@ function NarrativeRow({ n, rank, members, defaultOpen }: { n: Narrative; rank: n
             <li key={s.id} className="flex items-start gap-2 text-xs">
               <ScoreChip score={s.score} className="mt-px shrink-0" />
               <div className="min-w-0 flex-1">
-                {s.url ? (
-                  <a href={s.url} target="_blank" rel="noreferrer" className="group/a text-ink-2 hover:text-ink">
+                {safeHref(s.url) ? (
+                  <a href={safeHref(s.url)} target="_blank" rel="noreferrer" className="group/a text-ink-2 hover:text-ink">
                     {s.title}
                     <ExternalLink className="ml-1 inline size-3 text-faint group-hover/a:text-muted" aria-hidden />
                   </a>

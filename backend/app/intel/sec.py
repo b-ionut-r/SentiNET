@@ -406,11 +406,26 @@ def _excerpt(section: str, max_chars: int) -> str | None:
     return f"{lead} {extra}" if extra else lead
 
 
+# A listing problem that is over: "received notice from Nasdaq that it has regained compliance with the
+# minimum bid price requirement" (GPRO 8-K, 2026-09-16). Deficiency letters say "has 180 days to regain
+# compliance" / "if the Company regains compliance", so only completed wording counts.
+_NOT = r"(?<!not )(?<!n't )(?<!yet )(?<!never )"  # "has not (yet) regained compliance" is still a deficiency
+_REGAINED = re.compile(rf"{_NOT}\bregained (?:full )?compliance|{_NOT}\bevidenced compliance\b|"
+                       r"\bcompliance has been (?:regained|restored)\b|"
+                       r"\b(?:matter|deficiency) (?:is|has been|is now|was) (?:now )?(?:closed|resolved|cured)\b",
+                       re.IGNORECASE)
+_LISTING_DEFICIENCY = re.compile(r"deficiency (?:letter|notice)|listing qualifications|minimum bid price|"
+                                 r"regain compliance|(?:notice|notification) of delisting|delisting determination",
+                                 re.IGNORECASE)
+# Item codes whose bear prior is only "a listing-rule notice" (a regained-compliance 8-K is sometimes
+# filed under 3.01): the text then decides.
+_LISTING_ONLY_BEAR = {"3.01"}
+
 _EXCERPT_RULES: tuple[tuple[re.Pattern[str], Importance, Pol | None], ...] = (
     (re.compile(r"going concern|material weakness|subpoena|wells notice|investigation by|class action",
                 re.IGNORECASE), "high", "bear"),
-    (re.compile(r"deficiency (?:letter|notice)|listing qualifications|minimum bid price|regain compliance|"
-                r"(?:notice|notification) of delisting|delisting determination", re.IGNORECASE), "high", "bear"),
+    (_LISTING_DEFICIENCY, "high", "bear"),  # first: an open deficiency outranks one that was cured
+    (_REGAINED, "medium", "bull"),
     (re.compile(r"definitive (?:merger )?agreement|merger agreement|agreement and plan of merger|to acquire|"
                 r"tender offer|business combination", re.IGNORECASE), "high", None),
     (re.compile(r"(?:increase|authoriz|approv)\w*.{0,80}(?:share repurchase|stock repurchase|buyback)|"
@@ -459,12 +474,25 @@ def _exec_change(text: str) -> tuple[Importance, Pol | None] | None:
     return found
 
 
+def _rule_matches(pattern: re.Pattern[str], text: str) -> bool:
+    """Whether a rule fires; the deficiency rule only on sentences that don't report it resolved
+    ("regained compliance with the minimum bid price requirement" names the old deficiency)."""
+    if pattern is not _LISTING_DEFICIENCY:
+        return pattern.search(text) is not None
+    return any(pattern.search(s) and not _REGAINED.search(s) for s in _split_sentences(text))
+
+
 def reassess_8k(filing: Filing, excerpt: str) -> Filing:
     """Raise importance / set polarity from what the filing text actually says."""
     importance, polarity = filing.importance, filing.polarity
-    hits = [(imp, pol) for pattern, imp, pol in _EXCERPT_RULES if pattern.search(excerpt)]
+    hits = [(imp, pol) for pattern, imp, pol in _EXCERPT_RULES if _rule_matches(pattern, excerpt)]
     if (change := _exec_change(excerpt)) is not None:
         hits.append(change)
+    bear_items = {c for c in filing.items if c in ITEMS_8K and ITEMS_8K[c].polarity == "bear"}
+    if (_REGAINED.search(excerpt) and bear_items and bear_items <= _LISTING_ONLY_BEAR
+            and not any(pol == "bear" for _, pol in hits)):
+        # Filed under 3.01 but the notice is that compliance was regained: not a red flag.
+        importance, polarity = "medium", "neutral"
     for imp, pol in hits:
         if _RANK[imp] > _RANK[importance]:
             importance = imp

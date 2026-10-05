@@ -21,7 +21,12 @@ Each component maps its evidence to a signed strength x in [-1, 1]
 * insiders: only open-market trades; buying by several insiders is strong,
   selling is scaled by market cap and mild (it is routine).
 * momentum: GDELT 7d-vs-30d tone change + 90d percentile, and the last 48 h of
-  headlines vs. the prior days (damped unless the shift is ~2 standard errors).
+  headlines vs. the prior days. The headline shift is short-window evidence:
+  the part of it that merely returns toward the typical tone (news-cycle decay
+  after an event day: +0.30 → +0.14 when +0.04 is typical) counts half, it is
+  damped unless it is ~2 standard errors, and it is shrunk for small samples
+  (k/(k+15), k = items in the thinner window) — so on its own it reads at most
+  as a mild lean unless headlines turn decisively.
 * technicals: x = tanh(0.35 · mean z) where each z is a return or DMA
   distance, net of the typical market drift (+0.8%/month — an ordinary uptrend
   is the baseline, as +0.04 is for news tone), in units of its
@@ -62,6 +67,8 @@ TEXT_PRIOR = 6.0  # pseudo-items of neutral prior for text components
 TEXT_SCALE = 0.35
 NEWS_BASELINE = 0.04  # typical headline tone (see module docstring)
 SHIFT_SCALE = 0.5  # 48h-vs-prior headline tone shift giving x = tanh(1)
+SHIFT_PRIOR = 15.0  # pseudo-items shrinking a headline shift (k = items in the thinner window)
+REVERSION_CREDIT = 0.5  # share of a move back toward the typical tone that counts as momentum
 SOCIAL_BASELINE = 0.05  # typical social-post tone
 STOCKTWITS_BASELINE = 0.62
 STOCKTWITS_MIN_TAGGED = 5
@@ -504,13 +511,10 @@ def momentum_part(tone: ToneTrend | None, recent: Summary, older: Summary) -> Pa
                            f" ({signed(ch)}){pctl}")
     shift = headline_shift(recent, older)
     if shift is not None:
-        d, z = shift
-        k = min(recent.n, older.n)
-        # Short-window shifts partly reflect news-cycle decay after an event day: keep them modest.
-        subs.append(Sub(math.tanh(d / SHIFT_SCALE) * min(1.0, abs(z) / 2.0), 0.6 * k / (k + 15), 0.4))
-        bits.append(f"headlines 48h {signed(recent.mean or 0.0)} vs {signed(older.mean or 0.0)} before")
-        reason_bits.append(f"last-48h headlines average {signed(recent.mean or 0.0)} ({recent.n}) vs "
-                           f"{signed(older.mean or 0.0)} in the prior days ({older.n})")
+        subs.append(Sub(shift.strength, 0.6 * shift.k / (shift.k + SHIFT_PRIOR), 0.4))
+        bits.append(f"headlines 48h {signed(shift.recent)} vs {signed(shift.older)} before")
+        reason_bits.append(f"last-48h headlines average {signed(shift.recent)} ({recent.n}) vs "
+                           f"{signed(shift.older)} in the prior days ({older.n})")
     blended = _blend(subs)
     if blended is None:
         return part
@@ -532,20 +536,55 @@ def momentum_part(tone: ToneTrend | None, recent: Summary, older: Summary) -> Pa
             x, f"{verb_up} global news tone (GDELT {signed(tone.change_7d_vs_30d)} vs 30d)",
             f"{verb_down} global news tone (GDELT {signed(tone.change_7d_vs_30d)} vs 30d)")
     elif shift is not None:
-        r, o = signed(recent.mean or 0.0), signed(older.mean or 0.0)
+        r, o = signed(shift.recent), signed(shift.older)
         part.phrase, part.strong = _phrase(x, f"{verb_up} headlines ({r} in 48h vs {o} before)",
                                            f"{verb_down} headlines ({r} in 48h vs {o} before)")
-    part.facts.update(tone_change=tone.change_7d_vs_30d if tone else None)
+    part.facts.update(tone_change=tone.change_7d_vs_30d if tone else None, shift=shift,
+                      gdelt=tone is not None and tone.change_7d_vs_30d is not None)
     return part
 
 
-def headline_shift(recent: Summary, older: Summary) -> tuple[float, float] | None:
-    """(tone difference, its z-score) between the last 48 h and the prior days (>= 5 items each)."""
+@dataclass(frozen=True)
+class Shift:
+    """Headline tone of the last 48 h vs the prior days (see the module docstring)."""
+
+    recent: float
+    older: float
+    z: float  # (recent − older) / its standard error
+    effective: float  # recent − older, a return toward the typical tone counted at REVERSION_CREDIT
+    k: int  # items in the thinner window
+
+    @property
+    def change(self) -> float:
+        return self.recent - self.older
+
+    @property
+    def strength(self) -> float:
+        """Signed strength in (-1, 1): decay-discounted, significance-damped, sample-shrunk."""
+        return (math.tanh(self.effective / SHIFT_SCALE) * min(1.0, abs(self.z) / 2.0)
+                * self.k / (self.k + SHIFT_PRIOR))
+
+
+def reverting_change(before: float, after: float, typical: float) -> float:
+    """after − before, with the part that merely returns toward `typical` (without crossing
+    it) counted at REVERSION_CREDIT: after an event day, tone drifting back to normal is
+    the news cycle, not a change of sentiment. Moves away from typical count in full."""
+    d = after - before
+    gap = before - typical
+    if gap * d >= 0:
+        return d
+    toward = min(abs(d), abs(gap))
+    return math.copysign(REVERSION_CREDIT * toward + (abs(d) - toward), d)
+
+
+def headline_shift(recent: Summary, older: Summary) -> Shift | None:
+    """The last 48 h of headlines vs the prior days (>= 5 items each), or None."""
     if recent.n < 5 or older.n < 5 or recent.mean is None or older.mean is None:
         return None
     d = recent.mean - older.mean
     se = math.sqrt(recent.spread ** 2 / max(recent.n_eff, 1.0) + older.spread ** 2 / max(older.n_eff, 1.0))
-    return d, d / max(se, 0.02)
+    return Shift(recent=recent.mean, older=older.mean, z=d / max(se, 0.02),
+                 effective=reverting_change(older.mean, recent.mean, NEWS_BASELINE), k=min(recent.n, older.n))
 
 
 def _was_negative(tone: ToneTrend | None, older: Summary) -> bool:

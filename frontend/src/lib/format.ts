@@ -34,20 +34,99 @@ export function ratioPct(n: number | null | undefined, digits = 0): string {
   return `${(n * 100).toFixed(digits)}%`;
 }
 
-const currencySymbol: Record<string, string> = { USD: "$", EUR: "€", GBP: "£", JPY: "¥", CAD: "C$", AUD: "A$", HKD: "HK$", CHF: "CHF " };
+const currencySymbol: Record<string, string> = {
+  USD: "$",
+  EUR: "€",
+  GBP: "£",
+  JPY: "¥",
+  CAD: "C$",
+  AUD: "A$",
+  NZD: "NZ$",
+  HKD: "HK$",
+  SGD: "S$",
+  CHF: "CHF ",
+  CNY: "CN¥",
+  INR: "₹",
+  KRW: "₩",
+  ILS: "₪",
+  ZAR: "R",
+};
 
-export function symbolFor(currency: string | null | undefined): string {
-  if (!currency) return "$";
-  return currencySymbol[currency.toUpperCase()] ?? `${currency.toUpperCase()} `;
+/**
+ * Yahoo's minor-unit codes are case-sensitive: "GBp"/"GBX" is pence, "ZAc" South
+ * African cents, "ILA" Israeli agorot. Upper-casing them reads pence as pounds (100×).
+ * Per-share figures (price, day range, analyst targets) arrive in the minor unit;
+ * aggregates (market cap, insider values) arrive in the major one — VOD.L quotes
+ * 126.8 GBp with a 29.4e9 GBP market cap.
+ */
+const MINOR_UNITS: Record<string, { major: string; suffix: string }> = {
+  GBp: { major: "GBP", suffix: "p" },
+  GBX: { major: "GBP", suffix: "p" },
+  GBx: { major: "GBP", suffix: "p" },
+  ZAc: { major: "ZAR", suffix: "c" },
+  ZAC: { major: "ZAR", suffix: "c" },
+  ILA: { major: "ILS", suffix: " ag." },
+};
+
+/** ISO code of the major currency ("GBp" → "GBP", "usd" → "USD"); null when unknown. */
+export function majorCurrency(currency: string | null | undefined): string | null {
+  if (!currency) return null;
+  return MINOR_UNITS[currency]?.major ?? currency.toUpperCase();
 }
 
-/** Price with sensible precision for the magnitude ($0.000123, $12.34, $86,152). */
+/** Prefix for an amount in the major unit ("$", "£", "SEK "); "" when the currency is unknown. */
+export function symbolFor(currency: string | null | undefined): string {
+  const major = majorCurrency(currency);
+  if (!major) return "";
+  return currencySymbol[major] ?? `${major} `;
+}
+
+function withUnit(n: number, body: string, currency: string | null | undefined): string {
+  const minor = currency ? MINOR_UNITS[currency] : undefined;
+  const sign = n < 0 ? MINUS : "";
+  return minor ? `${sign}${body}${minor.suffix}` : `${sign}${symbolFor(currency)}${body}`;
+}
+
+/**
+ * Per-share price in its quote currency with sensible precision for the magnitude
+ * ($0.000123, $12.34, $86,152, 126.80p). No currency → the bare number: a symbol is
+ * never guessed.
+ */
 export function price(n: number | null | undefined, currency?: string | null): string {
   if (!isNum(n)) return DASH;
   const abs = Math.abs(n);
   const digits = abs >= 10000 ? 0 : abs >= 1 ? 2 : abs >= 0.01 ? 4 : 6;
-  const body = abs.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits });
-  return `${n < 0 ? MINUS : ""}${symbolFor(currency)}${body}`;
+  return withUnit(n, abs.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits }), currency);
+}
+
+/**
+ * A per-share estimate or target (EPS, price target): cents precision from 0.10 up
+ * ("−$0.14", "$0.50", "121.80p"), more digits only below that.
+ */
+export function perShare(n: number | null | undefined, currency?: string | null): string {
+  if (!isNum(n)) return DASH;
+  const abs = Math.abs(n);
+  if (abs < 0.1 && abs > 0) return price(n, currency);
+  const digits = abs >= 10000 ? 0 : 2;
+  return withUnit(n, abs.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits }), currency);
+}
+
+/**
+ * Currency that EPS and revenue estimates are reported in — often not the quote's:
+ * SHOP.TO quotes CAD but reports USD, ASML quotes USD but reports EUR, VOD.L quotes
+ * pence but reports EUR. Uses the API's own field when present; otherwise labels only
+ * the case that is safe to infer (a US company quoted in USD) and returns null, so the
+ * number shows without a symbol rather than with a wrong one.
+ */
+export function reportingCurrency(a: {
+  quote: { currency: string | null } | null;
+  profile: { country: string | null } | null;
+  earnings: object | null;
+}): string | null {
+  const stated = (a.earnings as { currency?: string | null } | null)?.currency;
+  if (stated) return stated;
+  const quoted = a.quote?.currency;
+  return quoted === "USD" && a.profile?.country === "United States" ? "USD" : null;
 }
 
 /** Compact magnitude with ~3 significant digits: 4.87T, 33.3M, 996K, 812. */
@@ -71,6 +150,10 @@ export function compact(n: number | null | undefined): string {
   return `${sign}${Math.round(abs).toLocaleString("en-US")}`;
 }
 
+/**
+ * Compact aggregate amount (market cap, deal value, revenue) in the MAJOR unit: a
+ * pence-quoted listing's market cap is in pounds, so "GBp" reads as "£29.4B".
+ */
 export function money(n: number | null | undefined, currency?: string | null): string {
   if (!isNum(n)) return DASH;
   return `${n < 0 ? MINUS : ""}${symbolFor(currency)}${compact(Math.abs(n))}`;
@@ -173,6 +256,22 @@ export function ordinal(n: number): string {
 
 export function plural(n: number, one: string, many = `${one}s`): string {
   return `${int(n)} ${n === 1 ? one : many}`;
+}
+
+/**
+ * A provider-supplied link that is safe to put in an href: absolute http(s) only,
+ * normalised by the URL parser. Feed URLs come from RSS <link>s, redirect params and
+ * third-party APIs, and React 18 renders `javascript:` hrefs as-is in production — so
+ * anything else (javascript:, data:, vbscript:, relative paths) is not linked at all.
+ */
+export function safeHref(url: string | null | undefined): string | undefined {
+  if (!url) return undefined;
+  try {
+    const u = new URL(url);
+    return u.protocol === "http:" || u.protocol === "https:" ? u.href : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export function hostOf(url: string | null | undefined): string | null {

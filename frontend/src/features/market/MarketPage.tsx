@@ -17,7 +17,7 @@ import { Delta, Mark, NewBadge, ScoreChip } from "../../components/ui/Badges";
 import { CountUp, Empty, ErrorState, InlineAlert, Segmented, Skeleton, TickerLogo } from "../../components/ui/Misc";
 import { Panel, SubHead } from "../../components/ui/Panel";
 import { cx } from "../../lib/cx";
-import { DASH, dayTime, int, pct, plural, price, timeAgo } from "../../lib/format";
+import { DASH, dayTime, int, pct, plural, price, safeHref, timeAgo } from "../../lib/format";
 import { fearGreedBand, polarityOf, polarityOf100, textTone, toneVar } from "../../lib/sentiment";
 import { getRecent } from "../../lib/storage";
 
@@ -163,7 +163,8 @@ function IndexTape({ indices }: { indices: IndexQuote[] }) {
         // Index levels (^VIX, ^TNX) have no ticker page; ETF proxies are labelled as such.
         const isIndex = i.symbol.startsWith("^");
         const isEtf = /^[A-Z]{2,5}$/.test(i.symbol);
-        const level = i.price == null ? DASH : i.symbol === "^TNX" ? `${i.price.toFixed(2)}%` : i.symbol === "^VIX" ? i.price.toFixed(2) : price(i.price);
+        // Index levels are points, not money; the tape's ETFs, gold futures and BTC-USD all trade in dollars.
+        const level = i.price == null ? DASH : i.symbol === "^TNX" ? `${i.price.toFixed(2)}%` : isIndex ? i.price.toFixed(2) : price(i.price, "USD");
         const body = (
           <>
             <div className="flex items-baseline justify-between gap-2">
@@ -380,8 +381,8 @@ function MarketNarratives({ narratives, className }: { narratives: Narrative[]; 
               <div className="min-w-0 flex-1">
                 <div className="flex items-start gap-2">
                   <p className="min-w-0 flex-1 text-[14px] font-medium leading-5 text-ink">
-                    {n.url ? (
-                      <a href={n.url} target="_blank" rel="noreferrer" className="hover:underline">
+                    {safeHref(n.url) ? (
+                      <a href={safeHref(n.url)} target="_blank" rel="noreferrer" className="hover:underline">
                         {n.headline}
                       </a>
                     ) : (

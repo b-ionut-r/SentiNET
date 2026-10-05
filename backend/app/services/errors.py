@@ -5,6 +5,7 @@ from __future__ import annotations
 
 class ServiceError(Exception):
     status_code = 500
+    retry_after: int | None = None  # seconds; sent as a `Retry-After` header when set
 
 
 class InvalidInput(ServiceError):
@@ -29,3 +30,9 @@ class Unavailable(ServiceError):
 
 class AnalysisFailed(Unavailable):
     """Synthesis itself failed (provider failures never raise; they degrade)."""
+
+
+class Busy(Unavailable):
+    """A bounded work queue is full (e.g. the sentiment lab); retry shortly."""
+
+    retry_after = 5

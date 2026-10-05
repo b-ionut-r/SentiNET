@@ -149,6 +149,19 @@ export interface RangeMarker {
   kind: "current" | "mean" | "median";
 }
 
+/**
+ * Label anchored at `pct` (0–100) of the track that never leaves it: shifting the
+ * label left by the same share of its own width puts its left edge on the track's
+ * left end at 0%, centres it at 50% and right-aligns it at 100%.
+ */
+export function edgeSafe(pct: number): { left: string; transform: string } {
+  const p = Math.max(0, Math.min(100, pct));
+  return { left: `${p}%`, transform: `translateX(-${p}%)` };
+}
+
+/** Low and high sit too close to label separately (in % of the track) — one label covers both. */
+export const RANGE_MERGE_PCT = 30;
+
 /** Low–high band with labelled markers (e.g. analyst targets vs. current price). */
 export function RangeBar({
   low,
@@ -156,6 +169,7 @@ export function RangeBar({
   markers,
   lowLabel,
   highLabel,
+  singleLabel,
   className,
 }: {
   low: number;
@@ -163,27 +177,30 @@ export function RangeBar({
   markers: RangeMarker[];
   lowLabel: ReactNode;
   highLabel: ReactNode;
+  /** Shown once, centred on the band, when low and high are too close for two labels (e.g. one analyst). */
+  singleLabel?: ReactNode;
   className?: string;
 }) {
   const values = [low, high, ...markers.map((m) => m.value)];
   const lo = Math.min(...values);
   const hi = Math.max(...values);
-  const pad = (hi - lo) * 0.04 || 1;
+  const pad = (hi - lo) * 0.04 || Math.abs(hi) * 0.04 || 1;
   const d0 = lo - pad;
   const d1 = hi + pad;
   const x = (v: number) => ((v - d0) / (d1 - d0)) * 100;
   const current = markers.find((m) => m.kind === "current");
   const others = markers.filter((m) => m.kind !== "current");
+  const merged = x(high) - x(low) < RANGE_MERGE_PCT;
   return (
     <div className={cx("relative pt-6 pb-6", className)}>
       {current && (
-        <div className="absolute top-0 -translate-x-1/2 whitespace-nowrap text-2xs font-semibold text-ink" style={{ left: `${x(current.value)}%` }}>
+        <div className="absolute top-0 whitespace-nowrap text-2xs font-semibold text-ink" style={edgeSafe(x(current.value))}>
           {current.label}
         </div>
       )}
       <div className="relative h-2">
         <div className="absolute inset-y-0 rounded-full bg-[rgb(var(--grid))]" style={{ left: 0, right: 0 }} />
-        <div className="absolute inset-y-0 rounded-full bg-[rgb(var(--ink-2)/0.26)]" style={{ left: `${x(low)}%`, width: `${x(high) - x(low)}%` }} />
+        <div className="absolute inset-y-0 min-w-[3px] rounded-full bg-[rgb(var(--ink-2)/0.26)]" style={{ left: `${x(low)}%`, width: `${x(high) - x(low)}%` }} />
         {others.map((m) => (
           <div key={m.kind} className="absolute -top-1 -bottom-1 w-0.5 -translate-x-1/2 rounded-full bg-[rgb(var(--ink-2))]" style={{ left: `${x(m.value)}%` }} />
         ))}
@@ -194,19 +211,31 @@ export function RangeBar({
           />
         )}
       </div>
-      <div className="absolute bottom-0 left-0 text-2xs text-muted num" style={{ left: `${Math.max(0, x(low) - 2)}%` }}>
-        {lowLabel}
-      </div>
-      {others
-        .filter((m) => x(m.value) - x(low) > 16 && x(high) - x(m.value) > 16)
-        .map((m) => (
-          <div key={m.kind} className="absolute bottom-0 -translate-x-1/2 whitespace-nowrap text-2xs font-medium text-ink-2" style={{ left: `${x(m.value)}%` }}>
-            {m.label}
+      {merged ? (
+        <div className="absolute bottom-0 whitespace-nowrap text-2xs text-muted num" style={edgeSafe((x(low) + x(high)) / 2)}>
+          {singleLabel ?? (
+            <>
+              {lowLabel} · {highLabel}
+            </>
+          )}
+        </div>
+      ) : (
+        <>
+          <div className="absolute bottom-0 whitespace-nowrap text-2xs text-muted num" style={edgeSafe(x(low))}>
+            {lowLabel}
           </div>
-        ))}
-      <div className="absolute bottom-0 right-0 text-2xs text-muted num" style={{ right: `${Math.max(0, 100 - x(high) - 2)}%` }}>
-        {highLabel}
-      </div>
+          {others
+            .filter((m) => x(m.value) - x(low) > 16 && x(high) - x(m.value) > 16)
+            .map((m) => (
+              <div key={m.kind} className="absolute bottom-0 -translate-x-1/2 whitespace-nowrap text-2xs font-medium text-ink-2" style={{ left: `${x(m.value)}%` }}>
+                {m.label}
+              </div>
+            ))}
+          <div className="absolute bottom-0 whitespace-nowrap text-2xs text-muted num" style={edgeSafe(x(high))}>
+            {highLabel}
+          </div>
+        </>
+      )}
     </div>
   );
 }

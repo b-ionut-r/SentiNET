@@ -183,6 +183,32 @@ def test_momentum_from_gdelt_and_headline_shift() -> None:
     assert not momentum_part(None, summary(0.1, 3), summary(0.2, 3)).available
 
 
+def test_headline_decay_toward_typical_tone_is_not_bearish_momentum() -> None:
+    # Live NVDA/GME cold runs (no GDELT yet): headlines +0.13 in 48h vs +0.27 before read as
+    # momentum 34–36 and became the headline's "main drag", though both windows sat above the
+    # typical +0.04 — the news cycle decaying after an event day, not sentiment deteriorating.
+    decay = momentum_part(None, summary(0.13, 82, spread=0.3), summary(0.27, 64, spread=0.3))
+    assert 42 <= decay.score < 50 and not decay.strong
+    assert decay.reason.startswith("Sentiment trend flat")
+    # The same size of move *away* from typical is a real turn and counts in full.
+    souring = momentum_part(None, summary(-0.10, 82, spread=0.3), summary(0.04, 64, spread=0.3))
+    assert souring.score < decay.score - 3
+    # And a lone 48h shift is shrunk by its sample: a decisive turn reads strongly only on volume.
+    thin = momentum_part(None, summary(-0.25, 6, spread=0.2), summary(0.15, 6, spread=0.2))
+    thick = momentum_part(None, summary(-0.25, 60, spread=0.2), summary(0.15, 60, spread=0.2))
+    assert 40 < thin.score < thick.score + 12 and thick.score < 40 and thick.strong
+
+
+def test_reverting_change_discounts_only_the_return_toward_typical() -> None:
+    from app.analytics.composite import REVERSION_CREDIT, reverting_change
+
+    assert reverting_change(0.30, 0.14, 0.04) == pytest.approx(REVERSION_CREDIT * -0.16)
+    assert reverting_change(-0.27, -0.14, 0.04) == pytest.approx(REVERSION_CREDIT * 0.13)  # LULU-style recovery
+    assert reverting_change(0.04, -0.10, 0.04) == pytest.approx(-0.14)  # away from typical: full
+    # Crossing typical: the part up to it is decay, the rest counts in full.
+    assert reverting_change(0.24, -0.06, 0.04) == pytest.approx(-(REVERSION_CREDIT * 0.20 + 0.10))
+
+
 def test_technicals_are_volatility_scaled_and_rsi_dampened() -> None:
     calm = technicals_part(technicals(r1m=5, r3m=10, vs50=4, vs200=8, rsi=60, vol=12))
     wild = technicals_part(technicals(r1m=5, r3m=10, vs50=4, vs200=8, rsi=60, vol=90))

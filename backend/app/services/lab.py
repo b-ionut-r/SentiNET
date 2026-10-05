@@ -3,12 +3,21 @@
 Each text gets the same treatment as a live signal (score, label, confidence,
 driver terms, themes, events); with a ticker, also its relevance to that
 company. The summary is a confidence- (and relevance-) weighted mean.
+
+Lab work is user-submitted CPU work, so it is bounded and kept away from
+analyses: at most `MAX_TOTAL_CHARS` per request (~1-2 s of scoring), one
+request scored at a time on the lab's own worker thread (never the shared CPU
+pool that analyses synthesize on), and at most `MAX_WAITING` queued behind it;
+beyond that the lab answers 503 "busy" with `Retry-After` instead of queueing
+work that would stall every analysis on the server.
 """
 from __future__ import annotations
 
+import asyncio
+import functools
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
-from app.core.sync import run_cpu
 from app.schemas import (
     Driver,
     ScoredText,
@@ -18,16 +27,24 @@ from app.schemas import (
     ThemeStat,
 )
 from app.services.analyzer import normalize, resolve_or_bare
-from app.services.errors import InvalidInput, Unavailable
+from app.services.errors import Busy, InvalidInput, Unavailable
 from app.services.tasks import describe_error
 from app.sources.base import CompanyRef
 
 MAX_TEXT_CHARS = 10_000
+# Total characters scored per request: the engine scores ~100-200k chars/s, so
+# one full request is ~1-2 s of CPU. Mirrored in the web lab.
+MAX_TOTAL_CHARS = 250_000
+MAX_WAITING = 2  # requests queued behind the one being scored; more → 503 busy
 NEUTRAL_BAND = 0.05  # fallback when the engine module doesn't export `label_for`
+
+_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="lab")
+_gate: tuple[asyncio.AbstractEventLoop, asyncio.Semaphore] | None = None
+_waiting = 0
 
 
 def validate_texts(texts: list[str]) -> list[str]:
-    """Strip, drop blanks, and bound length (`InvalidInput` with a precise message)."""
+    """Strip, drop blanks, and bound per-text and total length (`InvalidInput` with a precise message)."""
     cleaned = [t.strip() for t in texts]
     for i, text in enumerate(cleaned, start=1):
         if len(text) > MAX_TEXT_CHARS:
@@ -35,7 +52,52 @@ def validate_texts(texts: list[str]) -> list[str]:
     kept = [t for t in cleaned if t]
     if not kept:
         raise InvalidInput("Provide at least one non-empty text to score.")
+    total = sum(len(t) for t in kept)
+    if total > MAX_TOTAL_CHARS:
+        raise InvalidInput(
+            f"{len(kept)} texts with {total:,} characters in all; one run scores at most "
+            f"{MAX_TOTAL_CHARS:,} characters. Split the batch into smaller runs."
+        )
     return kept
+
+
+def _slot() -> asyncio.Semaphore:
+    """The one-at-a-time lab semaphore of the running loop (tests use several loops)."""
+    global _gate, _waiting
+    loop = asyncio.get_running_loop()
+    if _gate is None or _gate[0] is not loop:
+        _gate, _waiting = (loop, asyncio.Semaphore(1)), 0
+    return _gate[1]
+
+
+async def _run_admitted(fn: Any, *args: Any) -> Any:
+    """Run `fn(*args)` on the lab thread, one at a time, refusing when the queue is full.
+
+    The slot is held until the thread finishes — even if the caller disconnects —
+    so an abandoned request still counts against the queue while it burns CPU.
+    """
+    global _waiting
+    slot = _slot()
+    if slot.locked() and _waiting >= MAX_WAITING:
+        raise Busy("The sentiment lab is busy scoring other requests; retry in a few seconds.")
+    _waiting += 1
+    try:
+        await slot.acquire()
+    finally:
+        _waiting -= 1
+    try:
+        fut = asyncio.get_running_loop().run_in_executor(_executor, functools.partial(fn, *args))
+    except BaseException:
+        slot.release()
+        raise
+
+    def finished(f: asyncio.Future[Any]) -> None:
+        slot.release()
+        if not f.cancelled():
+            f.exception()  # mark retrieved: the caller may have gone away
+
+    fut.add_done_callback(finished)
+    return await asyncio.shield(fut)
 
 
 def _label_fn() -> Any:
@@ -104,6 +166,8 @@ async def score_texts(req: ScoreRequest) -> ScoreResponse:
     if req.ticker and req.ticker.strip():
         company = await resolve_or_bare(normalize(req.ticker), timeout=8.0)
     try:
-        return await run_cpu(_score_sync, texts, company)
+        return await _run_admitted(_score_sync, texts, company)
+    except Busy:
+        raise
     except Exception as exc:
         raise Unavailable(f"Scoring failed ({describe_error(exc)}).") from exc

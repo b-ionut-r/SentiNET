@@ -250,6 +250,68 @@ def test_tone_stats_without_volume_uses_simple_mean() -> None:
     assert tone_stats([])["tone_7d"] is None
 
 
+def _koss_trend(with_volume: bool = True):
+    """Real 90-day answers for KOSS (2026-10-05): 80 days, 3 articles in total, tone 0.0 on the rest."""
+    tone = load_json("gdelt/koss_timelinetone.json")
+    volume = load_json("gdelt/koss_timelinevolraw.json") if with_volume else {}
+    return build_trend('"Koss Inc"', tone, volume, today=date(2026, 10, 5), days=90)
+
+
+def test_days_without_articles_have_no_tone_and_sparse_names_get_no_stats() -> None:
+    """Zero-article days are not "neutral": KOSS reported tone_7d +0.54 from 1 article and 6 fake zeros."""
+    for with_volume in (True, False):  # cold call: tone arrives before the article counts
+        trend = _koss_trend(with_volume)
+        assert trend is not None and len(trend.series) >= 70
+        toned = [p for p in trend.series if p.tone is not None]
+        assert [p.date for p in toned] == [date(2026, 8, 22), date(2026, 8, 27), date(2026, 9, 27)]
+        assert toned[-1].tone == pytest.approx(3.2349)
+        assert (trend.tone_7d, trend.tone_30d, trend.tone_90d) == (None, None, None)
+        assert trend.change_7d_vs_30d is None and trend.percentile_7d is None
+    zero_days = [p for p in _koss_trend().series if p.volume == 0]
+    assert len(zero_days) >= 70 and all(p.tone is None for p in zero_days)  # count kept, tone dropped
+
+
+def test_sparse_coverage_cannot_fake_a_tone_price_link() -> None:
+    """Regression: 77 zero days + 3 articles produced "Price leads the news (r = +0.44, p < 0.001, n = 58)"."""
+    from app.analytics.stats import lag_stats
+
+    trend = _koss_trend()
+    first, last = trend.series[0].date, trend.series[-1].date
+    days = [first + timedelta(days=i) for i in range((last - first).days + 1)]
+    trading = [d for d in days if d.weekday() < 5]
+    # Prices that track the old zero-filled series exactly would correlate perfectly with it.
+    closes = {d: 10.0 + 0.1 * i + (0.5 if i % 3 == 0 else 0.0) for i, d in enumerate(trading)}
+    assert lag_stats({p.date: p for p in trend.series}, closes) == []
+
+
+def test_zero_tone_counts_only_when_articles_exist() -> None:
+    day = date(2026, 9, 1)
+    tone = {day: (0.0, None), day + timedelta(days=1): (0.0, None), day + timedelta(days=2): (-1.25, None)}
+    vol = {day: (12.0, 100_000.0), day + timedelta(days=1): (0.0, 100_000.0)}
+    series = merge_series(tone, vol, today=day + timedelta(days=3))
+    # 12 articles averaging exactly 0 is a reading; 0 articles is not; no count + non-zero tone is.
+    assert [(p.tone, p.volume) for p in series] == [(0.0, 12.0), (None, 0.0), (-1.25, None)]
+
+
+def test_window_tone_needs_enough_covered_days_and_ends_today() -> None:
+    start = date(2026, 7, 1)
+    points = [TonePoint(date=start + timedelta(days=i), tone=None, volume=0) for i in range(90)]
+    for i in (60, 70, 85, 88):  # 4 covered days: enough for no window
+        points[i] = TonePoint(date=points[i].date, tone=1.0, volume=2)
+    stats = tone_stats(points)
+    assert stats["tone_30d"] is None and stats["tone_90d"] is None
+    assert stats["tone_7d"] is None  # 2 covered days in the last week (min 3)
+    points[86] = TonePoint(date=points[86].date, tone=-1.0, volume=2)
+    assert tone_stats(points)["tone_7d"] == pytest.approx(1 / 3, abs=1e-3)
+    # A last article 10 days ago is not "this week's tone".
+    stale = points[:80] + [TonePoint(date=p.date, tone=None, volume=0) for p in points[80:]]
+    assert tone_stats(stale)["tone_7d"] is None
+    # Zero-volume points carrying a tone (built elsewhere) never enter a mean.
+    zeros = [TonePoint(date=p.date, tone=0.0, volume=0) if p.tone is None else p for p in points]
+    assert tone_stats(zeros)["tone_7d"] == tone_stats(points)["tone_7d"]
+    assert [gdelt.min_covered_days(n) for n in (7, 30, 90)] == [3, 8, 23]
+
+
 def test_build_trend_from_real_tone() -> None:
     payload = load_json("gdelt/nvidia_timelinetone.json")
     last_day = max(parse_timeline(payload))

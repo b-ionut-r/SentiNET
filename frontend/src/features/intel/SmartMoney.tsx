@@ -8,7 +8,7 @@ import { Chip, Mark } from "../../components/ui/Badges";
 import { Empty } from "../../components/ui/Misc";
 import { Panel, SubHead } from "../../components/ui/Panel";
 import { cx } from "../../lib/cx";
-import { compact, countdown, int, money, pct, price, shortDate } from "../../lib/format";
+import { compact, countdown, int, money, pct, perShare, plural, price, reportingCurrency, shortDate } from "../../lib/format";
 import { divergingFill, polarityOf100, textTone } from "../../lib/sentiment";
 
 /* ------------------------------------------------------------------------- */
@@ -45,6 +45,10 @@ export function AnalystsPanel({ a }: { a: Analysis }) {
   }
   const consensus = v.consensus ? CONSENSUS[v.consensus] ?? v.consensus : null;
   const up = v.upside_pct;
+  // Yahoo's rating-change feed follows the US line of a cross-listed company (SHOP.TO's
+  // actions carry NASDAQ dollar targets beside CAD consensus targets), so a non-USD
+  // listing shows those targets without a symbol rather than in the wrong currency.
+  const actionCcy = ccy === "USD" ? ccy : null;
   return (
     <Panel title="Analysts" icon={<Briefcase />} subtitle={`${v.total} analysts${v.counts ? ` · ${v.counts.period === "0m" ? "this month" : v.counts.period}` : ""}`}>
       <div className="flex items-end justify-between gap-3">
@@ -90,15 +94,16 @@ export function AnalystsPanel({ a }: { a: Analysis }) {
 
       {v.target_low != null && v.target_high != null && cur != null && (
         <div className="mt-4">
-          <SubHead right={v.target_median != null ? `median ${price(v.target_median, ccy)}` : undefined}>Price targets</SubHead>
+          <SubHead right={v.target_median != null ? `median ${perShare(v.target_median, ccy)}` : undefined}>Price targets</SubHead>
           <RangeBar
             low={v.target_low}
             high={v.target_high}
-            lowLabel={`low ${price(v.target_low, ccy)}`}
-            highLabel={`high ${price(v.target_high, ccy)}`}
+            lowLabel={`low ${perShare(v.target_low, ccy)}`}
+            highLabel={`high ${perShare(v.target_high, ccy)}`}
+            singleLabel={`target ${perShare(v.target_low, ccy)}${v.total > 0 ? ` · ${plural(v.total, "analyst")}` : ""}`}
             markers={[
               { value: cur, label: `now ${price(cur, ccy)}`, kind: "current" },
-              ...(v.target_mean != null ? [{ value: v.target_mean, label: `mean ${price(v.target_mean, ccy)}`, kind: "mean" as const }] : []),
+              ...(v.target_mean != null ? [{ value: v.target_mean, label: `mean ${perShare(v.target_mean, ccy)}`, kind: "mean" as const }] : []),
             ]}
           />
         </div>
@@ -111,10 +116,10 @@ export function AnalystsPanel({ a }: { a: Analysis }) {
 
       {v.actions.length > 0 && (
         <div className="mt-4">
-          <SubHead>Recent actions</SubHead>
+          <SubHead right={actionCcy ? undefined : <span title={UNSTATED_PT}>PT currency unstated</span>}>Recent actions</SubHead>
           <ul className="divide-hair">
             {v.actions.slice(0, 6).map((x, i) => (
-              <ActionRow key={i} x={x} ccy={ccy} />
+              <ActionRow key={i} x={x} ccy={actionCcy} />
             ))}
           </ul>
         </div>
@@ -148,14 +153,16 @@ function actionPolarity(x: AnalystAction): "bull" | "bear" | "neutral" {
 
 const ACTION_LABEL: Record<AnalystAction["action"], string> = { up: "Upgrade", down: "Downgrade", init: "Initiates", main: "Maintains", reit: "Reiterates", other: "Update" };
 
-function ActionRow({ x, ccy }: { x: AnalystAction; ccy?: string | null }) {
+const UNSTATED_PT = "The rating-change feed doesn't state a currency; for a cross-listed company these targets usually refer to its US listing.";
+
+function ActionRow({ x, ccy }: { x: AnalystAction; ccy: string | null }) {
   const p = actionPolarity(x);
   const grade = x.from_grade && x.to_grade && x.from_grade !== x.to_grade ? `${x.from_grade} → ${x.to_grade}` : x.to_grade ?? "";
   const pt =
     x.price_target != null
       ? x.prior_target != null && x.prior_target !== x.price_target
-        ? `${price(x.prior_target, ccy)} → ${price(x.price_target, ccy)}`
-        : price(x.price_target, ccy)
+        ? `${perShare(x.prior_target, ccy)} → ${perShare(x.price_target, ccy)}`
+        : perShare(x.price_target, ccy)
       : null;
   return (
     <li className="grid grid-cols-[44px_minmax(0,1fr)_auto] items-start gap-2 py-1.5 text-xs">
@@ -170,7 +177,11 @@ function ActionRow({ x, ccy }: { x: AnalystAction; ccy?: string | null }) {
           {grade && ` · ${grade}`}
         </span>
       </span>
-      {pt && <span className={cx("pt-px text-right text-2xs font-medium num", textTone[p])}>{pt}</span>}
+      {pt && (
+        <span className={cx("pt-px text-right text-2xs font-medium num", textTone[p])} title={ccy ? undefined : UNSTATED_PT}>
+          {pt}
+        </span>
+      )}
     </li>
   );
 }
@@ -294,9 +305,9 @@ export function EarningsPanel({ a }: { a: Analysis }) {
   }
   const hist = [...e.history].slice(0, 8).reverse();
   const rec = earningsRecord(e);
-  const ccy = a.quote?.currency;
+  const ccy = reportingCurrency(a);
   return (
-    <Panel title="Earnings" icon={<CalendarClock />} subtitle="Next report and track record">
+    <Panel title="Earnings" icon={<CalendarClock />} subtitle={ccy ? "Next report and track record" : "Next report and track record · figures in the reporting currency"}>
       <div className="flex items-end justify-between gap-3">
         <div>
           <div className="text-[22px] font-semibold leading-none tracking-[-0.01em] text-ink">{e.next_date ? shortDate(e.next_date) : "Not scheduled"}</div>
@@ -314,10 +325,10 @@ export function EarningsPanel({ a }: { a: Analysis }) {
       <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
         <div className="rounded-md bg-sunken px-2.5 py-2">
           <div className="text-2xs text-muted">EPS estimate</div>
-          <div className="mt-1 font-semibold text-ink num">{e.eps_estimate != null ? price(e.eps_estimate, ccy) : "—"}</div>
-          {e.eps_low != null && e.eps_high != null && (
+          <div className="mt-1 font-semibold text-ink num">{perShare(e.eps_estimate, ccy)}</div>
+          {e.eps_low != null && e.eps_high != null && e.eps_low !== e.eps_high && (
             <div className="text-2xs text-muted num">
-              {price(e.eps_low, ccy)} – {price(e.eps_high, ccy)}
+              {perShare(e.eps_low, ccy)} – {perShare(e.eps_high, ccy)}
             </div>
           )}
         </div>
@@ -344,7 +355,7 @@ export function EarningsPanel({ a }: { a: Analysis }) {
                 <div className="space-y-0.5">
                   <div className="font-semibold text-ink">{h.surprise_pct != null ? `${pct(h.surprise_pct)} surprise` : "no surprise data"}</div>
                   <div>
-                    {shortDate(h.date)} · actual {price(h.eps_actual, ccy)} vs est. {price(h.eps_estimate, ccy)}
+                    {shortDate(h.date)} · actual {perShare(h.eps_actual, ccy)} vs est. {perShare(h.eps_estimate, ccy)}
                   </div>
                 </div>
               ),
@@ -370,8 +381,8 @@ export function EarningsPanel({ a }: { a: Analysis }) {
             {e.history.slice(0, 4).map((h) => (
               <tr key={h.date}>
                 <td className="py-1 text-ink-2">{shortDate(h.date)}</td>
-                <td className="py-1 text-right text-muted">{price(h.eps_estimate, ccy)}</td>
-                <td className="py-1 text-right text-ink">{price(h.eps_actual, ccy)}</td>
+                <td className="py-1 text-right text-muted">{perShare(h.eps_estimate, ccy)}</td>
+                <td className="py-1 text-right text-ink">{perShare(h.eps_actual, ccy)}</td>
                 <td className={cx("py-1 text-right font-medium", textTone[(h.surprise_pct ?? 0) > 0 ? "bull" : (h.surprise_pct ?? 0) < 0 ? "bear" : "neutral"])}>{pct(h.surprise_pct)}</td>
               </tr>
             ))}

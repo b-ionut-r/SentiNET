@@ -6,7 +6,7 @@ import { Mark } from "../../components/ui/Badges";
 import { Empty } from "../../components/ui/Misc";
 import { Panel } from "../../components/ui/Panel";
 import { cx } from "../../lib/cx";
-import { countdown, daysUntil, shortDate } from "../../lib/format";
+import { countdown, daysUntil, perShare, reportingCurrency, safeHref, shortDate } from "../../lib/format";
 import { earningsRecord } from "./SmartMoney";
 
 const KIND_ICON: Record<Catalyst["kind"], typeof Coins> = {
@@ -65,6 +65,7 @@ export function WatchNext({ a, className }: { a: Analysis; className?: string })
   const hasEarningsCatalyst = upcoming.some((c) => c.kind === "earnings");
   const showEarnings = !!e?.next_date && earningsDays != null && earningsDays >= 0;
   const record = e ? earningsRecord(e) : null;
+  const ccy = reportingCurrency(a);
 
   return (
     <Panel title="Watch next" subtitle="Upcoming catalysts, then what just happened" className={className}>
@@ -77,8 +78,13 @@ export function WatchNext({ a, className }: { a: Analysis; className?: string })
           <div className="min-w-0 text-xs">
             <div className="font-semibold text-ink">Earnings · {shortDate(e.next_date)}</div>
             <div className="mt-0.5 text-ink-2">
-              {e.eps_estimate != null && <>EPS est. ${e.eps_estimate.toFixed(2)}</>}
-              {e.eps_low != null && e.eps_high != null && <span className="text-muted"> (${e.eps_low.toFixed(2)}–${e.eps_high.toFixed(2)})</span>}
+              {e.eps_estimate != null && <>EPS est. {perShare(e.eps_estimate, ccy)}</>}
+              {e.eps_estimate != null && e.eps_low != null && e.eps_high != null && e.eps_low !== e.eps_high && (
+                <span className="text-muted">
+                  {" "}
+                  ({perShare(e.eps_low, ccy)} to {perShare(e.eps_high, ccy)})
+                </span>
+              )}
             </div>
             {record && record.scored >= 2 && (
               <div className="mt-0.5 text-muted">
@@ -127,6 +133,7 @@ export function WatchNext({ a, className }: { a: Analysis; className?: string })
 function CatalystRow({ c }: { c: Catalyst }) {
   const Icon = KIND_ICON[c.kind] ?? Newspaper;
   const d = daysUntil(c.date);
+  const href = safeHref(c.url);
   const body = (
     <>
       <span className="w-12 shrink-0 pt-px text-2xs text-muted num">{shortDate(c.date)}</span>
@@ -134,7 +141,7 @@ function CatalystRow({ c }: { c: Catalyst }) {
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-1.5 text-xs font-medium text-ink">
           <span className="truncate">{c.title}</span>
-          {c.url && <ExternalLink className="size-3 shrink-0 text-faint" aria-hidden />}
+          {href && <ExternalLink className="size-3 shrink-0 text-faint" aria-hidden />}
         </span>
         {(c.detail || c.upcoming) && (
           <span className="block truncate text-2xs text-muted">
@@ -148,8 +155,8 @@ function CatalystRow({ c }: { c: Catalyst }) {
   );
   return (
     <li>
-      {c.url ? (
-        <a href={c.url} target="_blank" rel="noreferrer" className="flex gap-2.5 rounded-md px-1 py-1.5 hover:bg-raised">
+      {href ? (
+        <a href={href} target="_blank" rel="noreferrer" className="flex gap-2.5 rounded-md px-1 py-1.5 hover:bg-raised">
           {body}
         </a>
       ) : (

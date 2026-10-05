@@ -745,6 +745,9 @@ _RULES: tuple[tuple[str, re.Pattern[str], bool], ...] = tuple((k, re.compile(p, 
      r"merging with|(?:will|agrees? to|agreed to|in talks to|nears? (?:a )?deal to|offers? to|bids? to|plans? to|"
      r"seeks? to|deal to|moves? to|looks? to|is set to|aims? to) (?:buy|acquire|purchase|merge with|take over)"
      r"(?! back)|takes? (?:a )?(?:\d+%\s)?stake in|"
+     # "GME Reportedly Wants To Buy eBay" (a named company, not "the dip" or "more shares")
+     r"wants to (?:buy|acquire|purchase|take over)\s+(?!(?:the|a|an|more|some|any|shares|stock|calls|puts|options|"
+     r"it|them|this|that|now|back|in|into|up|bitcoin|gold)\b)(?-i:[A-Z]|[a-z]+[A-Z])[\w&.'-]*|"
      r"bid for|(?:acquires?|acquired|acquiring|buys|bought|snaps up|scoops up)\s+(?:(?-i:[A-Z])[\w&.'-]*|rival|"
      r"startup|majority stake|minority stake|unit|division|maker|developer|operator|provider|business|assets))\b"
      r"|(?<!reason )(?<!reasons )(?<!time )(?<!stock )(?<!stocks )(?<!you )\bto (?:buy|acquire|purchase)\s+"
@@ -756,6 +759,19 @@ _RULES: tuple[tuple[str, re.Pattern[str], bool], ...] = tuple((k, re.compile(p, 
      r"(?:(?:\$|£|€)[\d.,]+\s?(?:billion|bn|b)|takeover|buyout)\s+deal\s+for\s+(?:rival\s+)?"
      r"(?:(?-i:[a-z])[\w-]*\s+){0,3}?(?-i:[A-Z])[\w&.'-]+|"
      r"\bdeal for rival\b"
+     # A priced bid: "Withdraw GameStop's $56B eBay Bid", "$9 billion takeover offer"
+     # (not a "$2 billion share offer" or a debt tender).
+     r"|(?:\$|£|€)[\d.,]+\s?(?:billion|bn|b|million|mln|m)\b\s+(?:(?!(?:debt|bond|bonds|notes?|share|shares|stock|"
+     r"equity|convertible|exchange|cash|loan|credit|financing|funding|ipo|contract|tender|buybacks?|repurchases?|"
+     r"dividends?|revenue|sales|profit|investment|settlement|fine|plan|program|deal)\b)[\w&.'-]+\s+){0,2}?"
+     r"(?:bid|offer|approach|proposal)s?\b(?!\s+(?:price|to|a|an|the|its|their|investors|insights?|clues?|"
+     r"lessons?|hope)\b)"
+     # "GameStop's eBay Bid", "Paramount's Warner Bid" (one company bidding for another)
+     r"|[\w&.-]+'s\s+(?-i:[A-Z]|[a-z]+[A-Z])[\w&.-]*\s+(?:(?-i:[A-Z])[\w&.-]*\s+)?(?-i:[Bb])id\b"
+     r"(?!\s+(?:price|requirement|to)\b)"
+     # "Isn't Done Chasing eBay, Remains Committed To Cracking A Deal"
+     r"|\bchas(?:es|ed|ing)\s+(?-i:[A-Z]|[a-z]+[A-Z])[\w&.'-]*"
+     r"(?=[^.?!;]{0,60}\b(?:deal|takeover|merger|acquisition|buyout|bid)\b)"
      ), False),
     ("partnership", (
      r"\b(?:partner(?:s|ed|ing)? with|partnerships?|teams? up|teamed up|collaborat(?:es|ed|ing|ion)|alliance|"
@@ -821,7 +837,11 @@ _RULES: tuple[tuple[str, re.Pattern[str], bool], ...] = tuple((k, re.compile(p, 
      r"prices? (?:\$[\d.,]+\s?\w+\s+)?(?:upsized\s+)?(?:offering|placement)|private placement|"
      r"(?:raises?|raising) \$[\d.,]+\s?(?:million|billion|m|b|bn)\s+(?:in|through|via)\s+(?:a\s+)?(?:\w+\s+)?"
      r"(?:stock|share|equity|convertible|notes)|convertible notes|dilution|dilutive|share sale|"
-     r"sells? \$[\d.,]+\s?(?:million|billion|m|bn|b) (?:of|in) (?:stock|shares))\b"
+     r"sells? \$[\d.,]+\s?(?:million|billion|m|bn|b) (?:of|in) (?:stock|shares)|"
+     # authorizing more shares: "Shareholders Back Bigger Share Count To Support Proposed eBay Acquisition"
+     r"(?:bigger|larger|higher|increased|expanded) (?:authori[sz]ed )?share (?:count|authori[sz]ation)|"
+     r"(?:increase|increases|increasing|raise|raises|raising|double|doubles|doubling) (?:in |of |the )?(?:its )?"
+     r"(?:number of )?authori[sz]ed (?:common )?(?:shares|stock))\b"
      ), False),
     ("bankruptcy", (
      r"\b(?:bankrupt(?:cy|cies)?|chapter (?:11|7|15)|going[- ]concern|insolven(?:t|cy)|receivership|"
@@ -945,7 +965,8 @@ _EXCLUDE: dict[str, re.Pattern[str]] = {
                           r"\b(?:acquires?|buys|bought|purchases?|purchased|picks? up) (?:\d[\d,.]*%? (?:more )?)?"
                           r"(?:more )?(?:shares|stock)\b|\b(?:buys|bought|acquires?)\s+(?:UK£|US\$|SEK|[$£€])|"
                           r"\b(?:upgrades?|upgraded|downgrades?|downgraded|raises?|cuts?|moves?)\b.{0,40}\bto (?:buy|acquire)\b|"
-                          r"\b(?:buys|bought)\s+(?:put|call|puts|calls|options|bitcoin|ether|gold|the dip)\b|\bacquisition (?:corp|corporation|company|"
+                          r"\b(?:buys|bought)\s+(?:put|call|puts|calls|options|bitcoin|ether|gold|the dip|again|"
+                          r"more|another)\b|\bacquisition (?:corp|corporation|company|"
                           r"holdings|co)\b|\b(?:tech|ai|hostile) takeover\b|\bacquisition of (?:\w+\s+){0,2}?"
                           r"(?:stock units|share units|units|shares|rsus?|options)\b", re.IGNORECASE),
     "contract_win": re.compile(r"\b(?:stock|share|phantom|equity|option|rsu|bonus|pay|compensation|industry|innovation|"
@@ -1042,7 +1063,8 @@ _TRIGGERS: dict[str, tuple[str, ...]] = {
                       "under federal review"),
     "settlement": ("settl", "agree"),
     "m_and_a": ("acqui", "merg", "takeover", "buyout", "tender", "deal", "private", "spin", "divest", "carve",
-                "buy", "purchase", "take over", "stake", "bid", "bought", "snaps up", "scoops up"),
+                "buy", "purchase", "take over", "stake", "bid", "bought", "snaps up", "scoops up", "offer", "approach",
+                "proposal", "chas"),
     "partnership": ("partner", "team", "collaborat", "alliance", "joint venture", "tie", "strategic", "deal", "pact",
                     "agreement", "struck"),
     "contract_win": ("contract", "order", "award", "tender", "deal"),
@@ -1054,7 +1076,7 @@ _TRIGGERS: dict[str, tuple[str, ...]] = {
     "exec_hire": ("appoint", "name", "hire", "tap", "pick", "poach", "recruit", "promot", "elevat", "select", "join",
                   "to lead", "takes over", "take over", "helm", "becom", "new ", "next ", "incoming"),
     "offering": ("offering", "placement", "convertible", "dilut", "share sale", "raises $", "raising $", "sells $",
-                 "sell $"),
+                 "sell $", "share count", "share authori", "authorized", "authorised"),
     "bankruptcy": ("bankrupt", "chapter", "going concern", "going-concern", "insolven", "receivership",
                    "creditor protection", "restructuring", "default", "rescue", "forbearance", "payment"),
     "delisting": ("delist", "notice", "compliance", "minimum bid"),
@@ -1091,6 +1113,24 @@ def _lead(text: str) -> str:
     return text[:cut]
 
 
+# Ticker tags inside a name: "Apple(AAPL.US)", "SoFi Technologies (NASDAQ: SOFI)",
+# "Target (TGT)", "Tencent (00700.HK)". They split the phrase the event patterns
+# read ("Citi Initiates Apple(AAPL.US) With Buy Rating"), so they are blanked out
+# — same length, so positions still line up with the company mentions found in
+# the original text. Parenthesized agencies and metrics ("(FDA)", "(EPS)") stay.
+_TICKER_TAG_RE = re.compile(
+    r"\((?:(?:NASDAQ|NYSE|NYSEARCA|NYSEAMERICAN|NYSE\s?American|AMEX|OTC|OTCMKTS|TSX|TSXV|LSE|LON|ASX|HKEX|"
+    r"CBOE|BATS|XETRA|ETR|EPA|FRA|BIT|SIX|TYO|KRX|NSE|BSE)\s?:\s?\$?[A-Z0-9][A-Z0-9.\-]{0,9}|"
+    r"\$?[A-Z0-9]{1,6}\.(?:US|HK|SH|SZ|L|TO|V|AX|T|DE|PA|AS|MI|SW|OL|ST|CO|HE|NS|BO|KS|SI)|"
+    r"\$?(?!(?:FDA|SEC|DOJ|FTC|FCC|FAA|EPA|ECB|IMF|EU|US|UK|AI|EV|EPS|CEO|CFO|COO|CTO|IPO|ETF|PT|ATH|YOY|QOQ|"
+    r"GAAP|ARR|NHTSA|CMA|NLRB|OCC|FDIC|CFPB|NASA|NATO|OPEC|GDP|CPI)\))[A-Z]{1,5}(?:[.\-][A-Z])?)\)"
+)
+
+
+def _mask_ticker_tags(text: str) -> str:
+    return _TICKER_TAG_RE.sub(lambda m: " " * len(m.group(0)), text)
+
+
 def detect_events(text: str, company: CompanyRef | None = None) -> list[DetectedEvent]:
     """Events in `text`, in order of appearance; at most one per (key, firm).
 
@@ -1102,7 +1142,8 @@ def detect_events(text: str, company: CompanyRef | None = None) -> list[Detected
     keep their events (its owner is unknown; relevance gates them)."""
     if not text:
         return []
-    t = _lead(fold(clean_text(text)))
+    original = _lead(fold(clean_text(text)))
+    t = _mask_ticker_tags(original)
     low = t.lower()
     hits = _analyst_events(t) if _ANALYST_TRIGGER.search(low) else []
     for key, regex, guarded in _RULES:
@@ -1126,7 +1167,7 @@ def detect_events(text: str, company: CompanyRef | None = None) -> list[Detected
     if "settlement" in keys:  # "settlement of privacy class action" resolves the suit; it is not a new one
         hits = [h for h in hits if h.key != "lawsuit"]
     if company is not None and hits:
-        hits = _attribute(t, hits, company)
+        hits = _attribute(t, hits, company, original)
 
     out: list[DetectedEvent] = []
     starts: list[int] = []
@@ -1491,6 +1532,28 @@ def _new_subject_between(text: str, a: int, b: int, title_case: bool) -> bool:
     return _has_entity(_immediate_subject(gap), title_case, sentence_start=False)
 
 
+# Events a person can carry out on a company's behalf (deals, launches, insider trades),
+# unlike price moves or results, which a person's clause never reports for the company.
+_PERSON_ACTS = _PARTY_EVENTS | {"insider_buy", "insider_sell"}
+_PERSON_ROLES = wordset("ceo cfo coo cto chairman chairwoman chair founder co-founder director president boss chief "
+                        "executive exec insider billionaire investor activist")
+
+
+def _person_led(segment: str, title_case: bool) -> bool:
+    """Is the clause before an event led by a named person, with no
+    organization named in it ("as Ryan Cohen pushes", "after CEO Jensen
+    Huang's")? Then the event is not another company's."""
+    from app.nlp.relevance import FIRST_NAMES  # local: relevance imports this module
+
+    words = _words(_PAREN_RE.sub(" ", segment))
+    for k, word in enumerate(words[:-1]):
+        surname = words[k + 1]
+        if word.lower() in FIRST_NAMES and surname[:1].isupper() and surname.lower() not in _COMMON_VOCAB:
+            others = [w for w in words[:k] + words[k + 2:] if w.lower() not in _PERSON_ROLES]
+            return not any(_is_entity_word(w, title_case) for w in others)
+    return False
+
+
 def _attached_after(text: str, stop: int, mentions: list, kind: str, title_case: bool) -> bool:
     """The company follows the event phrase as its object: "layoffs hit
     Tesla", "lawsuit filed against Meta", "short position in Nikola"."""
@@ -1547,6 +1610,10 @@ def _owned(text: str, hit: _Hit, mentions: list, cues: list, clauses: list[tuple
     anaphora = re.match(r"\s*(?:\w+\s+)?(?:its|their)\b", opener, re.IGNORECASE)  # "as its Mastercard launch"
     own_subject = not anaphora and _has_entity(opener, title_case, _sentence_start(text, c_start) and
                                                opener == text[c_start:start].strip(), loose=kind == "party")
+    if own_subject and hit.key in _PERSON_ACTS and _person_led(text[c_start:start], title_case):
+        # "GameStop Steps Up EBAY Exposure As Ryan Cohen Pushes $56B Takeover": a person
+        # acts for the company the headline is about; a person is not another company.
+        own_subject = False
     if kind != "target" and own_subject:
         return False  # "… while AMD jumps 5%": that clause has its own subject
     owners = subjects if kind == "party" else sorted(subjects + cues, key=lambda m: m.start)
@@ -1565,14 +1632,17 @@ def _owned(text: str, hit: _Hit, mentions: list, cues: list, clauses: list[tuple
     return False
 
 
-def _attribute(text: str, hits: list[_Hit], company: CompanyRef) -> list[_Hit]:
-    """Drop company-specific events that belong to another entity."""
+def _attribute(text: str, hits: list[_Hit], company: CompanyRef, original: str | None = None) -> list[_Hit]:
+    """Drop company-specific events that belong to another entity. `text` is
+    what the patterns read (ticker tags blanked); `original`, of the same
+    length, is where the company's mentions are found ("(NASDAQ: SOFI)")."""
     from app.nlp.relevance import brand_cue_mentions, explain_relevance  # local: relevance imports this module
 
-    mentions = explain_relevance(text, company).mentions
+    source = original if original is not None and len(original) == len(text) else text
+    mentions = explain_relevance(source, company).mentions
     if not mentions:
         return hits  # the company is not named: owner unknown
-    cues = brand_cue_mentions(text, company)
+    cues = brand_cue_mentions(source, company)
     clauses = _clauses(text)
     title_case = is_title_case(text)
     return [h for h in hits if h.key not in _SUBJECT_EVENTS | _TARGET_EVENTS | _PARTY_EVENTS

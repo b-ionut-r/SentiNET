@@ -21,7 +21,7 @@ import { Loader2, RotateCw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useHistory, usePrice } from "../../api/hooks";
-import type { Analysis, HistoryResponse, PriceRange } from "../../api/types";
+import type { Analysis, HistoryResponse, PriceRange, TonePoint } from "../../api/types";
 import { Columns } from "../../components/charts/Columns";
 import { Meter } from "../../components/charts/Bars";
 import { Empty, Segmented, Skeleton } from "../../components/ui/Misc";
@@ -42,19 +42,23 @@ export default function PriceTone({ a }: { a: Analysis }) {
   const [range, setRange] = useState<PriceRange>("3M");
   const priceQ = usePrice(a.ticker, range);
   const history = useHistory(a.ticker, 90);
-  const daily = DAILY.has(range);
-  const toneSeries = useMemo(() => a.tone?.series ?? [], [a.tone]);
-  const withTone = TONE_RANGES.has(range);
+  // The axis follows the candles on screen, not the tab just clicked: while a new range
+  // loads, the previous range's bars stay up (5-minute bars must never be keyed by date).
+  const shownRange = priceQ.data?.range ?? range;
+  const daily = DAILY.has(shownRange);
+  const toneSeries = useMemo(() => toneOf(a, history.data), [a, history.data]);
+  const withTone = TONE_RANGES.has(shownRange);
   const rows = useMemo(() => buildRows(priceQ.data?.candles ?? [], withTone ? toneSeries : [], daily), [priceQ.data, toneSeries, daily, withTone]);
   const showTone = withTone && toneSeries.length > 0;
   const currency = priceQ.data?.currency ?? a.quote?.currency;
 
   // The lead/lag column only earns its space when it has something to show; otherwise the
-  // price chart takes the full width and one honest line explains what's missing.
+  // price chart takes the full width and one honest line explains what's missing. Its slot
+  // is held while the history loads, so the chart doesn't narrow under a fitted range.
   const t = a.tone;
   const hasLags = !!history.data && history.data.lags.length > 0;
   const hasToneSummary = !!t && [t.tone_7d, t.tone_30d, t.tone_90d].some((v) => v != null);
-  const side = hasLags || hasToneSummary;
+  const side = hasLags || hasToneSummary || history.isPending;
 
   return (
     <div className="grid gap-4 lg:grid-cols-12">
@@ -64,7 +68,9 @@ export default function PriceTone({ a }: { a: Analysis }) {
           showTone
             ? "Daily global news tone (GDELT) in its own pane below — same dates, separate scale"
             : toneSeries.length === 0
-              ? "No GDELT tone series for this ticker yet — price only"
+              ? history.isPending
+                ? "Loading the daily GDELT tone series…"
+                : "No GDELT tone series for this ticker yet — price only"
               : "Tone is daily — switch to 1M–1Y to see it under the price"
         }
         actions={<Segmented options={RANGES.map((r) => ({ value: r, label: r }))} value={range} onChange={setRange} size="xs" label="Price range" />}
@@ -97,6 +103,16 @@ export default function PriceTone({ a }: { a: Analysis }) {
       )}
     </div>
   );
+}
+
+/**
+ * The daily GDELT tone to draw: the analysis's own series, or — when GDELT outlived that
+ * run's time budget — the same series from the 90-day history fetched for the lead/lag
+ * panel, so the chart never says "no tone" beside a panel that is correlating it.
+ */
+export function toneOf(a: Pick<Analysis, "tone">, history: Pick<HistoryResponse, "points"> | undefined): TonePoint[] {
+  if (a.tone?.series.length) return a.tone.series;
+  return (history?.points ?? []).filter((p) => p.tone != null).map((p) => ({ date: p.date, tone: p.tone, volume: p.volume }));
 }
 
 function MarkerLegend() {
@@ -158,7 +174,9 @@ function Charts({ a, rows, showTone, daily, currency }: { a: Analysis; rows: Row
       rightPriceScale: { borderVisible: false, minimumWidth: 64 },
       // No edge clamps: each pane would clamp to its OWN last non-empty bar (tone can run past the
       // last session), which shifts the panes against each other. One shared range, applied as-is.
-      timeScale: { borderVisible: false, rightOffset: 1 },
+      // The lead/lag column can appear after the first fit and narrow the chart: keep the
+      // fitted dates on screen (squeeze the bars) instead of dropping the oldest third.
+      timeScale: { borderVisible: false, rightOffset: 1, lockVisibleTimeRangeOnResize: true },
       crosshair: { mode: CrosshairMode.Normal },
       handleScale: { axisPressedMouseMove: false },
       // Pin the locale: some environments report tags Intl rejects (e.g. "en-US@posix").

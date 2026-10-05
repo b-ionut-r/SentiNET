@@ -34,9 +34,10 @@ export function sessionDay(t: string): string {
  */
 export function buildRows(candles: Candle[], tone: TonePoint[], daily: boolean): Row[] {
   if (!daily) {
-    return candles.map((c) => ({ time: (Math.floor(new Date(c.t).getTime() / 1000) + TZ_SHIFT) as UTCTimestamp, candle: c, tone: null, volume: null }));
+    const bars = uniqueBy(candles, (c) => Math.floor(new Date(c.t).getTime() / 1000) + TZ_SHIFT, (x, y) => x - y);
+    return bars.map(([t, c]) => ({ time: t as UTCTimestamp, candle: c, tone: null, volume: null }));
   }
-  const rows: Row[] = candles.map((c) => ({ time: sessionDay(c.t), candle: c, tone: null, volume: null }));
+  const rows: Row[] = uniqueBy(candles, (c) => sessionDay(c.t), (x, y) => (x < y ? -1 : x > y ? 1 : 0)).map(([t, c]) => ({ time: t, candle: c, tone: null, volume: null }));
   const days = rows.map((r) => r.time as string);
   const acc = new Map<string, { sum: number; w: number; vol: number }>();
   const trailing: TonePoint[] = [];
@@ -65,4 +66,24 @@ export function buildRows(candles: Candle[], tone: TonePoint[], daily: boolean):
     rows.push({ time: d, candle: null, tone: p.tone, volume: p.volume });
   }
   return rows;
+}
+
+/**
+ * Candles keyed and sorted by `key`, bars sharing a key merged into one (first open,
+ * extreme high/low, last close, summed volume). The chart rejects repeated or
+ * descending times outright, so this holds whatever the feed sends.
+ */
+function uniqueBy<K extends string | number>(candles: Candle[], key: (c: Candle) => K, cmp: (x: K, y: K) => number): Array<[K, Candle]> {
+  const out = new Map<K, Candle>();
+  for (const c of [...candles].sort((x, y) => Date.parse(x.t) - Date.parse(y.t))) {
+    const k = key(c);
+    const prev = out.get(k);
+    out.set(
+      k,
+      prev
+        ? { t: prev.t, o: prev.o, h: Math.max(prev.h, c.h), l: Math.min(prev.l, c.l), c: c.c, v: prev.v == null && c.v == null ? null : (prev.v ?? 0) + (c.v ?? 0) }
+        : c,
+    );
+  }
+  return [...out.entries()].sort((x, y) => cmp(x[0], y[0]));
 }

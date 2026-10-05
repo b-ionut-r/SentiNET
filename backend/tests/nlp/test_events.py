@@ -57,6 +57,9 @@ def _one(text: str, key: str):
     ("DNB Carnegie cuts price target for Green Landscaping to SEK24 (36), reiterates buy", "pt_cut", "DNB Carnegie",
      24.0),
     ("Mizuho Cuts Price Target on Westlake to $72 From $88, Keeps Neutral Rating", "pt_cut", "Mizuho", 72.0),
+    # Moomoo/Futu template: a ticker tag glued to the name split the phrase (live AAPL)
+    ("Morgan Stanley lowers Apple (AAPL.US) price target to $355: Roadmap is exciting, but valuation is full",
+     "pt_cut", "Morgan Stanley", 355.0),
     ("Nike Stock In Focus As Barclays Cuts Price Target To $48 Ahead Of Q1 Earnings", "pt_cut", "Barclays", 48.0),
     ("Baird Cuts Price Target on Fair Isaac to $1,070 From $1,549, Keeps Outperform Rating", "pt_cut", "Baird", 1070.0),
     ("B. Riley Cuts Price Target on Canaan to $1.50 From $2, Keeps Buy Rating", "pt_cut", "B. Riley", 1.5),
@@ -93,6 +96,19 @@ def test_initiations_take_polarity_from_the_rating():
     assert _one("Jefferies initiates coverage of Rivian with a Buy rating", "analyst_initiate").polarity == "bull"
     assert _one("Morgan Stanley initiates Snowflake at Underweight", "analyst_initiate").polarity == "bear"
     assert _one("Bernstein initiates coverage on Arm with Market Perform", "analyst_initiate").polarity == "neutral"
+
+
+@pytest.mark.parametrize(("text", "firm", "value"), [
+    # Moomoo/Futu template (live AAPL, Oct 3): the ticker tag glued to the name
+    # ("Apple(AAPL.US)") split the phrase, so Citi's Buy/$365 initiation was lost.
+    ("Citi Initiates Apple(AAPL.US) With Buy Rating, Announces Target Price $365", "Citi", 365.0),
+    ("Citi Initiates Apple (AAPL.US) With Buy Rating, Announces Target Price $365", "Citi", 365.0),
+    ("HSBC Initiates Target (NYSE: TGT) With Buy Rating", "HSBC", None),
+    ("Jefferies Initiates Tencent (00700.HK) at Buy, Target Price HK$700", "Jefferies", 700.0),
+])
+def test_initiations_behind_ticker_tags(text, firm, value):
+    event = _one(text, "analyst_initiate")
+    assert (event.firm, event.value, event.polarity) == (firm, value, "bull")
 
 
 @pytest.mark.parametrize("text", [
@@ -254,6 +270,7 @@ def test_events_are_ordered_and_deduplicated():
     ("insider", {"insider_buy", "insider_sell"}, 0.9),  # 39/40
     ("recall", {"recall"}, 0.97),                    # 40/40
     ("bankrupt", {"bankruptcy"}, 0.78),              # 33/40
+    ("mna", {"m_and_a"}, 0.75),                      # 30/39 (rest: licensing deals, "Big Billion Days Sale")
 ])
 def test_family_recall_on_real_headlines(family, keys, floor):
     titles = [strip_publisher_suffix(t) for t in load_json_fixture("nlp/event_headlines.json")["families"][family]]
@@ -320,6 +337,20 @@ def test_trap_families_stay_quiet(family, key, ceiling):
     ("Google's $32 billion deal for Wiz clears DOJ antitrust review", ["m_and_a"]),
     ("Curium strikes up to $8 billion deal for radiopharma peer Lantheus", ["m_and_a"]),
     ("Fox Shakes Up Streaming With $22 Billion Deal for Roku", ["m_and_a"]),
+    # priced bids and pursuits (live GME feed): the bid is the deal
+    ("GME CEO Ryan Cohen May Reportedly Withdraw GameStop's $56B eBay Bid", ["m_and_a"]),
+    ("Unilever rejects $50 billion takeover approach from Kraft Heinz", ["m_and_a"]),
+    ("Paramount's Warner Bid Faces Shareholder Revolt", ["m_and_a"]),
+    ("GME's Ryan Cohen Isn't Done Chasing eBay, Remains Committed To Cracking A Deal", ["m_and_a"]),
+    ("GME Reportedly Wants To Buy eBay But Retail Wonders How", ["m_and_a"]),
+    # ...but not a priced buyback that "offers" a lesson, a share offer, a stock bid price, or buying more
+    ("Nvidia's $235 Billion Buyback Offers a Powerful Lesson for Founders", ["buyback"]),
+    ("Company Receives Nasdaq Notice on Minimum Bid Price", ["delisting"]),
+    ("$GME GME - Cohen Buys AGAIN, but no Secret October Deal Coming", []),
+    ("Everyone wants to buy the dip in Nvidia", []),
+    # authorizing more shares for a deal is dilution (live GME)
+    ("GME Stock Rises After Hours — GameStop Shareholders Back Bigger Share Count To Support Proposed eBay "
+     "Acquisition", ["price_up", "offering", "m_and_a"]),
     # launches that are not products
     ("AT&T, T-Mobile, and Verizon Launch Joint Venture to expand satellite coverage", ["partnership"]),
     ("Target Rolls Out Fresh Price Cuts on Apparel", []),

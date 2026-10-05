@@ -9,7 +9,7 @@ import { lazy, Suspense, useEffect, useMemo, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { ApiError } from "../../api/client";
-import { keys, useAnalysis, useSearch, useWatchlist, useWatchToggle } from "../../api/hooks";
+import { keys, useAnalysis, useLateToneFollowUp, useSearch, useWatchlist, useWatchToggle } from "../../api/hooks";
 import type { Analysis } from "../../api/types";
 import { useCommands, usePageCommands } from "../../components/layout/commands";
 import { ErrorState, InlineAlert, Skeleton, TickerLogo, TopProgress } from "../../components/ui/Misc";
@@ -44,6 +44,7 @@ export default function IntelPage() {
   const toggleWatch = useWatchToggle();
   const data = q.data;
   const watched = !!watchlist.data?.some((w) => w.ticker === (data?.ticker ?? ticker));
+  useLateToneFollowUp(ticker, data, q.progress, q.isFetching);
 
   useEffect(() => {
     if (data) pushRecent(data.ticker);

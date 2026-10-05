@@ -7,7 +7,7 @@ import { Mark, ScoreChip, StatusBadge } from "../../components/ui/Badges";
 import { Empty } from "../../components/ui/Misc";
 import { Panel } from "../../components/ui/Panel";
 import { cx } from "../../lib/cx";
-import { ms, shortDate } from "../../lib/format";
+import { ms, safeHref, shortDate } from "../../lib/format";
 
 const IMPORTANCE: Record<Filing["importance"], { label: string; dots: number }> = {
   high: { label: "High importance", dots: 3 },
@@ -67,8 +67,8 @@ export function FilingsPanel({ a, className }: { a: Analysis; className?: string
             );
             return (
               <li key={i}>
-                {f.url ? (
-                  <a href={f.url} target="_blank" rel="noreferrer" className="flex gap-2.5 px-4 py-2 hover:bg-raised/60">
+                {safeHref(f.url) ? (
+                  <a href={safeHref(f.url)} target="_blank" rel="noreferrer" className="flex gap-2.5 px-4 py-2 hover:bg-raised/60">
                     {row}
                   </a>
                 ) : (
@@ -139,8 +139,8 @@ export function SourcesPanel({ a, className }: { a: Analysis; className?: string
           <span className="min-w-0">
             {keyless.map((s, i) => (
               <span key={s.key}>
-                {docs.get(s.key) ? (
-                  <a className="whitespace-nowrap font-medium text-accent hover:underline" href={docs.get(s.key) ?? undefined} target="_blank" rel="noreferrer" title={`Get a free ${s.label} key`}>
+                {safeHref(docs.get(s.key)) ? (
+                  <a className="whitespace-nowrap font-medium text-accent hover:underline" href={safeHref(docs.get(s.key))} target="_blank" rel="noreferrer" title={`Get a free ${s.label} key`}>
                     {s.label}
                   </a>
                 ) : (

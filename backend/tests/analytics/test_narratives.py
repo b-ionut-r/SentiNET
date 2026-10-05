@@ -131,9 +131,9 @@ def test_story_tone_is_anchored_on_its_headline() -> None:
     assert aligned is not None and aligned.directional and aligned.narrative.score > 0.3
 
 
-def test_mixed_story_keeps_its_headline_tone_and_is_not_evidence() -> None:
-    # No tone holds a majority: the headline keeps the story, its tone is the headline's own
-    # coverage (not the cluster mean), and the story is never quoted as directional evidence.
+def test_mixed_story_keeps_its_headline_and_is_not_evidence() -> None:
+    # No tone holds a majority: the headline keeps the story, its tone is the tone of all of its
+    # coverage (bullish and bearish members cancel out), and it is never quoted as evidence.
     from app.analytics.narratives import _story
 
     items = prepare(ACME, [run(GOOGLE, [
@@ -146,8 +146,32 @@ def test_mixed_story_keeps_its_headline_tone_and_is_not_evidence() -> None:
     story = _story(rep, items, NOW)
     assert story is not None and story.lead is rep
     assert story.core_share < 0.5 and story.spread > 0.35
-    assert story.narrative.score == 0.0 and story.narrative.label == "neutral"
+    assert abs(story.narrative.score) < 0.05 and story.narrative.label == "neutral"
     assert not story.directional
+
+
+def test_story_tone_covers_every_member_not_just_the_headline_core() -> None:
+    # Live AAPL case: 'Morgan Stanley … Cuts Target Price to $355' was quoted at −0.40 next to a
+    # 12-article count while the cluster also held positive initiations; across all members the
+    # story was −0.07. The tone shown with a count must be the tone of that whole count.
+    from app.analytics.narratives import _story
+    from app.analytics.util import weighted_mean
+
+    items = prepare(ACME, [run(GOOGLE, [
+        raw("Acme price target cuts and downgrade warning weigh on chip unit", 2, "Reuters"),
+        raw("Acme chip unit hit by downgrade and weak price target cuts", 3, "Bloomberg"),
+        raw("Acme chip unit: analyst upgrade after strong record quarter", 4, "CNBC"),
+        raw("Acme chip unit wins analyst praise as growth expands", 5, "Barron's"),
+    ])], NOW).items
+    rep = next(it for it in items if it.title.startswith("Acme price target cuts"))
+    story = _story(rep, items, NOW)
+    assert story is not None and story.lead.score < 0
+    every, _ = weighted_mean((m.score, m.weight) for m in story.members)
+    assert story.narrative.score == round(every, 3)  # not the headline core's (more negative) tone
+    core = [m for m in story.members if m.score < 0]
+    core_tone, _ = weighted_mean((m.score, m.weight) for m in core)
+    assert story.narrative.score > core_tone + 0.1
+    assert story.directional == (abs(story.narrative.score) >= 0.1 and story.narrative.score < 0)
 
 
 def test_events_from_one_peripheral_member_do_not_tag_the_story() -> None:

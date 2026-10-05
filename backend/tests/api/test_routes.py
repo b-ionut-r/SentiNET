@@ -344,7 +344,7 @@ def test_spa_serving(world: FakeWorld, monkeypatch, tmp_path):
     (tmp_path / "secret.txt").write_text("nope")
     monkeypatch.setattr(spa, "FRONTEND_DIST", dist)
     monkeypatch.setattr(settings, "monitor_enabled", False)
-    with TestClient(create_app()) as c:
+    with TestClient(create_app(), base_url="http://localhost") as c:
         root = c.get("/")
         assert root.status_code == 200 and "SentiNET" in root.text and root.headers["cache-control"] == "no-cache"
         assert "SentiNET" in c.get("/t/NVDA").text  # client-side route
@@ -364,7 +364,7 @@ def test_spa_not_built_page(world: FakeWorld, monkeypatch, tmp_path):
 
     monkeypatch.setattr(spa, "FRONTEND_DIST", tmp_path / "missing")
     monkeypatch.setattr(settings, "monitor_enabled", False)
-    with TestClient(create_app()) as c:
+    with TestClient(create_app(), base_url="http://localhost") as c:
         r = c.get("/")
         assert r.status_code == 200 and "make build" in r.text
         assert c.get("/t/NVDA").status_code == 404

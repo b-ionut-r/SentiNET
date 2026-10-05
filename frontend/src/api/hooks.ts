@@ -3,6 +3,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { api, streamAnalysis } from "./client";
+import { TONE_FOLLOW_UP_MS, tonePending } from "./pending";
 import type { AlertRuleIn, Analysis, PriceRange, ProgressEvent, ScoreRequest, WatchItem } from "./types";
 
 const MIN = 60_000;
@@ -64,6 +65,38 @@ export function useAnalysis(ticker: string) {
   }, [query, qc, ticker]);
 
   return { ...query, progress: Object.values(progress), refresh };
+}
+
+/**
+ * A result that went out while GDELT was still loading is superseded on the server
+ * once the tone lands. Re-read it quietly (plain GET, no forced refresh, no dimming)
+ * on a short schedule and swap it in as soon as a read carries the tone; stop on
+ * ticker change, a manual refresh or the last attempt.
+ */
+export function useLateToneFollowUp(ticker: string, data: Analysis | undefined, progress: ProgressEvent[], busy: boolean) {
+  const qc = useQueryClient();
+  const pending = !!data && data.ticker === ticker && tonePending(data, progress);
+  const stamp = data?.generated_at;
+  useEffect(() => {
+    if (!pending || busy) return;
+    const ctrl = new AbortController();
+    let timer = 0;
+    const attempt = (i: number) => {
+      api
+        .analyze(ticker, false, ctrl.signal)
+        .then((fresh) => {
+          if (ctrl.signal.aborted) return;
+          if (fresh.tone?.series.length) qc.setQueryData(keys.analysis(ticker), fresh);
+          else if (i + 1 < TONE_FOLLOW_UP_MS.length) timer = window.setTimeout(() => attempt(i + 1), TONE_FOLLOW_UP_MS[i + 1] - TONE_FOLLOW_UP_MS[i]);
+        })
+        .catch(() => undefined); // best effort: the page already shows a complete result
+    };
+    timer = window.setTimeout(() => attempt(0), TONE_FOLLOW_UP_MS[0]);
+    return () => {
+      ctrl.abort();
+      window.clearTimeout(timer);
+    };
+  }, [pending, busy, ticker, stamp, qc]);
 }
 
 /** Plain (non-streamed) analysis — shares the Intel page's cache entry. */

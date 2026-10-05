@@ -164,7 +164,7 @@ def _cases(f: Facts, insights: list[Insight]) -> tuple[list[str], list[str]]:
         # Insights restating a component's evidence share its topic, so only the stronger line is kept.
         if ins.kind == "smart_money" and ins.title.lower().startswith("insider"):
             topic = "insiders"
-        elif ins.kind == "momentum" and "GDELT" in ins.detail:
+        elif ins.kind == "momentum":  # every momentum insight restates the momentum component's evidence
             topic = "momentum"
         else:
             topic = f"insight:{ins.title}"

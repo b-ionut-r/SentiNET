@@ -16,5 +16,6 @@ def client(world: FakeWorld, monkeypatch) -> Iterator[TestClient]:  # noqa: F811
     monkeypatch.setattr(settings, "monitor_enabled", False)
     from app.main import create_app
 
-    with TestClient(create_app()) as c:
+    # A loopback Host: the app only serves allowed hosts (SENTINET_ALLOWED_HOSTS; "testserver" is not one).
+    with TestClient(create_app(), base_url="http://localhost") as c:
         yield c

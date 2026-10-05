@@ -68,7 +68,8 @@ def build_analysis(inputs: AnalysisInputs) -> Analysis:
     older = summarize(it for it in news_items
                       if it.timestamp and RECENT_WINDOW < now - it.timestamp <= OLDER_WINDOW)
 
-    stories = build_narratives(items, company, now, inputs.previous, previous_ids=_previous_story_ids(inputs))
+    stories = build_narratives(items, company, now, inputs.previous, previous_ids=_previous_story_ids(inputs),
+                               actions=inputs.analysts.actions if inputs.analysts is not None else ())
     metrics = merged_metrics(inputs.source_runs)
     crowd = crowd_view(metrics)
     tally = stocktwits_tally(metrics)

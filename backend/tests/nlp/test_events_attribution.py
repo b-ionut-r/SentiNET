@@ -27,6 +27,8 @@ C = {
     "NKLA": CompanyRef(ticker="NKLA", name="Nikola Corporation", short_name="Nikola", industry="Auto Manufacturers"),
     "F": CompanyRef(ticker="F", name="Ford Motor Company", short_name="Ford", industry="Auto Manufacturers"),
     "SOFI": CompanyRef(ticker="SOFI", name="SoFi Technologies, Inc.", short_name="SoFi", industry="Credit Services"),
+    "GME": CompanyRef(ticker="GME", name="GameStop Corp.", short_name="GameStop", industry="Specialty Retail"),
+    "EBAY": CompanyRef(ticker="EBAY", name="eBay Inc.", short_name="eBay", industry="Internet Retail"),
 }
 
 
@@ -82,6 +84,36 @@ C = {
 ])
 def test_events_belong_to_their_subject(ticker, text, want):
     assert sorted(e.key for e in detect_events(text, C[ticker])) == sorted(want)
+
+
+@pytest.mark.parametrize(("ticker", "text", "want"), [
+    # live (GME feed, 2026-10-04): a deal belongs to both parties — the bidder
+    # (as subject or possessor) as much as the target. GameStop's $56B eBay bid
+    # was missed entirely: no pattern for a priced bid, and the person-led clause
+    # ("As Ryan Cohen Pushes ...") was read as another subject.
+    ("GME", "GME CEO Ryan Cohen May Reportedly Withdraw GameStop's $56B eBay Bid", ["m_and_a"]),
+    ("GME", "GameStop Steps Up EBAY Exposure To 6.5% As Ryan Cohen Pushes $56B Takeover Vision", ["m_and_a"]),
+    ("EBAY", "GameStop Steps Up EBAY Exposure To 6.5% As Ryan Cohen Pushes $56B Takeover Vision", ["m_and_a"]),
+    ("GME", "GME's Ryan Cohen Isn't Done Chasing eBay, Remains Committed To Cracking A Deal", ["m_and_a"]),
+    ("GME", "GME Reportedly Wants To Buy eBay But Retail Wonders How; eBay Stock Soars", ["m_and_a"]),
+    ("EBAY", "GME Reportedly Wants To Buy eBay But Retail Wonders How; eBay Stock Soars", ["m_and_a", "price_up"]),
+    ("GME", "The Clock Is Ticking on GameStop's eBay Acquisition Play as Warrants Near Expiration", ["m_and_a"]),
+    # a person's clause still never makes another company's deal, or a price move, the company's
+    ("AAPL", "Apple stock rises as Microsoft agrees to buy Activision", ["price_up"]),
+    ("AAPL", "Apple stock rises as Warren Buffett's Berkshire buys Occidental stake", ["price_up"]),
+    ("NVDA", "Nvidia stock falls as Elon Musk unveils new Tesla chip", ["price_down"]),
+])
+def test_deals_belong_to_every_party(ticker, text, want):
+    assert sorted(e.key for e in detect_events(text, C[ticker])) == sorted(want)
+
+
+def test_ticker_tags_do_not_hide_mentions():
+    """Ticker tags are blanked for the patterns, but the company named only by
+    its tag is still found as the subject."""
+    events = detect_events("Citi Initiates Apple(AAPL.US) With Buy Rating, Announces Target Price $365", C["AAPL"])
+    assert [(e.key, e.firm, e.value) for e in events] == [("analyst_initiate", "Citi", 365.0)]
+    assert [e.key for e in detect_events("SoFi Technologies (NASDAQ: SOFI) Stock Craters 43% In 2026",
+                                         C["SOFI"])] == ["price_down"]
 
 
 def test_without_company_every_event_is_kept():

@@ -109,6 +109,37 @@ def test_tone_flip_and_extremes() -> None:
 # --------------------------------------------------------------------------- #
 # Smart money
 # --------------------------------------------------------------------------- #
+def test_gdelt_extremes_are_judged_as_shown_and_strong_momentum_is_never_silent() -> None:
+    # Live NVDA: GDELT 7d tone at the 10.1th percentile ("10th pct" in the component) missed the
+    # "90-day low" bar, so the rail said "Nothing unusual" while the headline named the drag.
+    from app.schemas import ToneTrend
+
+    low = tone_trend(base=0.54, recent=0.30, percentile=0.101)
+    found = insights(run(GOOGLE, NEUTRAL_NEWS), tone=low)
+    low_ins = titled(found, "90-day low")
+    assert low_ins is not None and "10th percentile" in low_ins.detail
+    # A sharply cooling GDELT tone that is not at an extreme still surfaces through the
+    # momentum component (it moves the verdict, so the rail must say why).
+    cooling = ToneTrend.model_validate({**tone_trend(base=0.6, recent=-0.1, percentile=0.2).model_dump()})
+    found = insights(run(GOOGLE, NEUTRAL_NEWS), tone=cooling)
+    m = next((i for i in found if i.kind == "momentum"), None)
+    assert m is not None and m.polarity == "bear" and "GDELT" in m.detail and "/100" in m.detail
+    # Calm tone: no momentum insight at all.
+    calm = insights(run(GOOGLE, NEUTRAL_NEWS), tone=tone_trend(base=0.3, recent=0.32, percentile=0.55))
+    assert not [i for i in calm if i.kind == "momentum"]
+
+
+def test_headline_turn_insight_discounts_news_cycle_decay() -> None:
+    hot = news_flow([f"Acme beats estimates as strong demand surges record {i}" for i in range(10)], start=60)
+    calmer = news_flow([f"Acme expands growth plan {i}" for i in range(10)], start=1)
+    found = insights(run(GOOGLE, hot + calmer))
+    assert titled(found, "Headline tone turned") is None  # +big → still-positive is decay, not a turn
+    souring = news_flow([f"Acme shares fall after weak guidance warning {i}" for i in range(10)], start=1)
+    neutral_before = news_flow([f"Acme schedules investor day number {i}" for i in range(10)], start=60)
+    turned = titled(insights(run(GOOGLE, neutral_before + souring)), "Headline tone turned down")
+    assert turned is not None and turned.polarity == "bear"
+
+
 def test_analyst_revision_waves() -> None:
     ups = analysts(mean=2.0, total=25, upside=15.0, up90=2, actions=[
         action(3, "Goldman Sachs", "up", "Buy", 120, 100, "Neutral"), action(10, "UBS", "up", "Buy", 118, 104, "Neutral")])

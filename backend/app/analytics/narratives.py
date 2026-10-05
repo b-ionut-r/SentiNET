@@ -8,14 +8,23 @@ Only published media (news/analysis) that is clearly about the company
     intensity = max(|tone| / 0.4, 0.6 if a material event) capped at 1
     freshness = 0.35 + 0.65 · 0.5^(hours since last item / 48)
 
-Tone is *anchored* on the headline: it is the weighted mean of the members
-that agree with it (tone within the cluster's spread, 0.15–0.30, or on the same
-side of neutral), so a headline is never shown with a tone it does not carry. When
-that agreeing core is a minority (a catch-all cluster, a mis-scored headline),
-the member whose core holds the largest majority becomes the headline; with no
-majority anywhere the story is mixed. A story is used as directional evidence
-(`Story.directional`) only when its headline carries a clear tone and the
-coverage agreeing with it holds most of the weight.
+A story's tone is the weighted mean of *all* its members — the tone of the
+coverage its article count describes ("12 articles, tone −0.07"), never just
+the part that agrees with the headline. The headline is *anchored* on the
+coverage: the members agreeing with a headline (tone within the cluster's
+spread, 0.15–0.30, or on the same side of neutral) form its core, and when the
+clusterer's representative speaks for only a minority (a catch-all cluster, a
+mis-scored headline) the member whose core holds the largest majority fronts
+the story instead; with no majority anywhere the story is mixed. A story is
+used as directional evidence (`Story.directional`) only when its tone is clear,
+its headline carries that tone, and the coverage agreeing with the headline
+holds most of the weight.
+
+A routine target tweak (a structured analyst action keeping the rating and
+moving the target < 3%, matched by firm within 4 days) is not a development:
+a story whose only material events are target revisions explained by such
+actions has its intensity capped at 0.3, so "X maintains Buy, trims target
+to $355" cannot become the top story.
 
 An event is part of a story when the representative carries it or members
 carrying it hold >= 35% of the story's weighted coverage (and number >= 2), so
@@ -37,7 +46,7 @@ from __future__ import annotations
 import math
 import re
 from collections import Counter
-from collections.abc import Collection
+from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
@@ -45,7 +54,7 @@ from app.analytics import textkit
 from app.analytics.prepare import Item
 from app.analytics.util import stable_id, tone_label, weighted_mean
 from app.nlp.types import ClusterItem
-from app.schemas import Narrative, Snapshot
+from app.schemas import AnalystAction, Narrative, Snapshot
 from app.sources.base import CompanyRef
 
 MIN_RELEVANCE = 0.5
@@ -71,6 +80,10 @@ NEW_SHARED_IDS = 1 / 3  # shared member articles (of the smaller story) that mak
 
 # Events that are developments in their own right (price moves merely describe the tape).
 PRICE_EVENTS = frozenset({"price_up", "price_down", "all_time_high", "high_52w", "low_52w"})
+REVISION_EVENTS = frozenset({"pt_raise", "pt_cut"})
+ROUTINE_REVISION = 0.03  # |target change| below which a rating-unchanged revision is routine
+ROUTINE_REVISION_INTENSITY = 0.3
+REVISION_MATCH_WINDOW = timedelta(days=4)
 
 _STOP = frozenset("""a an and are as at be by for from has have in into is it its of on or s says say said the
 to was were will with after amid over than that this vs via new more why how what""".split())
@@ -103,6 +116,15 @@ class Story:
     material_events: list[str]
     spread: float = 0.0
     core_share: float = 1.0
+    intensity: float = 1.0  # max(|tone| / 0.4, 0.6 if material) capped at 1 (see module docstring)
+
+    def cap_intensity(self, cap: float) -> None:
+        """Lower the story's intensity to `cap`, rescaling its impact accordingly."""
+        if self.intensity <= cap:
+            return
+        n = self.narrative
+        n.impact = round(n.impact * (0.5 + 0.5 * cap) / (0.5 + 0.5 * self.intensity), 3)
+        self.intensity = cap
 
     @property
     def outlets(self) -> int:
@@ -125,11 +147,13 @@ class Story:
 
 def build_narratives(items: list[Item], company: CompanyRef | None, now: datetime,
                      previous: Snapshot | None = None, limit: int = MAX_NARRATIVES,
-                     previous_ids: Collection[Collection[str]] | None = None) -> list[Story]:
+                     previous_ids: Collection[Collection[str]] | None = None,
+                     actions: Sequence[AnalystAction] = ()) -> list[Story]:
     """Cluster, score and rank stories; tags member items with their narrative id.
 
     `previous_ids` (optional): member signal ids of the previous snapshot's
-    stories, the strongest evidence that a story is not new."""
+    stories, the strongest evidence that a story is not new. `actions`
+    (optional): structured analyst actions, to recognise routine target tweaks."""
     pool = [it for it in items if it.group == "news" and it.scored and it.relevance >= MIN_RELEVANCE]
     if not pool:
         return []
@@ -153,6 +177,9 @@ def build_narratives(items: list[Item], company: CompanyRef | None, now: datetim
             used.update(it.id for it in members)
             stories.append(story)
 
+    for story in stories:
+        if routine_revision(story, actions):
+            story.cap_intensity(ROUTINE_REVISION_INTENSITY)
     stories.sort(key=lambda s: (-s.narrative.impact, -s.narrative.count, s.narrative.id))
     # Single-outlet stories only fill out a thin list; they never crowd out corroborated ones.
     kept: list[Story] = []
@@ -175,8 +202,9 @@ def build_narratives(items: list[Item], company: CompanyRef | None, now: datetim
 
 def _story(rep: Item, members: list[Item], now: datetime) -> Story | None:
     members = [rep] + sorted((m for m in members if m is not rep), key=lambda m: (-m.weight, m.id))
-    rep, tone, spread, core_share = pick_anchor(rep, members)
+    rep, _, spread, core_share = pick_anchor(rep, members)
     members = [rep] + [m for m in members if m is not rep]
+    tone = story_tone(members, rep)
     count = sum(m.coverage for m in members)
     qualified = story_events(rep, members)
     material = [k for k in qualified if k not in PRICE_EVENTS]
@@ -218,7 +246,13 @@ def _story(rep: Item, members: list[Item], now: datetime) -> Story | None:
         signal_ids=[m.id for m in members],
     )
     return Story(narrative=narrative, members=members, material_events=material, spread=round(spread, 3),
-                 core_share=round(core_share, 3))
+                 core_share=round(core_share, 3), intensity=intensity)
+
+
+def story_tone(members: list[Item], rep: Item) -> float:
+    """Weighted mean tone of every member (the representative's own score without weight)."""
+    tone, _ = weighted_mean((m.score, m.weight) for m in members)
+    return rep.score if tone is None else tone
 
 
 def anchored_tone(rep: Item, members: list[Item]) -> tuple[float, float, float]:
@@ -228,9 +262,9 @@ def anchored_tone(rep: Item, members: list[Item]) -> tuple[float, float, float]:
     cluster's weighted spread (clamped to 0.15–0.30) of its score, plus — for
     a directional headline — every member on the same side of neutral (a +0.8
     and a +0.4 headline tell the same bullish story). The tone is the core's
-    weighted mean, so the tone shown next to a headline is the tone of the
-    coverage it speaks for. `spread` is over all members, `core share` is the
-    core's share of the story's weight."""
+    weighted mean (used to pick the headline; the story's shown tone is the mean
+    of all members, `story_tone`). `spread` is over all members, `core share`
+    is the core's share of the story's weight."""
     mean, wsum = weighted_mean((m.score, m.weight) for m in members)
     if mean is None or wsum <= 0:
         return rep.score, 0.0, 1.0
@@ -282,6 +316,54 @@ def story_events(rep: Item, members: list[Item]) -> list[str]:
     kept = [k for k, ms in carriers.items()
             if k in own or (len(ms) >= 2 and sum(mass(m) for m in ms) / total >= MATERIAL_SHARE)]
     return sorted(kept, key=lambda k: (-sum(mass(m) for m in carriers[k]), k))
+
+
+# --------------------------------------------------------------------------- #
+# Routine analyst target tweaks
+# --------------------------------------------------------------------------- #
+_FIRM_NOISE = frozenset("""group securities capital markets partners research financial company co inc llc ltd
+plc lp sa ag the and of & isi""".split())
+_FIRM_ALIASES = {"b of a": ("bofa", "bank of america", "b of a"), "jp morgan": ("jpmorgan", "j.p. morgan", "jp morgan"),
+                 "j.p. morgan": ("jpmorgan", "j.p. morgan", "jp morgan")}
+
+
+def _firm_names(firm: str) -> tuple[str, ...]:
+    """Ways a headline names a research firm ('Evercore ISI Group' -> 'evercore'; never a bare
+    'morgan' for Morgan Stanley, which would also match J.P. Morgan)."""
+    low = " ".join(firm.lower().split())
+    for key, names in _FIRM_ALIASES.items():
+        if low.startswith(key):
+            return names
+    core = [w for w in re.findall(r"[a-z0-9.&'-]+", low) if w not in _FIRM_NOISE]
+    return (" ".join(core),) if core else ()
+
+
+def names_firm(title: str, firm: str) -> bool:
+    text = " " + " ".join(re.findall(r"[a-z0-9.&'-]+", title.lower())) + " "
+    return any(f" {name} " in text for name in _firm_names(firm))
+
+
+def routine_revision(story: Story, actions: Sequence[AnalystAction]) -> bool:
+    """The story's only development is a target tweak the structured data shows as routine.
+
+    True when its material events are all target revisions and the firm its
+    headline names has, within 4 days, only rating-unchanged actions moving the
+    target by < 3% (an upgrade, downgrade or initiation is never routine)."""
+    if not actions or not story.material_events or not set(story.material_events) <= REVISION_EVENTS:
+        return False
+    n = story.narrative
+    when = n.last_seen or n.first_seen
+    if when is None:
+        return False
+    matched = [a for a in actions if abs(a.date - when) <= REVISION_MATCH_WINDOW and names_firm(n.headline, a.firm)]
+    if not matched:
+        return False
+    for a in matched:
+        if a.action in ("up", "down", "init") or (a.from_grade and a.to_grade and a.from_grade != a.to_grade):
+            return False
+        if a.price_target and a.prior_target and abs(a.price_target / a.prior_target - 1) >= ROUTINE_REVISION:
+            return False
+    return any(a.price_target and a.prior_target for a in matched)
 
 
 # --------------------------------------------------------------------------- #

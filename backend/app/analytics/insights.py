@@ -12,8 +12,10 @@ Checks (thresholds):
 * crowding     StockTwits bull share >= 85% or <= 35% with >= 15 tags (per account when
                available); top-5 WSB ticker
 * reversal     GDELT 7d vs 30d tone sign flip (|Δ| >= 0.5); SentiNET Δ vs previous >= 12
-* momentum     GDELT tone at a 90d high/low (pct >= 0.9 / <= 0.1); 48h headline
-               tone shift >= 0.2 (>= 8 items each side)
+* momentum     GDELT tone at a 90d high/low (shown pct >= 90th / <= 10th); 48h headline
+               tone shift >= 0.2 after discounting decay toward the typical tone (>= 8 items
+               each side); otherwise the momentum component itself when it reads <= 35 or
+               >= 65 and moves the score >= 1 point
 * smart_money  >= 2 upgrades/downgrades or >= 3 PT raises/cuts in 30d; >= 2 insider
                buyers in 90d or an officer buy >= $500K; insider sales >= 0.5% of market cap
 * catalyst     earnings <= 14 days; ex-dividend <= 7 days
@@ -34,7 +36,7 @@ from datetime import timedelta
 from typing import Literal
 
 from app.analytics import textkit
-from app.analytics.composite import NEWS_BASELINE, SOCIAL_BASELINE, crowded
+from app.analytics.composite import NEWS_BASELINE, SOCIAL_BASELINE, crowded, headline_shift
 from app.analytics.composite import STOCKTWITS_BASELINE as STOCKTWITS_NORM
 from app.analytics.crowd import reddit_change_pct
 from app.analytics.facts import Facts
@@ -59,6 +61,8 @@ MAX_INSIGHTS = 8
 _SEVERITY_RANK = {"alert": 0, "watch": 1, "info": 2}
 _OFFICER = ("chief", "ceo", "cfo", "president", "chair", "founder", "coo")
 MIN_NEWS_FOR_DIVERGENCE = 6
+HEADLINE_TURN = 0.2  # decay-discounted 48h-vs-prior headline tone change worth an insight
+MOMENTUM_CLEAR = 0.3  # |x| of the momentum component (score <= 35 or >= 65) worth an insight
 LEGAL_EVENTS = frozenset({"lawsuit", "investigation", "regulatory_setback", "data_breach"})
 MAJOR_TRUST = 1.1  # wires and majors (Reuters, Bloomberg, WSJ …)
 RED_FLAG_EVENTS = {
@@ -251,7 +255,7 @@ def _reversals(f: Facts, verdict: Verdict, delta: DeltaView) -> Iterator[_Cand]:
     tone = f.inputs.tone
     if tone is not None and tone.tone_7d is not None and tone.tone_30d is not None:
         t7, t30 = tone.tone_7d, tone.tone_30d
-        if t7 * t30 < 0 and abs(t7 - t30) >= 0.5:
+        if _gdelt_flip(f):
             up = t7 > 0
             yield _make("reversal", "watch", "bull" if up else "bear",
                         f"Global news tone flipped {'positive' if up else 'negative'}",
@@ -267,23 +271,45 @@ def _reversals(f: Facts, verdict: Verdict, delta: DeltaView) -> Iterator[_Cand]:
                        else "") + ".", abs(d) / 10)
 
 
+def _gdelt_flip(f: Facts) -> bool:
+    """GDELT 7-day tone on the other side of zero from its 30-day level (by >= 0.5)."""
+    tone = f.inputs.tone
+    if tone is None or tone.tone_7d is None or tone.tone_30d is None:
+        return False
+    return tone.tone_7d * tone.tone_30d < 0 and abs(tone.tone_7d - tone.tone_30d) >= 0.5
+
+
 def _momentum(f: Facts) -> Iterator[_Cand]:
+    fired = _gdelt_flip(f)  # the reversal insight already tells the tone story
     tone = f.inputs.tone
     if tone is not None and tone.percentile_7d is not None and tone.tone_7d is not None:
         p = tone.percentile_7d
-        if p >= 0.9 or p <= 0.1:
-            high = p >= 0.9
+        rank = round(p * 100)  # judged as shown ("10th pct" is a 90-day low)
+        if rank >= 90 or rank <= 10:
+            high = rank >= 90
+            fired = True
             yield _make("momentum", "watch" if not high else "info", "bull" if high else "bear",
                         f"News tone at a 90-day {'high' if high else 'low'}",
-                        f"GDELT 7-day tone of {signed(tone.tone_7d)} ranks in the {ordinal(round(p * 100))} "
+                        f"GDELT 7-day tone of {signed(tone.tone_7d)} ranks in the {ordinal(rank)} "
                         f"percentile of the last 90 days.", abs(p - 0.5) * 2)
     r, o = f.news_recent, f.news_older
-    if r.n >= 8 and o.n >= 8 and r.mean is not None and o.mean is not None and abs(r.mean - o.mean) >= 0.2:
-        up = r.mean > o.mean
+    shift = headline_shift(r, o)
+    # The decay-discounted change: tone drifting back to normal after an event day is not a turn.
+    if shift is not None and r.n >= 8 and o.n >= 8 and abs(shift.effective) >= HEADLINE_TURN:
+        up = shift.change > 0
+        fired = True
         yield _make("momentum", "watch", "bull" if up else "bear",
                     f"Headline tone turned {'up' if up else 'down'} in the last 48h",
-                    f"Last 48h: {signed(r.mean)} across {count(r.n, 'headline')} vs {signed(o.mean)} across "
-                    f"{o.n} in the prior days.", abs(r.mean - o.mean) * 3)
+                    f"Last 48h: {signed(shift.recent)} across {count(r.n, 'headline')} vs {signed(shift.older)} "
+                    f"across {o.n} in the prior days.", abs(shift.effective) * 3)
+    # The momentum component moving the verdict clearly is noteworthy even below those bars.
+    part = f.composite.parts["momentum"]
+    points = f.composite.contributions.get("momentum", 0.0)
+    if not fired and part.reason and abs(part.x) >= MOMENTUM_CLEAR and abs(points) >= 1.0:
+        lead, _, evidence = part.reason.partition(": ")
+        yield _make("momentum", "watch", "bull" if part.x > 0 else "bear", lead,
+                    f"{_cap(evidence)} — the momentum component reads {part.score:.0f}/100 and moves the score "
+                    f"{signed(points, '.1f')} points.", abs(part.x) * 2)
 
 
 # --------------------------------------------------------------------------- #

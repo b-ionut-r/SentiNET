@@ -388,6 +388,20 @@ def _incomplete_tail(volume: dict[date, tuple[float, float | None]], days: list[
     return incomplete
 
 
+def _covered(day: date, tone: float, volume: dict[date, tuple[float, float | None]]) -> bool:
+    """True when GDELT found at least one article on `day`, so its tone is a measurement.
+
+    GDELT answers an average tone of exactly 0 for days without a matching article
+    (KOSS, 2026-10-05: 77 of 80 days at 0.0, every one with 0 articles); averaged in,
+    those zeros fake a neutral baseline and a "significant" tone↔price link out of
+    3 articles. A day counts when its article count says so or, with no count for the
+    day, when its tone is not that exact 0 (real averages essentially never are).
+    """
+    if day in volume:
+        return volume[day][0] > 0
+    return tone != 0.0
+
+
 def merge_series(
     tone: dict[date, tuple[float, float | None]],
     volume: dict[date, tuple[float, float | None]],
@@ -398,7 +412,9 @@ def merge_series(
     """Union of complete days (the last `days` before today, if given), oldest first.
 
     Today's UTC day and any trailing day GDELT is still ingesting are dropped:
-    their volume is incomplete and would read as a fake slump in attention.
+    their volume is incomplete and would read as a fake slump in attention. A day
+    without coverage keeps its article count (0) but has no tone: "no articles" is
+    not "neutral articles".
     """
     start = today - timedelta(days=days) if days else date.min
     dates = sorted(d for d in set(tone) | set(volume) if start <= d < today)
@@ -406,7 +422,7 @@ def merge_series(
     return [
         TonePoint(
             date=d,
-            tone=round(tone[d][0], 4) if d in tone else None,
+            tone=round(tone[d][0], 4) if d in tone and _covered(d, tone[d][0], volume) else None,
             volume=volume[d][0] if d in volume else None,
         )
         for d in dates
@@ -414,11 +430,26 @@ def merge_series(
     ]
 
 
-def _window_mean(points: list[TonePoint], end: date, days: int) -> float | None:
-    """Volume-weighted mean tone over (end - days, end]; simple mean without volume."""
+def min_covered_days(window: int) -> int:
+    """Days with coverage a `window`-day tone needs (7d: 3, 30d: 8, 90d: 23).
+
+    A "30-day tone" read off one article is noise dressed as a statistic: a sparsely
+    covered name gets None ("not enough coverage") while its series still shows the
+    articles that exist.
+    """
+    return max(3, math.ceil(window / 4))
+
+
+def _window_mean(points: list[TonePoint], end: date, days: int, min_days: int = 1) -> float | None:
+    """Volume-weighted mean tone over (end - days, end] (simple mean without volume).
+
+    Only days with coverage count (a known article count of 0 never does); None when
+    fewer than `min_days` of them are left.
+    """
     start = end - timedelta(days=days)
-    rows = [p for p in points if start < p.date <= end and p.tone is not None]
-    if not rows:
+    rows = [p for p in points if start < p.date <= end and p.tone is not None
+            and not (p.volume is not None and p.volume <= 0)]
+    if not rows or len(rows) < min_days:
         return None
     weights = [p.volume for p in rows]
     if all(w is not None and w > 0 for w in weights):
@@ -428,24 +459,27 @@ def _window_mean(points: list[TonePoint], end: date, days: int) -> float | None:
 
 
 def tone_stats(points: list[TonePoint]) -> dict[str, float | None]:
-    """tone_7d/30d/90d, 7d-vs-30d change and where the 7d tone sits in 90 days."""
-    toned = [p for p in points if p.tone is not None]
+    """tone_7d/30d/90d, 7d-vs-30d change and where the 7d tone sits in 90 days.
+
+    Windows end on the newest complete day of the series, covered or not: when a name
+    had no article this week its 7-day tone is None, never last month's article
+    relabelled as "7d". Each window needs `min_covered_days` days with coverage.
+    """
+    toned = [p for p in points if p.tone is not None and not (p.volume is not None and p.volume <= 0)]
     if not toned:
         return {"tone_7d": None, "tone_30d": None, "tone_90d": None,
                 "change_7d_vs_30d": None, "percentile_7d": None}
-    end = toned[-1].date
-    t7, t30, t90 = (_window_mean(points, end, n) for n in (7, 30, 90))
+    end = max(p.date for p in points)
+    t7, t30, t90 = (_window_mean(points, end, n, min_covered_days(n)) for n in (7, 30, 90))
     # Percentile of the latest rolling 7-day tone among all rolling 7-day tones
     # in the window (mid-rank, so ties don't bias it high).
     rolling: list[float] = []
     for p in toned:
         if p.date <= end - timedelta(days=90):
             continue
-        n_obs = sum(1 for q in toned if p.date - timedelta(days=7) < q.date <= p.date)
-        if n_obs >= 4:
-            value = _window_mean(points, p.date, 7)
-            if value is not None:
-                rolling.append(value)
+        value = _window_mean(points, p.date, 7, min_days=4)
+        if value is not None:
+            rolling.append(value)
     percentile = None
     if t7 is not None and len(rolling) >= 10:
         below = sum(1 for v in rolling if v < t7)

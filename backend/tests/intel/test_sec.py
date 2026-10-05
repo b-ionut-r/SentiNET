@@ -196,6 +196,40 @@ def test_listing_deficiency_is_a_red_flag() -> None:
     assert flagged.importance == "high" and flagged.polarity == "bear"
 
 
+def test_regained_listing_compliance_is_good_news_not_a_red_flag() -> None:
+    """Real GoPro 8-K (Item 8.01, 2026-09-16) was shown as the top "Red-flag filing" alert."""
+    excerpt = sec.summarize_8k(load_text("sec/8k_gpro_801_regained.htm"), ["8.01", "9.01"])
+    assert excerpt and "regained compliance with the minimum bid price requirement" in excerpt
+    base = Filing(form="8-K", date=date(2026, 9, 17), title="Other material event", items=["8.01", "9.01"])
+    judged = sec.reassess_8k(base, excerpt)
+    assert (judged.importance, judged.polarity) == ("medium", "bull")
+    # Some issuers file the all-clear under Item 3.01 itself: the text overrides the item prior.
+    listing = Filing(form="8-K", date=date(2026, 9, 17), title="Delisting notice / listing-rule failure",
+                     items=["3.01"], importance="high", polarity="bear")
+    assert (sec.reassess_8k(listing, excerpt).importance, sec.reassess_8k(listing, excerpt).polarity) == \
+        ("medium", "bull")
+
+
+@pytest.mark.parametrize(("excerpt", "importance", "polarity"), [
+    # Deficiency letters talk about regaining compliance in the future: still red flags.
+    ("The Company received a deficiency letter from Nasdaq. The Company has 180 calendar days to regain "
+     "compliance with the minimum bid price requirement.", "high", "bear"),
+    ("Nasdaq notified the Company that it has not regained compliance with the minimum bid price requirement "
+     "and its shares will be suspended.", "high", "bear"),
+    # One requirement met, another one failed: the open deficiency wins.
+    ("The Company has regained compliance with the minimum bid price requirement. Separately, the Company "
+     "received a deficiency letter regarding the minimum stockholders' equity requirement.", "high", "bear"),
+])
+def test_listing_deficiencies_stay_red_flags(excerpt: str, importance: str, polarity: str) -> None:
+    base = Filing(form="8-K", date=TODAY, title="Other material event", items=["8.01"])
+    judged = sec.reassess_8k(base, excerpt)
+    assert (judged.importance, judged.polarity) == (importance, polarity)
+    listing = Filing(form="8-K", date=TODAY, title="Delisting notice / listing-rule failure", items=["3.01"],
+                     importance="high", polarity="bear")
+    assert (sec.reassess_8k(listing, excerpt).importance, sec.reassess_8k(listing, excerpt).polarity) == \
+        ("high", "bear")
+
+
 def test_excerpt_drops_previously_reported_preamble() -> None:
     """"As previously reported … on August 6, 2025, John Boken was appointed…" -> the news itself."""
     excerpt = sec.summarize_8k(load_text("sec/8k_bynd_502.htm"), ["5.02"])

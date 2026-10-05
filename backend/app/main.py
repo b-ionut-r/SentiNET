@@ -16,14 +16,16 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api import API_VERSION, build_router
+from app.api.limits import DEFAULT_MAX_BODY, BodySizeLimitMiddleware
 from app.api.spa import mount_frontend
 from app.api.web_settings import web_settings
 from app.config import settings
 from app.core.http import close_client
-from app.services import alerts, analyzer
+from app.services import alerts, analyzer, lab
 from app.services.errors import ServiceError
 from app.services.monitor import Monitor
 from app.storage import db
@@ -31,6 +33,11 @@ from app.storage import db
 if not logging.getLogger().handlers:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("sentinet")
+
+# The lab's JSON body: its character budget at up to 4 UTF-8 bytes each, plus quoting/escapes.
+LAB_MAX_BODY = lab.MAX_TOTAL_CHARS * 4 + 1024 * 1024
+# Pydantic error fields that may carry (echo) client input; only type/loc/msg go back.
+_ECHO_FIELDS = ("input", "ctx", "url")
 
 
 @asynccontextmanager
@@ -53,18 +60,30 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 async def _service_error(_: Request, exc: Exception) -> JSONResponse:
     status = exc.status_code if isinstance(exc, ServiceError) else 500
-    return JSONResponse({"detail": str(exc)}, status_code=status)
+    retry = exc.retry_after if isinstance(exc, ServiceError) else None
+    headers = {"Retry-After": str(retry)} if retry else None
+    return JSONResponse({"detail": str(exc)}, status_code=status, headers=headers)
+
+
+MAX_LISTED_ERRORS = 10
 
 
 async def _validation_error(_: Request, exc: Exception) -> JSONResponse:
-    """422 with the same `{"detail": str}` shape as every other error (raw list under `errors`)."""
+    """422 with the same `{"detail": str}` shape as every other error (`errors`: type/loc/msg only).
+
+    The rejected input is never echoed back: a 5 MB invalid body must not
+    produce a 5 MB error response.
+    """
     errors = exc.errors() if isinstance(exc, RequestValidationError) else []
+    errors = [{k: v for k, v in err.items() if k not in _ECHO_FIELDS} for err in errors]
     parts = []
-    for err in errors:
+    for err in errors[:MAX_LISTED_ERRORS]:
         loc = [str(x) for x in err.get("loc", ()) if x not in ("body", "query", "path")]
         parts.append(f"{'.'.join(loc) or 'request'}: {err.get('msg', 'invalid')}")
-    return JSONResponse({"detail": "; ".join(parts) or "Invalid request.", "errors": jsonable_encoder(errors)},
-                        status_code=422)
+    if len(errors) > MAX_LISTED_ERRORS:
+        parts.append(f"… and {len(errors) - MAX_LISTED_ERRORS} more")
+    return JSONResponse({"detail": "; ".join(parts) or "Invalid request.",
+                         "errors": jsonable_encoder(errors[:MAX_LISTED_ERRORS])}, status_code=422)
 
 
 async def _unhandled_error(_: Request, __: Exception) -> JSONResponse:
@@ -84,6 +103,10 @@ def create_app() -> FastAPI:
     app.add_middleware(GZipMiddleware, minimum_size=1024)  # SSE (text/event-stream) is never compressed
     app.add_middleware(CORSMiddleware, allow_origins=web_settings.cors_origin_list,
                        allow_methods=["*"], allow_headers=["*"])
+    app.add_middleware(BodySizeLimitMiddleware, default=DEFAULT_MAX_BODY,
+                       overrides={"/api/lab/score": LAB_MAX_BODY})
+    # Outermost: requests for other Host names (DNS rebinding, LAN scans) never reach the API.
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=web_settings.allowed_host_list, www_redirect=False)
     app.add_exception_handler(ServiceError, _service_error)
     app.add_exception_handler(RequestValidationError, _validation_error)
     app.add_exception_handler(Exception, _unhandled_error)
