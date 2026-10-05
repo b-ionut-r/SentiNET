@@ -91,6 +91,7 @@ BRANDS: dict[str, Brand] = {
     "DIS": Brand("Disney", ("Walt Disney",)),
     "TTD": Brand("The Trade Desk", ("Trade Desk",)),
     "SPOT": Brand("Spotify"),
+    "LYV": Brand("Live Nation", ("Live Nation Entertainment", "Ticketmaster")),
     "UBER": Brand("Uber", ("Uber Technologies",)),
     "LYFT": Brand("Lyft"),
     "ABNB": Brand("Airbnb"),
@@ -142,7 +143,7 @@ BRANDS: dict[str, Brand] = {
     "CCL": Brand("Carnival", ("Carnival Corp",)),
     "MCD": Brand("McDonald's"),
     "SBUX": Brand("Starbucks"),
-    "CMG": Brand("Chipotle"),
+    "CMG": Brand("Chipotle", ("Chipotle Mexican Grill",)),
     "NKE": Brand("Nike", ("Nike Inc",)),
     "LULU": Brand("Lululemon"),
     "GPS": Brand("Gap Inc", ("Gap",)),
@@ -155,7 +156,7 @@ BRANDS: dict[str, Brand] = {
     "DJT": Brand("Trump Media", ("Trump Media & Technology Group",)),  # not "Truth Social": every Trump post
     "HIMS": Brand("Hims & Hers", ("Hims & Hers Health",)),
     "MARA": Brand("MARA Holdings", ("Marathon Digital",)),
-    "DELL": Brand("Dell"),
+    "DELL": Brand("Dell", ("Dell Technologies",)),
     "HPQ": Brand("HP Inc", ("HP",)),
     "HPE": Brand("Hewlett Packard Enterprise", ("HPE",)),
     "ADBE": Brand("Adobe"),
@@ -171,6 +172,7 @@ BRANDS: dict[str, Brand] = {
     "LRCX": Brand("Lam Research"),
     "ADI": Brand("Analog Devices"),
     "MRVL": Brand("Marvell", ("Marvell Technology",)),
+    "MCO": Brand("Moody's", ("Moody's Corporation", "Moodys")),  # SEC title "MOODYS CORP"
     # Foreign issuers whose registry name is not what the press writes.
     "PBR": Brand("Petrobras", ("Petróleo Brasileiro", "Petroleo Brasileiro")),
     "BUD": Brand("AB InBev", ("Anheuser-Busch InBev", "Anheuser-Busch")),
@@ -178,6 +180,7 @@ BRANDS: dict[str, Brand] = {
     "TCEHY": Brand("Tencent", ("Tencent Holdings",)),
     "NTDOY": Brand("Nintendo"),
     "TTE": Brand("TotalEnergies"),
+    "SE": Brand("Sea Limited", ("Sea Ltd", "Shopee", "Garena")),  # "Sea" alone is the ocean
     # Funds: what the fund is *about* is what the news covers.
     "SPY": Brand("S&P 500", ("SPDR S&P 500",)),
     "VOO": Brand("S&P 500", ("Vanguard S&P 500",)),
@@ -258,6 +261,7 @@ _LEGAL = {
     "s p a", "ag", "se", "ab", "asa", "oyj", "as", "a s", "bv", "kk", "k k",
     "gmbh", "sarl", "pte", "pty", "bhd", "tbk", "holdings", "holding", "group",
     "new", "the", "p l c", "l l c", "com", "aktiengesellschaft", "publ", "a/s",
+    "sab", "s a b", "cv", "c v", "de cv", "de c v", "sab de cv",  # Mexican "S.A.B. de C.V."
 }
 # Industry words dropped only when what remains is one distinctive token
 # ("Palantir Technologies" -> "Palantir", but "Palo Alto Networks" stays).
@@ -286,9 +290,9 @@ _KEEP_UPPER = {
     "KKR", "TJX", "PNC", "MGM", "NCR", "TPG", "BWX", "SBA", "WEC", "DTE",
     "CMS", "AEP", "PSEG", "NEE", "MDU", "UGI", "AVX", "NOV", "EOG", "APA",
     "IPG", "WPP", "ADT", "AGCO", "MSA", "IQ", "NI", "ITT", "SPX", "UFP", "FMC",
-    "IAC", "LKQ", "BJ", "ODP", "JD", "QXO", "AST", "CRH", "BNY", "SM",
+    "IAC", "LKQ", "BJ", "ODP", "JD", "QXO", "AST", "CRH", "BNY", "SM", "FEMSA",
 }
-_SMALL_WORDS = {"of", "and", "the", "for", "de", "du", "la", "le", "von", "van", "&", "y"}
+_SMALL_WORDS = {"of", "and", "the", "for", "de", "del", "du", "la", "le", "von", "van", "&", "y"}
 # Three-letter English words that are not acronyms in an all-caps registry title.
 _WORDS3 = {"one", "new", "oil", "gas", "air", "sun", "bio", "car", "top", "big", "red", "sky", "sea", "art", "net",
            "web", "box", "pet", "pay", "ice", "inn", "bay", "oak", "key", "map", "fox", "toy", "tea", "joy", "max"}

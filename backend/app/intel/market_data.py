@@ -287,7 +287,17 @@ async def get_technicals(ticker: str) -> Technicals | None:
     bars = await _daily_bars(ticker)
     if not bars:
         return None
-    return tx.technicals_from_history(bars[0], now=_now(), is_crypto=is_crypto_symbol(ticker))
+    crypto = is_crypto_symbol(ticker)
+    tech = tx.technicals_from_history(bars[0], now=_now(), is_crypto=crypto)
+    if tech is not None and crypto and tech.return_1d is None:
+        # Yahoo skipped yesterday's daily bar: the quote's rolling 24 h change is the 1-day move.
+        try:
+            quote = await get_quote(ticker)
+        except UpstreamError:
+            quote = None
+        if quote is not None and quote.change_pct is not None:
+            tech = tech.model_copy(update={"return_1d": round(quote.change_pct, 2)})
+    return tech
 
 
 async def get_analysts(ticker: str, price: float | None) -> AnalystView | None:
@@ -370,4 +380,13 @@ async def get_indices() -> list[IndexQuote]:
     quotes = [q for q in tx.indices_from_download(df, INDEX_SYMBOLS) if q.price is not None]
     if not quotes:  # yf.download swallows per-symbol errors and returns an empty frame
         raise UpstreamError("Yahoo indices: no prices returned")
+    for i, q in enumerate(quotes):
+        if q.change_pct is None and is_crypto_symbol(q.symbol):
+            # Yahoo skipped a daily crypto bar: use the quote's own 24 h change instead of a 2-day one.
+            try:
+                live = await get_quote(q.symbol)
+            except UpstreamError:
+                continue
+            if live is not None and live.change_pct is not None:
+                quotes[i] = q.model_copy(update={"change_pct": live.change_pct})
     return quotes

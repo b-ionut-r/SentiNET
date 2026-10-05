@@ -155,13 +155,37 @@ async def get_crypto_fear_greed() -> FearGreed | None:
 # --------------------------------------------------------------------------- #
 # Trending
 # --------------------------------------------------------------------------- #
+# Below this many mentions a day ago, a % change is noise (META 1 -> 12 read "+1100%").
+MIN_CHANGE_BASE = 5
+APEWISDOM_NAME_MAX = 70  # ApeWisdom cuts names here
+_CUSTODIAN = re.compile(r"\b(?:trust company|n\.a\.|ishares trust|spdr series trust)\b", re.IGNORECASE)
+_CUSTODIAN_CODE = re.compile(r"^[A-Z]{2,4}\s+(?=iShares|SPDR|Vanguard|Invesco|Schwab)")
+
+
+def clean_board_name(raw: Any) -> str | None:
+    """ApeWisdom's registry-style names -> display names.
+
+    "BlackRock Institutional Trust Company N.A. - BTC iShares 20+ Year Trea" (the custodian,
+    then a cut-off fund name) -> "iShares 20+ Year Trea…"; ordinary names pass unchanged.
+    """
+    name = html.unescape(str(raw or "")).strip()
+    if not name:
+        return None
+    truncated = len(name) >= APEWISDOM_NAME_MAX
+    head, sep, tail = name.partition(" - ")
+    if sep and _CUSTODIAN.search(head) and tail.strip():
+        name = _CUSTODIAN_CODE.sub("", tail.strip())
+    return f"{name}…" if truncated else name
+
+
 def parse_apewisdom(
     payload: Any, limit: int = 25, skip: Callable[[str], bool] | None = None
 ) -> list[TrendingTicker]:
     """Pure: ApeWisdom leaderboard -> top Reddit tickers with 24h mention change.
 
     `skip` drops symbols whose Reddit count measures a word, not the stock ("DTE" is
-    days-to-expiry on options subs, not DTE Energy).
+    days-to-expiry on options subs, not DTE Energy). The change is left out when the
+    day-ago base is under `MIN_CHANGE_BASE` mentions.
     """
     out: list[TrendingTicker] = []
     for item in ((payload or {}).get("results") or []) if isinstance(payload, dict) else []:
@@ -172,9 +196,10 @@ def parse_apewisdom(
             continue
         mentions = _int(item.get("mentions"))
         prev = _int(item.get("mentions_24h_ago"))
-        change = round((mentions - prev) / prev * 100, 1) if mentions is not None and prev else None
+        change = (round((mentions - prev) / prev * 100, 1)
+                  if mentions is not None and prev is not None and prev >= MIN_CHANGE_BASE else None)
         out.append(TrendingTicker(
-            symbol=sym, name=html.unescape(str(item.get("name") or "")) or None, source="reddit",
+            symbol=sym, name=clean_board_name(item.get("name")), source="reddit",
             rank=_int(item.get("rank")), rank_prev=_int(item.get("rank_24h_ago")),
             mentions=mentions, mentions_prev=prev, change_pct=change,
         ))
@@ -261,6 +286,7 @@ FEEDS: list[tuple[str, str, str | None, FilterMode]] = [
 ]
 MAX_HEADLINES = 120
 PER_FEED_CAP = 40  # keep one aggregator from drowning out the others
+PER_PUBLISHER_CAP = 4  # per outlet within search feeds (8 Motley Fool listicles in one live sample)
 
 # General news feeds carry politics/lifestyle too; keep what can move markets.
 _MARKET_TERMS = re.compile(
@@ -269,29 +295,53 @@ _MARKET_TERMS = re.compile(
     r"economy|economic|earnings|revenue|profit|guidance|ipo|merger|acquisition|deal|tariffs?|trade war|"
     r"oil|crude (?:oil|prices?|futures)|opec|gold|bitcoin|crypto|dollar|investors?|traders?|futures|"
     r"(?<!campaign )rall(?:y|ies|ied)(?! speech)|sell-?off|"
-    r"bank|banks|tech|ai|chip|chips|semiconductors?|layoffs?|bankruptcy|sec|antitrust|ceo)\b",
+    r"bank|banks|tech|ai|chip|chips|semiconductors?|layoffs?|bankruptcy|sec|antitrust|ceo|"
+    r"index|indexes|indices|benchmark|nikkei|hang seng|ftse|dax|stoxx|vix|volatility|yen|euro|currenc(?:y|ies))\b",
     re.IGNORECASE,
 )
-# Single-country market stories (Lagos, Dhaka, Seoul…) crowd out what moves US
-# markets; kept only when they also mention Wall Street / US benchmarks.
+# Search feeds (Google/Bing "stock market") also return other countries' local market
+# reports ("Taiwan Stock Market Surges Over 1,000 Points", Lagos' "Stock Market Drops by
+# N813bn"). On those feeds a headline about a local index or bourse is dropped unless it
+# also names a US benchmark or a globally traded asset (oil, tariffs, crypto…); curated
+# feeds (CNBC, MarketWatch) are never filtered this way: their editors already chose.
 _FOREIGN = re.compile(
     r"\b(bangladesh\w*|dhaka|nigeria\w*|lagos|ghana\w*|kenya\w*|nairobi|pakistan\w*|karachi|psx|sri lanka\w*|"
-    r"india\w*|sensex|nifty|bse|nse|korea\w*|seoul|kospi|philippine\w*|psei|vietnam\w*|thai\w*|indonesia\w*|"
-    r"malaysia\w*|bursa|egypt\w*|egx|saudi|tadawul|turk\w*|borsa|french|cac 40|german\w*|dax|ftse|uk stocks|"
-    r"nikkei|hang seng|shanghai|shenzhen|asx|tsx|jse|zimbabwe\w*|uganda\w*|zambia\w*)\b",
+    r"india(?:n|ns|'s)?|sensex|nifty|bse|nse|korea\w*|seoul|kospi|philippine\w*|psei|vietnam\w*|thai(?:land)?|"
+    r"indonesia\w*|malaysia\w*|bursa|egypt\w*|egx|saudi|tadawul|turk(?:ey|ish|iye)|borsa|french|cac 40|"
+    r"german\w*|dax|ftse|uk stocks|nikkei|japan\w*|hang seng|shanghai|shenzhen|taiwan\w*|taiex|asx|tsx|jse|"
+    r"zimbabwe\w*|uganda\w*|zambia\w*)\b",
     re.IGNORECASE,
 )
+_LOCAL_MARKET = re.compile(r"\b(stock market|stocks?|shares|equities|index|indices|bourse|exchange|points|"
+                           r"benchmark|market cap\w*|trading|investors?|sensex|nifty|kospi|nikkei|hang seng|taiex|"
+                           r"psei|jse|asx|tsx|ftse|dax)\b", re.IGNORECASE)
+_GLOBAL_ASSET = re.compile(r"\b(oil|crude|brent|opec\+?|lng|gold|bitcoin|crypto\w*|tariffs?|trade (?:war|deal)|"
+                           r"sanctions?|dollar|fed|treasur\w+|chips?|semiconductor\w*|rare earths?)\b", re.IGNORECASE)
 _US_MARKET = re.compile(r"\b(wall street|s&p|nasdaq|dow|fed|federal reserve|treasur\w+|u\.?s\.?|american|nyse)\b",
                         re.IGNORECASE)
-# First-person advice columns ("I'm 71 and still working…?") are not market news.
+SEARCH_FEEDS = frozenset({"google_news", "bing_news", "bing_wallstreet"})
+# A search-feed headline with no US anchor needs an outlet this trusted (`app.nlp.publishers`:
+# majors >= 1.0, Motley Fool/Benzinga 0.9, unknown local sites 0.8).
+SEARCH_MIN_TRUST = 0.9
+# Advice columns ("I'm 71 and still working. Am I doing the right thing…?"): first-person
+# questions, or any first-person headline on MarketWatch (home of the Moneyist).
 _ADVICE = re.compile(r"^[‘'\"“]?(?:I|I’m|I'm|I’ve|I've|My|We|We’re|We're|Our|Should I|Can I|How do I)\b")
+# Evergreen listicles from search feeds ("3 Stocks to Buy and Hold Forever"): not today's market.
+_EVERGREEN = re.compile(
+    r"\b(?:stocks?|etfs?|shares) to (?:buy|own|hold|sell|avoid)\b|\bbuy and hold\b|\bforever\b|\bmillionaire|"
+    r"\bshould you (?:buy|sell)\b|\bpassive income\b|\bbest (?:\w+ ){0,3}(?:stocks?|etfs?) (?:for|to)\b|"
+    r"\bno-brainer\b|\bmonster (?:stocks?|growth)\b|\bscreaming buy\b|\bI'?d buy\b|\bI'?m (?:still )?buying\b|"
+    r"\byou'?d need\b|\bmonthly (?:dividends?|income)\b|\bhistory says\b|\bforget the\b|\bsmart buys?\b|"
+    r"\$\d[\d,.]* (?:million|thousand) portfolio|\bzero-fee\b",
+    re.IGNORECASE,
+)
 # SEO ticker-page farms and outlets that cover their own (non-US) market under generic
 # "stock market" headlines ("Stock market dips 0.52%" is the Nigerian Exchange).
 _BLOCKED_PUBLISHERS = re.compile(
-    r"stocktradersdaily|punchng|businessday\.ng|nairametrics|thedailystar|dawn\.com|tribune\.com\.pk|philstar|"
-    r"businessmirror|inquirer\.net|bworldonline|manila ?times|thestar\.com\.my|theedgemalaysia|vnexpress|"
-    r"bangkokpost|moneycontrol|economictimes|livemint|business-standard|financialexpress|ndtvprofit|"
-    r"the collegian",
+    r"stock ?traders ?daily|punchng|businessday\.ng|nairametrics|the ?daily ?star|dawn\.com|tribune\.com\.pk|"
+    r"philstar|business ?mirror|inquirer\.net|bworldonline|manila ?times|thestar\.com\.my|the ?edge ?malaysia|"
+    r"vnexpress|bangkok ?post|money ?control|economic ?times|live ?mint|business[- ]standard|financial ?express|"
+    r"ndtv ?profit|the collegian",
     re.IGNORECASE,
 )
 _NON_LATIN = re.compile(r"[^\x00-\u024f\u2000-\u206f\u20ac]")  # 매일경제, 日経: non-English outlets
@@ -299,6 +349,29 @@ _NON_LATIN = re.compile(r"[^\x00-\u024f\u2000-\u206f\u20ac]")  # 매일경제, �
 
 def _blocked(publisher: str | None) -> bool:
     return bool(publisher) and bool(_BLOCKED_PUBLISHERS.search(publisher) or _NON_LATIN.search(publisher))
+
+
+def _trust(publisher: str | None) -> float:
+    """Outlet trust from the shared publisher table (unknown outlets: 0.8)."""
+    try:
+        from app.nlp.publishers import publisher_trust
+    except ImportError:  # nlp package mid-edit: treat every outlet as unknown
+        return 0.8
+    return publisher_trust(publisher)
+
+
+def foreign_local_market(title: str) -> bool:
+    """A headline about another country's local market ("Taiwan stocks surge 1,000 points")."""
+    return bool(_FOREIGN.search(title) and _LOCAL_MARKET.search(title)
+                and not _GLOBAL_ASSET.search(title) and not _US_MARKET.search(title))
+
+
+def _keep_search_hit(title: str, publisher: str | None) -> bool:
+    """Search-feed gate: not a foreign local-market report, not an evergreen listicle, and
+    either US-anchored or from a trusted outlet (unknown sites mostly cover their own market)."""
+    if foreign_local_market(title) or _EVERGREEN.search(title) or title.endswith(("...", "…")):
+        return False  # truncated titles ("…outperforms S&P 500 in 2026 with risin...") say too little
+    return bool(_US_MARKET.search(title)) or _trust(publisher) >= SEARCH_MIN_TRUST
 
 
 _TAG = re.compile(r"<[^>]+>")
@@ -346,11 +419,10 @@ def parse_feed(xml_text: str, key: str, publisher: str | None, market_filter: Fi
             continue
         body = None if key == "google_news" else (_clean(entry.get("summary")) or None)
         scope = title if mode == "title" else f"{title} {body or ''}"
-        if mode and (_ADVICE.match(title) or not _MARKET_TERMS.search(scope)):
+        advice = _ADVICE.match(title) and (title.rstrip().endswith("?") or key == "marketwatch")
+        if mode and (advice or not _MARKET_TERMS.search(scope)):
             continue
-        if _blocked(pub):
-            continue
-        if _FOREIGN.search(title) and not _US_MARKET.search(title):
+        if _blocked(pub) or (key in SEARCH_FEEDS and not _keep_search_hit(title, pub)):
             continue
         parsed = entry.get("published_parsed") or entry.get("updated_parsed")
         ts = datetime.fromtimestamp(calendar.timegm(parsed), UTC) if parsed else None
@@ -371,6 +443,7 @@ def merge_headlines(batches: list[list[RawSignal]], *, now: datetime, limit: int
     """
     seen_titles: set[str] = set()
     seen_urls: set[str] = set()
+    per_outlet: dict[str, int] = {}
     merged: list[RawSignal] = []
     for batch in batches:
         newest_first = sorted(batch, key=lambda s: s.timestamp or datetime.min.replace(tzinfo=UTC), reverse=True)
@@ -378,6 +451,11 @@ def merge_headlines(batches: list[list[RawSignal]], *, now: datetime, limit: int
             key = _dedupe_key(sig.title)
             if key in seen_titles or (sig.url and sig.url in seen_urls):
                 continue
+            if sig.extra.get("feed") in SEARCH_FEEDS:
+                outlet = (sig.publisher or "").lower()
+                if per_outlet.get(outlet, 0) >= PER_PUBLISHER_CAP:
+                    continue
+                per_outlet[outlet] = per_outlet.get(outlet, 0) + 1
             seen_titles.add(key)
             if sig.url:
                 seen_urls.add(sig.url)

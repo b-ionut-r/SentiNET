@@ -143,7 +143,8 @@ def test_analysts_nvda() -> None:
     view = tx.analysts_from_frames(fx.info("NVDA"), fx.recommendations("NVDA"), fx.upgrades("NVDA"),
                                    price=233.95, now=NOW)
     assert view is not None
-    assert view.consensus == "strong_buy" and view.mean_rating == pytest.approx(1.3, abs=0.01)
+    # From the counts the view shows (10/48/2/1/0), not Yahoo's recommendationMean 1.30 (another panel).
+    assert view.consensus == "buy" and view.mean_rating == pytest.approx(1.90, abs=0.01)
     assert view.counts and view.counts.period == "0m"
     assert view.total == view.counts.strong_buy + view.counts.buy + view.counts.hold + view.counts.sell + view.counts.strong_sell
     assert view.target_mean == 327.7 and view.upside_pct == pytest.approx(40.07, abs=0.01)
@@ -178,6 +179,34 @@ def test_analyst_revision_counting_windows() -> None:
     assert view.pt_cuts_30d == 2  # B (label), D (numbers: 100 -> 95, no label)
     assert len(view.actions) == 6  # duplicate init collapsed
     assert view.upside_pct == 10.0 and view.consensus is None
+
+
+def test_consensus_agrees_with_the_counts_shown() -> None:
+    """TGT: Yahoo's mean 2.47 says "buy" while 21 of 38 counted analysts say hold (4 strong sell)."""
+    view = tx.analysts_from_frames(fx.info("TGT"), fx.recommendations("TGT"), fx.upgrades("TGT"), price=156.0, now=NOW)
+    assert view is not None and view.counts is not None
+    assert (view.counts.hold, view.total) == (21, 38)
+    assert view.consensus == "hold" and view.mean_rating == pytest.approx(2.82, abs=0.01)
+    # AAPL's recorded feed has rows without a priceTargetAction label (NaN): counted from the numbers.
+    aapl = tx.analysts_from_frames(fx.info("AAPL"), fx.recommendations("AAPL"), fx.upgrades("AAPL"), price=None, now=NOW)
+    assert aapl is not None and aapl.pt_raises_30d >= 1
+    # Too few counted analysts: the provider's mean is the better estimate.
+    thin = pd.DataFrame([{"period": "0m", "strongBuy": 1, "buy": 1, "hold": 0, "sell": 0, "strongSell": 0}])
+    view = tx.analysts_from_frames({"recommendationMean": 2.1, "targetMeanPrice": 10.0}, thin, None, price=9.0, now=NOW)
+    assert view is not None and view.mean_rating == 2.1 and view.consensus == "buy" and view.total == 2
+
+
+def test_frozen_upgrade_feed_reads_as_unknown_not_zero() -> None:
+    """META's real feed stopped at 2024-09-30: two-year-old reiterations are not "recent actions"."""
+    raw = fx.upgrades("META")
+    assert raw.index.max() < pd.Timestamp("2024-10-01")
+    view = tx.analysts_from_frames(fx.info("META"), fx.recommendations("META"), raw, price=728.08, now=NOW)
+    assert view is not None and view.actions == []
+    assert view.upgrades_90d == view.pt_raises_30d == 0 and view.consensus == "buy" and view.total == 63
+    # A live feed keeps actions up to a year old, nothing older.
+    nvda = tx.analysts_from_frames(fx.info("NVDA"), fx.recommendations("NVDA"), fx.upgrades("NVDA"), price=233.95,
+                                   now=NOW)
+    assert nvda is not None and nvda.actions and all(NOW - a.date <= tx.ACTION_MAX_AGE for a in nvda.actions)
 
 
 def test_analysts_none_without_coverage() -> None:
@@ -252,6 +281,8 @@ def test_classify_insider(text: str, kind: str) -> None:
         ("O'BRIEN DEIRDRE", "Deirdre O'Brien"),
         ("KEOUGH KELLI ALLEN", "Kelli Allen Keough"),
         ("SMITH JOHN JR", "John Smith Jr."),
+        ("FORD HENRY III", "Henry Ford III"),
+        ("HELMAN WILLIAM W IV", "William W. Helman IV"),
         ("NORA JOHNSON SUZANNE M", "Nora Johnson Suzanne M."),  # ambiguous: order kept
         ("BERKSHIRE HATHAWAY INC", "Berkshire Hathaway Inc"),
         ("Jensen Huang", "Jensen Huang"),
@@ -312,3 +343,30 @@ def test_earnings_reported_today_is_not_next() -> None:
     reported_day = date(2026, 8, 26)
     view = tx.earnings_from_frames({"Earnings Date": [reported_day]}, dates, {}, today=reported_day)
     assert view is not None and view.next_date == date(2026, 11, 17)  # the Aug 26 report already happened
+
+
+# --------------------------------------------------------------------------- #
+# crypto calendar
+# --------------------------------------------------------------------------- #
+def test_crypto_quote_previous_close_matches_its_24h_change() -> None:
+    """Yahoo's crypto change is rolling 24 h; its previousClose is the 00:00 UTC open."""
+    info = fx.info("BTC-USD")
+    q = tx.quote_from_info(info)
+    assert q is not None and q.change is not None and q.previous_close is not None
+    assert q.price - q.previous_close == pytest.approx(q.change, abs=1e-3)
+    assert q.previous_close != info["regularMarketPreviousClose"]
+
+
+def test_crypto_returns_never_span_a_missing_daily_bar() -> None:
+    """Live 2026-10-05: Yahoo had no BTC bar for 10-04, and "1d" silently became a 2-day move."""
+    df = fx.bars("BTC-USD")
+    full = tx.technicals_from_history(df, now=NOW, is_crypto=True)
+    gap = tx.technicals_from_history(df.drop(df.index[-2]), now=NOW, is_crypto=True)
+    assert full is not None and full.return_1d is not None
+    assert gap is not None and gap.return_1d is None and gap.return_5d == full.return_5d
+    idx = fx.indices()
+    btc_dates = idx[("Close", "BTC-USD")].dropna().index
+    holed = idx.drop(btc_dates[-2])
+    quotes = {q.symbol: q for q in tx.indices_from_download(holed, {"SPY": "S&P 500", "BTC-USD": "Bitcoin"})}
+    assert quotes["BTC-USD"].change_pct is None and quotes["BTC-USD"].price is not None
+    assert quotes["SPY"].change_pct is not None

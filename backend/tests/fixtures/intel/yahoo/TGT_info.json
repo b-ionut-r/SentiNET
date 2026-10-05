@@ -1,0 +1,11 @@
+{
+ "quoteType": "EQUITY",
+ "recommendationMean": 2.47368,
+ "recommendationKey": "buy",
+ "numberOfAnalystOpinions": 34,
+ "currentPrice": 156.0,
+ "targetMeanPrice": 164.67647,
+ "targetMedianPrice": 164.0,
+ "targetHighPrice": 200.0,
+ "targetLowPrice": 128.0
+}

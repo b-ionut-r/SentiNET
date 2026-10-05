@@ -222,7 +222,9 @@ def test_clean_company_name_precision_rules(raw: str, expected: str) -> None:
 
 
 def test_everyday_word_brands_get_their_legal_form_as_alias() -> None:
-    assert derive_names("SE", "EQUITY", long_name="Sea Limited").aliases == ["Sea Limited"]
+    assert derive_names("XSEA", "EQUITY", long_name="Sea Limited").aliases == ["Sea Limited"]  # generic rule
+    se = derive_names("SE", "EQUITY", long_name="Sea Limited")  # the real SE is curated: Shopee, Garena
+    assert se.short_name == "Sea Limited" and "Shopee" in se.aliases
     assert derive_names("POOL", "EQUITY", long_name="Pool Corporation").aliases == ["Pool Corporation"]
     assert derive_names("LMND", "EQUITY", long_name="Lemonade, Inc.").aliases == ["Lemonade Inc"]
     assert derive_names("ONON", "EQUITY", long_name="On Holding AG").aliases == []  # never the bare "On"
@@ -268,3 +270,9 @@ def test_fund_names_drop_issuers_and_wrappers() -> None:
     assert clean_fund_name("KraneShares CSI China Internet ETF") == "CSI China Internet"
     assert clean_fund_name("iShares iBoxx $ High Yield Corporate Bond ETF") == "High Yield Corporate Bond"
     assert clean_fund_name("iPath Series B S&P 500 VIX Short-Term Futures ETN") == "S&P 500 VIX Short-Term Futures"
+
+
+def test_mexican_legal_suffix_and_acronyms() -> None:
+    assert clean_company_name("AMERICA MOVIL SAB DE CV") == "America Movil"
+    assert clean_company_name("Coca-Cola FEMSA, S.A.B. de C.V.") == "Coca-Cola FEMSA"
+    assert clean_company_name("Grupo Aeroportuario del Pacifico SAB de CV") == "Grupo Aeroportuario del Pacifico"

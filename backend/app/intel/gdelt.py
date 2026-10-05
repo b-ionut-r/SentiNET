@@ -45,6 +45,7 @@ from app.core.cache import TTLStore
 from app.core.http import UpstreamError, fetch
 from app.intel.diskcache import DiskCache
 from app.resolve.names import is_common_word_name
+from app.resolve.symbols import named_ref
 from app.resolve.words import COMMON_WORDS, NAMESAKES
 from app.schemas import TonePoint, ToneTrend
 from app.sources.base import CompanyRef
@@ -100,6 +101,16 @@ CURATED: dict[str, str] = {
     "T": '"AT&T" (wireless OR telecom OR carrier OR broadband OR Verizon OR "T-Mobile")',
     "C": '("Citigroup" OR "Citi bank" OR "Citibank")',
     "HOOD": '("Robinhood Markets" OR "Robinhood app" OR "Robinhood CEO" OR "Vlad Tenev")',
+    # Surname/place fragments: bare "Berkshire" matched 0 of 19 sampled titles about the company
+    # (Newbury police, Berkshires foliage), bare "Lilly" ~6 of 29 (review, 2026-10-05).
+    "BRK-A": '("Berkshire Hathaway" OR "Greg Abel")',
+    "BRK-B": '("Berkshire Hathaway" OR "Greg Abel")',
+    "LLY": '("Eli Lilly" OR "Lilly CEO" OR "Zepbound" OR "Mounjaro" OR "Dave Ricks")',
+    "ABT": '("Abbott Laboratories" OR "Abbott Labs" OR "Abbott CEO" OR "FreeStyle Libre")',  # not Gov. Abbott
+    "MRK": '("Merck & Co" OR "Merck CEO" OR "Keytruda")',  # not Merck KGaA
+    "SCHW": '("Charles Schwab" OR "Schwab CEO" OR "Rick Wurster")',  # not Klaus Schwab
+    "XOM": '("Exxon" OR "ExxonMobil")',
+    "SE": '("Sea Limited" OR "Sea Ltd" OR "Shopee" OR "Garena")',
     "SPY": '"S&P 500"',
     "VOO": '"S&P 500"',
     "IVV": '"S&P 500"',
@@ -164,12 +175,14 @@ def _or(terms: list[str]) -> str | None:
 
 
 # Multi-word brands that are also everyday noun phrases ("waste management" is in
-# every municipal story): searched like everyday-word brands, never bare.
+# every municipal story, "first solar farm" in local news): searched like everyday-word
+# brands, never bare. Names the company owns in practice ("Rocket Lab", "Live Nation",
+# "General Dynamics", "Dollar Tree") are searched as-is: anchoring them to "… Inc"/"… CEO"
+# would miss most of their coverage ("Rocket Lab launches …").
 GENERIC_PHRASES = frozenset({
     "waste management", "public storage", "best buy", "analog devices", "global payments", "state street",
-    "air products", "realty income", "genuine parts", "extra space", "iron mountain", "steel dynamics",
-    "american water", "electronic arts", "universal health", "general dynamics", "health care",
-    "united rentals", "first solar", "live nation", "core scientific", "rocket lab", "dollar tree",
+    "air products", "realty income", "genuine parts", "extra space", "iron mountain", "american water",
+    "electronic arts", "universal health", "health care", "first solar", "core scientific",
 })
 
 
@@ -178,20 +191,39 @@ def _needs_anchor(short: str) -> bool:
     return is_common_word_name(short) or short.lower() in GENERIC_PHRASES
 
 
+def _name_aliases(short: str, aliases: list[str]) -> list[str]:
+    """Aliases that may join a distinctive name's OR.
+
+    Never one needing an anchor ("Square"), and never a one-word fragment of a multi-word
+    name ("Berkshire" of "Berkshire Hathaway", "Lilly" of "Eli Lilly", "Schwab" of "Charles
+    Schwab"): the full name is the short name precisely because the fragment alone is a
+    place, first name or surname, and as an OR term it would swallow the precise phrase.
+    """
+    words = {w.lower() for w in short.split()} if len(short.split()) > 1 else set()
+    return [a for a in aliases
+            if a.strip() and not _needs_anchor(a.strip())
+            and not (len(a.split()) == 1 and a.strip().lower() in words)]
+
+
 def build_query(company: CompanyRef) -> str | None:
     """GDELT query for a company (language-filtered), or None when nothing is searchable.
 
     * curated query when we have one (homonym brands, funds, majors);
+    * None for a bare ref whose only name is its ticker (it would match other entities);
     * coins by name, anchored ("Stellar crypto") when the name is a word or too short;
     * funds, indices, futures and FX search their theme ("regional banks", "gold price");
-    * short names ("IBM", "Nike") only inside phrases: "IBM shares", "Nike CEO", full names;
+    * short names ("IBM", "Uber") only inside phrases: "IBM shares", "Uber Technologies";
     * everyday words, namesakes and generic phrases ("Chewy", "Nasdaq", "Waste Management")
       only in their legal form / with "CEO" / via precise aliases;
-    * distinctive names are searched as-is, OR'd with their aliases.
+    * distinctive names are searched as-is, OR'd with their precise aliases.
     """
     if company.ticker in CURATED:
         return f"{CURATED[company.ticker]} {LANG}"
-    short = (company.short_name or company.ticker).strip()
+    named = named_ref(company)
+    if named is None:
+        return None
+    company = named
+    short = company.short_name.strip()
     if company.is_crypto:
         coin = _or(_crypto_terms(company))
         return f"{coin} {LANG}" if coin else None
@@ -208,7 +240,9 @@ def build_query(company: CompanyRef) -> str | None:
         if short.lower() not in COMMON_WORDS | NAMESAKES:
             terms += [f"{short} shares", f"{short} stock"]
     else:
-        terms = [short, *(a for a in company.aliases if short.lower() not in a.lower() and not _needs_anchor(a))]
+        # An alias containing a searchable short name is redundant (`_or` drops it); with an
+        # unsearchable one ("Uber", "Zeta") it is the best term there is ("Uber Technologies").
+        terms = [short, *_name_aliases(short, company.aliases)]
         if not searchable(short) and company.quote_type == "EQUITY":
             terms += [f"{short} Inc", f"{short} shares", f"{short} stock", f"{short} CEO"]
     query = _or(terms)
@@ -290,7 +324,10 @@ def fallback_query(company: CompanyRef) -> str | None:
 
     Never a bare everyday word: no fallback beats a "Target" query full of price targets.
     """
-    names = [n.strip() for n in [company.short_name, *company.aliases, company.name]
+    named = named_ref(company)
+    if named is None:
+        return None
+    names = [n.strip() for n in [named.short_name, *named.aliases, named.name]
              if n and searchable(n.strip()) and not _needs_anchor(n.strip())]
     return f"{_phrase(names[0])} {LANG}" if names else None
 
@@ -298,12 +335,17 @@ def fallback_query(company: CompanyRef) -> str | None:
 # --------------------------------------------------------------------------- #
 # Parsing & statistics (pure)
 # --------------------------------------------------------------------------- #
-def parse_timeline(payload: Any) -> dict[date, tuple[float, float | None]]:
-    """GDELT timeline JSON -> {day: (value, norm)} (first series only)."""
+def parse_timeline(payload: Any, *, total: bool = False) -> dict[date, tuple[float, float | None]]:
+    """GDELT timeline JSON -> {day: (value, norm)} (first series only).
+
+    GDELT answers short spans at hourly (or finer) resolution; several points on one
+    day are combined: averaged (tone), or summed when `total` (article counts, whose
+    `norm` is the number of articles monitored).
+    """
     timeline = payload.get("timeline") if isinstance(payload, dict) else None
     if not timeline:
         return {}
-    out: dict[date, tuple[float, float | None]] = {}
+    points: dict[date, list[tuple[float, float | None]]] = {}
     for point in timeline[0].get("data") or []:
         raw = str(point.get("date") or "")
         try:
@@ -314,7 +356,14 @@ def parse_timeline(payload: Any) -> dict[date, tuple[float, float | None]]:
         if not math.isfinite(value):
             continue
         norm = point.get("norm")
-        out[day] = (value, float(norm) if isinstance(norm, (int, float)) else None)
+        points.setdefault(day, []).append((value, float(norm) if isinstance(norm, (int, float)) else None))
+    out: dict[date, tuple[float, float | None]] = {}
+    for day, rows in points.items():
+        norms = [n for _, n in rows if n is not None]
+        if total:
+            out[day] = (sum(v for v, _ in rows), sum(norms) if norms else None)
+        else:
+            out[day] = (sum(v for v, _ in rows) / len(rows), sum(norms) / len(norms) if norms else None)
     return out
 
 
@@ -344,21 +393,23 @@ def merge_series(
     volume: dict[date, tuple[float, float | None]],
     *,
     today: date,
+    days: int | None = None,
 ) -> list[TonePoint]:
-    """Union of complete days, oldest first.
+    """Union of complete days (the last `days` before today, if given), oldest first.
 
     Today's UTC day and any trailing day GDELT is still ingesting are dropped:
     their volume is incomplete and would read as a fake slump in attention.
     """
-    days = sorted(d for d in set(tone) | set(volume) if d < today)
-    skip = _incomplete_tail(volume, days)
+    start = today - timedelta(days=days) if days else date.min
+    dates = sorted(d for d in set(tone) | set(volume) if start <= d < today)
+    skip = _incomplete_tail(volume, dates)
     return [
         TonePoint(
             date=d,
             tone=round(tone[d][0], 4) if d in tone else None,
             volume=volume[d][0] if d in volume else None,
         )
-        for d in days
+        for d in dates
         if d not in skip
     ]
 
@@ -409,9 +460,12 @@ def tone_stats(points: list[TonePoint]) -> dict[str, float | None]:
     }
 
 
-def build_trend(query: str, tone_payload: Any, volume_payload: Any, *, today: date) -> ToneTrend | None:
-    """Pure: two GDELT payloads -> ToneTrend (None when both are empty)."""
-    series = merge_series(parse_timeline(tone_payload), parse_timeline(volume_payload), today=today)
+def build_trend(
+    query: str, tone_payload: Any, volume_payload: Any, *, today: date, days: int | None = None
+) -> ToneTrend | None:
+    """Pure: two GDELT payloads -> ToneTrend over the last `days` (None when both are empty)."""
+    series = merge_series(parse_timeline(tone_payload), parse_timeline(volume_payload, total=True),
+                          today=today, days=days)
     if not series:
         return None
     return ToneTrend(query=query, series=series, **tone_stats(series))
@@ -440,6 +494,9 @@ REQUEST_TIMEOUT = 25.0
 REFRESH_GAP = 120.0  # min seconds between background refreshes of one query (failing volume…)
 EMPTY_TTL = 900.0  # an empty answer ({}) is re-checked after 15 min
 TONE, VOLUME = "timelinetone", "timelinevolraw"
+# GDELT answers spans under ~a month at hourly resolution (a 7-day span came back hourly), so
+# every caller's window is cut from one daily-resolution 90-day payload (also one cache entry).
+FETCH_DAYS = 90
 
 
 class GdeltRateLimited(UpstreamError):
@@ -649,13 +706,13 @@ def _start_refresh(query: str, fallback: str | None, span: int) -> asyncio.Futur
     return tone_ready
 
 
-def _trend_from_cache(query: str, span: int) -> ToneTrend | None:
+def _trend_from_cache(query: str, span: int, window: int) -> ToneTrend | None:
     tone = _cached_payload(query, TONE, span)
     if tone is None:
         return None
     volume = _cached_payload(query, VOLUME, span)
     vol_data = volume.data if volume is not None and volume.query == tone.query else {}
-    return build_trend(tone.query, tone.data, vol_data, today=datetime.now(UTC).date())
+    return build_trend(tone.query, tone.data, vol_data, today=datetime.now(UTC).date(), days=window)
 
 
 async def get_tone_trend(company: CompanyRef, days: int = 90) -> ToneTrend | None:
@@ -666,10 +723,11 @@ async def get_tone_trend(company: CompanyRef, days: int = 90) -> ToneTrend | Non
     sent while cooling down) or `UpstreamError` when nothing usable is cached.
     Returns None when GDELT has no coverage, or no searchable name exists.
     """
-    span = max(7, min(int(days), 90))
+    window, span = max(7, min(int(days), FETCH_DAYS)), FETCH_DAYS
     query = build_query(company)
     if query is None:
-        logger.info("GDELT cannot search %s (no name of %d+ characters)", company.ticker, MIN_PHRASE)
+        logger.info("GDELT: no searchable name for %s (only the ticker is known, or every name is "
+                    "under %d characters)", company.ticker, MIN_PHRASE)
         return None
     tone = _cached_payload(query, TONE, span)
     volume = _cached_payload(query, VOLUME, span)
@@ -678,11 +736,11 @@ async def get_tone_trend(company: CompanyRef, days: int = 90) -> ToneTrend | Non
         recently = time.monotonic() - _last_start.get((query, span), -REFRESH_GAP) < REFRESH_GAP
         if not complete and not recently and _breaker.remaining() == 0:
             _start_refresh(query, fallback_query(company), span)
-        return _trend_from_cache(query, span)
+        return _trend_from_cache(query, span, window)
     if _breaker.remaining() > 0:
         raise GdeltRateLimited(_refused_message())
     await asyncio.shield(_start_refresh(query, fallback_query(company), span))
-    return _trend_from_cache(query, span)
+    return _trend_from_cache(query, span, window)
 
 
 async def drain() -> None:

@@ -43,8 +43,14 @@ from tests.intel.helpers import info, load_json
         ("shop.to", "SHOP.TO"),
         ("bp.l", "BP.L"),  # .L is an exchange suffix, not a share class
         ("7203.T", "7203.T"),
+        ("GOOGL.", "GOOGL"),  # stray punctuation
+        ("brk-", "BRK"),
+        ("bitcoin", "BTC-USD"),  # a major coin's name
+        ("Ethereum", "ETH-USD"),
+        ("stellar", "XLM-USD"),
         ("", None),
         ("   ", None),
+        ("-", None),
         ("AAPL; DROP TABLE", None),
         ("<script>", None),
         ("1234", None),  # must contain a letter
@@ -196,3 +202,40 @@ def test_search_drops_collision_numbered_crypto_tokens() -> None:
         {"symbol": "USDE29470-USD", "shortname": "Ethena USDe USD", "quoteType": "CRYPTOCURRENCY", "exchange": "CCC"},
     ]
     assert [m.symbol for m in matches_from_yahoo(quotes, "eth", 8)] == ["ETH-USD"]
+
+
+def test_share_classes_are_not_hidden_as_issuer_lines() -> None:
+    """Live review: searching "alphabet" listed GOOG but hid GOOGL (same issuer, prefix symbol)."""
+    quotes = [{"symbol": "GOOG", "quoteType": "EQUITY", "longname": "Alphabet Inc.", "exchange": "NMS"},
+              {"symbol": "GOOGL", "quoteType": "EQUITY", "longname": "Alphabet Inc.", "exchange": "NMS"},
+              {"symbol": "GOOG.NE", "quoteType": "EQUITY", "longname": "Alphabet Inc.", "exchange": "NEO"},
+              {"symbol": "FOX", "quoteType": "EQUITY", "longname": "Fox Corporation", "exchange": "NMS"},
+              {"symbol": "FOXA", "quoteType": "EQUITY", "longname": "Fox Corporation", "exchange": "NMS"}]
+    assert [m.symbol for m in matches_from_yahoo(quotes, "alphabet", 8)] == ["GOOG", "GOOGL", "FOX", "FOXA"]
+
+
+async def test_search_never_invents_a_coin(monkeypatch: pytest.MonkeyPatch) -> None:
+    """"shop-usd" used to list a fabricated CRYPTOCURRENCY match "SHOP"."""
+    monkeypatch.setattr(symbols, "_yahoo_search", lambda q, limit: [])
+
+    async def fake_map() -> dict[str, tuple[str, str]]:
+        return {}
+
+    monkeypatch.setattr("app.intel.sec.get_cik_map", fake_map)
+    assert await symbols.search_symbols("shop-usd") == []
+    found = await symbols.search_symbols("sol-usd")
+    assert [(m.symbol, m.name, m.type) for m in found] == [("SOL-USD", "Solana", "CRYPTOCURRENCY")]
+
+
+async def test_sec_extras_never_add_lines_of_an_issuer_yahoo_listed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Live: "alphabet" -> Yahoo GOOG, GOOGL; the SEC map added GOOGM/GOOGN (Alphabet's listed notes)."""
+    quotes = [{"symbol": "GOOG", "quoteType": "EQUITY", "longname": "Alphabet Inc.", "exchange": "NMS"},
+              {"symbol": "GOOGL", "quoteType": "EQUITY", "longname": "Alphabet Inc.", "exchange": "NMS"}]
+    cik_map = {s: ("0001652044", "Alphabet Inc.") for s in ("GOOGL", "GOOG", "GOOGM", "GOOGN")}
+    monkeypatch.setattr(symbols, "_yahoo_search", lambda q, limit: quotes)
+
+    async def fake_map() -> dict[str, tuple[str, str]]:
+        return cik_map
+
+    monkeypatch.setattr("app.intel.sec.get_cik_map", fake_map)
+    assert [m.symbol for m in await symbols.search_symbols("alphabet")] == ["GOOG", "GOOGL"]

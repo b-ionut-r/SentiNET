@@ -215,6 +215,27 @@ def test_reassess_8k_from_excerpt() -> None:
     assert plain.importance == "low" and plain.polarity == "neutral"
 
 
+@pytest.mark.parametrize(("excerpt", "importance", "polarity"), [
+    # Standard 5.02 wording puts the verb before the title.
+    ("John Smith informed the Board of his intention to retire as Chief Executive Officer, effective March 31, "
+     "2027.", "high", "neutral"),
+    ("Jane Roe will step down as Chief Financial Officer of the Company.", "high", "neutral"),
+    ("The Board terminated the employment of John Smith, its Chief Executive Officer, for cause.", "high", "bear"),
+    ("Mr. Doe, our CFO, resigned effective immediately.", "high", "bear"),
+    ("John Ternus will succeed Mr. Cook as Chief Executive Officer.", "high", "neutral"),
+    # Routine appointments and compensation boilerplate are not red flags.
+    ("The Board appointed Jane Doe as Chief Financial Officer, effective October 1, 2026. Separately, the Board "
+     "approved an amendment to the bylaws.", "medium", "neutral"),
+    ("The CEO received a special retention award; the award vests on termination without cause.", "medium", "neutral"),
+    ("The committee approved 2027 salaries for the named executive officers, including the CEO.", "medium", "neutral"),
+])
+def test_executive_changes_in_either_word_order(excerpt: str, importance: str, polarity: str) -> None:
+    base = sec.Filing(form="8-K", date=TODAY, title="Director/officer departure or appointment", items=["5.02"],
+                      importance="medium", polarity="neutral")
+    judged = sec.reassess_8k(base, excerpt)
+    assert (judged.importance, judged.polarity) == (importance, polarity)
+
+
 def test_narrative_docs_selection() -> None:
     sub = _sub([("8-K", "2026-09-30", "8.01"), ("8-K", "2026-09-29", "2.02,9.01"), ("8-K", "2026-06-01", "5.02")])
     docs = sec.narrative_8k_docs(sub, today=TODAY)

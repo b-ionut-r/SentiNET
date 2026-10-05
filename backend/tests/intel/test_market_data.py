@@ -7,6 +7,7 @@ import pytest
 
 from app.core.http import UpstreamError
 from app.intel import market_data as md
+from app.intel import transforms as tx
 from app.intel import sec
 from app.schemas import InsiderView
 from app.sources.base import CompanyRef
@@ -114,7 +115,7 @@ async def test_non_equities_skip_equity_intel(_fixtures: dict[str, int]) -> None
 
 async def test_equity_intel(_fixtures: dict[str, int]) -> None:
     analysts = await md.get_analysts("NVDA", 233.95)
-    assert analysts and analysts.consensus == "strong_buy" and analysts.upside_pct == pytest.approx(40.07, abs=0.01)
+    assert analysts and analysts.consensus == "buy" and analysts.upside_pct == pytest.approx(40.07, abs=0.01)
     earnings = await md.get_earnings("NVDA")
     assert earnings and earnings.days_until == 44
     jpm_div = await md.get_calendar_catalysts("JPM")
@@ -182,3 +183,24 @@ async def test_indices() -> None:
     quotes = await md.get_indices()
     assert {q.symbol for q in quotes} == set(md.INDEX_SYMBOLS)
     assert all(q.price and q.spark for q in quotes)
+
+
+async def test_indices_use_the_24h_quote_when_a_crypto_bar_is_missing(
+    _fixtures: dict[str, int], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    frame = fx.indices()
+    holed = frame.drop(frame[("Close", "BTC-USD")].dropna().index[-2])
+    monkeypatch.setattr(md, "_fetch_indices", lambda symbols: holed)
+    btc = next(q for q in await md.get_indices() if q.symbol == "BTC-USD")
+    expected = tx.quote_from_info(fx.info("BTC-USD"))
+    assert expected is not None and btc.change_pct == expected.change_pct
+
+
+async def test_crypto_one_day_return_survives_a_missing_bar(
+    _fixtures: dict[str, int], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    df = fx.bars("BTC-USD")
+    monkeypatch.setattr(md, "_fetch_history", lambda sym, period, interval, start: (df.drop(df.index[-2]), "USD"))
+    tech = await md.get_technicals("BTC-USD")
+    expected = tx.quote_from_info(fx.info("BTC-USD"))
+    assert tech is not None and expected is not None and tech.return_1d == round(expected.change_pct, 2)

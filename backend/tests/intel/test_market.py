@@ -1,6 +1,8 @@
 """Market-wide intel: Fear & Greed, trending tickers, merged headlines."""
 from __future__ import annotations
 
+from html import escape
+
 from datetime import datetime, timedelta, UTC
 
 import httpx
@@ -57,8 +59,12 @@ def test_parse_apewisdom() -> None:
     assert len(rows) == 25 and rows[0].rank == 1 and rows[0].source == "reddit"
     assert all("&amp;" not in (r.name or "") for r in rows)  # HTML entities decoded
     for r in rows:
-        if r.mentions is not None and r.mentions_prev:
+        if r.mentions is not None and r.mentions_prev and r.mentions_prev >= market.MIN_CHANGE_BASE:
             assert r.change_pct == pytest.approx((r.mentions - r.mentions_prev) / r.mentions_prev * 100, abs=0.1)
+    by_symbol = {r.symbol: r for r in rows}
+    assert by_symbol["META"].mentions_prev == 1 and by_symbol["META"].change_pct is None  # not "+1100%"
+    assert by_symbol["TLT"].name == "iShares 20+ Year Trea…"  # custodian prefix dropped, cut marked
+    assert by_symbol["SGOV"].name == "iShares 0-3 Month Treasury Bond ETF"
 
 
 def test_reddit_board_drops_ticker_words() -> None:
@@ -193,5 +199,61 @@ def test_headline_filters_keep_us_market_news() -> None:
     <item><title>Treasury yields jump as Fed minutes loom</title><link>https://x/5</link>
       <pubDate>Sun, 04 Oct 2026 18:00:00 GMT</pubDate></item>
     </channel></rss>"""
-    titles = [s.title for s in parse_feed(rss, "cnbc_top", "CNBC", True)]
+    titles = [s.title for s in parse_feed(rss, "bing_news", None, True)]
     assert titles == ["ASX set to rise as Wall Street rallies on softer jobs data", "Treasury yields jump as Fed minutes loom"]
+
+
+def _rss(*titles: tuple[str, str]) -> str:
+    """Google-News-style RSS: (title, outlet) pairs."""
+    items = "".join(f'<item><title>{escape(t)} - {src}</title><link>https://x/{i}</link>'
+                    f'<source url="https://s">{src}</source>'
+                    f"<pubDate>Sun, 04 Oct 2026 18:00:00 GMT</pubDate></item>" for i, (t, src) in enumerate(titles))
+    return f'<?xml version="1.0"?><rss version="2.0"><channel><title>t</title>{items}</channel></rss>'
+
+
+def test_curated_feeds_keep_us_movers_that_name_a_country() -> None:
+    """Review sample: CNBC stories about oil, Lilly (Indianapolis) and Asia were dropped as "foreign"."""
+    movers = ["Oil jumps 3% after Saudi Arabia signals deeper output cuts",
+              "Eli Lilly shares rise as Indianapolis drugmaker raises outlook",
+              "Japan's Nikkei plunges 5% as yen surges",
+              "Bitcoin tumbles as South Korea bans crypto exchanges",
+              "Trump threatens 50% tariffs on India over Russian oil",
+              "My Biggest Warning For Anyone Who Owns The S&P 500"]
+    feed = _rss(*((t, "CNBC") for t in movers)).replace(" - CNBC</title>", "</title>")
+    assert [s.title for s in parse_feed(feed, "cnbc_finance", "CNBC", "any")] == movers
+
+
+def test_search_feeds_drop_foreign_local_markets_listicles_and_unknown_outlets() -> None:
+    feed = _rss(("Taiwan Stock Market Surges Over 1,000 Points", "Focus Taiwan"),
+                ("Stock Market Drops by N813bn on Profit-taking in BUA Foods", "THISDAYLIVE"),
+                ("New week stock market: Expecting a recovery from the support zone", "Laodong.vn"),
+                ("3 Stocks to Buy and Hold Forever", "The Motley Fool"),
+                ("Here's How Many Shares of VOO You'd Need for $500 in Monthly Dividends", "The Motley Fool"),
+                ("Broadcom's 2028 Projection Makes the Stock a Screaming Buy", "The Motley Fool"),
+                ("If a Stock Market Crash Is Coming, These 3 ETFs Could Be Smart Buys Right Now", "The Motley Fool"),
+                ("SCHD ETF outperforms S&P 500 in 2026 with risin...", "Pluang"),
+                ("How Proshares S&P 500 Ex-technology Etf (SPXT) Affects Rotational Strategy Timing",
+                 "Stock Traders Daily"),
+                ("Stock Market Today: Gift Nifty, US Jobs Data To Oil Prices For Sensex", "NDTV Profit"),
+                ("Oil jumps as Saudi Arabia cuts output; stocks slip", "Reuters"),
+                ("Stock market today: Dow, S&P 500 slip as Fed minutes loom", "Yahoo Finance"),
+                ("Stocks waver as investors weigh jobs data", "Reuters"),
+                ("Indiana manufacturers brace for tariff hit as stocks slide", "Reuters"))
+    titles = [s.title for s in parse_feed(feed, "google_news", None, "any")]
+    assert titles == ["Oil jumps as Saudi Arabia cuts output; stocks slip",
+                      "Stock market today: Dow, S&P 500 slip as Fed minutes loom",
+                      "Stocks waver as investors weigh jobs data",
+                      "Indiana manufacturers brace for tariff hit as stocks slide"]
+    assert market.foreign_local_market("India's Sensex hits record as foreign funds return")
+    assert not market.foreign_local_market("Indianapolis drugmaker Lilly shares jump")
+
+
+def test_merge_caps_each_outlet_from_search_feeds() -> None:
+    now = CAPTURED
+    fool = [RawSignal(title=f"Market story number {i} about stocks", url=f"https://f/{i}", publisher="The Motley Fool",
+                      timestamp=now - timedelta(minutes=i), extra={"feed": "google_news"}) for i in range(8)]
+    cnbc = [RawSignal(title=f"CNBC market wrap {i}", url=f"https://c/{i}", publisher="CNBC",
+                      timestamp=now - timedelta(minutes=i), extra={"feed": "cnbc_top"}) for i in range(6)]
+    merged = merge_headlines([cnbc, fool], now=now)
+    assert sum(s.publisher == "The Motley Fool" for s in merged) == market.PER_PUBLISHER_CAP
+    assert sum(s.publisher == "CNBC" for s in merged) == 6  # curated feeds are not capped

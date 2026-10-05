@@ -84,4 +84,11 @@ COMMON_WORDS: frozenset[str] = frozenset(_RAW.split())
 NAMESAKES: frozenset[str] = frozenset("""
 charter carrier flutter microchip caesars credo synchrony magna graco axon morningstar williams otis
 baxter jacobs rollins woodward ferguson moog brookfield corning fortis nasdaq loews ross
+berkshire lilly abbott hilton schwab merck eaton stryker gilead fairfax samsara workday occidental
+cummins hershey wynn hertz micron caterpillar adobe chipotle darden alliant
 """.split())
+# The second block: surnames, places and words whose namesake outnumbers the company in open news
+# (review sample 2026-10-05: bare "Berkshire" 0/19 titles about Berkshire Hathaway — Newbury police,
+# Berkshires foliage; bare "Lilly" ~6/29 about Eli Lilly). Gov. Greg Abbott, Paris Hilton, Klaus
+# Schwab, Merck KGaA, the Eaton Fire, Stryker vehicles, Fairfax County, Hershey (PA), Steve Wynn,
+# hertz the unit.

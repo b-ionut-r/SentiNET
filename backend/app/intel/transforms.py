@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import math
 import re
-from collections.abc import Iterable
 from datetime import date, datetime, time, timedelta, UTC
 from itertools import pairwise
 from typing import Any
@@ -136,6 +135,10 @@ def quote_from_info(info: dict[str, Any] | None) -> Quote | None:
     change_pct = num(info.get("regularMarketChangePercent"))
     if change_pct is None and prev:
         change_pct = (price / prev - 1.0) * 100.0
+    if str(info.get("quoteType") or "").upper() == "CRYPTOCURRENCY" and change is not None:
+        # Yahoo's crypto change is over a rolling 24 h, but its "previous close" is today's
+        # 00:00 UTC open: show the price the change is measured from (price 24 h ago).
+        prev = _r(price - change, 6) if price - change > 0 else prev
     as_of = info.get("regularMarketTime")
     return Quote(
         price=price,
@@ -370,9 +373,17 @@ def technicals_from_history(
             trend = "sideways"
 
     rsi = wilder_rsi(closes)
+    if is_crypto:
+        # Crypto trades every day: a missing daily bar (Yahoo skipped 2026-10-04 for BTC) must not
+        # turn a 2-day move into "1d"; returns are measured in calendar days.
+        ret_1d = pct(last, closes[-2]) if dates[-2] == last_date - timedelta(days=1) else None
+        ret_5d = pct(last, back(days=5))
+    else:
+        ret_1d = pct(last, closes[-2])
+        ret_5d = pct(last, closes[-6]) if len(closes) >= 6 else None
     return Technicals(
-        return_1d=pct(last, closes[-2]),
-        return_5d=pct(last, closes[-6]) if len(closes) >= 6 else None,
+        return_1d=ret_1d,
+        return_5d=ret_5d,
         return_1m=pct(last, back(months=1)),
         return_3m=pct(last, back(months=3)),
         return_ytd=pct(last, prev_year_end) if dates[0].year < last_date.year else None,
@@ -469,9 +480,9 @@ def analyst_actions(df: pd.DataFrame | None) -> list[AnalystAction]:
     return out
 
 
-def _pt_direction(row_action: str | None, target: float | None, prior: float | None) -> int:
-    """+1 raise, -1 cut, 0 otherwise (Yahoo's label first, then the numbers)."""
-    label = (row_action or "").strip().lower()
+def _pt_direction(row_action: Any, target: float | None, prior: float | None) -> int:
+    """+1 raise, -1 cut, 0 otherwise (Yahoo's label first, then the numbers; the label may be NaN)."""
+    label = row_action.strip().lower() if isinstance(row_action, str) else ""
     if label.startswith("raise"):
         return 1
     if label.startswith("lower"):
@@ -479,6 +490,14 @@ def _pt_direction(row_action: str | None, target: float | None, prior: float | N
     if target and prior and abs(target - prior) / prior > 0.001:
         return 1 if target > prior else -1
     return 0
+
+
+# Actions older than a year are not "recent"; a feed whose newest action is older than
+# half a year has stopped updating for this ticker (Yahoo's META feed froze at 2024-09-30),
+# and listing it would read as "no revisions lately" when the truth is "unknown".
+ACTION_MAX_AGE = timedelta(days=365)
+FEED_STALE_AFTER = timedelta(days=180)
+MIN_COUNTED = 3  # analysts in the current month's counts before they define the consensus
 
 
 def analysts_from_frames(
@@ -489,18 +508,29 @@ def analysts_from_frames(
     price: float | None,
     now: datetime,
 ) -> AnalystView | None:
-    """Consensus, targets, recent actions and revision momentum."""
+    """Consensus, targets, recent actions and revision momentum.
+
+    The consensus comes from the current month's rating counts (the distribution the
+    view shows) when at least `MIN_COUNTED` analysts are counted: Yahoo's
+    `recommendationMean` is computed on a different panel and can contradict them
+    (TGT: "buy" at 2.47 while 21 of 38 counted analysts say hold; NVDA 1.3 vs 1.90).
+    """
     info = info or {}
     trend = rating_counts(recommendations)
     current = next((rc for rc in trend if rc.period == "0m"), trend[0] if trend else None)
-    actions = analyst_actions(upgrades)
+    actions = [a for a in analyst_actions(upgrades) if now - a.date <= ACTION_MAX_AGE]
+    if actions and now - actions[0].date > FEED_STALE_AFTER:
+        actions = []  # frozen feed: revisions unknown, not zero
 
-    mean_rating = num(info.get("recommendationMean"))
-    if mean_rating is None and current is not None:
-        mean_rating = _mean_from_counts(current)
+    counted = _counts_total(current) if current else 0
+    if counted >= MIN_COUNTED:
+        mean_rating = _mean_from_counts(current)  # type: ignore[arg-type]
+    else:
+        mean_rating = num(info.get("recommendationMean"))
+        if mean_rating is None and current is not None:
+            mean_rating = _mean_from_counts(current)
     consensus = consensus_for(mean_rating) or _CONSENSUS_FROM_KEY.get(str(info.get("recommendationKey") or ""))
-    total = _counts_total(current) if current else 0
-    total = total or int(num(info.get("numberOfAnalystOpinions")) or 0)
+    total = counted or int(num(info.get("numberOfAnalystOpinions")) or 0)
 
     targets = {k: _r(pos(info.get(f"target{k}Price")), 2) for k in ("Mean", "Median", "High", "Low")}
     price = price or pos(info.get("currentPrice")) or pos(info.get("regularMarketPrice"))
@@ -509,7 +539,7 @@ def analysts_from_frames(
 
     up90 = down90 = raises30 = cuts30 = 0
     raw = upgrades.reset_index() if upgrades is not None and not upgrades.empty else None
-    pt_labels: dict[tuple, str | None] = {}
+    pt_labels: dict[tuple, Any] = {}
     if raw is not None:
         date_col = "GradeDate" if "GradeDate" in raw else raw.columns[0]
         for _, row in raw.iterrows():
@@ -715,7 +745,12 @@ def pretty_insider_name(raw: str | None) -> str:
     else:
         ordered = core
     out = " ".join(word(t) for t in ordered)
-    return f"{out} {' '.join(s.title().rstrip('.') + '.' for s in suffix)}".strip()
+
+    def generational(t: str) -> str:  # "JR" -> "Jr.", "III" -> "III"
+        bare = t.upper().rstrip(".")
+        return f"{bare.title()}." if bare in {"JR", "SR"} else bare
+
+    return f"{out} {' '.join(generational(t) for t in suffix)}".strip()
 
 
 def insiders_from_frame(df: pd.DataFrame | None, *, now: datetime, window_days: int = 180) -> InsiderView | None:
@@ -779,22 +814,29 @@ def insider_view(rows: list[InsiderTxn], *, since: date, window_days: int) -> In
 # --------------------------------------------------------------------------- #
 # Market indices
 # --------------------------------------------------------------------------- #
+def _day(stamp: Any) -> date:
+    return pd.Timestamp(stamp).date()
+
+
 def indices_from_download(
     df: pd.DataFrame | None, names: dict[str, str], *, spark_days: int = 22
 ) -> list[IndexQuote]:
     """Batched `yf.download` (column MultiIndex: field × symbol) -> IndexQuotes."""
     out: list[IndexQuote] = []
     for symbol, label in names.items():
-        closes: Iterable[Any] = []
+        column: pd.Series | None = None
         if df is not None and not df.empty:
             if isinstance(df.columns, pd.MultiIndex):
                 if ("Close", symbol) in df.columns:
-                    closes = df[("Close", symbol)].dropna().to_numpy()
+                    column = df[("Close", symbol)]
             elif "Close" in df.columns and len(names) == 1:
-                closes = df["Close"].dropna().to_numpy()
-        series = [float(c) for c in closes if num(c) is not None]
+                column = df["Close"]
+        rows = [(d, float(c)) for d, c in column.items() if num(c) is not None] if column is not None else []
+        series = [c for _, c in rows]
         price = series[-1] if series else None
         prev = series[-2] if len(series) > 1 else None
+        if prev is not None and symbol.endswith("-USD") and _day(rows[-1][0]) - _day(rows[-2][0]) > timedelta(days=1):
+            prev = None  # a missing crypto bar: the change would span two days
         out.append(IndexQuote(
             symbol=symbol, name=label, price=_r(price, 4),
             change_pct=pct(price, prev), spark=[round(v, 4) for v in series[-spark_days:]],

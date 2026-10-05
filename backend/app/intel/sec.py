@@ -406,15 +406,11 @@ def _excerpt(section: str, max_chars: int) -> str | None:
     return f"{lead} {extra}" if extra else lead
 
 
-_EXEC = r"\b(?:chief executive|chief financial|ceo|cfo)\b.{0,160}\b"
 _EXCERPT_RULES: tuple[tuple[re.Pattern[str], Importance, Pol | None], ...] = (
     (re.compile(r"going concern|material weakness|subpoena|wells notice|investigation by|class action",
                 re.IGNORECASE), "high", "bear"),
     (re.compile(r"deficiency (?:letter|notice)|listing qualifications|minimum bid price|regain compliance|"
                 r"(?:notice|notification) of delisting|delisting determination", re.IGNORECASE), "high", "bear"),
-    (re.compile(_EXEC + r"(?:resign|terminat|separat)", re.IGNORECASE | re.DOTALL), "high", "bear"),
-    (re.compile(_EXEC + r"(?:retire|step(?:ping)? down|depart|transition|successor|appoint)",
-                re.IGNORECASE | re.DOTALL), "high", None),
     (re.compile(r"definitive (?:merger )?agreement|merger agreement|agreement and plan of merger|to acquire|"
                 r"tender offer|business combination", re.IGNORECASE), "high", None),
     (re.compile(r"(?:increase|authoriz|approv)\w*.{0,80}(?:share repurchase|stock repurchase|buyback)|"
@@ -422,16 +418,58 @@ _EXCERPT_RULES: tuple[tuple[re.Pattern[str], Importance, Pol | None], ...] = (
                 re.IGNORECASE | re.DOTALL), "medium", "bull"),
 )
 
+# Executive changes (Item 5.02 wording varies: "intends to retire as Chief Executive Officer",
+# "the Board terminated the employment of X, its CEO", "X, our CFO, resigned"), so the title and the
+# verb are matched in either order within one sentence. Compensation boilerplate ("upon a termination
+# without cause", "retention award") and "named executive officers" are not changes.
+_CHIEF = r"\b(?:chief executive|ceo)\b"
+_EXEC_TITLE = r"\b(?:chief executive|chief financial|ceo|cfo)\b"
+_ABRUPT = (r"\b(?:resign(?:s|ed|ing|ation)?|terminat\w* (?:of )?(?:the |his |her |its )?employment|"
+           r"remov(?:ed|al) (?:as|from)|separation (?:from|agreement)|for cause|effective immediately)\b")
+_PLANNED = r"\b(?:retir(?:e|es|ed|ing|ement)|step(?:s|ped|ping)? down|depart(?:s|ed|ing|ure)|transition(?:s|ed|ing)?)\b"
+_SUCCESSION = r"\b(?:appoint(?:s|ed|ment)?|succe(?:ed|eds|eded|eding|ssor|ssion)|named(?! executive)|promot(?:ed|ion))\b"
+_COMP_CONTEXT = re.compile(r"without cause|good reason|retention|\baward|\bvest|severance|in the event of|"
+                           r"change (?:in|of) control|named executive", re.IGNORECASE)
+
+
+def _near(a: str, b: str, window: int = 120) -> re.Pattern[str]:
+    """`a` and `b` within `window` characters, in either order."""
+    return re.compile(rf"{a}.{{0,{window}}}{b}|{b}.{{0,{window}}}{a}", re.IGNORECASE | re.DOTALL)
+
+
+_EXEC_RULES: tuple[tuple[re.Pattern[str], Importance, Pol | None], ...] = (
+    (_near(_EXEC_TITLE, _ABRUPT), "high", "bear"),
+    (_near(_EXEC_TITLE, _PLANNED), "high", None),
+    (_near(_CHIEF, _SUCCESSION), "high", None),
+)
+
+
+def _exec_change(text: str) -> tuple[Importance, Pol | None] | None:
+    """(importance, polarity) of a CEO/CFO change named in `text`, judged sentence by sentence."""
+    found: tuple[Importance, Pol | None] | None = None
+    for sentence in _split_sentences(text):
+        if _COMP_CONTEXT.search(sentence):
+            continue
+        for pattern, imp, pol in _EXEC_RULES:
+            if pattern.search(sentence):
+                if pol == "bear":
+                    return imp, pol
+                found = found or (imp, pol)
+                break
+    return found
+
 
 def reassess_8k(filing: Filing, excerpt: str) -> Filing:
     """Raise importance / set polarity from what the filing text actually says."""
     importance, polarity = filing.importance, filing.polarity
-    for pattern, imp, pol in _EXCERPT_RULES:
-        if pattern.search(excerpt):
-            if _RANK[imp] > _RANK[importance]:
-                importance = imp
-            if pol and polarity == "neutral":
-                polarity = pol
+    hits = [(imp, pol) for pattern, imp, pol in _EXCERPT_RULES if pattern.search(excerpt)]
+    if (change := _exec_change(excerpt)) is not None:
+        hits.append(change)
+    for imp, pol in hits:
+        if _RANK[imp] > _RANK[importance]:
+            importance = imp
+        if pol and polarity == "neutral":
+            polarity = pol
     return filing.model_copy(update={"title": f"{filing.title}: {excerpt}", "importance": importance,
                                      "polarity": polarity})
 

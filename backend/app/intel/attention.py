@@ -37,6 +37,7 @@ from app.core.http import UpstreamError
 from app.core.ratelimit import HostLimiter
 from app.intel.diskcache import DiskCache
 from app.resolve.names import ascii_fold
+from app.resolve.symbols import named_ref
 from app.sources.base import CompanyRef
 
 logger = logging.getLogger(__name__)
@@ -342,8 +343,15 @@ async def get_wiki_pageviews(company: CompanyRef, days: int = 90) -> list[tuple[
 
     A series fetched within `history_cache_ttl` (also by an earlier process) is
     reused without a request. Raises `UpstreamError` when Wikipedia refuses
-    unless a result from the last 24 h can be served instead.
+    unless a result from the last 24 h can be served instead. A bare ref whose
+    only name is its ticker gets None: "X (company)" is Musk's X Corp, not the
+    delisted U.S. Steel ticker.
     """
+    named = named_ref(company)
+    if named is None:
+        logger.info("Wikipedia: no name to look up for %s (only the ticker is known)", company.ticker)
+        return None
+    company = named
     aliases = tuple(dict.fromkeys(a for a in (*company.aliases, ascii_fold(company.short_name)) if a))
     span = max(7, min(int(days), 365))
     key = f"{company.ticker}:{span}"

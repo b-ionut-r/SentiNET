@@ -25,13 +25,18 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+# Callers serve entries for at most a day; anything older is dead weight on the volume.
+PRUNE_AFTER = 3 * 24 * 3600.0
+PRUNE_EVERY = 3600.0  # seconds between sweeps (one directory listing)
+
 
 class DiskCache:
-    """Namespaced key -> JSON value store with wall-clock ages."""
+    """Namespaced key -> JSON value store with wall-clock ages (old entries swept on save)."""
 
     def __init__(self, namespace: str, root: Path | None = None) -> None:
         self.namespace = namespace
         self._root = root
+        self._last_prune = 0.0
 
     @property
     def directory(self) -> Path:
@@ -73,6 +78,21 @@ class DiskCache:
             logger.info("disk cache %s: could not save (%s)", self.namespace, exc)
             if tmp is not None:
                 Path(tmp).unlink(missing_ok=True)
+        if time.time() - self._last_prune >= PRUNE_EVERY:
+            self.prune(PRUNE_AFTER)
+
+    def prune(self, max_age: float) -> int:
+        """Delete entries (and orphaned temp files) older than `max_age` seconds; returns the count."""
+        self._last_prune = time.time()
+        removed = 0
+        try:
+            for path in [*self.directory.glob("*.json"), *self.directory.glob(".tmp-*.part")]:
+                if self._last_prune - path.stat().st_mtime > max_age:
+                    path.unlink(missing_ok=True)
+                    removed += 1
+        except OSError as exc:
+            logger.info("disk cache %s: could not prune (%s)", self.namespace, exc)
+        return removed
 
     def clear(self) -> None:
         """Delete every entry of this namespace (tests, manual resets)."""

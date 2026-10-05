@@ -90,6 +90,61 @@ def test_no_query_term_is_too_short_for_gdelt() -> None:
             assert len(word) >= gdelt.MIN_PHRASE, (word, query)  # bare short keywords match nothing
 
 
+def test_one_word_fragments_of_a_name_never_replace_it() -> None:
+    """Bare "Berkshire" matched 0 of 19 sampled titles about Berkshire Hathaway (review, 2026-10-05)."""
+    assert build_query(ref("ZZZ", "Berkshire Hathaway", ["Berkshire"])) == '"Berkshire Hathaway" sourcelang:english'
+    assert build_query(ref("ZZZ", "Charles Schwab", ["Schwab"])) == '"Charles Schwab" sourcelang:english'
+    assert build_query(ref("ZZZ", "Exxon Mobil", ["ExxonMobil", "Exxon"])) == \
+        '("Exxon Mobil" OR "ExxonMobil") sourcelang:english'
+    brk = build_query(ref("BRK-B", "Berkshire Hathaway", ["Berkshire"]))
+    lly = build_query(ref("LLY", "Eli Lilly", ["Lilly"]))
+    assert '"Berkshire Hathaway"' in brk and '"Berkshire"' not in brk
+    assert '"Eli Lilly"' in lly and '"Lilly"' not in lly and '"Zepbound"' in lly
+
+
+def test_surnames_and_places_are_anchored() -> None:
+    """Paris Hilton, Gov. Greg Abbott, Klaus Schwab: these heads need their legal form or CEO."""
+    hilton = build_query(ref("HLT", "Hilton", ["Hilton Worldwide"]))
+    assert hilton == '("Hilton Inc" OR "Hilton Corp" OR "Hilton CEO" OR "Hilton Worldwide") sourcelang:english'
+    eaton = build_query(ref("ETN", "Eaton", ["Eaton Corporation"]))
+    assert '"Eaton" ' not in eaton and '"Eaton Corporation"' in eaton
+    assert "Greg" not in build_query(ref("ABT", "Abbott", ["Abbott Laboratories"]))
+    assert build_query(ref("ABT", "Abbott")).startswith('("Abbott Laboratories" OR')
+
+
+def test_unsearchable_short_name_keeps_its_longer_aliases() -> None:
+    """"Zeta"/"Uber" are too short for GDELT; "Zeta Global"/"Uber Technologies" are the precise forms."""
+    zeta = build_query(ref("ZETA", "Zeta", ["Zeta Global"]))
+    assert zeta.startswith('("Zeta Global" OR "Zeta Inc"')
+    uber = build_query(ref("UBER", "Uber", ["Uber Technologies"]))
+    assert uber.startswith('("Uber Technologies" OR')
+
+
+def _bare(ticker: str, qtype: str = "EQUITY") -> CompanyRef:
+    """What the platform builds when resolution times out (see services.analyzer.bare_company)."""
+    return CompanyRef(ticker=ticker, name=ticker, short_name=ticker, quote_type=qtype)
+
+
+def test_bare_refs_are_not_searched_by_their_ticker() -> None:
+    """X (delisted U.S. Steel) would find Musk's "X Corp"; "AI stock" every AI story; SHOP.TO "shop to"."""
+    for ticker in ("X", "AI", "ALL", "SHOP.TO", "K"):
+        assert build_query(_bare(ticker)) is None, ticker
+        assert gdelt.fallback_query(_bare(ticker)) is None, ticker
+    assert build_query(_bare("FOO-USD", "CRYPTOCURRENCY")) is None
+    # Names known offline still work: curated brands, coins, fund themes.
+    assert build_query(_bare("NVDA")) == '"Nvidia" sourcelang:english'
+    assert build_query(_bare("ON")) == '("Onsemi" OR "ON Semiconductor") sourcelang:english'
+    assert build_query(_bare("BTC-USD", "CRYPTOCURRENCY")) == '"Bitcoin" sourcelang:english'
+    assert build_query(_bare("SPY", "ETF")) == '"S&P 500" sourcelang:english'
+
+
+async def test_bare_ref_trend_is_none_without_a_request() -> None:
+    with respx.mock as mock:
+        route = mock.get(gdelt.API_URL).mock(return_value=httpx.Response(200, json={}))
+        assert await gdelt.get_tone_trend(_bare("X")) is None
+        assert route.call_count == 0
+
+
 def test_query_aliases_are_ored() -> None:
     q = build_query(ref("ZZZ", "Acmecorp", ["Acme Rockets", "AR"]))  # 2-letter alias dropped
     assert q == '("Acmecorp" OR "Acme Rockets") sourcelang:english'
@@ -122,6 +177,40 @@ def test_parse_real_tone_payload() -> None:
     assert days[-1] - days[0] <= timedelta(days=92)
     assert all(-10 < v < 10 and norm is None for v, norm in tone.values())
     assert parse_timeline({}) == {} and parse_timeline("Please limit requests") == {}
+
+
+def test_hourly_payload_is_averaged_per_day_not_last_hour() -> None:
+    """Real 7-day answer at hourly resolution: 2026-09-29 averaged -0.43, its last hour read +0.51."""
+    payload = load_json("gdelt/nvidia_timelinetone_7d_hourly.json")
+    assert payload["query_details"]["date_resolution"] == "hour"
+    tone = parse_timeline(payload)
+    assert len(tone) == 5
+    assert tone[date(2026, 9, 29)][0] == pytest.approx(-0.4297, abs=1e-3)
+    assert tone[date(2026, 10, 2)][0] == pytest.approx(1.4326, abs=1e-3)
+    hourly_counts = {"timeline": [{"data": [
+        {"date": "20261001T010000Z", "value": 3, "norm": 900}, {"date": "20261001T020000Z", "value": 4, "norm": 1100}]}]}
+    assert parse_timeline(hourly_counts, total=True) == {date(2026, 10, 1): (7.0, 2000.0)}
+
+
+def test_trend_window_is_cut_from_the_90_day_payload() -> None:
+    payload = load_json("gdelt/nvidia_timelinetone.json")
+    last_day = max(parse_timeline(payload))
+    today = last_day + timedelta(days=1)
+    full = build_trend("q", payload, {}, today=today, days=90)
+    month = build_trend("q", payload, {}, today=today, days=30)
+    assert full is not None and month is not None
+    assert len(full.series) <= 90 and month.series[0].date >= today - timedelta(days=30)
+    assert month.series[-1] == full.series[-1] and month.tone_7d == full.tone_7d
+
+
+async def test_short_windows_fetch_the_daily_90_day_span() -> None:
+    payload = load_json("gdelt/nvidia_timelinetone.json")
+    with respx.mock as mock:
+        route = mock.get(gdelt.API_URL).mock(return_value=httpx.Response(200, json=payload))
+        await gdelt.get_tone_trend(ref("NVDA", "Nvidia"), days=7)
+        await gdelt.drain()
+    spans = {parse_qs(urlsplit(str(call.request.url)).query)["timespan"][0] for call in route.calls}
+    assert spans == {"90d"}
 
 
 def _volume_payload(days: dict[date, int]) -> dict:
@@ -376,6 +465,21 @@ def test_disk_cache_round_trip_and_age_limit(tmp_path) -> None:
     assert not list(tmp_path.glob("t/.tmp-*"))  # no half-written leftovers
 
 
+def test_disk_cache_sweeps_entries_nobody_can_serve(tmp_path) -> None:
+    import os
+    import time
+
+    from app.intel import diskcache
+
+    disk = diskcache.DiskCache("t", root=tmp_path)
+    disk.save("old", [1])
+    disk.save("new", [2])
+    week_ago = time.time() - 7 * 24 * 3600
+    os.utime(disk._path("old"), (week_ago, week_ago))
+    assert disk.prune(diskcache.PRUNE_AFTER) == 1
+    assert disk.load("old", 1e9) is None and disk.load("new", 60) is not None
+
+
 def test_real_volume_drops_day_still_being_ingested() -> None:
     """GDELT's newest day had norm 46,896 vs ~150k typical: incomplete, so excluded."""
     tone = load_json("gdelt/nvidia_timelinetone.json")
@@ -433,7 +537,7 @@ def test_phrases_already_covered_by_a_shorter_term_are_dropped() -> None:
                      aliases=["oil prices", "WTI crude"], quote_type="FUTURE")
     q = build_query(oil)
     assert '"Crude oil prices"' not in q and '"Crude oil futures"' not in q and '"crude oil"' in q.lower()
-    assert build_query(ref("BRK-B", "Berkshire Hathaway", ["Berkshire"])) == '"Berkshire" sourcelang:english'
+    assert build_query(ref("ZZZ", "Acme Rockets", ["Acme Rockets Holdings"])) == '"Acme Rockets" sourcelang:english'
     # Different spellings are different GDELT tokens: both stay.
     jpm = build_query(ref("JPM", "JPMorgan", ["JPMorgan Chase", "JP Morgan", "J.P. Morgan"]))
     assert jpm == '("JPMorgan" OR "JP Morgan" OR "J.P. Morgan") sourcelang:english'
@@ -448,6 +552,9 @@ def test_generic_phrases_and_namesakes_are_anchored() -> None:
     trv = build_query(ref("TRV", "Travelers", ["Travelers Companies"]))
     assert trv == ('("Travelers Inc" OR "Travelers Corp" OR "Travelers CEO" OR "Travelers Companies") '
                    'sourcelang:english')
+    assert '"First Solar Inc"' in build_query(ref("FSLR", "First Solar"))  # "the county's first solar farm"
+    # Names the company owns in practice stay bare: anchoring would miss "Rocket Lab launches …".
+    assert build_query(ref("RKLB", "Rocket Lab", ["Rocket Lab Corporation"])) == '"Rocket Lab" sourcelang:english'
     jazz = build_query(ref("JAZZ", "Jazz Pharmaceuticals"))
     assert jazz == '"Jazz Pharmaceuticals" sourcelang:english'
     # A one-word everyday alias never joins an OR on its own.

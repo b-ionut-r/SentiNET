@@ -238,3 +238,17 @@ async def test_serves_recent_views_when_wikipedia_refuses(wiki) -> None:
     cache.clear_all()
     wiki(lambda url, params: (429, "Too many requests"))
     assert await attention.get_wiki_pageviews(TARGET, days=60) == fresh
+
+
+async def test_bare_ref_is_not_looked_up_by_its_ticker(wiki) -> None:
+    """Delisted X (U.S. Steel): the lookup "X (company)" picked Musk's "X Corp." (review, 2026-10-05)."""
+    calls = wiki(lambda url, params: (200, _titles_payload({"title": "X Corp.", "description": "American technology company",
+                                                            "pageviews": {"2026-10-01": 771}})))
+    bare = CompanyRef(ticker="X", name="X", short_name="X")
+    assert await attention.get_wiki_pageviews(bare, days=60) is None
+    assert calls == []
+    # A bare ref of a curated brand still knows its names offline.
+    nvda = CompanyRef(ticker="NVDA", name="NVDA", short_name="NVDA")
+    wiki(lambda url, params: (200, _titles_payload({"title": "Nvidia", "description": "American technology company",
+                                                    "pageviews": {"2026-10-01": 30000}})))
+    assert await attention.get_wiki_pageviews(nvda, days=60) == [(date(2026, 10, 1), 30000.0)]

@@ -21,7 +21,14 @@ from urllib.parse import urlsplit
 
 from app.core.cache import cached
 from app.core.sync import run_yahoo
-from app.resolve.names import BARE_CRYPTO, CRYPTO_NAMES, clean_company_name, derive_names, registry_display_name
+from app.resolve.names import (
+    BARE_CRYPTO,
+    BRANDS,
+    CRYPTO_NAMES,
+    clean_company_name,
+    derive_names,
+    registry_display_name,
+)
 from app.schemas import SymbolMatch
 from app.sources.base import CompanyRef
 
@@ -66,15 +73,18 @@ def normalize_ticker(raw: str) -> str | None:
         because in a sentiment terminal "BTC" means bitcoin, not the Grayscale mini trust.
         Coins whose bare symbol belongs to a listed stock (``LTC``, ``LINK``, ``SUI``…)
         stay stocks; ask for ``LTC-USD`` explicitly;
+      * a major coin's name (``bitcoin``, ``ethereum``) -> its ``-USD`` pair;
       * indices keep ``^`` (``^VIX``), futures keep ``=F`` (``GC=F``);
+      * trailing ``.``/``-`` typed by accident are dropped (``GOOGL.`` -> ``GOOGL``);
       * anything else must match ``[A-Z0-9][A-Z0-9.-=]{0,14}`` and contain a letter.
     """
     if not raw or not isinstance(raw, str):
         return None
     sym = raw.strip().lstrip("$#").strip()
-    sym = _EXCHANGE_PREFIX.sub("", sym).strip().upper()
+    sym = _EXCHANGE_PREFIX.sub("", sym).strip().upper().rstrip(".-").strip()
     if not sym or len(sym) > 16:
         return None
+    sym = _COIN_BY_NAME.get(sym, sym)
     if m := _CRYPTO_STOCKTWITS.match(sym):
         sym = f"{m.group(1)}-USD"
     elif m := _CLASS_SHARE.match(sym):
@@ -86,6 +96,10 @@ def normalize_ticker(raw: str) -> str | None:
     if not _VALID.match(sym) or not re.search(r"[A-Z]", sym):
         return None
     return sym
+
+
+# "BITCOIN" -> "BTC": only coins whose bare symbol is unambiguous (see BARE_CRYPTO).
+_COIN_BY_NAME = {name.upper(): base for base, name in CRYPTO_NAMES.items() if base in BARE_CRYPTO and name.upper() != base}
 
 
 def is_crypto_symbol(symbol: str) -> bool:
@@ -205,6 +219,29 @@ def _with_fund_theme(ref: CompanyRef) -> list[str]:
     return out
 
 
+def _only_ticker(company: CompanyRef) -> bool:
+    """True when the ref's only names are its symbol (a bare ref: "X", "SHOP.TO", "FOO-USD")."""
+    bare = {company.ticker, company.base_symbol}
+    return not company.aliases and company.short_name.strip() in bare and (company.name or "").strip() in bare
+
+
+def named_ref(company: CompanyRef) -> CompanyRef | None:
+    """`company` as a name search should see it, or None when no name but the ticker is known.
+
+    A bare ref (resolution timed out, or no registry knows the symbol) first gets the names
+    known offline: curated brands ("NVDA" -> "Nvidia"), major coins, fund themes. If the ticker
+    is still the only name, a full-text search would find other entities — "X Corp" (Musk's X)
+    for the delisted U.S. Steel ticker X, every AI story for "AI stock", the phrase "shop to"
+    for SHOP.TO — so name-based providers (GDELT, Wikipedia) should skip it.
+    """
+    if not _only_ticker(company):
+        return company
+    offline = build_company_ref(company.ticker, None, None)
+    if offline.ticker in BRANDS or offline.aliases or not _only_ticker(offline):
+        return offline
+    return None
+
+
 @cached(ttl=86400, none_ttl=60)
 async def _resolve_complete(ticker: str) -> CompanyRef | None:
     """Full resolution (cached 24h); None when Yahoo had nothing (not cached long)."""
@@ -259,10 +296,23 @@ def _issuer_key(name: str) -> str:
     return re.sub(r"[^a-z0-9]", "", clean_company_name(name).lower())
 
 
-def _same_issuer_line(symbol: str, name: str, shown: list[SymbolMatch]) -> bool:
-    """True when `symbol` is another line (units, warrants, foreign listing) of an issuer already shown."""
+# What follows a shown symbol on another line of the same issuer: SPAC units/warrants/rights
+# (BIXIU, BIXIW), foreign or preferred lines (NVDA.TO, BAC-PL). Share classes are not lines:
+# GOOGL next to GOOG and FOXA next to FOX are different stocks a user may want.
+_LINE_SUFFIX = re.compile(r"(?:[.\-=].+|U|W|WS|WT|R|RT)")
+
+
+def _same_issuer_line(symbol: str, name: str, shown: list[SymbolMatch], *, any_suffix: bool = False) -> bool:
+    """True when `symbol` is another line (units, warrants, rights, foreign listing) of an issuer already shown.
+
+    `any_suffix`: every longer symbol of a shown issuer counts as a line. Used for SEC-map
+    extras next to Yahoo's own answer: Yahoo already listed the issuer's tradable share
+    classes, so what only the SEC map adds (GOOGM/GOOGN: Alphabet's listed notes) is noise.
+    """
     key = _issuer_key(name)
-    return any(symbol != m.symbol and symbol.startswith(m.symbol) and _issuer_key(m.name) == key for m in shown)
+    return any(symbol != m.symbol and symbol.startswith(m.symbol)
+               and (any_suffix or _LINE_SUFFIX.fullmatch(symbol[len(m.symbol):]))
+               and _issuer_key(m.name) == key for m in shown)
 
 
 def matches_from_yahoo(quotes: list[dict[str, Any]], q: str, limit: int) -> list[SymbolMatch]:
@@ -336,9 +386,11 @@ async def _search_cached(q: str, limit: int) -> list[SymbolMatch]:
         results = matches_from_yahoo(quotes, q, limit)
     except Exception as exc:  # noqa: BLE001 - fall back to the SEC map
         logger.info("Yahoo search failed for %r: %s", q, exc)
-    if wanted and is_crypto_symbol(wanted) and all(m.symbol != wanted for m in results):
-        base = wanted.split("-")[0]
-        results.insert(0, SymbolMatch(symbol=wanted, name=CRYPTO_NAMES.get(base, base), exchange="Crypto",
+    yahoo_answered = bool(results)
+    base = wanted.split("-")[0] if wanted else ""
+    if wanted and is_crypto_symbol(wanted) and base in CRYPTO_NAMES and all(m.symbol != wanted for m in results):
+        # A known coin Yahoo's search missed; never invent one ("SHOP-USD" is not a coin).
+        results.insert(0, SymbolMatch(symbol=wanted, name=CRYPTO_NAMES[base], exchange="Crypto",
                                       type="CRYPTOCURRENCY", logo_url=logo_url_for(wanted)))
     have_exact = any(m.symbol == wanted for m in results)
     if len(results) < limit or (wanted and not have_exact):
@@ -348,7 +400,8 @@ async def _search_cached(q: str, limit: int) -> list[SymbolMatch]:
             have = {m.symbol for m in results}
             extra: list[SymbolMatch] = []
             for m in matches_from_sec(await get_cik_map(), q, limit):  # shortest symbols first
-                if m.symbol not in have and not _same_issuer_line(m.symbol, m.name, results + extra):
+                if m.symbol not in have and not _same_issuer_line(m.symbol, m.name, results + extra,
+                                                                  any_suffix=yahoo_answered):
                     extra.append(m)
             results.extend(m for m in extra if m.symbol == wanted)
             results.extend(m for m in extra if m.symbol != wanted)
