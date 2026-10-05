@@ -49,6 +49,7 @@ from app.schemas import (
     Analysis,
     AnalystView,
     Catalyst,
+    Component,
     EarningsView,
     Filing,
     InsiderView,
@@ -477,6 +478,7 @@ async def _execute_inner(run: _Run) -> Analysis:
         source_runs=source_runs,
         previous=previous_task.result()[0],
         previous_story_ids=previous_task.result()[1],
+        previous_components=previous_task.result()[2],
         intel_status=status,
     )
     analysis = await _synthesize(run, inputs)
@@ -595,8 +597,11 @@ async def _engine_label() -> str:
     return key
 
 
-async def _previous_snapshot(symbol: str, now: datetime) -> tuple[Snapshot | None, list[list[str]] | None]:
-    """The latest sound snapshot old enough to diff against, plus its stories' member ids.
+async def _previous_snapshot(
+    symbol: str, now: datetime,
+) -> tuple[Snapshot | None, list[list[str]] | None, list[Component] | None]:
+    """The latest sound snapshot old enough to diff against, its stories' member ids
+    and its verdict components (so "what changed" can tell coverage from sentiment).
 
     Degraded runs are skipped: "what changed" against a run missing half its
     inputs would report the outage as news."""
@@ -606,9 +611,10 @@ async def _previous_snapshot(symbol: str, now: datetime) -> tuple[Snapshot | Non
                             STORAGE_TIMEOUT, name="previous-snapshot")
     rec = out.value if out.ok else None
     if rec is None:
-        return None, None
+        return None, None, None
     story_ids = [list(story.ids) for story in rec.stories if story.ids]
-    return rec.snapshot, story_ids or None
+    components = list(rec.verdict.components) if rec.verdict and rec.verdict.components else None
+    return rec.snapshot, story_ids or None, components
 
 
 # ---- sources ---------------------------------------------------------------- #

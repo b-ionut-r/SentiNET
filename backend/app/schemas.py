@@ -176,7 +176,7 @@ class Insight(BaseModel):
 
     kind: Literal[
         "divergence", "attention", "reversal", "crowding", "catalyst",
-        "smart_money", "risk", "momentum", "quality",
+        "smart_money", "risk", "momentum", "quality", "deal",
     ]
     severity: Literal["info", "watch", "alert"]
     polarity: Polarity
@@ -221,6 +221,7 @@ class Profile(BaseModel):
     employees: Optional[int] = None
     logo_url: Optional[str] = None
     cik: Optional[str] = None
+    financial_currency: Optional[str] = None  # reporting currency (EPS/revenue), e.g. "USD" for SHOP.TO
 
 
 class Quote(BaseModel):
