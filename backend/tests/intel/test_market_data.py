@@ -208,6 +208,42 @@ async def test_indices_show_crypto_on_the_quote_basis(_fixtures: dict[str, int])
     assert spy.change_pct is not None  # equities keep the previous-daily-close basis
 
 
+async def test_indices_never_wait_on_a_slow_crypto_quote(
+    _fixtures: dict[str, int], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A slow or failing BTC `info` lookup keeps the daily-bar values; it never costs the whole tape
+    (or a 2-year history download)."""
+    import time
+
+    bars = tx.indices_from_download(fx.indices(), md.INDEX_SYMBOLS)
+    btc_bars = next(q for q in bars if q.symbol == "BTC-USD")
+
+    def slow_info(sym: str):
+        time.sleep(0.5)
+        return fx.info(sym)
+
+    monkeypatch.setattr(md, "CRYPTO_QUOTE_TIMEOUT", 0.1)
+    monkeypatch.setattr(md, "_fetch_info", slow_info)
+    started = time.monotonic()
+    quotes = await md.get_indices()
+    assert time.monotonic() - started < 0.45
+    assert {q.symbol for q in quotes} == set(md.INDEX_SYMBOLS)
+    btc = next(q for q in quotes if q.symbol == "BTC-USD")
+    assert btc.change_pct == btc_bars.change_pct and btc.price == btc_bars.price
+
+    def broken_info(sym: str):
+        raise RuntimeError("Read timed out")
+
+    from app.core import cache
+
+    cache.clear_all()
+    monkeypatch.setattr(md, "_fetch_info", broken_info)
+    before = dict(_fixtures)
+    quotes = await md.get_indices()
+    assert {q.symbol for q in quotes} == set(md.INDEX_SYMBOLS)
+    assert not any(k.startswith("history:") for k in set(_fixtures) - set(before))  # no daily-bar fallback
+
+
 async def test_crypto_one_day_return_survives_a_missing_bar(
     _fixtures: dict[str, int], monkeypatch: pytest.MonkeyPatch
 ) -> None:

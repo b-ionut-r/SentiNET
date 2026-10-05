@@ -500,7 +500,7 @@ def _deals(f: Facts) -> Iterator[_Cand]:
     if d is not None:
         items = f" (item {', '.join(d.items)})" if d.items else ""
         said = gist(d.excerpt, 140)
-        said += "" if said.endswith("…") else "."
+        said += "" if said.endswith(("…", ".")) else "."
         yield _make("deal", "alert", "neutral", f"Pending acquisition: merger agreement ({d.when})",
                     f"{f.name} agreed to be acquired{d.by}. Form {d.form}{items}: {said} Its share price "
                     f"now tracks the deal terms and the odds of closing; analyst targets and the price trend are "
@@ -608,7 +608,7 @@ def _risks(f: Facts) -> Iterator[_Cand]:
         items = f" (item {', '.join(filing.items)})" if filing.items else ""
         label, desc = filing_parts(filing.title)
         said = gist(desc or label, 160)
-        said += "" if said.endswith("…") else "."
+        said += "" if said.endswith(("…", ".")) else "."
         if _COMPLIANCE_RE.search(filing.title):
             continue  # "regained compliance" resolves a listing problem; it is not a red flag
         listing = "3.01" in filing.items or bool(_LISTING_RE.search(filing.title))
@@ -619,8 +619,9 @@ def _risks(f: Facts) -> Iterator[_Cand]:
                         f"Form {filing.form}{items} filed {short_date(filing.date)}: {said}", 6 - age / 30)
         elif "3.02" in filing.items and 0 <= age <= 60 and "Acquisition paid in stock" not in label:
             # Shares issued as acquisition consideration (sec.py relabels those) are not a cash raise.
-            yield _make("risk", "watch", "bear", "Dilution: unregistered sale of shares",
-                        f"New shares sold outside a public offering (8-K item 3.02, {short_date(filing.date)}): "
+            yield _make("risk", "watch", "bear", "Dilution: unregistered securities sale",
+                        f"Shares or convertibles sold outside a public offering (8-K item 3.02, "
+                        f"{short_date(filing.date)}): "
                         f"{said}", 2)
 
 

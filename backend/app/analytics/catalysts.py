@@ -13,7 +13,7 @@ from app.analytics import textkit
 from app.analytics.composite import MATERIAL_BUY
 from app.analytics.facts import Facts
 from app.analytics.narratives import PRICE_EVENTS, same_firm
-from app.analytics.util import count, filing_parts, money, pct, quote, signed, tone_polarity, trim
+from app.analytics.util import count, filing_parts, gist, money, pct, quote, signed, tone_polarity, trim
 from app.schemas import AnalystAction, Catalyst, EarningsView, Polarity
 
 ANALYST_WINDOW = timedelta(days=30)
@@ -157,7 +157,7 @@ def _filings(f: Facts) -> list[Catalyst]:
             continue
         items = f" · items {', '.join(filing.items)}" if filing.items else ""
         label, desc = filing_parts(filing.title)
-        detail = f"Form {filing.form}{items}" + (f" · {trim(desc, FILING_DETAIL)}" if desc else "")
+        detail = f"Form {filing.form}{items}" + (f" · {gist(desc, FILING_DETAIL, first_sentence=False)}" if desc else "")
         out.append(Catalyst(date=noon_utc(filing.date), kind="filing", title=trim(label, 80),
                             detail=detail, polarity=filing.polarity, url=filing.url))
     return out

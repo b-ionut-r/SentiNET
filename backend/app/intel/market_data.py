@@ -13,6 +13,7 @@ so the orchestrator can report an honest "error" status.
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Callable
 from datetime import date, datetime, timedelta, UTC
@@ -55,6 +56,7 @@ RANGES: dict[str, tuple[str, str]] = {
 }
 _DAILY_SLICE = {"1M": 1, "3M": 3, "6M": 6, "1Y": 12}  # months
 
+CRYPTO_QUOTE_TIMEOUT = 4.0  # s: the tape never waits longer than this on a crypto benchmark's quote
 INDEX_SYMBOLS: dict[str, str] = {
     "SPY": "S&P 500",
     "QQQ": "Nasdaq 100",
@@ -386,22 +388,32 @@ def _fetch_indices(symbols: list[str]) -> pd.DataFrame | None:
     return _frame(df)
 
 
+async def _live_crypto_quote(symbol: str) -> Quote | None:
+    """The quote's rolling 24 h view of a crypto benchmark, or None when `info` is slow or failing
+    (no daily-bar fallback: the tape already has those). A slow lookup keeps running in the
+    background (shielded), so the next tape gets it from the cache."""
+    try:
+        return tx.quote_from_info(await asyncio.wait_for(asyncio.shield(get_info(symbol)), CRYPTO_QUOTE_TIMEOUT))
+    except (UpstreamError, TimeoutError):
+        return None
+
+
 @cached(ttl=settings.price_cache_ttl, none_ttl=30)
 async def get_indices() -> list[IndexQuote]:
     """Benchmarks strip: SPY QQQ DIA IWM ^VIX ^TNX GC=F BTC-USD with ~1M sparklines."""
-    df = await _yahoo(_fetch_indices, list(INDEX_SYMBOLS), what="indices")
-    quotes = [q for q in tx.indices_from_download(df, INDEX_SYMBOLS) if q.price is not None]
-    if not quotes:  # yf.download swallows per-symbol errors and returns an empty frame
-        raise UpstreamError("Yahoo indices: no prices returned")
-    for i, q in enumerate(quotes):
-        if is_crypto_symbol(q.symbol):
-            # Crypto trades 24/7: the tape shows the same rolling 24 h change as the quote (and the
-            # Intel page), not the move since the 00:00 UTC daily bar (or a 2-day one when Yahoo
-            # skipped a bar). Falls back to the daily bars when the quote is unavailable.
-            try:
-                live = await get_quote(q.symbol)
-            except UpstreamError:
-                continue
-            if live is not None and live.change_pct is not None:
-                quotes[i] = q.model_copy(update={"change_pct": live.change_pct, "price": live.price})
-    return quotes
+    # Crypto trades 24/7: the tape shows the same rolling 24 h change as the quote (and the Intel
+    # page), not the move since the 00:00 UTC daily bar. Looked up alongside the download.
+    live = {s: asyncio.ensure_future(_live_crypto_quote(s)) for s in INDEX_SYMBOLS if is_crypto_symbol(s)}
+    try:
+        df = await _yahoo(_fetch_indices, list(INDEX_SYMBOLS), what="indices")
+        quotes = [q for q in tx.indices_from_download(df, INDEX_SYMBOLS) if q.price is not None]
+        if not quotes:  # yf.download swallows per-symbol errors and returns an empty frame
+            raise UpstreamError("Yahoo indices: no prices returned")
+        for i, q in enumerate(quotes):
+            quote = await live[q.symbol] if q.symbol in live else None
+            if quote is not None and quote.change_pct is not None:
+                quotes[i] = q.model_copy(update={"change_pct": quote.change_pct, "price": quote.price})
+        return quotes
+    finally:
+        for task in live.values():
+            task.cancel()

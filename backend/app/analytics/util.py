@@ -270,19 +270,41 @@ def trim(text: str, limit: int = 140) -> str:
     return t
 
 
-_LEGAL_DATE = re.compile(r"^(?:as previously (?:disclosed|reported)[^,]*,\s*)?(?:on|effective)\s+[A-Z][a-z]+\.?\s+\d{1,2},\s+\d{4},?\s*",
-                         re.IGNORECASE)
+_LEGAL_DATE = re.compile(r"^(?:as previously (?:disclosed|reported)[^,]*,\s*)?(?:on|effective(?:\s+as\s+of)?|as\s+of)\s+"
+                         r"(?:[A-Z][a-z]+\.?\s+\d{1,2}|\d{1,2}\s+[A-Z][a-z]+\.?),?\s+\d{4},?\s*", re.IGNORECASE)
+# ", a Delaware corporation," / ", a Cayman Islands exempted company (the “Company”),"
+_LEGAL_APPOSITIVE = re.compile(r",\s+an?\s+(?:[A-Z][\w.]*\s+){1,3}(?i:(?:exempted\s+)?(?:corporation|company|limited "
+                               r"liability company|limited partnership|public limited company|statutory trust))\b[^,.;]{0,60}(?:,|(?=[.;]|$))")
 _LEGAL_PAREN = re.compile(r"\s*\((?:the |each, a |collectively,? the )?[\"“”'‘’]+[^)]{1,40}[\"“”'‘’]+[^)]{0,40}\)")
 
 
-def gist(text: str, limit: int = 140) -> str:
-    """A filing excerpt as a reader-friendly line: the leading 'On May 4, 2026,' and defined-term
-    parentheticals ('(the “Company”)') dropped, first sentence only, trimmed to `limit`."""
+_PERIOD = re.compile(r"\.\s+(?=[A-Z])")
+_ABBREV = re.compile(r"(?:\b(?i:inc|corp|co|ltd|no|st|mr|mrs|ms|dr|jr|sr|vs|al|approx)|\b[A-Z]|\.[A-Za-z])$")
+_STARTER = re.compile(r"(?:The|This|That|These|Those|It|Its|Such|Each|Under|Pursuant|As|In|On|Upon|A|An|We|He|She|They)\b")
+
+
+def _first_sentence(text: str) -> str:
+    """`text` up to its first sentence end: a period before a capital, unless it closes an
+    abbreviation ('Inc.', 'Dr.', 'U.S.') that the next word does not show to end a sentence."""
+    for m in _PERIOD.finditer(text):
+        if not _ABBREV.search(text[: m.start()]) or _STARTER.match(text, m.end()):
+            return text[: m.start() + 1]
+    return text
+
+
+def gist(text: str, limit: int = 140, *, first_sentence: bool = True) -> str:
+    """A filing excerpt as a reader-friendly line: the leading 'On May 4, 2026,' preamble,
+    defined-term parentheticals ('(the “Company”)') and ', a Delaware corporation,' dropped,
+    the first sentence only (unless `first_sentence=False`), trimmed to `limit`. A closing
+    period is dropped unless it ends an abbreviation ('… Hugging Face, Inc.')."""
     t = _LEGAL_PAREN.sub("", " ".join(text.split()))
+    t = _LEGAL_APPOSITIVE.sub("", t)
     t = _LEGAL_DATE.sub("", t)
     t = t[:1].upper() + t[1:]
-    first = re.split(r"(?<=[a-z0-9)])\.\s+(?=[A-Z])", t, maxsplit=1)[0]
-    return trim(first, limit).rstrip(".")
+    out = trim(_first_sentence(t) if first_sentence else t, limit)
+    if out.endswith(".") and not _ABBREV.search(out[:-1]):
+        out = out[:-1]
+    return out
 
 
 def quote(text: str, limit: int = 90) -> str:

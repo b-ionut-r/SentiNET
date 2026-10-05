@@ -492,11 +492,29 @@ try {
   await page.mouse.move(5, 5);
   await page.unroute("**/api/history/NVDA*");
   check("tone-less result still draws GDELT tone from the 90-day history", await page.locator("#price").getByText("Daily global news tone (GDELT) in its own pane below").isVisible());
-  check("…the insights rail says tone is not loaded yet", await page.locator("#insights").getByText(LATE_TITLE).isVisible());
-  await page.waitForTimeout(21_000);
-  check("the analysis is re-read without a forced refresh", mark().includes("GET /analyze/NVDA"), mark().filter((c) => c.includes("analyze")).join(", "));
+  // The history call brought the tone the result lacked: the server has superseded its cached
+  // analysis, so the page re-reads it at once (no 20 s wait) and swaps in the version with tone.
+  check("history with tone triggers an immediate re-read", mark().includes("GET /analyze/NVDA"), mark().filter((c) => c.includes("analyze")).join(", "));
   await settle(300);
   check("…and the late tone replaces the 'not loaded this run' result", (await page.locator("#insights").getByText(LATE_TITLE).count()) === 0);
+
+  // History still waiting on GDELT too: the 'not loaded' insight stays, and the page re-reads on its timer.
+  const hist = fix("history.NVDA.json");
+  hist.status = { ...hist.status, tone: "error: still loading after 22s; continuing in the background (reload to include)" };
+  hist.points = hist.points.map((p) => ({ ...p, tone: null, volume: null }));
+  await page.route("**/api/history/NVDA*", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(hist) }));
+  await page.goto(`${BASE}/`);
+  mark = since();
+  await page.goto(`${BASE}/t/NVDA`);
+  await page.waitForSelector("#verdict");
+  await settle(2000);
+  check("…without tone anywhere, the insights rail says tone is not loaded yet", await page.locator("#insights").getByText(LATE_TITLE).isVisible());
+  check("…and nothing is re-read early", !mark().includes("GET /analyze/NVDA"), mark().filter((c) => c.includes("analyze")).join(", "));
+  await page.waitForTimeout(21_000);
+  check("the analysis is re-read on its timer without a forced refresh", mark().includes("GET /analyze/NVDA"), mark().filter((c) => c.includes("analyze")).join(", "));
+  await settle(300);
+  check("…and the late tone replaces the 'not loaded this run' result", (await page.locator("#insights").getByText(LATE_TITLE).count()) === 0);
+  await page.unroute("**/api/history/NVDA*");
   await page.unroute("**/api/analyze/NVDA/stream*");
 
   // Compare: a ticker that fails to analyze says so in every row and can be removed.
