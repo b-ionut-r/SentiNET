@@ -199,3 +199,30 @@ def test_numbers_read_like_an_analyst_wrote_them(consoles):
     for needle in ("1 buy $749K · 9 sells $3.26M", "79% bullish of 19 tagged messages", "#66 · 2 mentions/24h"):
         assert needle in text, needle
     assert "+100%" not in text  # 1 → 2 mentions is not a trend
+
+
+def test_cli_targets_follow_the_verdicts_upside_and_currency(consoles):
+    """QA repro: SOFI CLI showed 'mean target $20.35 (▲ +29%)' while the brief said '+20% to the median target'."""
+    from app.analytics.inputs import AnalysisInputs
+    from app.schemas import Quote
+    from app.sources.base import CompanyRef
+
+    base = FakeWorld().build(AnalysisInputs(company=CompanyRef(ticker="SOFI", name="SoFi", short_name="SoFi"),
+                                            now=NOW, engine_name="sentinel"))
+
+    def render(view: AnalystView, currency: str = "USD") -> str:
+        out = Console(record=True, width=160)
+        cli.render_analysis(base.model_copy(update={"analysts": view, "quote": Quote(price=15.8, currency=currency)}),
+                            out)
+        return out.export_text()
+
+    skewed = render(AnalystView(consensus="hold", total=25, target_mean=20.35, target_median=19.0, upside_pct=29.0))
+    assert "hold · 25 analysts · median target $19.00 (▲ +20%) · mean $20.35 (+29%, skewed by outliers)" in skewed
+    agree = render(AnalystView(consensus="hold", total=1, target_mean=20.35, target_median=20.5, upside_pct=29.0))
+    assert "hold · 1 analyst · mean target $20.35 (▲ +29%)" in agree
+    # VOD.L: pence targets either side of the price are "about the price", never "$121.82".
+    vod = render(AnalystView(consensus="buy", total=12, target_mean=121.82, target_median=127.19, upside_pct=-3.9),
+                 "GBp")
+    assert "targets at about the price · mean 121.82p (▼ -4%), median 127.19p" in vod and "$121" not in vod
+    assert "mean target C$237.59 (▲ +10%)" in render(
+        AnalystView(consensus="buy", total=30, target_mean=237.59, upside_pct=10.0), "CAD")

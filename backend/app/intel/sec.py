@@ -9,7 +9,10 @@ Filings are turned into intel, not a raw list: 8-K item codes are decoded into
 plain titles with importance/polarity priors (4.02 non-reliance and 1.03
 bankruptcy are red flags; 2.02 is the earnings release), and floods of routine
 forms (Form 4/144 insider paperwork, bank structured-note prospectuses) are
-collapsed into one summary row each.
+collapsed into one summary row each. Recent narrative 8-Ks are re-judged from
+their own text, which can raise a prior (a deal, a CEO exit) or explain one
+away (stock paid for an acquisition under 3.02; regained compliance under
+3.01); a red flag (high + bear) always needs high, bear evidence.
 """
 from __future__ import annotations
 
@@ -202,6 +205,21 @@ def _pick_polarity(pols: list[Pol]) -> Pol:
     return "bull" if "bull" in pols else "neutral"
 
 
+def _settle(evidence: list[tuple[Importance, Pol | None]]) -> tuple[Importance, Pol]:
+    """Overall (importance, polarity) of a filing from its (importance, polarity) evidence.
+
+    Importance is the strongest evidence's; polarity is bear > bull > neutral — except that high + bear
+    (a red flag downstream) needs evidence that is itself high and bear. A medium dilution prior (Item
+    3.02) next to a high but directionless deal or change-in-control signal is a big event, not a red
+    flag: AMD's all-stock purchase of World Labs (8-K, 2026-09-28) was raised as one.
+    """
+    importance: Importance = max((imp for imp, _ in evidence), key=_RANK.__getitem__, default="low")
+    polarity = _pick_polarity([pol for _, pol in evidence if pol])
+    if importance == "high" and polarity == "bear" and ("high", "bear") not in evidence:
+        polarity = "neutral"
+    return importance, polarity
+
+
 def decode_8k(items_field: str) -> tuple[str, list[str], Importance, Pol]:
     """'2.02,9.01' -> ("Results of operations (earnings release)", codes, importance, polarity)."""
     codes = [c.strip() for c in (items_field or "").split(",") if c.strip()]
@@ -212,8 +230,7 @@ def decode_8k(items_field: str) -> tuple[str, list[str], Importance, Pol]:
         return "Current report", codes, "low", "neutral"
     ordered = sorted(meaningful, key=lambda i: -_RANK[i.importance])
     title = "; ".join(dict.fromkeys(i.title for i in ordered))
-    importance = ordered[0].importance
-    return title, codes, importance, _pick_polarity([i.polarity for i in meaningful])
+    return (title, codes, *_settle([(i.importance, i.polarity) for i in meaningful]))
 
 
 def _fmt_day(d: date) -> str:
@@ -417,17 +434,37 @@ _REGAINED = re.compile(rf"{_NOT}\bregained (?:full )?compliance|{_NOT}\bevidence
 _LISTING_DEFICIENCY = re.compile(r"deficiency (?:letter|notice)|listing qualifications|minimum bid price|"
                                  r"regain compliance|(?:notice|notification) of delisting|delisting determination",
                                  re.IGNORECASE)
-# Item codes whose bear prior is only "a listing-rule notice" (a regained-compliance 8-K is sometimes
-# filed under 3.01): the text then decides.
-_LISTING_ONLY_BEAR = {"3.01"}
+# A deal. "to acquire Widget Co." / "to acquire all of the outstanding shares of Target" is one;
+# "warrants to acquire 1,131,273 shares" (HHH 8-K, a warrant sale) and "to acquire up to 2,500,000
+# shares" (a PIPE) are securities, not a deal.
+_SHARE_QTY = (r"(?:up to |an aggregate of |approximately )*(?:[\d,.]+ (?:million )?)?(?:additional )?"
+              r"(?:shares|units|ordinary shares|common stock|ADSs?)\b")
+_DEAL = re.compile(rf"definitive (?:merger )?agreement|merger agreement|agreement and plan of merger|"
+                   rf"(?<!warrants )(?<!warrant )\bto acquire\b(?! {_SHARE_QTY})|tender offer|business combination",
+                   re.IGNORECASE)
+# Item 3.02 covers any unregistered share issuance: a dilutive cash raise (its bear prior), but also the
+# stock an acquirer pays a target with ("Agreement and Plan of Merger to acquire all of the equity
+# interests in World Labs … to be paid in shares of the Company's common stock" — AMD 8-K, 2026-09-28),
+# which is the deal itself. Shares sold for cash alongside a deal (a SPAC's PIPE) keep the prior.
+_STOCK_PAID = re.compile(
+    r"\b(?:paid|payable|consideration)\b.{0,60}?\b(?:shares|stock)\b|"
+    r"\b(?:shares|stock)\b.{0,80}?\b(?:as|in) (?:partial |full |the )?(?:merger |purchase |acquisition )?"
+    r"consideration\b|"
+    r"\bin exchange for (?:all|the|their|100%)\b.{0,60}?\b(?:shares|stock|equity|interests|units)\b|"
+    r"\bin connection with the (?:acquisition|merger|transaction)\b.{0,60}?\bissu\w*\b.{0,40}?\b(?:shares|stock)\b|"
+    r"\bissu\w*\b.{0,80}?\b(?:shares|stock)\b.{0,60}?\bto the (?:former )?(?:stockholders|shareholders|"
+    r"equityholders|equity holders|holders|members|owners|sellers)\b",
+    re.IGNORECASE | re.DOTALL)
+_ACQUIRED = re.compile(rf"\bacqui(?:red|sition of)\b(?! {_SHARE_QTY})", re.IGNORECASE)  # "acquired Azio AI"
+_CASH_RAISE = re.compile(r"securities purchase agreement|subscription agreement|\b(?:gross|net|aggregate) proceeds\b|"
+                         r"registered direct|\bPIPE\b|\bfor cash\b|per share in cash", re.IGNORECASE)
 
 _EXCERPT_RULES: tuple[tuple[re.Pattern[str], Importance, Pol | None], ...] = (
     (re.compile(r"going concern|material weakness|subpoena|wells notice|investigation by|class action",
                 re.IGNORECASE), "high", "bear"),
     (_LISTING_DEFICIENCY, "high", "bear"),  # first: an open deficiency outranks one that was cured
     (_REGAINED, "medium", "bull"),
-    (re.compile(r"definitive (?:merger )?agreement|merger agreement|agreement and plan of merger|to acquire|"
-                r"tender offer|business combination", re.IGNORECASE), "high", None),
+    (_DEAL, "high", None),
     (re.compile(r"(?:increase|authoriz|approv)\w*.{0,80}(?:share repurchase|stock repurchase|buyback)|"
                 r"(?:share repurchase|stock repurchase|buyback).{0,80}(?:increase|authoriz|approv)",
                 re.IGNORECASE | re.DOTALL), "medium", "bull"),
@@ -482,23 +519,34 @@ def _rule_matches(pattern: re.Pattern[str], text: str) -> bool:
     return any(pattern.search(s) and not _REGAINED.search(s) for s in _split_sentences(text))
 
 
+# Item captions that the text can show to be the opposite of their bear prior, and what they then say.
+_WAIVED_CAPTION = {"3.01": "Regained compliance with listing rules", "3.02": "Acquisition paid in stock"}
+
+
+def _waived_items(filing: Filing, excerpt: str, hits: list[tuple[Importance, Pol | None]]) -> set[str]:
+    """Bear item priors the filing text explains away (see `_WAIVED_CAPTION`)."""
+    waived: set[str] = set()
+    if "3.01" in filing.items and _REGAINED.search(excerpt) and not any(pol == "bear" for _, pol in hits):
+        waived.add("3.01")  # filed under 3.01, but the notice is that compliance was regained
+    if "3.02" in filing.items and (_DEAL.search(excerpt) or _ACQUIRED.search(excerpt)) \
+            and _STOCK_PAID.search(excerpt) and not _CASH_RAISE.search(excerpt):
+        waived.add("3.02")  # the new shares pay for the company's acquisition: not a dilutive cash raise
+    return waived
+
+
 def reassess_8k(filing: Filing, excerpt: str) -> Filing:
     """Raise importance / set polarity from what the filing text actually says."""
-    importance, polarity = filing.importance, filing.polarity
     hits = [(imp, pol) for pattern, imp, pol in _EXCERPT_RULES if _rule_matches(pattern, excerpt)]
     if (change := _exec_change(excerpt)) is not None:
         hits.append(change)
-    bear_items = {c for c in filing.items if c in ITEMS_8K and ITEMS_8K[c].polarity == "bear"}
-    if (_REGAINED.search(excerpt) and bear_items and bear_items <= _LISTING_ONLY_BEAR
-            and not any(pol == "bear" for _, pol in hits)):
-        # Filed under 3.01 but the notice is that compliance was regained: not a red flag.
-        importance, polarity = "medium", "neutral"
-    for imp, pol in hits:
-        if _RANK[imp] > _RANK[importance]:
-            importance = imp
-        if pol and polarity == "neutral":
-            polarity = pol
-    return filing.model_copy(update={"title": f"{filing.title}: {excerpt}", "importance": importance,
+    title, prior = filing.title, (filing.importance, filing.polarity)
+    if waived := _waived_items(filing, excerpt, hits):
+        _, _, imp, pol = decode_8k(",".join(c for c in filing.items if c not in waived))
+        prior = (imp, pol)  # what the remaining items say on their own
+        for code in waived:
+            title = title.replace(ITEMS_8K[code].title, _WAIVED_CAPTION[code])
+    importance, polarity = _settle([prior, *hits])
+    return filing.model_copy(update={"title": f"{title}: {excerpt}", "importance": importance,
                                      "polarity": polarity})
 
 

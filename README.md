@@ -8,7 +8,7 @@ comes with the numbers behind it.
 Free data only. No paid APIs and no API keys needed; free keys unlock extra sources. Nothing is ever
 fabricated: when a provider is down or rate-limited, SentiNET says so instead of guessing.
 
-![Intel page — live NVDA analysis](docs/img/intel.png)
+![Intel page: live GameStop analysis](docs/img/intel.png)
 
 ---
 
@@ -28,6 +28,8 @@ fabricated: when a provider is down or rate-limited, SentiNET says so instead of
 | **Compare · Lab · Watchlist** | Compare up to 4 tickers side by side. Lab scores your own text or CSV with explanations. Watchlist keeps score history and alert rules (score thresholds, swings, attention spikes, new stories, analyst actions), with an optional Discord or Slack webhook. |
 
 ![Market page](docs/img/market.png)
+
+<p align="center"><img src="docs/img/mobile.png" width="300" alt="Intel page on a phone"></p>
 
 ## How it works
 

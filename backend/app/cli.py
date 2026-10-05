@@ -27,7 +27,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from app.schemas import Analysis, MarketOverview, ProgressEvent
+from app.schemas import Analysis, AnalystView, MarketOverview, ProgressEvent
 
 BULL, BEAR, NEUTRAL, MUTED = "#0da293", "#e5533f", "#8a8984", "#85847e"
 SEVERITY = {"alert": ("ALERT", "bold #d03b3b"), "watch": ("WATCH", "bold #fab219"), "info": ("INFO", "#3987e5")}
@@ -206,17 +206,43 @@ def _narratives(a: Analysis, limit: int = 8) -> Table | None:
     return t
 
 
+def _targets(an: AnalystView, currency: str) -> Text | None:
+    """The analyst target the verdict and brief use (`composite.upside`): the mean; the median, with the
+    mean alongside, when outlier targets skew the mean; "about the price" when the two point opposite
+    ways. Prices are in the listing's quote currency (pence for London, C$ for Toronto)."""
+    if an.target_mean is None:
+        return None
+    from app.analytics.composite import upside
+    from app.analytics.util import money as price_money
+
+    def px(value: float) -> str:
+        return price_money(value, price=True, currency=currency)
+
+    def upside_text(value: float | None) -> Text:
+        return Text(" (").append_text(signed(value, "+.0f", "%")).append(")")
+
+    up = upside(an)
+    mean = px(an.target_mean)
+    if up.mean is None:  # no live price: the target alone
+        return Text(f"mean target {mean}")
+    if up.split and an.target_median is not None:
+        return (Text("targets at about the price · mean ").append(mean).append_text(upside_text(up.mean))
+                .append(f", median {px(an.target_median)}").append_text(upside_text(up.median)))
+    if up.skewed and an.target_median is not None and up.median is not None:
+        return (Text(f"median target {px(an.target_median)}").append_text(upside_text(up.median))
+                .append(f" · mean {mean} ({up.mean:+.0f}%, skewed by outliers)", style=MUTED))
+    return Text(f"mean target {mean}").append_text(upside_text(up.mean))
+
+
 def _smart_vs_crowd(a: Analysis) -> Table | None:
     rows: list[tuple[str, Text]] = []
     an = a.analysts
     if an is not None and an.total:
-        t = Text(f"{(an.consensus or 'n/a').replace('_', ' ')} · {an.total} analysts")
-        if an.target_mean is not None:
-            t.append(f" · mean target {money(an.target_mean)}")
-        if an.upside_pct is not None:
-            t.append(" (")
-            t.append_text(signed(an.upside_pct, "+.0f", "%"))
-            t.append(")")
+        t = Text(f"{(an.consensus or 'n/a').replace('_', ' ')} · {count(an.total, 'analyst')}")
+        targets = _targets(an, (a.quote.currency if a.quote is not None else None) or "USD")
+        if targets is not None:
+            t.append(" · ")
+            t.append_text(targets)
         t.append(f" · 90d ▲{an.upgrades_90d}/▼{an.downgrades_90d} · 30d PT ▲{an.pt_raises_30d}/▼{an.pt_cuts_30d}",
                  style=MUTED)
         rows.append(("Analysts", t))

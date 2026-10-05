@@ -180,12 +180,12 @@ def featured(stories: list[Story]) -> list[Story]:
     """Stories that may be quoted as *the* story (verdict reasons, headline, brief), ranked.
 
     Price recaps (they restate the tape the technicals already count) and
-    routine target tweaks (not a development) are left out — unless no other
-    story clears STORY_MIN_IMPACT."""
-    substantive = [s for s in stories if not s.price_only and not s.routine]
-    if any(s.narrative.impact >= STORY_MIN_IMPACT for s in substantive):
-        return substantive
-    return list(stories)
+    routine target tweaks (not a development) never are — not even when nothing
+    else clears STORY_MIN_IMPACT: LULU's 'stock hits 52-week low' then became the
+    top story, a bear point and the summary's dominant story while technicals
+    already reported −21% in a month. Callers quote a story only from
+    STORY_MIN_IMPACT up; the narratives list still shows every story."""
+    return [s for s in stories if not s.price_only and not s.routine]
 
 
 def build_narratives(items: list[Item], company: CompanyRef | None, now: datetime,
@@ -397,16 +397,18 @@ def story_events(rep: Item, members: list[Item]) -> list[str]:
 # --------------------------------------------------------------------------- #
 _FIRM_NOISE = frozenset("""group securities capital markets partners research financial company co inc llc ltd
 plc lp sa ag the and of & isi""".split())
-_FIRM_ALIASES = {"b of a": ("bofa", "bank of america", "b of a"), "jp morgan": ("jpmorgan", "j.p. morgan", "jp morgan"),
-                 "j.p. morgan": ("jpmorgan", "j.p. morgan", "jp morgan")}
+# Firms written several ways (the ratings feed's 'B of A Securities' is the NLP's 'Bank of America').
+_FIRM_ALIASES = ((re.compile(r"(?:b of a|bofa|bank of america)\b"), ("bofa", "bank of america", "b of a")),
+                 (re.compile(r"(?:jp ?morgan|j\.p\. morgan)\b"), ("jpmorgan", "j.p. morgan", "jp morgan")),
+                 (re.compile(r"citi(?:group)?\b"), ("citi", "citigroup")))
 
 
 def _firm_names(firm: str) -> tuple[str, ...]:
     """Ways a headline names a research firm ('Evercore ISI Group' -> 'evercore'; never a bare
     'morgan' for Morgan Stanley, which would also match J.P. Morgan)."""
     low = " ".join(firm.lower().split())
-    for key, names in _FIRM_ALIASES.items():
-        if low.startswith(key):
+    for pattern, names in _FIRM_ALIASES:
+        if pattern.match(low):
             return names
     core = [w for w in re.findall(r"[a-z0-9.&'-]+", low) if w not in _FIRM_NOISE]
     return (" ".join(core),) if core else ()
@@ -415,6 +417,11 @@ def _firm_names(firm: str) -> tuple[str, ...]:
 def names_firm(title: str, firm: str) -> bool:
     text = " " + " ".join(re.findall(r"[a-z0-9.&'-]+", title.lower())) + " "
     return any(f" {name} " in text for name in _firm_names(firm))
+
+
+def same_firm(a: str, b: str) -> bool:
+    """Two spellings of one research firm ('Citi' / 'Citigroup', 'Evercore ISI' / 'Evercore ISI Group')."""
+    return names_firm(a, b) or names_firm(b, a)
 
 
 def routine_revision(story: Story, actions: Sequence[AnalystAction]) -> bool:

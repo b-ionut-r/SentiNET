@@ -138,6 +138,41 @@ def test_slow_gdelt_note_matches_what_momentum_actually_uses() -> None:
     assert note is not None and "last 48 h of headlines (6) vs the prior days (6) instead" in note.detail
 
 
+def test_feeds_that_timed_out_are_disclosed_never_called_absent() -> None:
+    # Live NVDA with a 0.2 s intel budget: analysts, insiders, quote, profile, earnings and filings all
+    # timed out ('still loading … continuing in the background'); the analysts card said 'no analyst
+    # coverage' (61 analysts), the rail only mentioned GDELT, and the headline read a plain 'Bullish'.
+    pending = "error: still loading after 0.2s; continuing in the background (reload to include)"
+    status = {k: pending for k in ("analysts", "insiders", "profile", "quote", "earnings", "filings", "technicals")}
+    news = [raw(f"Acme beats estimates as strong demand surges {i}", 2 + 3 * i, o) for i, o in enumerate(
+        ["Reuters", "Bloomberg", "CNBC", "Barron's", "MarketWatch", "Zacks", "Benzinga", "TipRanks"])]
+    a = build_analysis(inputs(company(), [run(GOOGLE, news)], intel_status=status | {"tone": "ok", "wiki": "ok"}))
+    assert comp(a, "analysts").detail == "analyst ratings not loaded in time this run"
+    assert comp(a, "insiders").detail == "insider trades not loaded in time this run"
+    assert comp(a, "technicals").detail == "price history not loaded in time this run"
+    note = insight(a, "Market data not loaded in time")
+    assert note is not None and note.severity == "watch"
+    assert note.detail.startswith("Analyst ratings, insider trades, the profile, the quote, earnings, SEC filings "
+                                  "and price history did not arrive in time for this read")
+    assert "the Analysts, Insiders and Technicals components are n/a, so the score rests on news alone" in note.detail
+    assert any(w.startswith("Market data not loaded in time") for w in a.brief.watch)
+    assert "without analyst, insider and price data (not loaded this run)" in a.verdict.headline
+    # A hard failure reads the same way; a feed that answered empty keeps its own meaning.
+    failed = build_analysis(inputs(company(), [run(GOOGLE, news)],
+                                   intel_status={"analysts": "error: UpstreamError: HTTP 500", "insiders": "empty"}))
+    assert comp(failed, "analysts").detail == "analyst ratings could not be loaded this run"
+    assert comp(failed, "insiders").detail == "insider data unavailable"
+    gone = insight(failed, "Some market data unavailable")
+    assert gone is not None and gone.severity == "watch" and "the Analysts component is n/a" in gone.detail
+    assert "without analyst data (not loaded this run)" in failed.verdict.headline
+    empty = build_analysis(inputs(company(), [run(GOOGLE, news)], intel_status={"analysts": "empty"}))
+    assert comp(empty, "analysts").detail == "no analyst coverage" and "not loaded" not in empty.verdict.headline
+    # A minor gap (insiders alone) is disclosed on the rail but does not qualify the headline.
+    minor = build_analysis(inputs(company(), [run(GOOGLE, news)], intel_status={"insiders": pending}))
+    assert insight(minor, "Market data not loaded in time") is not None
+    assert "not loaded" not in minor.verdict.headline
+
+
 # --------------------------------------------------------------------------- #
 # Small honesty fixes
 # --------------------------------------------------------------------------- #

@@ -80,7 +80,7 @@ class Token(NamedTuple):
 _URL = re.compile(r"(?:https?://|www\.)\S+")
 _ZW = re.compile("[\u200b-\u200f\u2060\ufeff\ufe0e\ufe0f]")
 _ABBREV = re.compile(
-    r"\b(vs|inc|corp|co|ltd|plc|jr|sr|st|mr|mrs|ms|dr|est|approx|adj|avg|jan|feb|mar|apr|jun|jul|aug|"
+    r"\b(vs|inc|corp|co|ltd|plc|jr|sr|st|mr|mrs|ms|dr|est|approx|adj|avg|bros|jan|feb|mar|apr|jun|jul|aug|"
     r"sep|sept|oct|nov|dec|nos|fig|bln|mln|mn|bn|yr|qtr|pts|no)\.(?=\s|$|\d)", re.I)
 _COUNTRY = re.compile(r"\b(u)\.(s|k)\.?(?=[\s,;:)]|$)|\b(e)\.(u)\.(?=\s)", re.I)
 _DIGIT = re.compile(r"\d")
@@ -2042,9 +2042,10 @@ def extract(text: str, *, social: bool = False, target: Optional[Sequence[str]] 
         if sp.litigious:
             ev.litigious += 1
 
-    _apply_modifiers(ev, tokens, at, spans, hits, low)
-    if target:
-        _attribute(norm, tokens, at, claimed, hits, target, ev)
+    owners = _owners(norm, tokens, at, claimed, hits, target) if target else None
+    _apply_modifiers(ev, tokens, at, spans, hits, low, owners.promoted if owners else frozenset())
+    if owners is not None:
+        _attribute(norm, tokens, at, claimed, hits, owners, ev)
     for h in hits:
         if not h.term:
             h.term = _term(norm, tokens, h)
@@ -2123,7 +2124,9 @@ def _term(norm: str, tokens: list[Token], h: Hit) -> str:
 
 
 def _apply_modifiers(ev: Evidence, tokens: list[Token], at: list[Optional[_Span]], spans: list[_Span],
-                     hits: list[Hit], low: str) -> None:
+                     hits: list[Hit], low: str, promoted: frozenset[int] | set[int] = frozenset()) -> None:
+    """Negation, intensity, hedges, contrast, background clauses, questions. ``promoted``: tokens of
+    the target's own clause after another company's news (see ``_owners``), never background."""
     n = len(tokens)
     # sentence ids (hard boundaries) and clause ids (soft boundaries too)
     sent = [0] * n
@@ -2150,7 +2153,7 @@ def _apply_modifiers(ev: Evidence, tokens: list[Token], at: list[Optional[_Span]
 
     negators = [sp for sp in spans if sp.negator and not sp.neutral]
     _absorb_intensifying_adjectives(tokens, spans, hits)
-    background = _background_clauses(tokens, at, hits, sent)
+    background = _background_clauses(tokens, at, hits, sent, promoted)
     hedge_spans = [sp for sp in spans if sp.hedge is not None]
     intens_spans = [sp for sp in spans if sp.intens is not None]
     contrast_spans = [sp for sp in spans if sp.contrast is not None]
@@ -2191,7 +2194,7 @@ def _apply_modifiers(ev: Evidence, tokens: list[Token], at: list[Optional[_Span]
                 w *= SHIFT_BEFORE if a < sp.start else SHIFT_AFTER
             else:  # concessive: the clause it introduces is background
                 end = _clause_end(tokens, sp.end)
-                if sp.end <= a < end:
+                if sp.end <= a < end and not (sp.end - 1 in promoted and sp.start not in promoted):
                     w *= CONCESSIVE_FACTOR
         if background[a]:
             w *= BACKGROUND_FACTOR
@@ -2265,11 +2268,12 @@ _AS_NOT_CAUSAL = frozenset({"well", "such", "much", "many", "long", "soon", "far
 
 
 def _background_clauses(tokens: list[Token], at: list[Optional[_Span]], hits: list[Hit],
-                        sent: list[int]) -> list[bool]:
+                        sent: list[int], promoted: frozenset[int] | set[int] = frozenset()) -> list[bool]:
     """Tokens inside "after ..." / "following ..." / "amid ..." clauses - and, once the main clause
     already carries evidence, "... as <clause>" ("Dollar rises as relations worsen"), "... while the
     market <clause>" and purpose clauses ("cuts jobs to reduce costs") - are context for the main
-    move, so they count less than the headline verb."""
+    move, so they count less than the headline verb. Not an as/while clause that is the analysed
+    company's own news after another company's (``promoted``): "AMD Jumps As Nvidia Slips"."""
     n = len(tokens)
     flags = [False] * n
     evidence_at = sorted(h.anchor for h in hits)
@@ -2282,7 +2286,7 @@ def _background_clauses(tokens: list[Token], at: list[Optional[_Span]], hits: li
             continue
         if t.text == "as" and 0 < i < n - 1 and tokens[i + 1].text not in _AS_NOT_CAUSAL \
                 and tokens[i - 1].text not in _AS_NOT_CAUSAL and tokens[i + 1].kind == "w" \
-                and any(a < i and sent[a] == sent[i] for a in evidence_at):
+                and any(a < i and sent[a] == sent[i] for a in evidence_at) and i not in promoted:
             for j in range(i + 1, _clause_end(tokens, i + 1)):
                 flags[j] = True
             continue
@@ -2298,7 +2302,7 @@ def _background_clauses(tokens: list[Token], at: list[Optional[_Span]], hits: li
                 flags[j] = True
             continue
         if t.text in ("while", "whereas") and 0 < i < n - 1 and _market_subject(tokens, i + 1) \
-                and any(a < i and sent[a] == sent[i] for a in evidence_at):
+                and any(a < i and sent[a] == sent[i] for a in evidence_at) and i not in promoted:
             for j in range(i + 1, _clause_end(tokens, i + 1)):  # "X Stock Dips While Market Gains"
                 flags[j] = True
             continue
@@ -2412,7 +2416,7 @@ _SUBJECT_RULES = frozenset({"rule:beat", "rule:miss", "rule:guidance", "rule:job
                             "rule:below_exp", "rule:offering", "rule:bankruptcy", "rule:going_concern",
                             "rule:contract_win", "rule:license", "rule:returns", "rule:streak", "rule:pct_loss",
                             "rule:metric_hit", "rule:numbers", "rule:rating_template", "rule:off_high",
-                            "rule:valuation", "rule:sit_out"})
+                            "rule:valuation", "rule:sit_out", "rule:index_change"})
 # capitalized words that are not company names (title-case headlines capitalize everything)
 _NAME_STOP = frozenset("""
 the a an is are was were be been being has have had will would can could may might should must do does did
@@ -2484,6 +2488,20 @@ def _is_name(norm: str, tokens: list[Token], at: list[Optional[_Span]], claimed:
     return norm[t.start: t.start + 1].isupper()
 
 
+def _is_owner(norm: str, tokens: list[Token], at: list[Optional[_Span]], claimed: bytearray, j: int,
+              assets: frozenset[str]) -> bool:
+    """A candidate owner of a move: a name, or a crypto asset that is not the target's ("ether", "ZEC") -
+    those are unambiguous in any case and even when the lexicon reads them as a price ("Ether jumps")."""
+    return tokens[j].text in assets or _is_name(norm, tokens, at, claimed, j)
+
+
+def _other_assets(target: Sequence[str]) -> frozenset[str]:
+    """Crypto assets that belong to someone else: all of them minus those the target's own names
+    contain ("BTC-USD"/"Bitcoin" own Bitcoin; so does "iShares Bitcoin Trust")."""
+    own = {w for alias in target for w in re.findall(r"[a-z0-9]+", (alias or "").lower())}
+    return lx.CRYPTO_ASSETS - own
+
+
 _AUX = frozenset({"is", "are", "was", "were", "has", "have", "had", "will", "would", "could", "may", "might",
                   "just", "also", "now", "still", "stock", "stocks", "shares", "share", "price"})
 
@@ -2494,20 +2512,23 @@ def _title_case(norm: str, tokens: list[Token]) -> bool:
     return len(words) >= 3 and sum(norm[t.start: t.start + 1].isupper() for t in words) >= 0.6 * len(words)
 
 
-def _company_like(norm: str, tokens: list[Token], lo: int, hi: int, h: Hit, title: bool) -> bool:
+def _company_like(norm: str, tokens: list[Token], lo: int, hi: int, h: Hit, title: bool,
+                  assets: frozenset[str]) -> bool:
     """Is the name run tokens[lo:hi] a company acting as the subject of ``h``? Without NER we ask for
     a company signal: a cashtag; a possessive or price noun after it ("BYD's", "Cerebras stock"); or
-    the run right before the verb ("Qualcomm Is Losing") - which in Title Case also needs a number
-    in the evidence or the run to open the sentence ("Affirm Drops 4%", not "Using Less Leverage")."""
+    the run right before the evidence ("Qualcomm Is Losing", "Nvidia revenue rises") - which in Title
+    Case also needs a number in the evidence, the run to open a clause ("Affirm Drops 4%", not "Using
+    Less Leverage") or the run to be a crypto asset ("Ether Jumps")."""
     if any(t.kind == "tag" for t in tokens[lo:hi]):
         return True
     last = tokens[hi - 1]
     if norm[last.start: last.end].lower().endswith("'s") or (
             hi < len(tokens) and tokens[hi].text in ("stock", "stocks", "shares")):
         return True
-    if not all(t.text in _AUX for t in tokens[hi:h.anchor]):
+    stop = h.anchor if h.start < hi else min(h.start, h.anchor)  # the evidence's own metric is no gap
+    if not all(t.text in _AUX for t in tokens[hi:stop]):
         return False
-    if not title:
+    if not title or any(t.text in assets for t in tokens[lo:hi]):
         return True
     numbered = any(tokens[j].kind in ("pct", "num") for j in range(h.start, h.end))
     opens = lo == 0 or tokens[lo - 1].kind == "sep" or tokens[lo - 1].text == ","  # "...; NVIDIA Ticks Up, AMD Slips"
@@ -2515,15 +2536,19 @@ def _company_like(norm: str, tokens: list[Token], lo: int, hi: int, h: Hit, titl
 
 
 def _subject_is_other(norm: str, tokens: list[Token], at: list[Optional[_Span]], claimed: bytearray,
-                      targets: set[int], h: Hit, title: bool) -> bool:
-    """Is the nearest company-like subject before ``h`` (same sentence) a company other than the
-    target? Coordinated subjects ("Ford, GM and Stellantis") and speakers ("Huang says") are not."""
+                      targets: set[int], h: Hit, title: bool, assets: frozenset[str]) -> bool:
+    """Is the nearest company-like subject before ``h`` (same sentence) a company (or crypto asset)
+    other than the target? Coordinated subjects ("Ford, GM and Stellantis") and speakers ("Huang
+    says") are not."""
     if any(h.start <= j < h.end for j in targets):
         return False  # the evidence names the target itself ("Microsoft boosts Nvidia orders")
 
+    def owner(j: int) -> bool:
+        return _is_owner(norm, tokens, at, claimed, j, assets)
+
     def run_start(j: int) -> tuple[int, bool]:  # (index before the name run, run contains the target)
         hit_target = False
-        while j >= 0 and (j in targets or _is_name(norm, tokens, at, claimed, j)):
+        while j >= 0 and (j in targets or owner(j)):
             hit_target = hit_target or j in targets
             j -= 1
         return j, hit_target
@@ -2532,16 +2557,16 @@ def _subject_is_other(norm: str, tokens: list[Token], at: list[Optional[_Span]],
     while j >= 0 and tokens[j].kind != "sep":
         if tokens[j].text in _SPEECH or j in targets:
             return False
-        if _is_name(norm, tokens, at, claimed, j):
+        if owner(j):
             hi = j + 1
             j, is_target = run_start(j)
             if is_target:
                 return False  # "Nvidia Blackwell sales surge": the run is the target's
-            if not _company_like(norm, tokens, j + 1, hi, h, title):
+            if not _company_like(norm, tokens, j + 1, hi, h, title, assets):
                 continue  # a capitalized common word in a title-case headline: keep looking
             while j >= 0 and tokens[j].text in ("and", "&", ",", "or"):  # "Ford, GM and Stellantis"
                 j -= 1
-                if j >= 0 and (j in targets or _is_name(norm, tokens, at, claimed, j)):
+                if j >= 0 and (j in targets or owner(j)):
                     j, is_target = run_start(j)
                     if is_target:
                         return False
@@ -2566,22 +2591,37 @@ def _verb_like(tokens: list[Token], at: list[Optional[_Span]], h: Hit) -> bool:
     return tokens[h.anchor].text.endswith("ed")
 
 
-def _opening_subject(norm: str, tokens: list[Token], at: list[Optional[_Span]], claimed: bytearray,
-                     targets: set[int], anchors: dict[int, Hit], title: bool, lo: int, hi: int) -> Optional[str]:
-    """Who the clause tokens[lo:hi] is about, read from the name run that opens it: "target", "other"
-    (another company) or None (the market, an anaphoric "Shares ...", a speaker, a common noun).
+def _states_non_move(at: list[Optional[_Span]], k: int, hi: int) -> bool:
+    """Does a stated non-move open at ``k`` ("Hold Key Support", "holds steady", "(Remain) Flat")?"""
+    return any(x < hi and at[x] is not None and at[x].neutral and at[x].key in lx.NEUTRAL_CUES  # type: ignore[union-attr]
+               for x in (k, k + 1))
 
-    A run counts only with a company signal: its own predicate right after it ("Nike Sinks 8%",
-    "Synopsys upgraded" - in Title Case a verb-like one, since every word is capitalized there), a
-    possessive or price noun ("Nike's", "Nike shares") or a cashtag."""
+
+def _opening_subject(norm: str, tokens: list[Token], at: list[Optional[_Span]], claimed: bytearray,
+                     targets: set[int], anchors: dict[int, Hit], title: bool, lo: int, hi: int,
+                     assets: frozenset[str] = frozenset()) -> Optional[str]:
+    """Who the clause tokens[lo:hi] is about, read from the name run that opens it: "target", "other"
+    (another company or crypto asset) or None (the market, an anaphoric "Shares ...", a speaker, a
+    common noun). Coordinated names are one run ("Bitcoin and Ether Hold Key Support").
+
+    A run counts only with a signal: its own predicate right after it ("Nike Sinks 8%", "Synopsys
+    upgraded" - in Title Case a verb-like one, since every word is capitalized there; "Nvidia revenue
+    jumps"; a stated non-move), a possessive or price noun ("Nike's", "Nike shares"), a cashtag or a
+    crypto asset."""
     j = lo
     while j < hi and tokens[j].kind == "soft":
         j += 1
     start = j
     has_target = False
-    while j < hi and (j in targets or _is_name(norm, tokens, at, claimed, j)):
-        has_target = has_target or j in targets
-        j += 1
+    while j < hi:
+        if j in targets or _is_owner(norm, tokens, at, claimed, j, assets):
+            has_target = has_target or j in targets
+            j += 1
+        elif tokens[j].text in ("and", "&") and j > start and j + 1 < hi and (
+                j + 1 in targets or _is_owner(norm, tokens, at, claimed, j + 1, assets)):
+            j += 1
+        else:
+            break
     if j == start:
         return None
     k = j
@@ -2589,10 +2629,13 @@ def _opening_subject(norm: str, tokens: list[Token], at: list[Optional[_Span]], 
         k += 1
     last = tokens[j - 1]
     pred = anchors.get(k) if k < hi else None
+    if pred is None and k < hi and at[k] is not None and at[k].metric is not None:  # type: ignore[union-attr]
+        pred = next((h for h in anchors.values() if h.start == k), None)  # "Nvidia revenue jumps 20%"
     signal = (pred is not None and (not title or _verb_like(tokens, at, pred))) \
+        or _states_non_move(at, k, hi) \
         or norm[last.start: last.end].lower().endswith("'s") \
         or (j < hi and tokens[j].text in ("stock", "stocks", "shares")) \
-        or any(tokens[x].kind == "tag" for x in range(start, j))
+        or any(tokens[x].kind == "tag" or tokens[x].text in assets for x in range(start, j))
     if not signal:
         return None
     if has_target:
@@ -2608,56 +2651,89 @@ def _skip_soft(tokens: list[Token], i: int) -> int:
     return i
 
 
+_CLAUSE_JOINERS = frozenset({"as", "while", "whereas"})
+
+
+def _joins_clauses(tokens: list[Token], i: int) -> bool:
+    """Is token ``i`` a conjunction between two clauses ("ZEC plunges as Bitcoin holds", "AMD gains
+    while Nvidia slips") - not "such as", "as well as", "as of", "as expected"?"""
+    t = tokens[i].text
+    if t not in _CLAUSE_JOINERS or not 0 < i < len(tokens) - 1:
+        return False
+    return t != "as" or (tokens[i + 1].text not in _AS_NOT_CAUSAL and tokens[i - 1].text not in _AS_NOT_CAUSAL)
+
+
 def _segments(norm: str, tokens: list[Token], at: list[Optional[_Span]], claimed: bytearray, targets: set[int],
-              anchors: dict[int, Hit], title: bool) -> list[int]:
-    """Clause id per token: sentences (hard breaks), further split at a comma or colon that opens a
-    clause with its own subject once the left part has evidence ("Twilio downgraded, Synopsys
-    upgraded"). A list of names is not a clause ("Lululemon, Nike shares fall")."""
+              anchors: dict[int, Hit], title: bool, assets: frozenset[str]) -> tuple[list[int], set[int]]:
+    """Clause id per token, and the ids of clauses that open with "as"/"while". Sentences (hard
+    breaks) are split further where a clause with its own subject opens once the left part has
+    evidence: at a comma or colon ("Twilio downgraded, Synopsys upgraded") or at "as"/"while" ("ZEC
+    Plunges as Bitcoin and Ether Hold Key Support"). A kicker without evidence or the target ends at
+    its colon ("Crypto Weekly: ZEC Plunges"). A list of names is not a clause ("Lululemon, Nike
+    shares fall")."""
     n = len(tokens)
     seg = [0] * n
-    sid, evidence = 0, False
+    joined: set[int] = set()
+    sid, evidence, named = 0, False, False
     sep_after = [n] * n  # index of the next hard break
     nxt = n
     for i in range(n - 1, -1, -1):
         sep_after[i] = nxt
         if tokens[i].kind == "sep":
             nxt = i
+
+    def opens_clause(i: int) -> bool:
+        return _opening_subject(norm, tokens, at, claimed, targets, anchors, title, i + 1, sep_after[i],
+                                assets) is not None
+
     for i, t in enumerate(tokens):
         if t.kind == "sep":
             seg[i] = sid
-            sid, evidence = sid + 1, False
+            sid, evidence, named = sid + 1, False, False
             continue
-        if t.kind == "soft" and t.text in (",", ":") and evidence and _opening_subject(
-                norm, tokens, at, claimed, targets, anchors, title, i + 1, sep_after[i]) is not None:
-            sid, evidence = sid + 1, False
+        soft = t.kind == "soft" and t.text in (",", ":")
+        kicker = t.text == ":" and not evidence and not named
+        joiner = evidence and _joins_clauses(tokens, i)
+        if ((soft and evidence) or kicker or joiner) and opens_clause(i):
+            sid, evidence, named = sid + 1, False, False
+            if joiner:
+                joined.add(sid)
         seg[i] = sid
         evidence = evidence or i in anchors
-    return seg
+        named = named or i in targets
+    return seg, joined
 
 
-def _attribute(norm: str, tokens: list[Token], at: list[Optional[_Span]], claimed: bytearray, hits: list[Hit],
-               target: Sequence[str], ev: Evidence) -> None:
-    """Down-weight evidence that belongs to another named company - only when the target is mentioned
-    at all (otherwise the caller's relevance filter decides).
+@dataclass(slots=True)
+class _Owners:
+    """Whose news each clause is, for one target (built before modifiers: see ``_owners``)."""
 
-    * A clause that does not name the target but opens with another company is that company's news,
-      one that opens with the market is the market's: all its evidence is context ("Nike Sinks 8% on
-      Weak Outlook; Lululemon Flat", "Twilio downgraded, Synopsys upgraded", "Stocks tumble; Apple
-      rises 2%").
-    * Inside a clause that names the target, a move or results event whose nearest subject is
-      another company is context too ("Affirm Drops 4% as SoFi holds steady").
-    * When the target's own clause states its (non-)move ("remain flat", "unchanged", "sit out the
-      rally"), the text has told us what happened to the target: peers' news counts even less.
-    """
+    targets: set[int]
+    title: bool
+    assets: frozenset[str]
+    seg: list[int]  # clause id per token
+    seg_target: list[bool]  # the clause names the target
+    seg_context: list[bool]  # the clause is another company's or the market's news
+    promoted: set[int]  # tokens of the target's own "as"/"while" clause after someone else's news
+
+
+def _owners(norm: str, tokens: list[Token], at: list[Optional[_Span]], claimed: bytearray, hits: list[Hit],
+            target: Sequence[str]) -> Optional[_Owners]:
+    """Read who each clause is about - None when the target is not named at all (the caller's
+    relevance filter decides then).
+
+    A clause that does not name the target but opens with another company (or crypto asset) is that
+    company's news, one that opens with the market is the market's. When such a clause leads and the
+    target's own clause follows with "as"/"while" ("AMD Jumps 5% As Nvidia Slips", for Nvidia), that
+    clause is the target's main news, not the background of a peer's move: it is "promoted" and the
+    modifiers skip their as/while background and "even as" concession for it."""
     targets = _target_positions(tokens, norm, target)
     if not targets:
-        return
+        return None
     title = _title_case(norm, tokens)
-    anchors: dict[int, Hit] = {}
-    for h in hits:  # the strongest piece of evidence anchored at each token
-        if h.anchor not in anchors or abs(h.valence) > abs(anchors[h.anchor].valence):
-            anchors[h.anchor] = h
-    seg = _segments(norm, tokens, at, claimed, targets, anchors, title)
+    assets = _other_assets(target)
+    anchors = _anchor_hits(hits)
+    seg, joined = _segments(norm, tokens, at, claimed, targets, anchors, title, assets)
     n_seg = seg[-1] + 1
     seg_target = [False] * n_seg
     for j in targets:
@@ -2666,15 +2742,84 @@ def _attribute(norm: str, tokens: list[Token], at: list[Optional[_Span]], claime
     for i, s in enumerate(seg):
         bounds.setdefault(s, [i, i + 1])[1] = i + 1
     seg_context = [not seg_target[s] and (
-        _opening_subject(norm, tokens, at, claimed, targets, anchors, title, *bounds[s]) == "other"
+        _opening_subject(norm, tokens, at, claimed, targets, anchors, title, *bounds[s], assets) == "other"
         or _market_subject(tokens, _skip_soft(tokens, bounds[s][0]))) for s in range(n_seg)]
+    promoted = {i for i, s in enumerate(seg) if s in joined and seg_target[s] and seg_context[s - 1]}
+    return _Owners(targets, title, assets, seg, seg_target, seg_context, promoted)
+
+
+def _anchor_hits(hits: list[Hit]) -> dict[int, Hit]:
+    """The strongest piece of evidence anchored at each token."""
+    anchors: dict[int, Hit] = {}
+    for h in hits:
+        if h.anchor not in anchors or abs(h.valence) > abs(anchors[h.anchor].valence):
+            anchors[h.anchor] = h
+    return anchors
+
+
+_REPLACING = frozenset({"replacing", "replaces", "replace", "supplanting", "supplants"})
+
+
+def _replaced_target(norm: str, tokens: list[Token], at: list[Optional[_Span]], claimed: bytearray,
+                     targets: set[int], h: Hit) -> Optional[tuple[int, int]]:
+    """"Moderna to join Nasdaq-100, replacing Warner Bros. Discovery": the span "replacing <target>"
+    when the target is the company the index inclusion ``h`` removes."""
+    verb = h.end
+    while verb < len(tokens) and tokens[verb].kind != "sep" and tokens[verb].text not in _REPLACING:
+        verb += 1
+    if verb >= len(tokens) or tokens[verb].kind == "sep":
+        return None
+    j, found = verb + 1, None
+    while j < len(tokens) and (j in targets or tokens[j].text in ("the", "and", "&", ",")
+                               or _is_name(norm, tokens, at, claimed, j)):
+        if j in targets:
+            found = j + 1
+        elif found is not None:
+            break
+        j += 1
+    return (verb, found) if found is not None else None
+
+
+def _attribute(norm: str, tokens: list[Token], at: list[Optional[_Span]], claimed: bytearray, hits: list[Hit],
+               owners: _Owners, ev: Evidence) -> None:
+    """Down-weight evidence that belongs to another named company (see ``_owners``).
+
+    * Evidence in another company's or the market's clause is context ("Nike Sinks 8% on Weak
+      Outlook; Lululemon Flat", "Twilio downgraded, Synopsys upgraded", "Stocks tumble; Apple rises
+      2%", "ZEC Plunges as Bitcoin Holds Key Support").
+    * Inside a clause that names the target, a move or results event whose nearest subject is
+      another company or crypto asset is context too ("Affirm Drops 4% as SoFi holds steady",
+      "Ethereum liquidity drops below 50% of Bitcoin's level").
+    * When the target's own clause states its (non-)move ("remain flat", "unchanged", "holds key
+      support", "sit out the rally"), the text has told us what happened to the target: peers' news
+      counts even less.
+    * An index change belongs to the company joining or leaving. When the target is the index
+      itself ("Moderna to Join Nasdaq-100" for a Nasdaq-100 fund) it says nothing about the target's
+      direction and is dropped (a recognized neutral event); when the target is the company the
+      newcomer replaces, it is the target's deletion.
+    """
+    targets, title, seg = owners.targets, owners.title, owners.seg
+    seg_target, seg_context = owners.seg_target, owners.seg_context
+    keep: set[int] = set()  # ids of hits that stay the target's whatever their subject
+    for h in list(hits):
+        if h.source != "rule:index_change":
+            continue
+        if any(h.start <= j < h.end for j in targets):  # the target is the index whose members change
+            hits.remove(h)
+            ev.neutral_cues += 1
+        elif h.valence > 0 and (span := _replaced_target(norm, tokens, at, claimed, targets, h)) is not None:
+            h.start, h.end = span  # the driver shows "Replacing Warner Bros. Discovery"
+            h.anchor, h.valence, h.term = span[0], -h.valence, ""
+            keep.add(id(h))
     off: list[Hit] = []
     for h in hits:
+        if id(h) in keep:
+            continue
         s = seg[min(h.anchor, len(seg) - 1)]
         if seg_context[s]:
             off.append(h)
-        elif (h.source == "move" or h.source in _SUBJECT_RULES) and _subject_is_other(norm, tokens, at, claimed,
-                                                                                     targets, h, title):
+        elif (h.source == "move" or h.source in _SUBJECT_RULES) and _subject_is_other(
+                norm, tokens, at, claimed, targets, h, title, owners.assets):
             off.append(h)
     if not off:
         return

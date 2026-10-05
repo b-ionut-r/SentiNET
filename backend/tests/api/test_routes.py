@@ -202,6 +202,15 @@ def test_lab_validation(client: TestClient):
     assert client.post("/api/lab/score", json={"texts": ["a"] * 501}).status_code == 422
 
 
+def test_lab_unknown_ticker_is_a_404(client: TestClient, world: FakeWorld):
+    from app.sources.base import CompanyRef
+
+    world.resolve = CompanyRef(ticker="ZZZZQQ", name="ZZZZQQ", short_name="ZZZZQQ")
+    world.intel["quote"] = None
+    r = client.post("/api/lab/score", json={"texts": ["Apple beats estimates"], "ticker": "ZZZZQQ"})
+    assert r.status_code == 404 and "mistyped or delisted" in r.json()["detail"]
+
+
 # ---- watchlist / snapshots / alerts -------------------------------------------------------- #
 def test_watchlist_crud(client: TestClient, world: FakeWorld):
     assert client.get("/api/watchlist").json() == []

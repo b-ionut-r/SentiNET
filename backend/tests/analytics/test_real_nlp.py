@@ -96,3 +96,29 @@ def test_real_gamestop_ebay_bid_is_a_deal_in_play() -> None:
     assert deal.severity == "alert" and deal.title == "Deal in play: $56B, 4.5× its market cap"
     assert "eBay" in deal.detail and "$10.6 Million" not in deal.detail  # it quotes a deal article
     assert a.verdict.headline.endswith("a $56B deal (4.5× its market cap) is in play.")
+
+
+def test_real_apple_headline_only_initiation_is_a_catalyst() -> None:
+    # Live AAPL (2026-10-05): Citi's Buy/$365 initiation was detected in a Moomoo headline but appeared
+    # nowhere; Morgan Stanley's target cut is in the ratings feed and must not be listed twice.
+    from tests.analytics.factories import analysts as analyst_view
+    from app.schemas import AnalystAction
+
+    rows = [
+        ("Citi Initiates Apple(AAPL.US) With Buy Rating, Announces Target Price $365", "Moomoo", "2026-10-03T16:37"),
+        ("Morgan Stanley lowers Apple stock price target on limited upside", "Investing.com", "2026-10-01T12:38"),
+        ("Apple stock gains 1.02 percent as Morgan Stanley trims target", "AD HOC NEWS", "2026-10-04T08:37"),
+        ("Morgan Stanley Maintains Apple(AAPL.US) With Buy Rating, Cuts Target Price to $355", "Moomoo",
+         "2026-10-01T13:30"),
+        ("Apple: I Was Wrong, Margin Math Is Now In Its Favor (Rating Upgrade)", "Seeking Alpha", "2026-09-28T12:56"),
+    ]
+    company = CompanyRef(ticker="AAPL", name="Apple Inc.", short_name="Apple")
+    raws = [RawSignal(title=t, publisher=p, timestamp=datetime.fromisoformat(ts + ":00+00:00"), url=f"https://x/{n}")
+            for n, (t, p, ts) in enumerate(rows)]
+    ms = AnalystAction(date=datetime(2026, 10, 1, tzinfo=UTC), firm="Morgan Stanley", action="main",
+                       to_grade="Overweight", price_target=355.0, prior_target=360.0)
+    a = build_analysis(inputs(company, [run(GOOGLE, raws)], analysts=analyst_view(actions=[ms]),
+                              now=datetime(2026, 10, 5, 7, 0, tzinfo=UTC)))
+    found = [c for c in a.catalysts if c.kind == "analyst" and "from the headlines" in (c.detail or "")]
+    assert [c.title for c in found] == ["Citi Initiates Apple(AAPL.US) With Buy Rating, Announces Target Price $365"]
+    assert found[0].polarity == "bull" and "by Citi · PT $365.00 · Moomoo" in (found[0].detail or "")

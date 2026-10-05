@@ -251,7 +251,7 @@ def test_routine_target_tweak_cannot_become_the_top_story() -> None:
     assert routine.intensity == 0.3 and routine.narrative.impact < plain.narrative.impact - 0.1
     assert routine.routine and not plain.routine
     from app.analytics.narratives import featured
-    assert featured([routine]) == [routine]  # nothing else to say: it may still be quoted
+    assert featured([routine]) == [] and featured([plain]) == [plain]  # never "the" story, even alone
     # A real revision (> 3%), a rating change, or another firm's action is never "routine".
     for acts in ([action(1, "Morgan Stanley", "main", "Overweight", 300, 360, "Overweight")],
                  [action(1, "Morgan Stanley", "down", "Equal-Weight", 355, 360, "Overweight")],

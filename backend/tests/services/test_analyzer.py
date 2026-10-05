@@ -541,6 +541,74 @@ def test_run_quality_counts_failed_score_inputs():
     assert not analyzer.run_quality(a, runs("ok", "disabled", "disabled", "disabled"), ok_intel).degraded
 
 
+def test_run_quality_weighs_the_score_components_failures_take_out():
+    """QA repro: analysts + insiders errored with 11 sources up was graded sound (2 of 13 failed)."""
+    from app.analytics.inputs import AnalysisInputs, SourceRun
+
+    def runs(*statuses, kind="news"):
+        return [SourceRun(source=FakeSource(f"{kind}{i}", kind), status=st) for i, st in enumerate(statuses)]
+
+    world = FakeWorld()
+    a = world.build(AnalysisInputs(company=world.company, now=datetime.now(UTC), engine_name="sentinel"))
+    up = runs(*["ok"] * 7) + runs(*["ok"] * 4, kind="social")
+    feeds = {"analysts": "ok", "insiders": "ok", "technicals": "ok"}
+
+    def q(source_runs, **changed):
+        return analyzer.run_quality(a, source_runs, {**feeds, **changed})
+
+    both = q(up, analysts="error: timed out after 9s", insiders="error: still loading … continuing in the background")
+    assert both.degraded and both.attempted == 14 and both.lost_weight == pytest.approx(0.30)
+    assert "Analyst ratings, Insider trades" in both.note and "30% of the score's weight missing" in both.note
+    assert q(up, analysts="error: HTTP 429").degraded  # Analysts alone: 20% of the nominal weight
+    assert not q(up, insiders="error: HTTP 429").degraded  # 10%: the composite renormalizes, still comparable
+    assert not q(up, technicals="error: HTTP 429").degraded  # 15%
+    assert q(up, insiders="error: x", technicals="error: y").degraded  # 25%
+    assert not q(up, analysts="empty").degraded  # "no coverage" is an answer, not a failure
+    # Every news feed of a foreign listing down (2 of 6 inputs) takes the News component (30%) with it…
+    foreign = runs("error", "error") + runs("ok", kind="social")
+    news_down = q(foreign, insiders="ok")
+    assert news_down.degraded and news_down.lost_weight == pytest.approx(0.30)
+    # …while one of two news feeds down leaves News standing.
+    assert not q(runs("error", "ok") + runs("ok", kind="social")).degraded
+
+
+async def test_run_missing_analysts_and_insiders_fires_no_score_alert(world: FakeWorld, monkeypatch):
+    """QA repro (live NVDA): analysts + insiders errored, stored degraded=0, fired 'SentiNET +1 in 1h (61 → 62)'."""
+    from app.schemas import AlertRuleIn
+
+    world.sources = [(FakeSource(f"news{i}"), "enabled") for i in range(7)] + [
+        (FakeSource(f"social{i}", "social"), "enabled") for i in range(4)]
+    world.intel["insiders"] = None
+    world.score = 61
+    await analyzer.analyze("NVDA")
+    sound = await db.latest_record("NVDA")
+    assert not sound.degraded
+
+    def age(conn):  # the sound reading is an hour old
+        with conn:
+            conn.execute("UPDATE snapshots SET at = ?", (db.to_db_time(datetime.now(UTC) - timedelta(hours=1)),))
+    await db._run(age)
+    await db.create_rule(AlertRuleIn(ticker="NVDA", kind="score_change", threshold=1))
+    await db.create_rule(AlertRuleIn(ticker="NVDA", kind="score_below", threshold=99))
+
+    world.score = 62
+    world.intel["analysts"] = Sentinel(exc=RuntimeError("timed out"))
+    world.intel["insiders"] = Sentinel(exc=RuntimeError("HTTP 429"))
+    monkeypatch.setattr(analyzer, "SHORT_CACHE_TTL", 0.0)
+    rec = Recorder()
+    await analyzer.analyze("NVDA", refresh=True, progress=rec)
+    latest = await db.latest_record("NVDA")
+    assert latest.degraded and latest.id != sound.id
+    assert "degraded" in rec.events[-1].detail and "Analyst ratings" in rec.events[-1].detail
+    assert await db.list_alert_events(10) == []  # neither the +1 change nor the "≤ 99" crossing
+
+    # The feeds come back: a sound run is a reading again and is compared with the sound 61.
+    world.intel["analysts"], world.intel["insiders"] = "auto", None
+    await analyzer.analyze("NVDA", refresh=True)
+    titles = sorted(e.title for e in await db.list_alert_events(10))
+    assert titles == ["NVDA SentiNET +1 in 1h (61 → 62)", "NVDA SentiNET 62 ≤ 99"]
+
+
 async def test_degraded_run_is_stored_flagged_and_not_a_baseline(world: FakeWorld, monkeypatch):
     world.sources = [(FakeSource(k), "enabled") for k in ("google_news", "bing_news", "nasdaq", "stocktwits")]
     await analyzer.analyze("NVDA")
@@ -616,3 +684,21 @@ async def test_typo_is_still_a_404_when_providers_answer(world: FakeWorld):
     world.sources = [(FakeSource("apewisdom", "social", error=RuntimeError("ConnectError")), "enabled")]
     world.resolve = CompanyRef(ticker="QZXWZ", name="QZXWZ", short_name="QZXWZ")
     assert (await analyzer.analyze("QZXWZ")).ticker == "QZXWZ"
+
+
+async def test_progress_details_are_pluralised(world: FakeWorld):
+    """QA repro: SSE for KOSS read 'detail': '1 items' (Bing News, Bluesky)."""
+    from app.schemas import InsiderView
+
+    world.sources = [(FakeSource("bing_news", signals=1), "enabled"), (FakeSource("bluesky", "social", signals=2,
+                     metrics={"reddit_rank": 9, "reddit_mentions": 1}), "enabled")]
+    world.intel["insiders"] = InsiderView(buys=1, sells=3, window_days=90)
+    world.intel["analysts"] = Sentinel(value=None)
+    rec = Recorder()
+    await analyzer.analyze("KOSS", progress=rec)
+    detail = {e.key: e.detail for e in rec.events if e.status in ("ok", "empty")}
+    assert detail["bing_news"] == "1 item"
+    assert detail["bluesky"] == "2 items · Reddit #9 · 1 mention"
+    assert detail["insiders"] == "1 buy / 3 sells (90d)"
+    assert analyzer._n(1, "analysis", "analyses") == "1 analysis" and analyzer._n(2, "analysis", "analyses") == \
+        "2 analyses"

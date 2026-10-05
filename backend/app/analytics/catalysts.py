@@ -10,7 +10,7 @@ from datetime import date, datetime, time, timedelta, UTC
 
 from app.analytics import textkit
 from app.analytics.facts import Facts
-from app.analytics.narratives import PRICE_EVENTS
+from app.analytics.narratives import PRICE_EVENTS, same_firm
 from app.analytics.util import count, filing_parts, money, pct, quote, signed, tone_polarity, trim
 from app.schemas import AnalystAction, Catalyst, EarningsView, Polarity
 
@@ -57,7 +57,9 @@ def build_catalysts(f: Facts) -> list[Catalyst]:
         recent.extend(_analyst_actions(f.inputs.analysts.actions, f.now, f.action_currency))
     recent.extend(_filings(f))
     recent.extend(_insiders(f))
-    recent.extend(_news(f))
+    listed: set[str] = set()
+    recent.extend(_news(f, listed))
+    recent.extend(_headline_analyst_actions(f, listed))
 
     upcoming.sort(key=lambda c: c.date)
     recent.sort(key=lambda c: c.date, reverse=True)
@@ -212,12 +214,13 @@ def _deal_deadlines(f: Facts) -> list[Catalyst]:
                      url=d.item.url) for d in play.deadlines]
 
 
-def _news(f: Facts) -> list[Catalyst]:
+def _news(f: Facts, listed: set[str] | None = None) -> list[Catalyst]:
     """High-impact stories carrying a material development, and the deal in play whatever its impact.
 
     Skipped: analyst stories when the rating actions are already listed,
     insider and price-only events, and results/guidance stories that first
-    appeared more than a week after the last report (retrospectives)."""
+    appeared more than a week after the last report (retrospectives). The ids
+    of the listed stories are added to `listed`."""
     has_actions = f.inputs.analysts is not None and bool(f.inputs.analysts.actions)
     last_report = last_report_date(f.inputs.earnings, f.now.date())
     play = f.deal_in_play
@@ -243,4 +246,57 @@ def _news(f: Facts) -> list[Catalyst]:
             detail=f"{labels} · {count(n.count, 'article')}, tone {signed(n.score)}",
             polarity=tone_polarity(n.score, 0.1) if story.directional else "neutral", url=n.url,
         ))
+        if listed is not None:
+            listed.add(n.id)
+    return out
+
+
+HEADLINE_ACTION_WINDOW = timedelta(days=10)  # a broker action seen only in headlines, while still fresh
+# A ratings-feed action by the same firm from a week before the headline (coverage lags the call: AAPL's
+# 'Morgan Stanley trims target' ran 3.4 days after the feed's row) to 2 days after it is the same call.
+HEADLINE_ACTION_LAG = timedelta(days=7)
+HEADLINE_ACTION_LEAD = timedelta(days=2)
+HEADLINE_ACTION_RELEVANCE = 0.8  # the headline is clearly about the company
+MAX_HEADLINE_ACTIONS = 3
+
+
+def _headline_analyst_actions(f: Facts, listed: set[str]) -> list[Catalyst]:
+    """Fresh broker calls by a named firm that only the headlines carry.
+
+    Citi's Buy/$365 initiation of AAPL was detected in a Moomoo headline, yet it
+    was a single-outlet story below the narrative cut and Yahoo's action list
+    lacked it, so it appeared nowhere. Kept: a news headline (not an opinion
+    column, press release or post) clearly about the company, <= 10 days old,
+    whose upgrade/downgrade/initiation/top-pick/target event names the firm,
+    when the ratings feed has no action by that firm from 7 days before to 2
+    days after it and no listed story already carries it. One catalyst per firm
+    and call, from its heaviest headline."""
+    if not f.is_equity:
+        return []
+    feed = f.inputs.analysts.actions if f.inputs.analysts is not None else []
+    out: list[Catalyst] = []
+    said: list[tuple[str, str, datetime]] = []
+    for it in f.prepared.items:  # heaviest first
+        when = it.timestamp
+        if (it.kind != "news" or not it.scored or it.press_release or when is None
+                or it.relevance < HEADLINE_ACTION_RELEVANCE or it.narrative_id in listed
+                or not timedelta(0) <= f.now - when <= HEADLINE_ACTION_WINDOW):
+            continue
+        event = next((e for e in it.events if e.key in ANALYST_EVENTS and e.firm), None)
+        if event is None or event.firm is None:
+            continue
+        firm = event.firm
+        if any(same_firm(firm, a.firm) and -HEADLINE_ACTION_LEAD <= when - a.date <= HEADLINE_ACTION_LAG for a in feed):
+            continue  # the ratings feed lists this call: not a second catalyst
+        if any(same_firm(firm, s) and k == event.key and abs(t - when) <= HEADLINE_ACTION_LAG for s, k, t in said):
+            continue
+        said.append((firm, event.key, when))
+        target = (f" · PT {money(event.value, price=True)}" if event.value and f.action_currency == "USD" else "")
+        source = f" · {it.publisher}" if it.publisher else ""
+        polarity: Polarity = event.polarity if event.polarity in ("bull", "bear") else tone_polarity(it.score, 0.1)
+        out.append(Catalyst(date=when, kind="analyst", title=trim(it.title, 120),
+                            detail=f"{textkit.event_label(event.key)} by {firm}{target}{source} · from the headlines "
+                                   f"(not in the ratings feed)", polarity=polarity, url=it.url))
+        if len(out) >= MAX_HEADLINE_ACTIONS:
+            break
     return out

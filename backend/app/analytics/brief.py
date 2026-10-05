@@ -10,8 +10,9 @@ from datetime import timedelta
 from app.analytics.composite import PLAN_RE, Part, Upside, consensus_name, upside
 from app.analytics.crowd import reddit_breakout, reddit_change_pct, reddit_move
 from app.analytics.facts import Facts
+from app.analytics.insights import restated_component
 from app.analytics.util import cap_share, count, join_and, money, pct, polarity_of, quote, short_date, signed
-from app.analytics.narratives import Story, featured
+from app.analytics.narratives import STORY_MIN_IMPACT, Story, featured
 from app.analytics.verdict import story_points
 from app.schemas import AnalystView, Brief, Catalyst, Insight, Verdict
 
@@ -61,9 +62,9 @@ def _summary(f: Facts, verdict: Verdict) -> str:
         play = f.deal_in_play
         sentences.append(f"A deal is in play: {quote(play.lead.title)} — quoted at {play.size} "
                          f"({count(play.articles, 'article')} from {count(play.outlets, 'outlet')}).")
-    ranked = featured(f.stories)
-    if ranked:
-        n = ranked[0].narrative
+    lead = _dominant_story(f)
+    if lead is not None:
+        n = lead.narrative
         new = " (new since the last look)" if n.is_new else ""
         sentences.append(f"The dominant story is {quote(n.headline)}{new}: {count(n.count, 'article')} from "
                          f"{count(len(n.publishers), 'outlet')}, tone {signed(n.score)}.")
@@ -74,6 +75,24 @@ def _summary(f: Facts, verdict: Verdict) -> str:
     if nxt and len(sentences) < 4:
         sentences.append(nxt)
     return " ".join(sentences[:4])
+
+
+def _dominant_story(f: Facts) -> Story | None:
+    """The story the summary names as dominant: the top featured story clearing STORY_MIN_IMPACT.
+
+    While the company is being acquired only deal coverage can dominate (GPRO's summary named a
+    one-outlet 'stock outperforms competitors' recap right after 'a pending acquisition dominates');
+    a deal in play already quoted in the summary is not named twice."""
+    ranked = [s for s in featured(f.stories) if s.narrative.impact >= STORY_MIN_IMPACT]
+    if not ranked:
+        return None
+    top = ranked[0]
+    if f.deal is not None and not top.deal:
+        return None
+    play = f.deal_in_play
+    if play is not None and play.material and play.story is top:
+        return None
+    return top
 
 
 def _smart_vs_crowd(f: Facts) -> str | None:
@@ -217,14 +236,7 @@ def _cases(f: Facts, insights: list[Insight]) -> tuple[list[str], list[str]]:
         if ins.kind == "momentum" and momentum_reason and "48h" in ins.title:
             continue  # already stated by the momentum component's evidence line
         weight = {"alert": 6.0, "watch": 4.0, "info": 2.0}[ins.severity]
-        # Insights restating a component's evidence share its topic, so only the stronger line is kept.
-        if ins.kind == "smart_money" and "insider" in ins.title.lower():  # incl. "Heavy insider selling"
-            topic = "insiders"
-        elif ins.kind == "momentum":  # every momentum insight restates the momentum component's evidence
-            topic = "momentum"
-        else:
-            topic = f"insight:{ins.title}"
-        scored[ins.polarity].append((weight, f"{ins.title}: {ins.detail}", topic))
+        scored[ins.polarity].append((weight, f"{ins.title}: {ins.detail}", _topic(f, ins)))
     for lean, weight, text, topic in _counterpoints(f, insights):
         if not any(t == topic for _, _, t in scored[lean]):
             scored[lean].append((weight, text, topic))
@@ -240,6 +252,20 @@ def _cases(f: Facts, insights: list[Insight]) -> tuple[list[str], list[str]]:
         return out[:MAX_POINTS]
 
     return top("bull"), top("bear")
+
+
+def _topic(f: Facts, ins: Insight) -> str:
+    """What an insight is about, for one-point-per-topic: an insight restating a component's evidence
+    (the main drag, an insider or momentum insight) shares the component's topic, so only the
+    stronger line is kept — VOD.L listed 'Analysts cautious: Hold consensus …' twice."""
+    restated = restated_component(f, ins)
+    if restated is not None:
+        return restated
+    if ins.kind == "smart_money" and "insider" in ins.title.lower():  # incl. "Heavy insider selling"
+        return "insiders"
+    if ins.kind == "momentum":  # every momentum insight restates the momentum component's evidence
+        return "momentum"
+    return f"insight:{ins.title}"
 
 
 def _notable(story: Story) -> bool:
@@ -296,7 +322,7 @@ def _counterpoints(f: Facts, insights: list[Insight]) -> list[tuple[str, float, 
                         "technicals-extreme"))
     for item in insights:  # crowding extremes argue the contrarian side
         if item.kind == "crowding" and item.polarity in ("bull", "bear"):
-            out.append((item.polarity, 0.42, f"{item.title}: {item.detail}", f"insight:{item.title}"))
+            out.append((item.polarity, 0.42, f"{item.title}: {item.detail}", _topic(f, item)))
     for key, part in f.composite.parts.items():  # clear leans that move the score < 0.5 points
         if part.reason and abs(part.x) >= 0.1 and abs(f.composite.contributions.get(key, 0.0)) < 0.5 \
                 and not _settling(part):

@@ -2,7 +2,11 @@
 
 Each text gets the same treatment as a live signal (score, label, confidence,
 driver terms, themes, events); with a ticker, also its relevance to that
-company. The summary is a confidence- (and relevance-) weighted mean.
+company. A ticker nothing knows is a 404 (as for watch/alerts), never a
+silent "relevance 0" for every text. The summary is a confidence- (and
+relevance-) weighted mean; when no text is about the ticker at all, relevance
+cannot weigh the texts against one another (0/0), so it falls back to the
+confidence-weighted mean rather than a fabricated neutral 0.
 
 Lab work is user-submitted CPU work, so it is bounded and kept away from
 analyses: at most `MAX_TOTAL_CHARS` per request (~1-2 s of scoring), one
@@ -26,7 +30,7 @@ from app.schemas import (
     SentimentStat,
     ThemeStat,
 )
-from app.services.analyzer import normalize, resolve_or_bare
+from app.services.analyzer import RESOLVE_TIMEOUT, known_company, normalize, resolve_or_bare
 from app.services.errors import Busy, InvalidInput, Unavailable
 from app.services.tasks import describe_error
 from app.sources.base import CompanyRef
@@ -134,6 +138,8 @@ def _score_sync(texts: list[str], company: CompanyRef | None) -> ScoreResponse:
         ))
 
     weights = [max(r.confidence, 0.05) * (r.relevance if r.relevance is not None else 1.0) for r in results]
+    if sum(weights) <= 0:  # nothing is about the ticker: relevance cannot rank the texts (0/0)
+        weights = [max(r.confidence, 0.05) for r in results]
     total = sum(weights)
     mean = sum(w * r.score for w, r in zip(weights, results, strict=True)) / total if total > 0 else 0.0
     summary = SentimentStat(
@@ -164,7 +170,9 @@ async def score_texts(req: ScoreRequest) -> ScoreResponse:
     texts = validate_texts(req.texts)
     company = None
     if req.ticker and req.ticker.strip():
-        company = await resolve_or_bare(normalize(req.ticker), timeout=8.0)
+        symbol = normalize(req.ticker)  # InvalidTicker (400) for garbage
+        # UnknownSymbol (404) for a typo; a provider outage accepts the bare symbol.
+        company = await known_company(symbol, await resolve_or_bare(symbol, timeout=RESOLVE_TIMEOUT))
     try:
         return await _run_admitted(_score_sync, texts, company)
     except Busy:

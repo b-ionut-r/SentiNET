@@ -19,9 +19,11 @@ Pipeline (per analysis):
 
 A *price recap* ("SoFi stock craters 43% in 2026", "Nvidia hits record high")
 is an item whose only events are price moves and whose strongest sentiment
-driver is that price-move phrase: it restates the tape, which the technicals
-component already measures, so it counts at 0.4× in the text aggregates
-instead of a second time at full weight.
+driver is that price-move phrase — or a machine-written daily stock report
+("Shopify Inc. Cl A stock rises Monday, outperforms market") carrying no
+development: it restates the tape, which the technicals component already
+measures, so it counts at 0.4× in the text aggregates instead of a second time
+at full weight, and its story is never quoted as "the" story.
 """
 from __future__ import annotations
 
@@ -63,6 +65,16 @@ PRICE_RECAP_WEIGHT = 0.4  # a headline that only restates the price move (see mo
 # Events that merely describe the tape (shared with narratives/catalysts).
 PRICE_EVENTS = frozenset({"price_up", "price_down", "all_time_high", "high_52w", "low_52w"})
 _TOKEN_RE = re.compile(r"[a-z0-9.%$]+")
+# Machine-written daily stock reports (MarketWatch's automated recaps): the day's move against the
+# market or peers and nothing else, often with no price event for the engine to see — 'Shopify Inc.
+# Cl A stock rises Monday, outperforms market', 'GoPro Inc. stock outperforms competitors on strong
+# trading day', 'lululemon athletica inc. stock underperforms Tuesday when compared to competitors'.
+_WEEKDAY = r"(?:mon|tues|wednes|thurs|fri|satur|sun)day"
+AUTO_RECAP_RE = re.compile(
+    rf"\b{_WEEKDAY},\s+(?:still\s+)?(?:out|under)performs\s+(?:the\s+)?market\b|"
+    rf"\bstock\s+(?:out|under)performs\s+{_WEEKDAY}\s+when\s+compared\s+to\s+competitors\b|"
+    r"\bstock\s+(?:out|under)performs\s+(?:the\s+)?(?:market|competitors)\s+(?:on\s+(?:strong|weak)\s+trading\s+day|"
+    r"despite\s+(?:daily\s+)?(?:losses|gains))\b", re.IGNORECASE)
 
 # Auto-generated 13F-holdings stories ("Apple Inc. $AAPL Shares Sold by Denver PWM LLC",
 # "Evoke Wealth LLC Sells 229,221 Shares of NVIDIA Corporation $NVDA"): templated filings
@@ -381,7 +393,10 @@ def price_recap(it: Item) -> bool:
     Its events are all price events and its strongest driver is the phrase that
     triggered one of them ('Stock Craters 43%'), so 'Meta launches Muse; shares
     jump' (a product launch) or 'SoFi falls 3% as yields pressure fintech'
-    (driven by the yields phrase) are not recaps."""
+    (driven by the yields phrase) are not recaps. A machine-written daily recap
+    (`AUTO_RECAP_RE`) is one whatever its events, unless it carries a development."""
+    if AUTO_RECAP_RE.search(it.title):
+        return set(it.event_keys) <= PRICE_EVENTS
     if not it.events or not it.drivers or not set(it.event_keys) <= PRICE_EVENTS:
         return False
     top = set(_TOKEN_RE.findall(max(it.drivers, key=lambda d: abs(d[1]))[0].lower()))

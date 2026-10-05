@@ -49,9 +49,11 @@ from typing import Literal
 
 from app.analytics import textkit
 from app.analytics.composite import (
+    LABELS,
     MATERIAL_BUY,
     NEWS_BASELINE,
     SOCIAL_BASELINE,
+    ComponentKey,
     buyers,
     crowded,
     discretionary_sales,
@@ -60,7 +62,7 @@ from app.analytics.composite import (
 )
 from app.analytics.composite import STOCKTWITS_BASELINE as STOCKTWITS_NORM
 from app.analytics.crowd import BREAKOUT_RANK, reddit_breakout, reddit_change_pct
-from app.analytics.facts import Facts
+from app.analytics.facts import COMPONENT_FEEDS, FEED_NAMES, Facts
 from app.analytics.prepare import Item
 from app.analytics.util import (
     count,
@@ -332,6 +334,15 @@ def part_kind(key: str) -> InsightKind:
     """Insight kind for a component's evidence."""
     return {"momentum": "momentum", "analysts": "smart_money", "insiders": "smart_money",
             "social": "crowding"}.get(key, "divergence")  # type: ignore[return-value]
+
+
+def restated_component(f: Facts, insight: Insight) -> ComponentKey | None:
+    """The component whose evidence line an insight restates (its title is that line's lead:
+    the main-drag and momentum-component insights), so the brief states that fact once."""
+    for key, part in f.composite.parts.items():
+        if part.reason and part.reason.partition(": ")[0] == insight.title:
+            return key
+    return None
 
 
 def _gdelt_flip(f: Facts) -> bool:
@@ -650,13 +661,18 @@ def _quality(f: Facts) -> Iterator[_Cand]:
                 else "the momentum component is n/a")
         yield _make("quality", "info", "neutral", "Global news tone not loaded this run",
                     f"GDELT history did not arrive in time for this read; {flow}.", 0.5)
-    failed = f.intel_failed()
-    if failed:
-        names = {"analysts": "analyst ratings", "insiders": "insider trades", "earnings": "earnings",
-                 "technicals": "technicals", "quote": "the quote", "filings": "SEC filings", "tone": "GDELT tone",
-                 "wiki": "Wikipedia pageviews", "profile": "the profile", "calendar": "the dividend calendar"}
-        shown = [names.get(k, k) for k in failed]
-        yield _make("quality", "info", "neutral", "Some market data unavailable",
-                    f"{_cap(join_and(shown))} could not be loaded this run; affected components are "
-                    f"marked n/a.", len(shown) / 3)
+    # Every other feed that timed out (still loading) or failed: a run missing analysts, insiders and
+    # price history must say so, not read as complete (live NVDA with a 0.2 s intel budget).
+    slow = [k for k in pending if k != "tone"]  # slow GDELT has its own note above
+    for keys, title, how in ((slow, "Market data not loaded in time", "did not arrive in time for this read"),
+                             (list(f.intel_failed()), "Some market data unavailable", "could not be loaded this run")):
+        if not keys:
+            continue
+        shown = [FEED_NAMES.get(k, k) for k in keys]
+        gaps = [LABELS[p.key] for p in f.unloaded_parts() if COMPONENT_FEEDS[p.key] in keys]
+        rest = [LABELS[p.key].lower() for p in f.composite.available()]
+        n_a = (f"; the {join_and(gaps)} component{'s are' if len(gaps) > 1 else ' is'} n/a"
+               + (f", so the score rests on {join_and(rest)} alone" if rest else "") if gaps else "")
+        yield _make("quality", "watch" if gaps else "info", "neutral", title,
+                    f"{_cap(join_and(shown))} {how}{n_a}.", (6.5 + len(gaps)) if gaps else len(shown) / 3)
 

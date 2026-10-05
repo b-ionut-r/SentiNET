@@ -35,6 +35,12 @@ def test_sec_user_agent_has_contact_and_no_url() -> None:
         ("4.02", "Non-reliance on prior financials (restatement)", "high", "bear"),
         ("1.03,9.01", "Bankruptcy or receivership", "high", "bear"),
         ("3.01", "Delisting notice / listing-rule failure", "high", "bear"),
+        ("3.02", "Unregistered sale of equity (dilution)", "medium", "bear"),
+        # A red flag needs a high *and* bear item: a change in control paid in new shares is a big event,
+        # not one (Katapult 8-K, 2026); a restructuring stays one whatever accompanies it.
+        ("5.01,3.02", "Change in control; Unregistered sale of equity (dilution)", "high", "neutral"),
+        ("2.05,3.02", "Exit/restructuring costs (layoffs, closures); Unregistered sale of equity (dilution)",
+         "high", "bear"),
         ("9.01", "Financial statements and exhibits", "low", "neutral"),
         ("", "Current report", "low", "neutral"),
     ],
@@ -203,11 +209,15 @@ def test_regained_listing_compliance_is_good_news_not_a_red_flag() -> None:
     base = Filing(form="8-K", date=date(2026, 9, 17), title="Other material event", items=["8.01", "9.01"])
     judged = sec.reassess_8k(base, excerpt)
     assert (judged.importance, judged.polarity) == ("medium", "bull")
-    # Some issuers file the all-clear under Item 3.01 itself: the text overrides the item prior.
+    # Some issuers file the all-clear under Item 3.01 itself: the text overrides the item prior and its caption.
     listing = Filing(form="8-K", date=date(2026, 9, 17), title="Delisting notice / listing-rule failure",
                      items=["3.01"], importance="high", polarity="bear")
-    assert (sec.reassess_8k(listing, excerpt).importance, sec.reassess_8k(listing, excerpt).polarity) == \
-        ("medium", "bull")
+    cleared = sec.reassess_8k(listing, excerpt)
+    assert (cleared.importance, cleared.polarity) == ("medium", "bull")
+    assert cleared.title.startswith("Regained compliance with listing rules: ")
+    # Another bear item filed alongside still counts on its own.
+    restated = sec.reassess_8k(listing.model_copy(update={"items": ["3.01", "4.02"]}), excerpt)
+    assert (restated.importance, restated.polarity) == ("high", "bear")
 
 
 @pytest.mark.parametrize(("excerpt", "importance", "polarity"), [
@@ -228,6 +238,51 @@ def test_listing_deficiencies_stay_red_flags(excerpt: str, importance: str, pola
                      importance="high", polarity="bear")
     assert (sec.reassess_8k(listing, excerpt).importance, sec.reassess_8k(listing, excerpt).polarity) == \
         ("high", "bear")
+
+
+def _item_302() -> Filing:
+    title, codes, importance, polarity = decode_8k("3.02")
+    return Filing(form="8-K", date=date(2026, 9, 28), title=title, items=codes, importance=importance,
+                  polarity=polarity)
+
+
+def test_acquisition_paid_in_stock_is_not_a_red_flag() -> None:
+    """Real AMD 8-K (Item 3.02 only, 2026-09-28): the $8.2B all-stock purchase of World Labs was raised as a
+    "Red-flag filing" — the deal wording lifted the 3.02 dilution prior to high and kept its bear."""
+    excerpt = sec.summarize_8k(load_text("sec/8k_amd_302_acquisition.htm"), ["3.02"])
+    assert excerpt and excerpt.startswith("Advanced Micro Devices, Inc. entered into an Agreement and Plan of Merger "
+                                          "to acquire all of the equity interests in World Labs")
+    judged = sec.reassess_8k(_item_302(), excerpt)
+    assert (judged.importance, judged.polarity) == ("high", "neutral")
+    assert judged.title.startswith("Acquisition paid in stock: Advanced Micro Devices") and "$8.2 billion" in judged.title
+
+
+@pytest.mark.parametrize(("excerpt", "importance", "polarity", "caption"), [
+    # Stock as the purchase price (Voyager/Astrobotic 8-K wording): the deal, not a dilutive raise.
+    ("Voyager Technologies, Inc. entered into an Agreement and Plan of Merger pursuant to which the Company agreed "
+     "to acquire 100% of the outstanding capital stock of Astrobotic Technology, Inc. In connection with the "
+     "Acquisition, the Company agreed to issue shares of its Class A common stock…",
+     "high", "neutral", "Acquisition paid in stock"),
+    # Warrants sold to an executive (HHH 8-K wording) are securities, not a deal: a plain dilution watch.
+    ("Howard Hughes Holdings Inc. entered into a warrant agreement with Mr. Grandisson, pursuant to which Mr. "
+     "Grandisson agreed to purchase warrants to acquire 1,131,273 shares of the Company's common stock.",
+     "medium", "bear", "Unregistered sale of equity (dilution)"),
+    ("The Company entered into a Securities Purchase Agreement with investors to sell 4,330,866 shares and "
+     "warrants to acquire up to 2,500,000 shares of common stock for gross proceeds of $20 million.",
+     "medium", "bear", "Unregistered sale of equity (dilution)"),
+    # Shares sold for cash next to a deal (a SPAC PIPE) stay dilution; the deal makes the filing big, not bad.
+    ("In connection with the Business Combination, PubCo entered into subscription agreements with investors to "
+     "purchase 10,000,000 shares for aggregate proceeds of $100 million.",
+     "high", "neutral", "Unregistered sale of equity (dilution)"),
+    # Real bear evidence in the text still makes a red flag.
+    ("The Company issued 2,000,000 shares to the sellers as consideration for the acquisition of Widget Co. "
+     "The Company's auditor expressed substantial doubt about its ability to continue as a going concern.",
+     "high", "bear", "Acquisition paid in stock"),
+])
+def test_item_302_share_issuance_reads(excerpt: str, importance: str, polarity: str, caption: str) -> None:
+    judged = sec.reassess_8k(_item_302(), excerpt)
+    assert (judged.importance, judged.polarity) == (importance, polarity)
+    assert judged.title.startswith(f"{caption}: ")
 
 
 def test_excerpt_drops_previously_reported_preamble() -> None:
@@ -287,6 +342,19 @@ async def test_get_filings_enriches_recent_8k(monkeypatch: pytest.MonkeyPatch) -
         mock.get(url__regex=r".*/doc\.htm$").mock(return_value=httpx.Response(200, text=load_text("sec/8k_nvda_801.htm")))
         filings = await sec.get_filings(company)
     assert filings[0].importance == "high" and "Hugging Face" in filings[0].title
+
+
+async def test_get_filings_all_stock_acquisition_end_to_end(monkeypatch: pytest.MonkeyPatch) -> None:
+    sub = _sub([("8-K", "2026-09-28", "3.02")])
+    company = CompanyRef(ticker="AMD", name="Advanced Micro Devices, Inc.", short_name="AMD", cik="0000002488")
+    monkeypatch.setattr(sec, "datetime", _FrozenDatetime)
+    with respx.mock as mock:
+        mock.get("https://data.sec.gov/submissions/CIK0000002488.json").mock(return_value=httpx.Response(200, json=sub))
+        mock.get(url__regex=r".*/doc\.htm$").mock(
+            return_value=httpx.Response(200, text=load_text("sec/8k_amd_302_acquisition.htm")))
+        filings = await sec.get_filings(company)
+    assert (filings[0].importance, filings[0].polarity) == ("high", "neutral")
+    assert filings[0].title.startswith("Acquisition paid in stock: ")
 
 
 async def test_get_filings_keeps_title_when_document_fails(monkeypatch: pytest.MonkeyPatch) -> None:

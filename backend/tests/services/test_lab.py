@@ -94,3 +94,42 @@ async def test_abandoned_request_keeps_its_slot_until_the_work_ends(world: FakeW
             break
         await asyncio.sleep(0.02)
     assert not lab._slot().locked()
+
+
+# ---- unknown tickers and texts about something else (QA repro: ZZZZQQ → relevance 0, "neutral 0.0") ---- #
+async def test_unknown_ticker_is_a_404_not_a_silent_zero_relevance(world: FakeWorld):
+    from app.schemas import Quote
+    from app.services.errors import UnknownSymbol
+    from app.sources.base import CompanyRef
+
+    world.resolve = CompanyRef(ticker="ZZZZQQ", name="ZZZZQQ", short_name="ZZZZQQ")
+    world.intel["quote"] = None  # Yahoo answers "no such symbol" while it quotes SPY
+    with pytest.raises(UnknownSymbol, match="ZZZZQQ"):
+        await lab.score_texts(ScoreRequest(texts=["Apple beats estimates"], ticker="zzzzqq"))
+    # A provider outage proves nothing: the bare symbol is accepted.
+    world.witness = None
+    res = await lab.score_texts(ScoreRequest(texts=["Apple beats estimates"], ticker="ZZZZQQ"))
+    assert res.results[0].relevance is not None
+    # A resolved company scores with its resolved name (no quote call needed).
+    world.resolve, world.witness, world.intel["quote"] = None, Quote(price=600.0), Quote(price=180.0)
+    calls = len(world.calls.get("quote", []))
+    res = await lab.score_texts(ScoreRequest(texts=["Nvidia beats estimates"], ticker="NVDA"))
+    assert res.results[0].relevance == 1.0 and len(world.calls.get("quote", [])) == calls
+
+
+def test_summary_agrees_with_its_counts_when_no_text_is_about_the_ticker(world: FakeWorld, monkeypatch):
+    import sys
+
+    from app.sources.base import CompanyRef
+
+    monkeypatch.setattr(sys.modules["app.nlp.relevance"], "relevance", lambda text, company: 0.0)
+    msft = CompanyRef(ticker="MSFT", name="Microsoft Corporation", short_name="Microsoft")
+    res = lab._score_sync(["Apple beats estimates", "Apple upgrade on iPhone demand"], msft)
+    assert [r.relevance for r in res.results] == [0.0, 0.0]
+    s = res.summary
+    assert s.bullish == 2 and s.label == "bullish" and s.score == pytest.approx(0.6)  # not a fabricated neutral 0
+    # With one relevant text, the irrelevant ones carry no weight at all.
+    monkeypatch.setattr(sys.modules["app.nlp.relevance"], "relevance",
+                        lambda text, company: 1.0 if "Microsoft" in text else 0.0)
+    res = lab._score_sync(["Apple beats estimates", "Microsoft hit with lawsuit"], msft)
+    assert res.summary.score == pytest.approx(-0.5) and res.summary.label == "bearish"

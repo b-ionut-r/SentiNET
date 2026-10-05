@@ -41,7 +41,7 @@ from app.analytics.composite import (
 from app.analytics.crowd import as_float, as_int, attention_view, crowd_view, merged_metrics, stocktwits_tally
 from app.analytics.deals import deal_in_play, pending_deal
 from app.analytics.delta import build_delta
-from app.analytics.facts import Facts, usd_rate
+from app.analytics.facts import Facts, unloaded, usd_rate
 from app.analytics.inputs import AnalysisInputs
 from app.analytics.insights import build_insights
 from app.analytics.narratives import Story, build_narratives
@@ -93,7 +93,8 @@ def build_analysis(inputs: AnalysisInputs) -> Analysis:
     def part(key: ComponentKey, make: Callable[[], Part]) -> Part:
         built = _guard(LABELS[key], make, lambda: Part(key, detail="could not be computed"), failed)
         # A pending acquisition pins the price to the deal terms (see deals.py).
-        return deal_anchored(built) if deal is not None and key in ("analysts", "technicals") else built
+        built = deal_anchored(built) if deal is not None and key in ("analysts", "technicals") else built
+        return unloaded(built, inputs.intel_status)  # n/a because its feed did not load: said as such
 
     composite = compose([
         part("news", lambda: news_part(news, as_float(metrics.get("av_sentiment")),

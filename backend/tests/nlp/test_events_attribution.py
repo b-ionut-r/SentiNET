@@ -106,6 +106,13 @@ def test_events_belong_to_their_subject(ticker, text, want):
     ("AAPL", "Apple stock rises as Microsoft agrees to buy Activision", ["price_up"]),
     ("AAPL", "Apple stock rises as Warren Buffett's Berkshire buys Occidental stake", ["price_up"]),
     ("NVDA", "Nvidia stock falls as Elon Musk unveils new Tesla chip", ["price_down"]),
+    # live AMD (2026-10-05): "its ... acquisition" is the company's own deal; ARK's trades are nobody's
+    ("AMD", "Should You Buy AMD (AMD) Stock Following Its Massive $8.2 Billion World Labs Acquisition?", ["m_and_a"]),
+    ("AMD", "AMD Is Paying $8.2 Billion for World Labs With Shares Near $1 Trillion", ["m_and_a"]),
+    ("AMD", "Cathie Wood’s ARK sells AMD stock, buys Nvidia and Tesla", []),
+    ("NVDA", "Cathie Wood’s ARK sells AMD stock, buys Nvidia and Tesla", []),
+    # "its rival X" introduces another company: the rival's deal
+    ("AMD", "AMD stock falls as its rival Nvidia buys Groq", ["price_down"]),
 ])
 def test_deals_belong_to_every_party(ticker, text, want):
     assert sorted(e.key for e in detect_events(text, C[ticker])) == sorted(want)

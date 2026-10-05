@@ -220,6 +220,31 @@ def test_price_recaps_count_less_than_developments() -> None:
     assert driven.weight == pytest.approx(item_weight(driven, NOW), rel=1e-3) and driven.weight > recap.weight
 
 
+def test_machine_written_daily_recaps_count_as_price_recaps() -> None:
+    # Live SHOP.TO: five 'Shopify Inc. Cl A stock rises <weekday>, outperforms market' items (+0.63 each, no
+    # events) kept full weight — news tone +0.18 with them, +0.09 without; GPRO's 'stock outperforms
+    # competitors on strong trading day' became the summary's dominant story.
+    from app.analytics.prepare import PRICE_RECAP_WEIGHT, price_recap
+
+    import dataclasses
+
+    titles = ["Acme Corp. stock rises Monday, outperforms market",
+              "Acme Corp. stock outperforms competitors on strong trading day",
+              "Acme Corp. stock underperforms Tuesday when compared to competitors despite daily gains",
+              "Acme Corp. slips Friday, underperforms market"]
+    items = kept([run(GOOGLE, [raw(t, 3, o) for t, o in zip(titles, ["MarketWatch", "Reuters", "CNBC", "Zacks"],
+                                                                 strict=True)])]).items
+    assert len(items) == 4 and all(price_recap(it) for it in items)
+    for it in items:
+        assert it.weight == pytest.approx(item_weight(dataclasses.replace(it, title="x"), NOW) * PRICE_RECAP_WEIGHT,
+                                          rel=1e-3)
+    # A development wearing the same words is not a recap; nor is an earnings beat 'outperforming expectations'.
+    probe = kept([run(GOOGLE, [raw("Acme Corp. stock underperforms Tuesday when compared to competitors; "
+                                   "SEC opens probe", 3)])]).items[0]
+    beat = kept([run(GOOGLE, [raw("Acme outperforms market expectations as revenue beats", 3)])]).items[0]
+    assert not price_recap(probe) and not price_recap(beat)
+
+
 def test_user_posts_start_below_published_reporting() -> None:
     # Live NVDA: '$NVDA Looking for a huge day Monday. New ATHs all week. 🚀🚀🚀🚀🚀' (0.89) outweighed
     # Barron's (0.85): social trust was fixed at 1.0 while outlets carry their own trust <= 1.

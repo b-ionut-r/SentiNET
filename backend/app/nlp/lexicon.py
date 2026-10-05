@@ -355,6 +355,7 @@ NEGATIVE: dict[str, float] = {
     "bet against": -0.7, "bets against": -0.7, "betting against": -0.7, "net outflows": -0.5,
     "bull trap": -0.7, "falling knife": -0.8, "dead cat bounce": -0.8,
     "breaks support": -0.7, "broke support": -0.7, "breaks below": -0.7, "broke below": -0.7,
+    "breaks key support": -0.7, "broke key support": -0.7, "loses key support": -0.6, "lost key support": -0.6,
     "gapping down": -0.7, "gaps down": -0.7, "gapped down": -0.7, "gap down": -0.7,
 }
 
@@ -717,7 +718,7 @@ METRICS: dict[str, Metric] = {
                "consumer sentiment", "pmi", "retail sales", "industrial production", "manufacturing",
                "exports", "housing starts", "home sales", "investment", "investments", "capacity",
                "efficiency", "productivity", "returns", "performance", "result", "results",
-               "operating result", "net result", "cash", "reserves", "index", "indexes", "indices", "dow",
+               "operating result", "net result", "cash", "reserves", "liquidity", "index", "indexes", "indices", "dow",
                "nasdaq", "s&p", "s&p 500", "futures", "market", "markets", "wall street", "ftse", "dax",
                "nikkei", "stoxx", "hang seng", "sensex", "russell", "tsx", "asx", "kospi", "cac", "bitcoin",
                "ether", "crypto", "gold", "oil", "crude", "copper", "commodities", "inflows", "net inflows",
@@ -885,6 +886,24 @@ CONTRAST_CONCESSIVE: frozenset[str] = frozenset({"despite", "in spite of", "notw
 # "holds steady" states a non-move (no news), it is not praise
 _STEADY = frozenset(f"{v} steady" for v in ("hold", "holds", "held", "holding", "stay", "stays", "stayed", "staying",
                                              "remain", "remains", "remained", "remaining"))
+# ... and so does a price that "holds key support": the level held, nothing moved
+_SUPPORT_QUALIFIERS = ("", "key ", "critical ", "crucial ", "major ", "important ")
+_HOLDS_SUPPORT = frozenset(f"{v} {q}support{tail}" for v in ("hold", "holds", "held", "holding")
+                           for q in _SUPPORT_QUALIFIERS for tail in ("", " level", " levels", " zone"))
+# chart vocabulary: a support level is a price, not "support" for the company
+_SUPPORT_LEVELS = frozenset({f"{q}support {tail}".strip() for q in _SUPPORT_QUALIFIERS
+                             for tail in ("", "level", "levels", "zone")} - {"support"})
+
+# Crypto assets by name and ticker. A move whose subject is one of these is that asset's, not the
+# analysed company's ("ZEC Plunges as Bitcoin Holds Key Support" is not bearish for Bitcoin, nor
+# "Ether jumps 8%" bullish for it). Words that are also common English ("sol", "link", "near",
+# "dot", "stellar", "optimism") are left out: a false owner mutes the target's own news.
+CRYPTO_ASSETS: frozenset[str] = frozenset({
+    "bitcoin", "btc", "ether", "ethereum", "eth", "xrp", "solana", "dogecoin", "doge", "cardano", "zcash", "zec",
+    "litecoin", "ltc", "bnb", "tron", "trx", "avalanche", "avax", "polkadot", "chainlink", "shiba", "shib",
+    "monero", "xmr", "toncoin", "xlm", "tether", "usdt", "usdc", "bch", "pepe", "hyperliquid", "aptos",
+    "arbitrum", "filecoin", "uniswap", "aave", "kaspa", "dogwifhat", "bonk",
+})
 
 # Phrases that look like sentiment but are not (claimed first, valence 0).
 NEUTRALIZERS: frozenset[str] = frozenset({
@@ -940,12 +959,13 @@ NEUTRALIZERS: frozenset[str] = frozenset({
     "within outlook",
     "of record", "holders of record", "shareholders of record", "stockholders of record", "unitholders of record",
     "owners of record", "record holders",
-    *NEGATION_EXCEPTIONS, *_STEADY,
+    "warner bros discovery",  # a company name, not a find
+    *NEGATION_EXCEPTIONS, *_STEADY, *_HOLDS_SUPPORT, *_SUPPORT_LEVELS,
 })
 
 # Neutralizers that are positive evidence of "no news" (a neutral label is then a finding, not a default).
 NEUTRAL_CUES: frozenset[str] = frozenset({"in line", "inline", "in line with", "line with", "little changed",
-                                          "mixed", "unchanged", "flat", *_STEADY})
+                                          "mixed", "unchanged", "flat", *_STEADY, *_HOLDS_SUPPORT})
 
 # Rule triggers for questions / listicles / roundups.
 QUESTION_STARTERS: frozenset[str] = frozenset({

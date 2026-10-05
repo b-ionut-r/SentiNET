@@ -208,6 +208,47 @@ def test_event_families(text, key, polarity):
     assert _one(text, key).polarity == polarity
 
 
+@pytest.mark.parametrize(("text", "key"), [
+    # live GME (2026-10-05): the near-doubled EBITDA outlook was read as a price move only
+    ("GME Stock Jumps After-Hours — GameStop Hikes FY26 EBITDA Outlook To $600M, Nearly Double Of FY25",
+     "guidance_raise"),
+    ("GameStop raises full-year EBITDA outlook to $600 million", "guidance_raise"),
+    ("GameStop hikes FY26 EBITDA outlook", "guidance_raise"),
+    ("Company raises FY 2026 EBITDA guidance", "guidance_raise"),
+    ("Company raises fiscal-year revenue guidance", "guidance_raise"),
+    ("Shell raises Q3 operating cash flow outlook", "guidance_raise"),
+    ("Realty Income raises 2026 AFFO per share guidance", "guidance_raise"),
+    ("Company forecasts FY26 EBITDA above estimates", "guidance_raise"),
+    ("Company cuts FY2026 free cash flow guidance", "guidance_cut"),
+    ("Boeing cuts free cash flow forecast", "guidance_cut"),
+    ("Ford lowers adjusted EBIT guidance", "guidance_cut"),
+    ("Intel lowers fiscal 2025 FCF outlook", "guidance_cut"),
+    ("Delta trims FY'26 EPS outlook", "guidance_cut"),
+])
+def test_guidance_on_any_metric_and_fiscal_period(text, key):
+    assert key in _keys(text), detect_events(text)
+
+
+@pytest.mark.parametrize(("text", "want"), [
+    # a quantity that moved is not the stock moving (lab, 2026-10-05: scored -0.85 with a "price jump")
+    ("Ethereum Withdrawal Queue Surges 392%", []),
+    ("Tesla recalls surge 50%", ["recall"]),
+    ("Nvidia customers jump 20%", []),
+    # a move word opening a name after a preposition is no move (MarketBeat 13F templates)
+    ("Vanguard Buys 1,000 Shares of Advanced Micro Devices", []),
+    ("Fisher Asset Management LLC Has $1.2 Billion Stock Position in Advanced Micro Devices", []),
+    ("Shares of Advanced Micro Devices fall 3%", ["price_down"]),
+    ("Shares of Rocket Lab jump 10%", ["price_up"]),
+    # ...while the stock, its shares and named movers keep their moves
+    ("Advanced Micro Devices (NASDAQ:AMD) Shares Climb 3% - Still a Buy?", ["price_up"]),  # live
+    ("Nvidia stock advanced 2%", ["price_up"]),
+    ("Shares in Nvidia rose 3%", ["price_up"]),
+    ("Nasdaq jumps 2%", ["price_up"]),
+])
+def test_price_moves_need_a_price_subject(text, want):
+    assert sorted(_keys(text)) == sorted(want)
+
+
 def test_price_moves_carry_signed_percent():
     assert _one("Apple Stock Drops 1.5% as Local AI Moves Onto Desktops", "price_down").value == -1.5
     assert _one("Tesla Surges 5% as 486,532 Deliveries Top Company Consensus", "price_up").value == 5.0
@@ -374,6 +415,61 @@ def test_trap_families_stay_quiet(family, key, ceiling):
 ])
 def test_review_cases(text, want):
     assert sorted(_keys(text)) == sorted(want)
+
+
+@pytest.mark.parametrize("text", [
+    # live AMD (2026-10-05): ARK trading AMD/Nvidia/Tesla stock became a "Deal in play" on AMD
+    "Cathie Wood’s ARK sells AMD stock, buys Nvidia and Tesla",
+    "Cathie Wood Sold $110 Million of AMD and Bought Nvidia Instead",
+    "Cathie Wood's ARK Invest Dumps AMD, Buys Nvidia",
+    # a holding as the object, whoever buys it
+    "Vanguard buys Nvidia shares",
+    "Citadel buys Apple shares worth $2 billion",
+    "Pershing Square buys Chipotle shares",
+    "Berkshire Hathaway buys Occidental stake",
+    "ARK buys Nvidia and Tesla shares",
+    "Norges Bank Acquires New Stake in Advanced Micro Devices",  # MarketBeat 13F template (live)
+    "Operose Advisors LLC Acquires New Holdings in JPMorgan Chase & Co. $JPM",  # live
+    "Toews Corp ADV Buys New Shares in NVIDIA Corporation $NVDA",  # live
+    # an investor buying a company is a position, not a takeover
+    "Hedge fund buys Nvidia",
+    "Bill Ackman buys Alphabet",
+    "Berkshire Buys UnitedHealth, Nucor, Sells Apple",
+    "Billionaire Philippe Laffont Bought Nvidia",
+    "Cathie Wood will buy Tesla",
+    "Activist Petrus Buys Raiffeisen Shares After Short Seller Attack",  # live
+    "GME Stock Eyes 5th Week In Green: A Streak Of Insider Buys Builds Hype For GameStop",  # live
+])
+def test_share_trades_are_no_deal(text):
+    assert "m_and_a" not in _keys(text), detect_events(text)
+
+
+@pytest.mark.parametrize("text", [
+    # ...but a priced deal, a company part, or a company buyer still is one
+    "Berkshire Hathaway buys OxyChem for $9.7 billion",
+    "Berkshire buys Occidental Petroleum's chemical unit",
+    "Microsoft buys Activision",
+    "Elon Musk buys Twitter",
+    "BlackRock acquires Preqin",
+    "Nvidia takes stake in Intel",
+    # live AMD (2026-10-05): the acquirer's phrasing of its own $8.2B World Labs deal
+    "AMD Is Paying $8.2 Billion for World Labs With Shares Near $1 Trillion",
+    "AMD Is Buying World Labs for $8.2 Billion. What This Could Mean for AMD Stock.",
+    "AMD Pays $8.2 Billion in Stock for Non-Chipmaking Startup as CEO Bets on Physical AI",
+    "Nvidia Is Buying Hugging Face For $13 Billion, Reports Say",
+    "Novartis pays $12 billion for Avidity Biosciences",
+])
+def test_company_deals_stay_deals(text):
+    assert "m_and_a" in _keys(text), detect_events(text)
+
+
+@pytest.mark.parametrize("text", [
+    "Tesla Pays $1 Billion For Autopilot Crash Settlement",  # a legal bill
+    "Google pays $2.7 billion for Character.AI talent and licenses",
+    "Meta pays $14.3 billion for 49% stake in Scale AI",  # a stake, not control
+])
+def test_payments_for_non_companies_are_no_deal(text):
+    assert "m_and_a" not in _keys(text), detect_events(text)
 
 
 @pytest.mark.parametrize("text", [

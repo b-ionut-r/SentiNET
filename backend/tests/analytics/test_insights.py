@@ -362,3 +362,19 @@ def test_the_rail_explains_the_headlines_main_drag_when_nothing_else_fired() -> 
     drag = next((i for i in a.insights if i.kind != "quality"), None)
     assert drag is not None and drag.polarity == "bear" and drag.title == "Analysts cautious"
     assert "the main drag on the" in drag.detail and "points)" in drag.detail
+
+
+def test_the_main_drag_is_stated_once_in_the_case() -> None:
+    # Live VOD.L / QQQ: the main-drag insight restated a component's evidence under its own topic, so
+    # the bear case listed 'Analysts cautious: Hold consensus …' (and 'Retail leaning bearish: …') twice.
+    a = build_analysis(inputs(ACME, [run(GOOGLE, UPBEAT_NEWS)], analysts=analysts(mean=4.0, total=12, upside=-30.0)))
+    drag = titled(a.insights, "Analysts cautious")
+    assert drag is not None and "the main drag on the" in drag.detail
+    assert len([b for b in a.brief.bear_points if b.startswith("Analysts cautious")]) == 1
+
+    crowd = run(STOCKTWITS, [post(f"$ACME position update number {i}", 1, f"u{i}") for i in range(60)],
+                {"stocktwits_bullish": 9, "stocktwits_bearish": 7, "stocktwits_messages": 16})
+    b = build_analysis(inputs(ACME, [run(GOOGLE, UPBEAT_NEWS), crowd]))
+    retail = titled(b.insights, "Retail leaning bearish")
+    assert retail is not None and "the main drag on the" in retail.detail
+    assert len([p for p in b.brief.bear_points if p.startswith("Retail leaning bearish")]) == 1

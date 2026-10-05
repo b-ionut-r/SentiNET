@@ -33,6 +33,7 @@ import re
 from dataclasses import dataclass
 from itertools import pairwise
 
+from app.nlp.lexicon import METRICS
 from app.nlp.text import (
     CALENDAR_WORDS,
     COMMON_HEADLINE_WORDS,
@@ -599,17 +600,24 @@ _EARN = (r"(?:earnings|eps|profits?|net income|revenues?|sales|results|top[- ]li
 _EST = (r"(?:estimates?|expectations|forecasts?|consensus|views?|projections?|wall street|the street|"
         r"(?:earnings|revenue|profit) targets?|analysts'? (?:estimates|expectations|forecasts?))")
 _GUIDE = r"(?:guidance|outlook|forecasts?|projections?|guide|view)"
-_GUIDE_MID = (r"(?:(?:its|their|the|annual|full[- ]year|fy\s?\d*|fiscal(?: year)?(?: \d{4})?|20\d\d|q[1-4]|quarterly|"
-              r"first[- ]half|second[- ]half|h[12]|revenue|sales|profit|earnings|eps|margin|production|delivery|"
-              r"growth|capex|spending|bookings|subscription|subscriber|core|adjusted|operating|ai|chip|chips|"
-              r"current[- ]quarter|next[- ]quarter|current[- ]year|full[- ]year|2026|2027)\s+){0,4}")
+# What may sit between a guidance verb and its noun: periods ("full-year", "FY26", "fiscal 2026",
+# "fiscal-year") and the metric guided ("EBITDA", "free cash flow", "adjusted EPS"): "GameStop Hikes
+# FY26 EBITDA Outlook To $600M", "Boeing cuts free cash flow forecast".
+_GUIDE_MID = (r"(?:(?:its|their|the|annual|full[- ]year|fy\s?'?\d*|fiscal(?:[- ]year)?(?:[- ]\d{2,4})?|20\d\d|q[1-4]|"
+              r"quarterly|first[- ]half|second[- ]half|h[12]|revenue|sales|profit|earnings|eps|margin|production|"
+              r"delivery|growth|capex|spending|bookings|subscription|subscriber|core|adjusted|operating|ai|chip|"
+              r"chips|current[- ]quarter|next[- ]quarter|current[- ]year|2026|2027|ebitda|ebitdar|ebit|ebita|"
+              r"fcf|ffo|affo|(?:free|operating)\s+cash[- ]flow|cash[- ]flow|income|net income|gross|organic|"
+              r"comparable|same[- ]store|comps?|non-gaap|gaap|per[- ]share|ex-items|underlying|pretax|pre-tax|"
+              r"segment|group|company|cloud|data[- ]center)\s+){0,5}")
 _GUIDE_WORD = r"(?:guidance|outlooks?|forecasts?|guides?|projections?)"
 # Company forecasts against the Street: "Micron forecasts quarterly revenue above
 # estimates", "Nvidia sees Q4 revenue of $65 billion, above estimates", "Intel
 # forecasts weak fourth-quarter revenue" (the canonical Reuters phrasing).
 _GUIDE_VERB = r"(?:forecasts?|projects?|sees|expects|guides?|predicts?|anticipates?|signals?)"
 _GUIDE_METRIC = (r"(?:revenues?|sales|profits?|earnings|eps|results|bookings|deliveries|growth|margins?|order value|"
-                 r"income|ebitda|ebit|cash flow|billings|arr|shipments|subscription revenue)")
+                 r"income|ebitda|ebitdar|ebita|ebit|fcf|ffo|affo|cash[- ]flow|billings|arr|shipments|"
+                 r"subscription revenue)")
 _GUIDE_FILL = r"(?:(?!(?:but|while|as|though|although|yet|and shares|shares|stock)\b)[\w$.,%'-]+\s+)"
 _ABOVE = (r"(?:above|ahead of|exceed(?:s|ing)?|top(?:s|ping)?|beat(?:s|ing)?|blows? past|crush(?:es)?|smash(?:es)?|"
           r"surpass(?:es)?|outpac(?:es|ing)|better than|comes? in above|that (?:beats?|tops?|exceeds?))")
@@ -756,6 +764,15 @@ _RULES: tuple[tuple[str, re.Pattern[str], bool], ...] = tuple((k, re.compile(p, 
      r"it|them|this|that|now|back|in|into|up|bitcoin|gold)\b)(?-i:[A-Z]|[a-z]+[A-Z])[\w&.'-]*|"
      r"bid for|(?:acquires?|acquired|acquiring|buys|bought|snaps up|scoops up)\s+(?:(?-i:[A-Z])[\w&.'-]*|rival|"
      r"startup|majority stake|minority stake|unit|division|maker|developer|operator|provider|business|assets))\b"
+     # "AMD Is Buying World Labs for $8.2 Billion" (a priced purchase of a named company)
+     r"|\b(?:is|are|was|were)\s+buying\s+(?-i:[A-Z]|[a-z]+[A-Z])[\w&.'-]*"
+     r"(?=[^.?!;]{0,60}(?:\bfor\s+(?:about\s+|roughly\s+|nearly\s+|around\s+|up to\s+)?(?:US)?[$£€]\d|"
+     r"\b(?:deal|takeover|acquisition|buyout)\b))"
+     # "AMD Is Paying $8.2 Billion for World Labs", "Pays $8.2 Billion in Stock for Non-Chipmaking
+     # Startup" (what follows "for" must be a company: see _context_ok)
+     r"|\b(?:pays?|paid|paying)\s+(?:about\s+|roughly\s+|nearly\s+|around\s+|up to\s+|more than\s+|some\s+)?"
+     r"(?:US)?[$£€][\d.,]+\s?(?:trillion|billion|million|tn|bn|mln|b|m)\b"
+     r"(?:\s+in\s+(?:cash|stock|shares|equity|cash and stock|stock and cash|cash and shares))?\s+for\b"
      r"|(?<!reason )(?<!reasons )(?<!time )(?<!stock )(?<!stocks )(?<!you )\bto (?:buy|acquire|purchase)\s+"
      r"(?!(?-i:(?:During|Now|Before|After|In|On|At|For|With|From|And|Or|The|This|These|Today|Ahead|Rating|More|"
      r"Shares|Stock|Into|Back|Up|It|Them)\b))(?-i:[A-Z])[\w&.'-]+(?:\s+(?-i:[A-Z])[\w&.'-]+){0,3}"
@@ -1052,6 +1069,29 @@ _EXCLUDE: dict[str, re.Pattern[str]] = {
 
 # Words that make a generic price-move verb refer to something else.
 _PRICE_SUBJECT_NOISE = re.compile(rf"\b{_FUNDAMENTAL}\s+(?:\w+\s+)?$", re.IGNORECASE)
+# Any other quantity the lexicon knows can move ("Tesla recalls surge 50%", "Ethereum Withdrawal
+# Queue Surges 392%", "customers jump 20%") is not the stock moving — except the price itself, the
+# trend nouns that describe it, and markets/assets, which _FUNDAMENTAL already decides on.
+_PRICE_LIKE_METRICS = wordset("""
+shares stock stocks equities price valuation value stake rally gains momentum recovery lead performance returns
+premium upside downside selloff selloffs rout slide slump decline declines optimism hopes appetite interest
+sentiment confidence rating ratings index indexes indices dow nasdaq futures market markets ftse dax nikkei stoxx
+sensex russell tsx asx kospi cac bitcoin ether crypto gold oil crude copper commodities silver platinum palladium
+dollar yen yuan rupee ruble lira peso loonie sterling greenback forint zloty treasuries financials utilities
+industrials retailers miners airlines chipmakers semis reits etf etfs
+""") | {"share price", "stock price", "share prices", "stock prices", "market cap", "market value", "winning streak",
+         "record run", "losing streak", "sell off", "sell offs", "price target", "target price", "credit rating",
+         "wall street", "s&p", "s&p 500", "hang seng", "small caps", "big tech", "tech stocks", "technology stocks",
+         "energy stocks", "bank stocks"}
+_METRIC_SUBJECT_RE = re.compile(
+    r"\b(?:" + "|".join(re.escape(k).replace(r"\ ", r"[\s-]+") for k in sorted(
+        (k for k in METRICS if k not in _PRICE_LIKE_METRICS and not k.endswith(" prices")), key=len, reverse=True))
+    + r")\s+(?:\w+\s+)?$", re.IGNORECASE)
+# A move word right after a preposition starts a name, not a move: "Shares of Advanced Micro
+# Devices", "Stock Position in Advanced Micro Devices", "stake in Rocket Lab".
+_NAME_AFTER_PREPOSITION_RE = re.compile(r"\b(?:of|in|on|at|for|from|by|with|into|about|like|than)\s+$",
+                                        re.IGNORECASE)
+_MOVE_WORD_RE = re.compile(rf"\b(?:{_MOVE_UP}|{_MOVE_DOWN})\b", re.IGNORECASE)
 
 
 def _price_value(match_text: str, key: str) -> float | None:
@@ -1091,7 +1131,7 @@ _TRIGGERS: dict[str, tuple[str, ...]] = {
     "settlement": ("settl", "agree"),
     "m_and_a": ("acqui", "merg", "takeover", "buyout", "tender", "deal", "private", "spin", "divest", "carve",
                 "buy", "purchase", "take over", "stake", "bid", "bought", "snaps up", "scoops up", "offer", "approach",
-                "proposal", "chas"),
+                "proposal", "chas", "pay", "paid"),
     "partnership": ("partner", "team", "collaborat", "alliance", "joint venture", "tie", "strategic", "deal", "pact",
                     "agreement", "struck"),
     "contract_win": ("contract", "order", "award", "tender", "deal"),
@@ -1235,7 +1275,15 @@ def _context_ok(key: str, text: str, m: re.Match[str]) -> bool:
     """Per-event sanity checks on the surrounding text."""
     before = text[max(0, m.start() - 30):m.start()]
     if key in {"price_up", "price_down"}:
-        return not _PRICE_SUBJECT_NOISE.search(before)
+        if _PRICE_SUBJECT_NOISE.search(before):
+            return False
+        span = m.group(0)
+        if not re.match(r"(?:stock|shares|share price)\b", span, re.IGNORECASE) and _METRIC_SUBJECT_RE.search(before):
+            return False  # "Tesla recalls surge 50%": the recalls moved, not the stock
+        move = next((w for w in _MOVE_WORD_RE.finditer(span) if not re.fullmatch(r"(?:is|are|was) (?:up|down)",
+                                                                                   w.group(0), re.IGNORECASE)), None)
+        return move is None or not _NAME_AFTER_PREPOSITION_RE.search(text[max(0, m.start() + move.start() - 12):
+                                                                          m.start() + move.start()])
     if key == "stock_split" and "?" in text:  # "Is a Microsoft Stock Split Coming?" is speculation
         return bool(re.search(r"\b(?:announc|approv|implement|effect|carr(?:y|ies) out|sets?|executes?|enacts?)",
                               text, re.IGNORECASE))
@@ -1249,8 +1297,12 @@ def _context_ok(key: str, text: str, m: re.Match[str]) -> bool:
         return not _stale_result(text, m)
     if key == "offering" and _SALE_FORM_RE.search(m.group(0)) and _NON_DISCRETIONARY_RE.search(text):
         return False  # "The 13,898-share sale ... was required by company plans": an insider's tax sale
-    if key == "m_and_a" and re.search(r"\bdeal\s+for\s+(?!rival\b)", m.group(0), re.IGNORECASE):
-        return _deal_for_company(text, m)
+    if key == "m_and_a":
+        if _PAY_FOR_RE.match(m.group(0)):
+            return _paid_for_company(text, m.end())  # "pays $8.2 billion for World Labs", not "for settlement"
+        if re.search(r"\bdeal\s+for\s+(?!rival\b)", m.group(0), re.IGNORECASE):
+            return _deal_for_company(text, m)
+        return not _share_trade(text, m)
     if key == "contract_win" and re.search(r"\bdeal\s+for\b", m.group(0), re.IGNORECASE):
         return not _deal_for_company(text, m)  # "clinches $53 billion deal for Hess" is a takeover
     if key in {"guidance_raise", "guidance_cut"}:
@@ -1332,6 +1384,88 @@ def _deal_for_company(text: str, m: re.Match[str]) -> bool:
     while end < len(words) and (words[end][:1].isupper() or words[end][:1].isdigit()):
         end += 1
     return end == len(words) or words[end].lower() not in _DEAL_GOODS
+
+
+_PAY_FOR_RE = re.compile(r"pa(?:ys?|id|ying)\b", re.IGNORECASE)
+# What a payment "for X" buys when X is no company: goods, rights, a legal bill, a stake.
+_PAID_FOR_GOODS = _DEAL_GOODS | wordset("""
+settlement settlements fine fines penalty penalties damages claims lawsuit lawsuits suit suits charges probe rights
+license licenses licence licences access stake stakes share shares stock stocks options content ads data talent
+patent patents tickets naming spectrum land property properties building buildings headquarters campus site sites
+""")
+
+
+def _paid_for_company(text: str, pos: int) -> bool:
+    """For "pays $N for X" (text[pos:] follows "for"): is X a company — a name ("World Labs")
+    or a company noun ("Non-Chipmaking Startup") — rather than goods, rights or a legal bill
+    ("pays $1 billion for Autopilot crash settlement")?"""
+    np = _DEAL_NP_END_RE.split(text[pos:], maxsplit=1)[0]
+    words = re.findall(r"[A-Za-z0-9][\w&.'-]*", np)
+    if not words or any(w.lower() in _PAID_FOR_GOODS for w in words):
+        return False
+    if words[-1].lower() in _COMPANY_NOUNS:
+        return True
+    if is_title_case(text):
+        return len(words) <= 3  # capitals carry no signal; a name is short
+    return all(w[:1].isupper() or w[:1].isdigit() for w in words)
+
+
+# A trade in a company's shares is no deal for the company. "Vanguard buys Nvidia shares",
+# "Citadel buys Apple shares worth $2 billion", "Norges Bank Acquires New Stake in AMD": the
+# object is a holding (whoever buys it). "Cathie Wood's ARK sells AMD stock, buys Nvidia and
+# Tesla", "Hedge fund buys Nvidia": the buyer is an investor, so the company is a position —
+# unless the text prices or names a deal ("Berkshire buys OxyChem for $9.7 billion") or the
+# object is a company part ("buys Occidental Petroleum's chemical unit").
+_SHARE_OBJECT_RE = re.compile(
+    r"(?:(?:\s*,\s*|\s+(?:and|&)\s+|\s+)(?:\$?(?-i:[A-Z])[\w&.'-]*|\([^()]{0,30}\))){0,4}?\s*(?:'s\s+)?"
+    r"(?:new\s+|additional\s+|more\s+|a\s+)?(?:(?:common|ordinary|preferred|class\s+[a-c])\s+)?"
+    r"(?:stock|shares|stake|calls|puts|options|positions?|holdings?|adrs?|ads|bonds?|notes|debt|tokens?)\b",
+    re.IGNORECASE)
+_TRADE_VERB_RE = re.compile(r"\b(?:buy|buys|bought|buying|purchas(?:e|es|ed|ing)|snaps up|scoops up|"
+                            r"takes? (?:a )?(?:\d+%\s)?stake in)\b", re.IGNORECASE)
+_DEAL_MARKER_RE = re.compile(
+    r"\bfor\s+(?:about\s+|roughly\s+|nearly\s+|around\s+|up to\s+|some\s+)?(?:US|C|A)?[$£€¥]\s?\d"
+    r"|[$£€¥][\d.,]+\s?(?:trillion|billion|million|tn|bn|mln|b|m)\b\s+(?:[\w-]+\s+){0,2}?"
+    r"(?:deal|takeover|buyout|bid|offer|acquisition|merger)\b"
+    r"|\b(?:takeover|acquisition|merger|buyout|take-private|go(?:es|ing)? private|all-cash|all-stock|per share|"
+    r"tender offer|agree[sd]? to|agreement|in talks|nears? (?:a )?deal|deal to)\b", re.IGNORECASE)
+_COMPANY_PART_RE = re.compile(r"\b(?:unit|units|division|business|businesses|subsidiary|arm|assets|operations|"
+                              r"maker|developer|operator|provider|startup|rival|brand|chain|franchise)\b",
+                              re.IGNORECASE)
+_INVESTOR_RE = re.compile(
+    # who trades stocks for a living (generic)
+    r"(?<!\bto )\bfunds?\b|\b(?:investors?|billionaires?|traders?|whales?|insiders?|hedgies|superinvestors?|"
+    r"institutions|institutional|smart money|(?:asset|money|fund|portfolio|investment)\s+managers?|"
+    r"(?:capital|asset|wealth|investment|portfolio)\s+management|advis[eo]rs|family offices?|lawmakers?|"
+    r"congress(?:man|woman|men|women)?|senators?|etfs?)\b"
+    # well-known investors and asset managers
+    r"|\b(?:ark invest|ark investment|arkk|cathie wood|vanguard|blackrock|state street|invesco|citadel|ken griffin|"
+    r"bridgewater|ray dalio|renaissance technologies|pershing square|(?:bill )?ackman|(?:michael )?burry|"
+    r"scion asset|tiger global|coatue|(?:george )?soros|druckenmiller|duquesne|third point|dan loeb|"
+    r"(?:carl )?icahn|appaloosa|(?:david )?tepper|point72|steve cohen|millennium management|d\.\s?e\.\s?shaw|"
+    r"two sigma|jane street|baillie gifford|norges bank|(?:warren )?buffett|berkshire(?: hathaway)?|"
+    r"(?:nancy )?pelosi|(?:jim )?cramer|lone pine|viking global|greenlight capital|(?:david )?einhorn|"
+    r"elliott management|elliott investment|starboard value|(?:nelson )?peltz|valueact|jana partners|baupost|"
+    r"(?:seth )?klarman|(?:mohnish )?pabrai|fundsmith|terry smith|altimeter|(?:brad )?gerstner|whale rock|"
+    r"d1 capital|sachem head|marshall wace|brevan howard|balyasny|philippe laffont|chase coleman|bill gates|"
+    r"gates foundation)\b"
+    r"|(?-i:\b(?:ARK|AQR|Elliott|Trian)\b)",
+    re.IGNORECASE)
+
+
+def _share_trade(text: str, m: re.Match[str]) -> bool:
+    """Is the m_and_a hit at `m` a trade in shares rather than a deal (see above)?"""
+    verb = _TRADE_VERB_RE.search(m.group(0))
+    if re.search(r"\b(?:buy|buys|bought|buying|purchas\w*|acquir\w*|snaps up|scoops up)\b", m.group(0),
+                 re.IGNORECASE) and _SHARE_OBJECT_RE.match(text, m.end()):
+        return True
+    if verb is None or _DEAL_MARKER_RE.search(text):
+        return False  # "acquires", "merges", "takes over" are deal words; a priced deal is a deal
+    obj = _DEAL_NP_END_RE.split(text[verb.end():], maxsplit=1)[0]
+    if _COMPANY_PART_RE.search(obj):
+        return False
+    clause_start = next((a for a, b in _clauses(text) if a <= m.start() < b), 0)
+    return bool(_INVESTOR_RE.search(text[clause_start:m.start()]))
 
 
 _LEGAL_WIN_RE = re.compile(
@@ -1464,6 +1598,12 @@ _COLLECTIVE_SUBJECT_RE = re.compile(r"\b(?:market|markets|industry|sector|index|
                                     r"stocks|peers|rivals|rates|yields|prices|futures)(?:\s+[a-z]+){0,2}\s*$",
                                     re.IGNORECASE)
 _LEAD_SUBORDINATOR_RE = re.compile(r"^\s*,?\s*(?:even as|even though|ahead of|\w+)\s+")
+_DEAL_NOUN_RE = re.compile(r"(?:acquisitions?|mergers?|takeovers?|buyouts?|deal|bid)\b", re.IGNORECASE)
+# "its/their" opening a clause, then up to six words of the noun phrase (no verb between).
+_POSSESSIVE_LEAD_RE = re.compile(r"\s*,?\s*(?:\w+\s+)?(?:its|their)\s+(?:[\w$.,%&'-]+\s+){0,6}$", re.IGNORECASE)
+# "its rival Nvidia", "their parent Alphabet": the possessive introduces another company.
+_OTHER_PARTY_RE = re.compile(r"\b(?:its|their)\s+(?:\w+\s+)?(?:rivals?|peers?|competitors?|customers?|suppliers?|"
+                             r"partners?|parent|investors?|backers?|neighbou?rs?)\b", re.IGNORECASE)
 
 
 def _words(text: str) -> list[str]:
@@ -1636,7 +1776,12 @@ def _owned(text: str, hit: _Hit, mentions: list, cues: list, clauses: list[tuple
     opener = _immediate_subject(text[c_start:start])
     if kind == "subject" and _COLLECTIVE_SUBJECT_RE.search(opener):
         return False  # "... as Global Smartphone Market Drops To 13-Year Low": the market's, not the company's
-    anaphora = re.match(r"\s*(?:\w+\s+)?(?:its|their)\b", opener, re.IGNORECASE)  # "as its Mastercard launch"
+    anaphora = ((re.match(r"\s*(?:\w+\s+)?(?:its|their)\b", opener, re.IGNORECASE)  # "as its Mastercard launch"
+                 and not _OTHER_PARTY_RE.search(opener))  # "as its rival Nvidia buys Groq": the rival's deal
+                # "... Following Its Massive $8.2 Billion World Labs Acquisition?": the deal noun is the
+                # company's own, the name before it is the counterparty
+                or (kind == "party" and _DEAL_NOUN_RE.match(text, start, stop)
+                    and _POSSESSIVE_LEAD_RE.match(text[c_start:start])))
     own_subject = not anaphora and _has_entity(opener, title_case, _sentence_start(text, c_start) and
                                                opener == text[c_start:start].strip(), loose=kind == "party")
     if own_subject and hit.key in _PERSON_ACTS and _person_led(text[c_start:start], title_case):

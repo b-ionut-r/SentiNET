@@ -188,3 +188,17 @@ def test_quoted_deal_value_and_explicit_deadlines() -> None:
     social = run(STOCKTWITS, [post("$GME the warrants expire in 26 days", 1, "ape")])
     a = build_analysis(inputs(GAMESTOP, [run(GOOGLE, EBAY_BID + QUIET), social], quote=quote(market_cap=12.5e9)))
     assert [c.date.date() for c in a.catalysts if c.title.startswith("Deal deadline")] == [date(2026, 10, 30)]
+
+
+def test_only_deal_coverage_dominates_while_the_company_is_being_acquired() -> None:
+    # Live GPRO: 'A pending acquisition dominates: …' was followed by 'The dominant story is ‘GoPro Inc. stock
+    # outperforms competitors on strong trading day’: 2 articles from 1 outlet' (an auto-written recap).
+    recap = [raw("GoPro Inc. stock outperforms competitors on strong trading day", 2 + i, "MarketWatch")
+             for i in range(2)]
+    other = news_flow([f"GoPro beats estimates as strong camera demand surges {i}" for i in range(6)])
+    a = build_analysis(inputs(GOPRO, [run(GOOGLE, NEWS + recap + other)], filings=[AGREEMENT, TERMS]))
+    assert "pending acquisition dominates" in a.brief.summary
+    assert "dominant story" not in a.brief.summary and "outperforms competitors" not in a.brief.summary
+    deal_news = news_flow([f"GoPro merger vote set as Action Acquisitions deal nears {i}" for i in range(6)])
+    b = build_analysis(inputs(GOPRO, [run(GOOGLE, NEWS + deal_news)], filings=[AGREEMENT, TERMS]))
+    assert "The dominant story is ‘GoPro merger vote set" in b.brief.summary

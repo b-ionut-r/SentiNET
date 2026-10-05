@@ -165,6 +165,10 @@ def _retail_tail(f: Facts, bullish: bool) -> str | None:
 
 
 MAX_HEADLINE = 200
+# Nominal weight of components whose feeds did not load (analysts alone) that the headline must disclose.
+PARTIAL_WEIGHT = 0.2
+_DATA_NAMES: dict[ComponentKey, str] = {"analysts": "analyst", "insiders": "insider", "technicals": "price",
+                                        "momentum": "GDELT tone", "news": "news", "social": "social"}
 
 
 def headline(f: Facts, label: str, stance: str) -> str:
@@ -233,6 +237,9 @@ def _headline(f: Facts, label: str, stance: str, with_story: bool) -> str:
     if f.prepared.engine_error:
         unscored = count(len(f.prepared.items), "text")
         return f"{label} from structured data only ({unscored} could not be scored): {core}."
+    missing = f.unloaded_parts()
+    if sum(WEIGHTS[p.key] for p in missing) >= PARTIAL_WEIGHT:  # never a complete-looking read on half the data
+        return f"{label} without {join_and([_DATA_NAMES[p.key] for p in missing])} data (not loaded this run): {core}."
     if thin:
         return f"{label} on thin evidence ({count(f.overall.n, 'relevant item')}): {core}."
     return f"{label}: {core}."

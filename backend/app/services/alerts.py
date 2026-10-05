@@ -22,8 +22,8 @@ Rule semantics (`threshold` meaning per kind; defaults applied on creation):
 Every comparison skips earlier runs that lacked the data in question (a Yahoo
 throttle or a news outage stores "unavailable", not "empty"), so a degraded run
 never makes old facts look new afterwards. Composite numbers (SentiNET score,
-attention heat) of a *degraded* run (several inputs failed; see
-`analyzer.run_quality`) are not readings: score/attention rules neither fire
+attention heat) of a *degraded* run (several inputs failed, or ones carrying a
+fifth of the score's weight such as Analysts; see `analyzer.run_quality`) are not readings: score/attention rules neither fire
 on one nor use one as the previous value or baseline. (Runs with no evidence
 at all are never stored.) With no usable baseline yet, the rule stays quiet. Score/attention rules also have a 2 h cooldown so a value
 hovering around the threshold cannot spam. Evaluation is pure (`evaluate_rule`);

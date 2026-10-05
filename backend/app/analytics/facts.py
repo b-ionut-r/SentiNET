@@ -9,10 +9,10 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from app.analytics.aggregate import Summary
-from app.analytics.composite import Composite
+from app.analytics.composite import ComponentKey, Composite, Part
 from app.analytics.crowd import Tally
 from app.analytics.deals import Deal, DealInPlay
 from app.analytics.inputs import AnalysisInputs
@@ -21,8 +21,39 @@ from app.analytics.prepare import Prepared
 from app.analytics.util import INSIDER_CURRENCY, finite
 from app.schemas import AttentionView, Catalyst, CrowdView, Profile, ThemeStat
 
-SOFT_PENDING = "still loading"  # GDELT is slow: a temporary gap, not an outage
+SOFT_PENDING = "still loading"  # a feed that timed out but keeps loading in the background: a temporary gap
 _ISO_CODE = re.compile(r"^[A-Z]{3}$")
+
+# Intel task keys (AnalysisInputs.intel_status) as said to users.
+FEED_NAMES = {"analysts": "analyst ratings", "insiders": "insider trades", "earnings": "earnings",
+              "technicals": "price history", "quote": "the quote", "filings": "SEC filings", "tone": "GDELT tone",
+              "wiki": "Wikipedia pageviews", "profile": "the profile", "calendar": "the dividend calendar"}
+# The score component each structured feed supplies: without the feed it is n/a.
+COMPONENT_FEEDS: dict[ComponentKey, str] = {"analysts": "analysts", "insiders": "insiders",
+                                            "technicals": "technicals", "momentum": "tone"}
+FeedState = Literal["pending", "failed"]
+
+
+def feed_state(status: str | None) -> FeedState | None:
+    """'pending' (timed out, still loading), 'failed' (errored) or None (answered, or not run)."""
+    if not status or not status.startswith("error"):
+        return None
+    return "pending" if SOFT_PENDING in status else "failed"
+
+
+def unloaded(part: Part, intel_status: dict[str, str]) -> Part:
+    """An unavailable component whose feed did not load says so ('analyst ratings not loaded in time
+    this run'), never what an empty answer would mean ('no analyst coverage' for NVDA's 61 analysts);
+    `facts["unloaded"]` keeps the feed's state for the verdict and the rail."""
+    feed = COMPONENT_FEEDS.get(part.key)
+    if feed is None or part.available:
+        return part
+    state = feed_state(intel_status.get(feed))
+    if state is not None:
+        how = "not loaded in time" if state == "pending" else "could not be loaded"
+        part.detail = f"{FEED_NAMES[feed]} {how} this run"
+        part.facts["unloaded"] = state
+    return part
 
 
 def reporting_currency(profile: Profile | None, quote_currency: str) -> str | None:
@@ -122,8 +153,12 @@ class Facts:
     def intel_failed(self) -> dict[str, str]:
         """Intel tasks that hard-failed (soft "still loading" gaps excluded)."""
         return {k: v[len("error:"):].strip() for k, v in self.inputs.intel_status.items()
-                if v.startswith("error") and SOFT_PENDING not in v}
+                if feed_state(v) == "failed"}
 
     def intel_pending(self) -> list[str]:
-        """Intel tasks that are only temporarily missing (ready on next refresh)."""
-        return [k for k, v in self.inputs.intel_status.items() if v.startswith("error") and SOFT_PENDING in v]
+        """Intel tasks that timed out and are still loading in the background (in on a later load)."""
+        return [k for k, v in self.inputs.intel_status.items() if feed_state(v) == "pending"]
+
+    def unloaded_parts(self) -> list[Part]:
+        """Score components left n/a because their feed did not load this run (see `unloaded`)."""
+        return [p for p in self.composite.parts.values() if p.facts.get("unloaded")]

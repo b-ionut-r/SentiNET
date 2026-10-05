@@ -190,3 +190,49 @@ def test_long_8k_titles_are_split_into_label_and_trimmed_detail() -> None:
     detail = by_title["Other material event"].detail
     assert detail.startswith("Form 8-K · items 8.01 · NVIDIA Corporation entered") and detail.endswith("…")
     assert len(detail) < 200
+
+
+def test_fresh_broker_calls_seen_only_in_headlines_become_catalysts(fake_nlp, monkeypatch) -> None:
+    # Live AAPL: 'Citi Initiates Apple(AAPL.US) With Buy Rating, Announces Target Price $365' was detected
+    # (analyst_initiate) but was a single-outlet story below the narrative cut, and Yahoo's action list
+    # lacked it, so it appeared nowhere.
+    import dataclasses
+    import re
+
+    from app.analytics import textkit
+    from app.nlp.types import DetectedEvent
+    from tests.analytics.factories import post, raw, STOCKTWITS
+
+    firms = ("Citi", "Morgan Stanley", "Goldman Sachs")
+
+    def analyze(texts, kinds=None, company=None):  # the fake engine, plus firm-attributed broker events
+        out = fake_nlp.analyze(texts, kinds, company)
+        for text, res in zip(texts, out, strict=True):
+            firm = next((f for f in firms if f in text), None)
+            if firm and "initiates" in text:
+                value = re.search(r"\$(\d+)", text)
+                res.events.append(DetectedEvent("analyst_initiate", "bull", firm=firm,
+                                                value=float(value.group(1)) if value else None))
+            res.events[:] = [dataclasses.replace(e, firm=firm) if e.key.startswith(("analyst", "pt_")) else e
+                             for e in res.events]
+        return out
+
+    monkeypatch.setattr(textkit, "analyze", analyze)
+    headlines = [raw("Citi initiates Acme with Buy rating, target price $365", 30, "Moomoo"),
+                 raw("Citi initiates coverage of Acme at Buy, sees $365", 28, "TipRanks"),  # the same call again
+                 raw("Morgan Stanley cuts Acme price target to $355", 20, "Reuters"),  # in the ratings feed
+                 raw("Goldman Sachs upgrades Acme to Buy", 24 * 12, "Bloomberg")]  # 12 days old: stale
+    chatter = [post("Goldman Sachs upgrades $ACME, loading up", 2, "u1")]
+    a = build_analysis(inputs(ACME, [run(GOOGLE, NEWS + headlines), run(STOCKTWITS, chatter)],
+                              analysts=analysts(actions=[action(1, "Morgan Stanley", "main", "Overweight", 355, 360)])))
+    from_headlines = [c for c in a.catalysts if c.kind == "analyst" and "from the headlines" in (c.detail or "")]
+    assert len(from_headlines) == 1
+    citi = from_headlines[0]
+    assert citi.title == "Citi initiates coverage of Acme at Buy, sees $365" and citi.polarity == "bull"  # heaviest
+    assert citi.detail == "Analyst initiate by Citi · PT $365.00 · TipRanks · from the headlines (not in the ratings feed)"
+    assert any(c.title.startswith("Morgan Stanley cuts target") for c in a.catalysts)  # the feed's own row
+    # Without a ratings feed, the headline calls are the only record of them.
+    bare = build_analysis(inputs(ACME, [run(GOOGLE, NEWS + headlines)]))
+    firms_listed = {c.detail.split(" by ")[1].split(" ·")[0] for c in bare.catalysts
+                    if c.kind == "analyst" and "from the headlines" in (c.detail or "")}
+    assert firms_listed == {"Citi", "Morgan Stanley"}

@@ -350,3 +350,17 @@ def test_degraded_cap_limits_the_read_to_leaning() -> None:
     free, capped = compose(parts), compose(parts, max_distance=DEGRADED_MAX_DISTANCE)
     assert free.score >= 70 and capped.score == 61
     assert sum(capped.contributions.values()) == pytest.approx(capped.score - 50, abs=0.5)
+
+
+def test_net_negative_revisions_are_counted_as_they_are() -> None:
+    # Live LULU: 'Bearish: negative news (…) and analyst downgrades (1 in 90d, 1 PT cuts in 30d) align.'
+    from app.analytics.composite import cautious_revisions
+
+    assert cautious_revisions(1, 1) == "cautious analyst revisions (1 downgrade in 90d, 1 PT cut in 30d)"
+    assert cautious_revisions(1, 0) == "an analyst downgrade in the last 90 days"
+    assert cautious_revisions(3, 0) == "analyst downgrades (3 in 90d)"
+    assert cautious_revisions(0, 1) == "an analyst target cut in the last 30 days"
+    assert cautious_revisions(0, 4) == "analyst target cuts (4 in 30d)"
+    view = analysts(mean=3.4, total=20, upside=25.0, actions=[action(5, "UBS", "main", "Neutral", 90, 100)], down90=1)
+    part = analysts_part(view, NOW)
+    assert part.phrase == "cautious analyst revisions (1 downgrade in 90d, 1 PT cut in 30d)"

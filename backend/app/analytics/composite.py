@@ -428,6 +428,19 @@ def target_clause(view: AnalystView, up: Upside, currency: str | None = "USD") -
     return f"mean target {mean} is {pct(abs(up.mean), sign=False)} {side} the price"
 
 
+def cautious_revisions(downgrades_90d: int, cuts_30d: int) -> str:
+    """Headline clause for net-negative revisions, counted as they are: 'an analyst downgrade in the last
+    90 days', 'analyst target cuts (3 in 30d)', 'cautious analyst revisions (1 downgrade in 90d, 1 PT cut
+    in 30d)' — never LULU's 'analyst downgrades (1 in 90d, 1 PT cuts in 30d)'."""
+    if downgrades_90d and cuts_30d:
+        return (f"cautious analyst revisions ({count(downgrades_90d, 'downgrade')} in 90d, "
+                f"{count(cuts_30d, 'PT cut')} in 30d)")
+    if downgrades_90d:
+        return ("an analyst downgrade in the last 90 days" if downgrades_90d == 1
+                else f"analyst downgrades ({downgrades_90d} in 90d)")
+    return "an analyst target cut in the last 30 days" if cuts_30d == 1 else f"analyst target cuts ({cuts_30d} in 30d)"
+
+
 def analysts_part(view: AnalystView | None, now: datetime, asset: str = "EQUITY",
                   currency: str | None = "USD") -> Part:
     """Consensus rating vs typical, upside to the targets (see `Upside`), revision momentum."""
@@ -513,7 +526,7 @@ def analysts_part(view: AnalystView | None, now: datetime, asset: str = "EQUITY"
     elif up is not None and up < UPSIDE_BASELINE / 2:
         bear = f"limited analyst upside ({to_target}" + (f", {name})" if name else ")")
     elif rev.cuts_30d + view.downgrades_90d > rev.raises_30d + view.upgrades_90d:
-        bear = f"analyst downgrades ({view.downgrades_90d} in 90d, {rev.cuts_30d} PT cuts in 30d)"
+        bear = cautious_revisions(view.downgrades_90d, rev.cuts_30d)
     else:
         bear = f"a {name or 'cautious'} analyst consensus"
     inner = ", ".join(b for b in (name, to_target) if b)

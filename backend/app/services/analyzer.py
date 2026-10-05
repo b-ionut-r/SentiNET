@@ -21,10 +21,11 @@ Guarantees
   negatively cached for `UNKNOWN_TTL`.
 * A run is judged before it is stored (`run_quality`). With no evidence at all
   (every source and feed failed) it is returned but never stored, alerted on or
-  cached past `SHORT_CACHE_TTL`. A *degraded* run (several score inputs failed)
-  is stored flagged — its stories and analyst actions still count as seen —
-  but its score is never a baseline or an alert trigger, and it is cached only
-  briefly so the next load retries.
+  cached past `SHORT_CACHE_TTL`. A *degraded* run (several score inputs failed,
+  or the failures took out score components carrying `DEGRADED_WEIGHT` of the
+  composite, e.g. Analysts alone) is stored flagged — its stories and analyst
+  actions still count as seen — but its score is never a baseline or an alert
+  trigger, and it is cached only briefly so the next load retries.
 
 Provider modules are imported inside functions so this module imports cleanly
 even while those packages are being edited; tests replace them with fakes.
@@ -104,9 +105,14 @@ MAX_CONCURRENT_RUNS = 4
 # Run quality: a run is degraded when this many of its score inputs failed
 # (text/crowd sources, the sentiment engine, or the structured feeds behind score
 # components) — the bar at which analytics already cuts confidence — or when
-# at least half of them did (small source sets: crypto, foreign listings).
+# at least half of them did (small source sets: crypto, foreign listings), or
+# when the score components its failures took out carry this much of the
+# composite's nominal weight. Inputs are not equal: losing Analysts (0.20) moves
+# the score more than losing three of ten news feeds, so a run without them is
+# not comparable with one that had them, whatever the count says.
 DEGRADED_FAILURES = 3
-SCORE_INTEL = ("analysts", "insiders", "technicals")
+DEGRADED_WEIGHT = 0.2
+SCORE_INTEL = ("analysts", "insiders", "technicals")  # structured feed key = score component key
 # Degraded and evidence-free results are served from cache this long at most.
 SHORT_CACHE_TTL = 60.0
 
@@ -381,7 +387,7 @@ async def _execute(run: _Run) -> Analysis:
         if slots.locked():
             ahead = sum(1 for r in _runs.values() if r is not run)
             await run.emit(ProgressEvent(stage="resolve", key="queue", label="Queued", status="running",
-                                         detail=f"waiting for a free slot ({ahead} analyses in flight)"))
+                                         detail=f"waiting for a free slot ({_n(ahead, 'analysis', 'analyses')} in flight)"))
             async with slots:
                 await run.emit(ProgressEvent(stage="resolve", key="queue", label="Queued", status="ok"))
                 return await _execute_inner(run)
@@ -657,20 +663,22 @@ async def _run_source(run: _Run, source: Source, company: CompanyRef, deadline: 
 
 def _source_detail(batch: SourceBatch) -> str | None:
     """Terse, real-number summary for the progress panel."""
-    parts = [f"{len(batch.signals)} items"] if batch.signals else []
+    parts = [_n(len(batch.signals), "item")] if batch.signals else []
     m = batch.metrics
     try:
         bull, bear = m.get("stocktwits_bullish"), m.get("stocktwits_bearish")
         if isinstance(bull, int) and isinstance(bear, int) and bull + bear:
             parts.append(f"{bull / (bull + bear):.0%} bulls of {bull + bear} tagged")
         if m.get("reddit_rank") is not None:
-            parts.append(f"Reddit #{m['reddit_rank']} · {m.get('reddit_mentions', '?')} mentions")
+            mentions = m.get("reddit_mentions")
+            parts.append(f"Reddit #{m['reddit_rank']} · "
+                         + (_n(mentions, "mention") if isinstance(mentions, int) else "? mentions"))
         if m.get("wsb_label"):
             parts.append(f"WSB {m['wsb_label']}")
     except (TypeError, ValueError):
         pass
     if not parts and m:
-        parts.append(f"{len(m)} metrics")
+        parts.append(_n(len(m), "metric"))
     return " · ".join(parts) or None
 
 
@@ -779,7 +787,7 @@ def _intel_detail(key: str, value: Any) -> str | None:
                 bits.append(f"1M {value.return_1m:+.1f}%")
             return " · ".join(bits) or None
         if isinstance(value, AnalystView):
-            bits = [f"{value.total} analysts"] if value.total else []
+            bits = [_n(value.total, "analyst")] if value.total else []
             if value.consensus:
                 bits.append(value.consensus.replace("_", " "))
             if value.upside_pct is not None:
@@ -789,9 +797,9 @@ def _intel_detail(key: str, value: Any) -> str | None:
             if value.next_date is not None:
                 return f"next {value.next_date.isoformat()}" + (
                     f" (in {value.days_until}d)" if value.days_until is not None else "")
-            return f"{len(value.history)} past reports" if value.history else None
+            return _n(len(value.history), "past report") if value.history else None
         if isinstance(value, InsiderView):
-            return f"{value.buys} buys / {value.sells} sells ({value.window_days}d)"
+            return f"{_n(value.buys, 'buy')} / {_n(value.sells, 'sell')} ({value.window_days}d)"
         if isinstance(value, ToneTrend) and value.tone_7d is not None:
             return f"7d tone {value.tone_7d:+.2f}" + (
                 f" vs 30d {value.tone_30d:+.2f}" if value.tone_30d is not None else "")
@@ -800,7 +808,7 @@ def _intel_detail(key: str, value: Any) -> str | None:
             return f"{sum(recent) / len(recent):,.0f} views/day (7d)"
         if key == "filings" and isinstance(value, list):
             high = sum(1 for f in value if getattr(f, "importance", "") == "high")
-            return f"{len(value)} filings" + (f" · {high} high-importance" if high else "")
+            return _n(len(value), "filing") + (f" · {high} high-importance" if high else "")
         if key == "calendar" and isinstance(value, list) and value:
             return "; ".join(c.title for c in value[:2])
     except (TypeError, ValueError, AttributeError):
@@ -885,14 +893,23 @@ async def ensure_known(symbol: str) -> CompanyRef:
     unresolvable symbol, while Yahoo quotes the witness symbol, rejects —
     provider outages accept (the monitor backs off from tickers that keep failing).
     """
-    from app.storage import db
-
     recent = latest_analysis(symbol)
     if recent is not None and has_evidence(recent):
         name = recent.profile.name if recent.profile is not None else symbol
         return CompanyRef(ticker=symbol, name=name or symbol, short_name=name or symbol)
-    company = await resolve_or_bare(symbol, timeout=RESOLVE_TIMEOUT)
+    return await known_company(symbol, await resolve_or_bare(symbol, timeout=RESOLVE_TIMEOUT))
+
+
+async def known_company(symbol: str, company: CompanyRef) -> CompanyRef:
+    """`company` (as resolved for `symbol`) once something proves the symbol exists; `UnknownSymbol` (404) if
+    nothing knows it. A resolved name or CIK, a recent analysis or a stored reading proves it; a bare ref
+    needs a quote — and "no quote" rejects only while Yahoo quotes the witness symbol."""
+    from app.storage import db
+
     if company.cik or company.name != symbol:
+        return company
+    recent = latest_analysis(symbol)
+    if recent is not None and has_evidence(recent):
         return company
     stored = await run_bounded(lambda: db.latest_snapshot(symbol, sound_only=True), STORAGE_TIMEOUT,
                                name="known-snapshot")
@@ -911,7 +928,7 @@ async def _synthesize(run: _Run, inputs: Any) -> Analysis:
     n_texts = sum(len(r.batch.signals) for r in inputs.source_runs if r.batch is not None)
     await run.emit(ProgressEvent(stage="analytics", key="synthesis", label="Scoring & synthesis",
                                  status="running", count=n_texts,
-                                 detail=f"{n_texts} texts · {inputs.engine_name} engine"))
+                                 detail=f"{_n(n_texts, 'text')} · {inputs.engine_name} engine"))
     t0 = time.perf_counter()
     try:
         from app.analytics.build import build_analysis
@@ -929,8 +946,8 @@ async def _synthesize(run: _Run, inputs: Any) -> Analysis:
     await run.emit(ProgressEvent(
         stage="analytics", key="synthesis", label="Scoring & synthesis", status="ok",
         count=len(analysis.signals), ms=ms,
-        detail=f"{analysis.sentiment.n} signals kept · {len(analysis.narratives)} narratives · "
-               f"{len(analysis.insights)} insights",
+        detail=f"{_n(analysis.sentiment.n, 'signal')} kept · {_n(len(analysis.narratives), 'narrative')} · "
+               f"{_n(len(analysis.insights), 'insight')}",
     ))
     return analysis
 
@@ -943,11 +960,13 @@ class RunQuality:
     evidence: bool  # any scored text or any available score component
     failed: tuple[str, ...] = ()  # score inputs that failed this run (labels)
     attempted: int = 0  # score inputs that were tried
+    lost_weight: float = 0.0  # nominal composite weight of the components those failures took out
 
     @property
     def degraded(self) -> bool:
         n = len(self.failed)
-        return not self.evidence or n >= DEGRADED_FAILURES or (n >= 2 and 2 * n >= self.attempted)
+        return (not self.evidence or n >= DEGRADED_FAILURES or (n >= 2 and 2 * n >= self.attempted)
+                or round(self.lost_weight, 6) >= DEGRADED_WEIGHT)
 
     @property
     def note(self) -> str | None:
@@ -955,7 +974,10 @@ class RunQuality:
         if not self.evidence:
             return "no evidence (every source and feed failed): not stored, no alerts"
         if self.degraded:
-            return f"degraded ({len(self.failed)} of {self.attempted} inputs failed): no score alerts or baselines"
+            names = ", ".join(self.failed[:4]) + (f" +{len(self.failed) - 4} more" if len(self.failed) > 4 else "")
+            lost = f"; {self.lost_weight:.0%} of the score's weight missing" if self.lost_weight else ""
+            return (f"degraded ({len(self.failed)} of {self.attempted} inputs failed: {names}{lost}): "
+                    "no score alerts or baselines")
         return None
 
 
@@ -969,21 +991,50 @@ def has_evidence(analysis: Analysis) -> bool:
 def run_quality(analysis: Analysis, source_runs: list[Any], intel_status: dict[str, str]) -> RunQuality:
     """Judge a run from what failed: text/crowd sources, the sentiment engine, structured score feeds.
 
-    A slow GDELT/Wikipedia tail is not a failure (momentum and attention fall back
-    and fill in on the next load); disabled/unconfigured sources were never tried.
+    Failures are both counted and weighed: a failed structured feed takes out its
+    score component (Analysts, Insiders, Technicals), a text group whose every
+    tried source failed takes out News or Social, and a failed sentiment engine
+    takes out both. A slow GDELT/Wikipedia tail is not a failure (momentum and
+    attention fall back and fill in on the next load); disabled/unconfigured
+    sources were never tried; an intel feed still loading in the background is
+    missing from *this* score, so it counts.
     """
     failed = [r.source.label for r in source_runs if r.status == "error"]
     attempted = sum(1 for r in source_runs if r.status in ("ok", "empty", "error"))
+    lost: set[str] = set()
+    for group in ("news", "social"):
+        tried = [r for r in source_runs if _text_group(r.source) == group and r.status in ("ok", "empty", "error")]
+        if tried and all(r.status == "error" for r in tried):
+            lost.add(group)
     if analysis.signals and analysis.sentiment.n == 0:  # texts kept, none scored: the engine failed
         failed.append("sentiment engine")
         attempted += 1
+        lost.update(("news", "social"))
     for key in SCORE_INTEL:
         state = intel_status.get(key)  # absent: not applicable to this asset
         if state is not None:
             attempted += 1
             if state.startswith("error"):
                 failed.append(_INTEL_LABELS[key])
-    return RunQuality(evidence=has_evidence(analysis), failed=tuple(failed), attempted=attempted)
+                lost.add(key)
+    weights = _nominal_weights(analysis)
+    return RunQuality(evidence=has_evidence(analysis), failed=tuple(failed), attempted=attempted,
+                      lost_weight=sum(weights.get(k, 0.0) for k in lost))
+
+
+def _text_group(source: Any) -> str:
+    """The score component a source's texts feed (as analytics groups them: social, else news)."""
+    return "social" if getattr(source, "kind", "news") == "social" else "news"
+
+
+def _nominal_weights(analysis: Analysis) -> dict[str, float]:
+    """Nominal composite weight per component: the analytics table, else as the verdict reports it."""
+    try:
+        from app.analytics.composite import WEIGHTS
+
+        return {str(k): float(v) for k, v in WEIGHTS.items()}
+    except Exception:  # analytics mid-edit: the verdict carries the same nominal weights
+        return {c.key: c.weight for c in analysis.verdict.components}
 
 
 async def _persist_and_alert(analysis: Analysis, quality: RunQuality | None = None) -> None:
@@ -1012,6 +1063,11 @@ async def _persist_and_alert(analysis: Analysis, quality: RunQuality | None = No
     res = await run_bounded(lambda: process_analysis(analysis, out.value), STORAGE_TIMEOUT, name="alerts")
     if not res.ok:
         logger.warning("alert evaluation failed for %s: %s", analysis.ticker, res.error)
+
+
+def _n(n: int, word: str, plural: str | None = None) -> str:
+    """'1 item', '3 items', '2 analyses' for the progress panel."""
+    return f"{n:,} {word if n == 1 else plural or word + 's'}"
 
 
 def _ago(seconds: int) -> str:

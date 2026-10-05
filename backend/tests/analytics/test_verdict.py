@@ -45,13 +45,21 @@ def test_counter_story_is_never_shown_without_the_story_it_counters() -> None:
     assert any(t.startswith("Counter-story: ‘Wall Street keeps raising") for t in roomy)
 
 
-def test_price_recap_stories_are_not_featured_unless_nothing_else_matters() -> None:
+def test_price_recap_stories_are_never_featured() -> None:
     # Live SOFI/LULU/TWLO: 'Stock craters 43%', 'hits 52-week low/high' were the top or bull/bear
-    # "story" while the technicals component already counted the same move.
+    # "story" while the technicals component already counted the same move — and LULU's '52-week low'
+    # still was, through a fallback, whenever no other story cleared the impact bar.
     recap = story("r", "Acme stock craters 43% in 2026", -0.8, 0.6,
                   [DetectedEvent("price_down", "bear", span="stock craters 43%")], [("Stock Craters 43%", -0.9)])
     launch = story("l", "Acme launches its new storage line", 0.3, 0.5, [DetectedEvent("product_launch", "bull")])
     assert recap.price_only and not launch.price_only
     assert featured([recap, launch]) == [launch]
     minor = story("m", "Acme launches its new storage line", 0.3, 0.2, [DetectedEvent("product_launch", "bull")])
-    assert featured([recap, minor]) == [recap, minor]  # nothing else clears the bar: keep the recap
+    assert featured([recap, minor]) == [minor]  # quoted only from STORY_MIN_IMPACT up: see the callers
+    assert featured([recap]) == []
+    out = reasons(facts([recap], {"news": -4.0, "technicals": -5.0}))
+    assert not any(r.text.startswith(("Top story", "Story")) for r in out)
+    # A machine-written daily recap carries no price event, yet it is the price move all the same.
+    auto = story("a", "Acme Corp. stock outperforms competitors on strong trading day", 0.61, 0.5, [],
+                 [("outperforms", 0.43), ("strong", 0.39)])
+    assert auto.price_only and featured([auto]) == []
