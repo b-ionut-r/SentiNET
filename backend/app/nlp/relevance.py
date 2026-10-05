@@ -126,6 +126,40 @@ _VENUE_AFTER_RE = re.compile(r"^\s+(?-i:Stadium|Arena|Center|Centre|Field|Park|B
 _PAREN_TICKER_RE = re.compile(r"^\s*\((?:[A-Z]{2,12}\s?:\s?)?([A-Z][A-Z0-9.\-]{0,9})(?:\.[A-Z]{1,3})?\)")
 _HYPHEN_OK = wordset("backed owned led based made branded related linked focused funded parent maker rival supplier "
                        "partner like style designed built powered approved listed")
+# "Nvidia-backed CoreWeave", "Tesla-like margins": the name qualifies something else.
+_HYPHEN_MODIFIER_RE = re.compile(r"^-(?:backed|owned|funded|led|linked|related|supported|partnered|affiliated|like|"
+                                 r"style|rival|supplier|partner|sized|fueled|driven|powered|exposed)\b", re.IGNORECASE)
+# Appositives: "Tesla rival Nikola", "Super Micro, a key Nvidia partner", "Nvidia's
+# server partner Wistron". Up to two descriptive words may sit in between, never
+# a conjunction or verb ("Apple and its suppliers" is still about Apple).
+_MODIFIER_AFTER_RE = re.compile(
+    r"^(?:'s)?\s+(?:(?!(?:and|or|its|their|his|her|with|to|for|of|is|are|was|were|has|have|says?|said|will|"
+    r"shares|stock)\b)[\w-]+\s+){0,2}?(?:rivals?|peers?|competitors?|challengers?|suppliers?|vendors?|partners?|"
+    r"licensees?|investees?|backers?|allies|ally|contractors?|portfolio compan(?:y|ies)|spin-?offs?)\b"
+    r"(?!\s+(?:with|on|in|to|for|program|programs|network|summit|day|event|portal|conference)\b)"
+    r"|^(?:'s)?\s+(?:customers?|clients?)\s+(?-i:[A-Z])",
+    re.IGNORECASE,
+)
+# Background mentions after the main clause: "... after delays in AT&T spectrum
+# deal", "... as AT&T deal stalls", "... amid Apple trade talks".
+_ADJUNCT_BEFORE_RE = re.compile(r"\b(?:after|amid|despite|following|as|while|in|over|with|before|since)\s+"
+                                r"(?:[\w&'.-]+\s+){0,3}$", re.IGNORECASE)
+_ADJUNCT_AFTER_RE = re.compile(r"^(?:'s)?\s+(?:[\w-]+\s+)?(?:deal|deals|transaction|merger|takeover|acquisition|"
+                               r"spectrum|contract|tie-up|agreement|partnership|order|orders|bid|talks|"
+                               r"negotiations|dispute)\b", re.IGNORECASE)
+
+
+def _mention_role(text: str, start: int, end: int) -> tuple[bool, bool]:
+    """(modifier, adjunct) for a company mention at [start, end) — see Mention."""
+    after = text[end:end + 60]
+    modifier = bool(_HYPHEN_MODIFIER_RE.match(after) or _MODIFIER_AFTER_RE.match(after))
+    adjunct = False
+    if not modifier and len(text[:start].split()) >= 3:
+        clause = re.split(r"[.;:!?|]\s|\s-\s", text[:start])[-1]
+        lead = re.match(r"\s*([A-Z][\w&.'-]*)", clause)
+        adjunct = bool(_ADJUNCT_BEFORE_RE.search(clause) and _ADJUNCT_AFTER_RE.match(after) and lead
+                       and lead.group(1).lower() not in _GENERIC_LEAD_WORDS)
+    return modifier, adjunct
 # Analyst/transaction verbs immediately before a name: "HSBC upgrades Target".
 _STRONG_BEFORE_RE = re.compile(
     r"(?:upgrades?|downgrades?|upgraded|downgraded|initiates?(?: coverage)?(?: on| of)?|coverage (?:on|of)|"
@@ -199,6 +233,10 @@ why how what is are should could would will can high yield income utility health
 _OTHER_SUBJECT_RE = re.compile(
     r"^(?:[\w&.'-]+\s){0,2}?([A-Z][\w&.'-]+(?:\s[A-Z][\w&.'-]+){0,2})(?:'s)?\s+(?:stock|shares|Stock|Shares)\b"
 )
+# Headline openers that are not another company ("Why ...", "Stocks ...").
+_GENERIC_LEAD_WORDS = _GENERIC_SUBJECT_WORDS | wordset("""stocks shares stock investors analysts analyst wall street
+markets market dow nasdaq futures traders here here's there exclusive breaking update watch report reports
+earnings shareholders jury judge court""")
 
 
 @dataclass(frozen=True)
@@ -487,14 +525,37 @@ class _Matcher:
     broker: bool = False  # a brokerage: its name also appears as the author of research on others
 
 
+@dataclass(frozen=True)
+class Mention:
+    """One span of the text that names the company.
+
+    `modifier`: the name only qualifies another entity ("Tesla rival Nikola",
+    "a key Nvidia partner", "Nvidia-backed CoreWeave"); `adjunct`: it sits in
+    background detail after the main clause ("... files for bankruptcy after
+    delays in AT&T spectrum deal"). Either way the text is not *about* it."""
+
+    start: int
+    end: int
+    modifier: bool = False
+    adjunct: bool = False
+
+    @property
+    def subject_like(self) -> bool:
+        return not (self.modifier or self.adjunct)
+
+
 @dataclass
 class RelevanceResult:
-    """Score plus the evidence behind it (for debugging and tests)."""
+    """Score plus the evidence behind it (for debugging and tests).
+
+    `mentions` are positions in `fold(text)` (same length as the input for
+    already-folded text), used by event attribution."""
 
     score: float
     evidence: list[str] = field(default_factory=list)
     roundup: bool = False
     secondary: bool = False
+    mentions: list[Mention] = field(default_factory=list)
 
 
 def _clean_name(name: str) -> str:
@@ -773,17 +834,26 @@ def explain_relevance(text: str, company: CompanyRef) -> RelevanceResult:
     shouting = is_mostly_upper(t)
     evidence: list[str] = []
     positions: list[int] = []
+    spans: list[Mention] = []
     score = 0.0
     mentions = 0
+
+    def record(start: int, end: int) -> Mention:
+        modifier, adjunct = _mention_role(t, start, end)
+        mention = Mention(start, end, modifier=modifier, adjunct=adjunct)
+        spans.append(mention)
+        return mention
 
     for m in matcher.cashtag.finditer(t):
         score = max(score, 1.0)
         positions.append(m.start())
+        record(*m.span())
         mentions += 1
         evidence.append(f"cashtag {m.group(0)}")
     for m in matcher.qualified.finditer(t):
         score = max(score, 0.95)
         positions.append(m.start())
+        record(*m.span())
         mentions += 1
         evidence.append(f"qualified ticker {m.group(0).strip()}")
     if score < 0.9:
@@ -804,6 +874,7 @@ def explain_relevance(text: str, company: CompanyRef) -> RelevanceResult:
                     continue  # "SNAP benefits": an acronym, not the stock
                 score = max(score, 0.9)
                 positions.append(m.start())
+                record(*m.span())
                 mentions += 1
                 evidence.append(f"ticker {m.group(0)}")
     if score < 0.8:
@@ -836,16 +907,20 @@ def explain_relevance(text: str, company: CompanyRef) -> RelevanceResult:
             if verdict > 0:
                 mentions += 1
                 positions.append(m.start())
+                mention = record(*m.span())
                 lead = t[:m.start()]
                 primary = len(lead.split()) <= 2 or re.match(r"^[^:]{0,40}:\s*$", lead) is not None
                 level = 0.9 if primary else 0.8
-                if t[m.end():m.end() + 1] == "-":  # "Nvidia-backed CoreWeave": a modifier, not the subject
+                if mention.modifier or t[m.end():m.end() + 1] == "-":
+                    # "Tesla rival Nikola", "Nvidia-backed CoreWeave", "Apple-designed": qualifies something else
                     level, primary = 0.6, False
+                    evidence.append(f"modifier '{m.group(0)}'")
                 name_level = max(name_level, level)
                 evidence.append(f"name '{m.group(0)}'" + (" (subject)" if primary else ""))
             elif verdict == 0:
                 any_neutral = True
                 positions.append(m.start())
+                record(*m.span())
                 evidence.append(f"ambiguous '{m.group(0)}'")
             else:
                 evidence.append(f"not-company '{m.group(0)}'")
@@ -877,9 +952,16 @@ def explain_relevance(text: str, company: CompanyRef) -> RelevanceResult:
     if mentions >= 2 and score < 0.95:
         score = min(0.95, score + 0.05)
 
-    result = RelevanceResult(score=score, evidence=evidence)
+    spans.sort(key=lambda s: s.start)
+    result = RelevanceResult(score=score, evidence=evidence, mentions=spans)
     if score > 0 and positions:
-        if _other_subject_first(t, min(positions), matcher):
+        if spans and not any(s.subject_like for s in spans):
+            # Only named as another entity's rival/partner/backer or in background
+            # detail: "Tesla rival Nikola files for bankruptcy".
+            result.secondary = True
+            score = min(score, 0.6) * (0.75 if any(s.adjunct for s in spans) else 1.0)
+            evidence.append("named only as context for another entity")
+        elif _other_subject_first(t, min(positions), matcher):
             result.secondary = True
             score *= 0.75
             evidence.append("another company is the subject")

@@ -5,7 +5,7 @@
  */
 import type { TimelineBucket } from "../../api/types";
 import { signed } from "../../lib/format";
-import { useTooltip } from "../ui/Tooltip";
+import { useRoving } from "../../lib/useRoving";
 
 /** Place buckets on an even time grid so quiet stretches show as gaps. */
 function onTimeGrid(buckets: TimelineBucket[]): Array<TimelineBucket | { t: string; empty: true }> {
@@ -20,54 +20,49 @@ function onTimeGrid(buckets: TimelineBucket[]): Array<TimelineBucket | { t: stri
 }
 
 export function Pulse({ buckets: raw, height = 56 }: { buckets: TimelineBucket[]; height?: number }) {
-  const { showAt, hide } = useTooltip();
-  if (raw.length < 2) return null;
   const sorted = [...raw].sort((x, y) => x.t.localeCompare(y.t));
-  const buckets = onTimeGrid(sorted);
+  const buckets = raw.length < 2 ? [] : onTimeGrid(sorted);
+  const filled = buckets.filter((b): b is TimelineBucket => !("empty" in b));
+  const fmt = (t: string) => new Date(t).toLocaleString("en-US", { weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false });
+  const tips = filled.map((b) => (
+    <div className="space-y-0.5">
+      <div className="text-2xs text-muted">{fmt(b.t)}</div>
+      <div>
+        <span className="font-semibold text-ink">{b.count}</span> items · {b.news} news · {b.social} social
+      </div>
+      <div>
+        <span className="text-bull-ink">▲ {b.bullish}</span> · <span className="text-bear-ink">▼ {b.bearish}</span> · mean {signed(b.score)}
+      </div>
+    </div>
+  ));
+  const { container, mark } = useRoving(tips, `Signal pulse, ${filled.length} time buckets`);
+  if (raw.length < 2) return null;
   const max = Math.max(1, ...sorted.map((b) => Math.max(b.bullish, b.bearish)));
   const half = height / 2;
-  const fmt = (t: string) => new Date(t).toLocaleString("en-US", { weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false });
   const first = buckets[0].t;
   const last = buckets[buckets.length - 1].t;
+  let k = -1;
   return (
     <div>
-      <div className="relative flex gap-px" style={{ height }} role="img" aria-label={`Signal pulse, ${buckets.length} buckets`}>
+      <div {...container} className={`relative flex gap-px ${container.className}`} style={{ height }}>
         <div className="absolute inset-x-0 h-px bg-[rgb(var(--axis))]" style={{ top: half }} />
         {buckets.map((b) => {
           if ("empty" in b) return <div key={b.t} className="flex-1" aria-hidden />;
+          k += 1;
           const up = (b.bullish / max) * (half - 2);
           const down = (b.bearish / max) * (half - 2);
-          const tip = (
-            <div className="space-y-0.5">
-              <div className="text-2xs text-muted">{fmt(b.t)}</div>
-              <div>
-                <span className="font-semibold text-ink">{b.count}</span> items · {b.news} news · {b.social} social
-              </div>
-              <div>
-                <span className="text-bull">▲ {b.bullish}</span> · <span className="text-bear">▼ {b.bearish}</span> · mean {signed(b.score)}
-              </div>
-            </div>
-          );
           return (
-            <div
-              key={b.t}
-              tabIndex={0}
-              className="group relative flex-1 outline-none"
-              onMouseEnter={(e) => showAt(tip, e.currentTarget)}
-              onMouseLeave={hide}
-              onFocus={(e) => showAt(tip, e.currentTarget)}
-              onBlur={hide}
-            >
+            <div key={b.t} {...mark(k)} className="group relative flex-1">
               {up > 0 && <div className="absolute inset-x-[15%] rounded-t-[2px] bg-bull group-hover:brightness-125" style={{ bottom: half + 1, height: Math.max(2, up) }} />}
               {down > 0 && <div className="absolute inset-x-[15%] rounded-b-[2px] bg-bear group-hover:brightness-125" style={{ top: half + 1, height: Math.max(2, down) }} />}
             </div>
           );
         })}
       </div>
-      <div className="mt-1 flex justify-between text-2xs text-faint">
+      <div className="mt-1 flex justify-between text-2xs text-muted">
         <span>{fmt(first)}</span>
         <span>
-          <span className="text-bull">▲</span> bullish items above · <span className="text-bear">▼</span> bearish below
+          <span className="text-bull-ink">▲</span> bullish items above · <span className="text-bear-ink">▼</span> bearish below
         </span>
         <span>{fmt(last)}</span>
       </div>

@@ -54,7 +54,7 @@ export default function MarketPage() {
         <TrendingPanel trending={m.trending} className="lg:col-span-5" />
       </div>
       <WatchSummary />
-      <p className="text-2xs text-faint">
+      <p className="text-2xs text-muted">
         Generated {timeAgo(m.generated_at)} ·{" "}
         {Object.entries(m.status)
           .map(([k, v]) => `${k.replace(/_/g, " ")}: ${v}`)
@@ -158,7 +158,7 @@ function IndexTape({ indices }: { indices: IndexQuote[] }) {
           <Link key={i.symbol} to={i.symbol.startsWith("^") ? "#" : `/t/${encodeURIComponent(i.symbol)}`} className="panel block p-3 transition-colors hover:bg-raised" onClick={(e) => i.symbol.startsWith("^") && e.preventDefault()}>
             <div className="flex items-baseline justify-between gap-2">
               <span className="truncate text-xs font-medium text-ink-2">{i.name}</span>
-              <span className="font-mono text-2xs text-faint">{i.symbol.replace("^", "")}</span>
+              <span className="font-mono text-2xs text-muted">{i.symbol.replace("^", "")}</span>
             </div>
             <div className="mt-1.5 flex items-baseline justify-between gap-2">
               <span className="text-base font-semibold text-ink">{i.symbol === "^TNX" ? `${i.price?.toFixed(2)}%` : i.symbol === "^VIX" ? i.price?.toFixed(2) : price(i.price)}</span>
@@ -312,7 +312,7 @@ function CryptoPanel({ fg }: { fg: FearGreed | null }) {
             xFormat={(ms) => new Date(ms).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
             ariaLabel="Crypto Fear and Greed, last 90 days"
           />
-          <p className="mt-1 text-right text-2xs text-faint">last {series[0].points.length} days</p>
+          <p className="mt-1 text-right text-2xs text-muted">last {series[0].points.length} days</p>
         </div>
       )}
     </Panel>
@@ -335,11 +335,11 @@ function HeadlinesPanel({ m }: { m: MarketOverview }) {
       </div>
       <div className="mt-1.5 flex justify-between text-2xs text-muted">
         <span>
-          <span className="text-bull">▲</span> {h.bullish} bullish
+          <span className="text-bull-ink">▲</span> {h.bullish} bullish
         </span>
         <span>{h.neutral} neutral</span>
         <span>
-          <span className="text-bear">▼</span> {h.bearish} bearish
+          <span className="text-bear-ink">▼</span> {h.bearish} bearish
         </span>
       </div>
     </Panel>
@@ -481,8 +481,8 @@ function TrendingPanel({ trending, className }: { trending: TrendingTicker[]; cl
                       <span className="w-7 text-right text-ink-2 num">{int(t.mentions)}</span>
                     </div>
                   </td>
-                  <td className={cx("whitespace-nowrap py-1.5 pl-2 text-right font-medium num", !hasWsb && "pr-4", t.change_pct == null ? "text-faint" : t.change_pct > 0 ? "text-ink" : "text-muted")}>{t.change_pct != null ? pct(t.change_pct, 0) : "new"}</td>
-                  {hasWsb && <td className="py-1.5 pr-4 text-right">{t.sentiment != null ? <ScoreChip score={t.sentiment} /> : <span className="text-faint">—</span>}</td>}
+                  <td className={cx("whitespace-nowrap py-1.5 pl-2 text-right font-medium num", !hasWsb && "pr-4", t.change_pct == null ? "text-muted" : t.change_pct > 0 ? "text-ink" : "text-muted")}>{t.change_pct != null ? pct(t.change_pct, 0) : "new"}</td>
+                  {hasWsb && <td className="py-1.5 pr-4 text-right">{t.sentiment != null ? <ScoreChip score={t.sentiment} /> : <span className="text-muted">—</span>}</td>}
                 </tr>
               );
             })}

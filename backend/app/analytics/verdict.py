@@ -67,11 +67,8 @@ def confidence(f: Facts) -> tuple[Confidence, float]:
         agreement = 1.0 - min(1.0, sd / 0.6)
     else:
         agreement = 0.5
-    scored = f.prepared.scored
-    if scored:
-        fresh = sum(1 for it in scored if (it.age_hours(f.now) or 1e9) <= 72) / len(scored)
-    else:
-        fresh = 0.3
+    ages = [it.age_hours(f.now) for it in f.prepared.scored]
+    fresh = sum(1 for age in ages if age is not None and age <= 72) / len(ages) if ages else 0.3
     # A component counts fully once its own confidence reaches 0.6 (two headlines are not "news coverage").
     coverage = sum(WEIGHTS[p.key] * min(1.0, p.confidence / 0.6) for p in avail)
     data = 0.45 * coverage + 0.35 * volume + 0.20 * fresh
@@ -118,10 +115,11 @@ def story_points(f: Facts, story: Story) -> float:
     """How much a story explains the score: a share of the news component's contribution.
 
     A story aligned with the news flow gets (0.6 + 0.4·impact) of it; a
-    counter-story half of that scaled by impact. Neutral-toned or minor
-    stories get 0 (they inform, but do not drive the score)."""
+    counter-story half of that scaled by impact. Neutral-toned, mixed (its
+    headline does not carry the tone) or minor stories get 0: they inform,
+    but do not drive the score."""
     n = story.narrative
-    if n.impact < STORY_MIN_IMPACT or abs(n.score) < 0.1:
+    if n.impact < STORY_MIN_IMPACT or not story.directional:
         return 0.0
     news = f.composite.contributions.get("news", 0.0)
     if news == 0:
@@ -192,9 +190,9 @@ def _headline(f: Facts, label: str, stance: str, with_story: bool) -> str:
         sign = 1 if stance == "bullish" else -1
         support = side(sign, True) or side(sign, False)
         against = side(-sign, False)
-        if not support:
-            key = ranked[0][0]
-            core = f"{LABELS[key].lower()} lead ({parts[key].detail})"
+        if not support:  # only small or phrase-less pushes: name the largest one on the stance's side
+            key = next((k for k, c in ranked if c * sign > 0), ranked[0][0])
+            core = f"led by {LABELS[key].lower()} ({parts[key].detail})"
         elif len(support) >= 2:
             core = f"{text(support[0])} and {text(support[1])} align"
         else:
@@ -205,6 +203,9 @@ def _headline(f: Facts, label: str, stance: str, with_story: bool) -> str:
             tail = _retail_tail(f, sign > 0)
             if tail:
                 core += f"; {tail}"
+    if f.prepared.engine_error:
+        unscored = count(len(f.prepared.items), "text")
+        return f"{label} from structured data only ({unscored} could not be scored): {core}."
     if thin:
         return f"{label} on thin evidence ({count(f.overall.n, 'relevant item')}): {core}."
     return f"{label}: {core}."
@@ -216,7 +217,7 @@ def _news_story_phrase(f: Facts) -> str | None:
     if not f.stories or not part.phrase or part.x == 0:
         return None
     n = f.stories[0].narrative
-    if n.impact < 0.5 or abs(n.score) < 0.15 or (n.score > 0) != (part.x > 0):
+    if n.impact < 0.5 or abs(n.score) < 0.15 or (n.score > 0) != (part.x > 0) or not f.stories[0].directional:
         return None
     adj = part.phrase.split(" news", 1)[0]
     return f"{adj} news led by {quote(n.headline, 64)} ({count(n.count, 'article')}, {signed(n.score)})"

@@ -91,8 +91,8 @@ export function SignalExplorer({ a }: { a: Analysis }) {
           }}
           options={[
             { value: "all", label: "Any" },
-            { value: "bull", label: <span><span className="text-[8px] text-bull">▲</span> Bull</span> },
-            { value: "bear", label: <span><span className="text-[8px] text-bear">▼</span> Bear</span> },
+            { value: "bull", label: <span><span className="text-[8px] text-bull-ink">▲</span> Bull</span> },
+            { value: "bear", label: <span><span className="text-[8px] text-bear-ink">▼</span> Bear</span> },
             { value: "neutral", label: "Neutral" },
           ]}
         />
@@ -188,7 +188,7 @@ function SignalRow({ s }: { s: Signal }) {
             )}
           </p>
           {s.url && (
-            <a href={s.url} target="_blank" rel="noreferrer" className="mt-0.5 text-faint hover:text-ink-2" aria-label="Open source">
+            <a href={s.url} target="_blank" rel="noreferrer" className="mt-0.5 text-muted hover:text-ink-2" aria-label="Open source">
               <ExternalLink className="size-3.5" />
             </a>
           )}

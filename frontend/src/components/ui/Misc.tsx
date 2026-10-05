@@ -1,5 +1,5 @@
 /** Small shared building blocks: states, segmented control, logo, count-up. */
-import { CircleAlert, RotateCw } from "lucide-react";
+import { CircleAlert, RotateCw, TriangleAlert } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { cx } from "../../lib/cx";
@@ -30,6 +30,20 @@ export function ErrorState({ title, message, onRetry, className }: { title: stri
           <RotateCw className="size-3.5" /> Try again
         </button>
       )}
+    </div>
+  );
+}
+
+/**
+ * Inline, dismissible-by-fix warning for a failed action while older data
+ * stays on screen (status colour + icon + words, never colour alone).
+ */
+export function InlineAlert({ children, action, className }: { children: ReactNode; action?: ReactNode; className?: string }) {
+  return (
+    <div role="alert" className={cx("flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg bg-serious/10 px-3 py-2 text-sm text-ink", className)} style={{ boxShadow: "inset 0 0 0 1px rgb(var(--serious) / 0.35)" }}>
+      <TriangleAlert className="size-4 shrink-0 text-serious" aria-hidden />
+      <div className="min-w-0 flex-1">{children}</div>
+      {action}
     </div>
   );
 }

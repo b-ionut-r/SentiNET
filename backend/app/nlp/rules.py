@@ -7,20 +7,30 @@
 1. Regex rules for high-precision finance constructions, with numbers:
    analyst rating changes ("cut to Neutral from Buy"), price-target moves
    ("PT raised to $54 from $50" - direction from the numbers), earnings
-   beats/misses, guidance raises/cuts, reported-vs-expected figures
+   beats/misses, guidance raises/cuts (signed by *what* is forecast: a higher
+   loss or inflation forecast is bad news), reported-vs-expected figures
    ("EPS $1.66 vs. $1.58", "EPS 74 cents; consensus 86 cents"), fund flows,
-   options flow, insider trades, regulatory approvals, charges, equity
-   offerings, legal relief, trend endings ("boom is coming to an end").
+   options flow, insider trades, regulatory approvals and rejections, charges,
+   equity offerings, legal relief, contract wins, index changes, trend endings.
+   A rule's word gap never crosses a clause, negator or second verb
+   ("Lower Despite Strong Growth Outlook", "FDA did not approve"), and a
+   negator inside a rule's span still negates it.
 2. Lexicon phrases (longest match first), incl. neutralizers that block
-   false friends ("shares outstanding", "in line with", "Best Buy").
+   false friends ("shares outstanding", "Best Buy", "small-cap", "of record").
 3. Composition: movement words take their sign from what moved
    ("costs surge" < 0, "loss narrowed" > 0, "shares tumble 12%" << "dips 1%",
-   "inflation lighter than expected" > 0, "wipe $5T from GDP" < 0). Transitive
-   uses with a non-metric object ("Google drops plan") are not price moves.
+   "inflation lighter than expected" > 0, "wipe $5T from GDP" < 0, "VIX +15%"
+   < 0). Transitive uses with a non-metric object ("Google drops plan") are
+   not price moves.
 4. Modifiers: negation scope ("not", "fails to", "won't", "avoids"), contrast
    ("but" up-weights the later clause, "despite X" down-weights X), context
    clauses ("after/amid/as ..." count less and never overturn the headline
-   verb), hedges ("may", "reportedly"), intensifiers, questions and listicles.
+   verb), hedges ("may", "reportedly"), intensifiers, questions ("Is X a
+   buy?" asks; "Why is X down?" presupposes the drop) and listicles.
+
+In the social register, trader words ("long", "calls", "buying") only count
+in trading talk (a cashtag, an amount, trading vocabulary) and in a position
+reading ("long $TSLA", not "for a long time").
 
 Everything is deterministic, regex/dict based and fast (no models).
 """
@@ -317,7 +327,7 @@ RATING = "(?:" + "|".join(re.escape(r).replace(r"\ ", r"\s+") for r in _RATING_W
 _AMT = (r"(?:-\s?)?(?:[$€£¥]|usd|eur|gbp|sek|nok|dkk|chf|cad|aud|jpy|rmb|cny|inr|rs\.?)?\s?-?\d[\d,]*(?:\.\d+)?"
         r"(?:\s?(?:bn|bln|billion|mn|mln|million|m|b|k|tn|trillion|cents?|c|%|percent|pct|p|bps))?(?![\w])")
 _EXP = (r"(?:(?:analysts?'?|wall\s+street|street|market|consensus|average)\s+)?(?:estimates?|expectations?|"
-        r"consensus|forecasts?|views?|projections?|targets?(?!'|\s+(?:co|corp|corporation|inc|stores?|brands?)\b)|"
+        r"consensus|forecasts?|views?|projections?|(?<!\bto\s)targets?(?!'|\s+(?:co|corp|corporation|inc|stores?|brands?)\b)|"
         r"guidance|est|street|analysts?|whisper\w*|"
         r"predictions?|outlooks?|expected)")
 _GUID_PREFIX = (r"(?:full\s+year\s+|annual\s+|fy\s*\d*\s+|\d{4}\s+|q[1-4]\s+|quarterly\s+|sales\s+|revenue\s+|"
@@ -343,7 +353,7 @@ _GAP_STOP = (r"(?:not|no|never|did|didnt|does|doesnt|do|dont|wont|cant|cannot|is
 # a comma inside a gap only lists metrics: "cuts profit, sales forecasts"
 _GAP_METRIC = (r"(?:sales|revenues?|profits?|earnings|eps|margins?|ebitda|income|production|deliveries|shipments|"
                r"output|capex|growth|ffo|cash\s+flow|guidance|outlook|dividend)")
-_GAP_WORD = rf"\s+(?!{_GAP_STOP}\b)[^\s.;!?$,]+(?:,(?=\s+{_GAP_METRIC}\b))?"
+_GAP_WORD = rf"\s+(?!{_GAP_STOP}\b)[^\s.;!?$,]+(?:,(?=\s+(?:{_GAP_METRIC}|inc|corp|ltd|plc|co|llc|lp)\b))?"
 
 
 def _gap(n: int) -> str:
@@ -356,6 +366,17 @@ _GAP = _gap(4)
 _RANGE_TAIL = (r"(?:\s+(?:to|at|of)\s+(?:a\s+range\s+of\s+)?(?:up\s+|down\s+)?[^\s.;!?]*\d[^\s;!?]*"
                r"(?:\s+(?:to|-)\s+[^\s;!?]*\d[^\s;!?]*)?(?:\s+(?:from|vs\.?)\s+(?:up\s+|down\s+)?"
                r"[^\s;!?]*\d[^\s;!?]*(?:\s+(?:to|-)\s+[^\s;!?]*\d[^\s;!?]*)?)?)?")
+# Analyst shorthand names the stock between verb and "target" ("trims Nielsen target"); a preposition,
+# article or another metric there means a different target ("raises wages to compete with Target",
+# "raises its inflation target").
+_NAME_GAP = (r"(?:\s+(?!(?:" + _GAP_STOP + r"|to|on|in|with|for|of|at|by|from|into|ahead|against|over|as|and|than|the|a|an|"
+             r"following|before|prices?|wages|"
+             r"costs?|jobs|stake|position|holdings|shares|stock|inflation|rates?|emissions?|carbon|sales|revenues?|"
+             r"growth|margins?|production|deliver(?:y|ies)|financial|deficit|debt|savings|profits?|earnings|eps|capex|"
+             r"spending|dividend|buyback|net|zero|climate|annual|full|year|\d+)\b)[^\s.;!?$,]+"
+             r"(?:,(?=\s+(?:inc|corp|ltd|plc|co|llc|lp)\b))?){0,2}?\s+")
+_BARE_TARGET = (r"targets?(?!'|\s+(?:co|corp|corporation|inc|stores?|brands?|stake|shares|stock|position|holdings|"
+                r"date|rate|range|audience|market|customers?)\b)")
 # A bare "target" is a price target only in analyst phrasing ("its target on X", "target to $150
 # from $130"); otherwise it is as likely the retailer ("Walmart raises wages to compete with Target").
 _PT = (r"(?:price\s+targets?|target\s+price|price\s+objective|price\s+tgt|pt|tgt|"
@@ -497,7 +518,14 @@ def _guidance(sign: int) -> Callable[[re.Match[str]], RuleMatch]:
         else:  # "loss forecast raised": the metric precedes the match
             words = m.string[max(0, m.start() - 40): m.start() + (noun.start() if noun else 0)].split()[-3:]
         polarity, metric = _forecast_metric(words)
-        verb = ("raises" if sign > 0 else "cuts") if what.startswith(("estimate", "expectation")) else ""
+        if polarity is None:  # "cuts its forecast for inflation", "raises outlook on margins"
+            after = re.match(r"\s+(?:for|of|on)\s+((?:[a-z&'-]+\s*){1,4})", m.string[m.end():])
+            following = after.group(1).split() if after else []
+            for k in range(1, len(following) + 1):  # the first metric named wins
+                polarity, metric = _forecast_metric(following[:k])
+                if polarity is not None:
+                    break
+        verb =("raises" if sign > 0 else "cuts") if what.startswith(("estimate", "expectation")) else ""
         label = f"{verb} {metric} {what}" if verb else f"{metric} {what} {'raised' if sign > 0 else 'cut'}"
         value = 1.1 * sign * (1.0 if polarity is None else polarity)
         return RuleMatch(m.start(), m.end(), value, " ".join(label.split()), "guidance")
@@ -531,7 +559,7 @@ def _fast_enough(m: re.Match[str]) -> RuleMatch:
 
 
 _BEARISH_TRENDS = ("selloff", "sell", "slump", "decline", "bear", "downturn", "recession", "crisis", "slide", "rout",
-                   "downtrend")
+                   "downtrend", "bears")
 
 
 def _trend_end(m: re.Match[str]) -> RuleMatch:
@@ -578,6 +606,37 @@ def _insider(m: re.Match[str]) -> RuleMatch:
     return RuleMatch(m.start(), m.end(), 0.8 if buy else -0.5, label, "insider")
 
 
+_BIG_AMOUNT = re.compile(r"(?:[$€£¥]\s?\d[\d,.]*\s*(?:billion|bln|bn|b|trillion|tn)\b|"
+                         r"[$€£¥]\s?(?:[1-9]\d{2,}|[1-9]\d{0,2},\d{3})(?:\.\d+)?\s*(?:million|mln|mn|m)\b|"
+                         r"\b\d[\d,.]*\s*(?:billion|bln|bn)\b)")
+
+
+def _contract_win(m: re.Match[str]) -> RuleMatch:
+    """A contract win is routine news unless it is large ("wins $10 billion Pentagon contract")."""
+    near = m.string[m.start(): min(len(m.string), m.end() + 40)]
+    return RuleMatch(m.start(), m.end(), 0.8 if _BIG_AMOUNT.search(near) else 0.3, "wins contract", "contract_win")
+
+
+def _policy_path(m: re.Match[str]) -> RuleMatch:
+    """"Fed signals fewer rate cuts" is hawkish (-), "more rate cuts" dovish (+); hikes the other way."""
+    more = m.group("q") in ("more", "additional", "further", "extra", "deeper", "bigger", "faster", "aggressive")
+    easing = m.group("w").startswith(("cut", "reduction"))
+    sign = 1 if more == easing else -1
+    return RuleMatch(m.start(), m.end(), 0.8 * sign, f"{m.group('q')} rate {m.group('w')}", "policy_path")
+
+
+_INDEX_NAME_BEFORE = re.compile(r"(?:s&p(?:\s*\d+)?|nasdaq(?:\s*\d+)?|dow(?:\s+jones)?|russell\s+\d+|ftse\s+\d+)\s*$")
+
+
+def _index_change(m: re.Match[str]) -> Optional[RuleMatch]:
+    """Index inclusion (+) / deletion (-); "S&P 500 joins Dow in the red" is two indexes, not a change."""
+    if _INDEX_NAME_BEFORE.search(m.string[max(0, m.start() - 20): m.start()]):
+        return None
+    out = bool(re.match(r"removed|dropped|deleted|kicked|booted|exit", m.group("act")))
+    return RuleMatch(m.start(), m.end(), -0.8 if out else 0.8, "index deletion" if out else "index inclusion",
+                     "index_change")
+
+
 def _offering(m: re.Match[str]) -> Optional[RuleMatch]:
     span = m.group()
     if re.search(r"\b(?:notes?|bonds?|debt|senior|debentures|credit|loan|term\s+loan)\b", span):
@@ -611,6 +670,9 @@ _RULES: list[tuple[str, re.Pattern[str], Callable[[re.Match[str]], Optional[Rule
         r"\b(?P<new>" + RATING + r")\s+(?:rating\s+)?(?:reiterated|maintained|affirmed|reaffirmed|kept)\b"),
      _analyst_keep),
     # --- price targets (numbers decide direction when present)
+    ("pt_extreme", re.compile(r"\b(?:street|wall\s+street)\s+(?P<w>low|high)\s+(?:price\s+)?(?:targets?|pt)\b"),
+     lambda m: RuleMatch(m.start(), m.end(), 0.9 if m.group("w") == "high" else -0.9, f"street-{m.group('w')} target",
+                         "price_target")),
     ("price_target", re.compile(
         r"\b(?P<v>" + _UPV + "|" + _DNV + r")\b" + _gap(5) + _PT + r"\b(?P<tail>[^.;!?]{0,50})"),
      _price_target),
@@ -619,6 +681,13 @@ _RULES: list[tuple[str, re.Pattern[str], Callable[[re.Match[str]], Optional[Rule
         r"lowered|trimmed|reduced|slashed|decreased|pared|chopped)\b(?P<tail>[^.;!?]{0,50})"), _price_target),
     ("price_target", re.compile(r"\b" + _PT + r"\b[^.;!?]{0,25}?\bto\s+" + _AMT + r"\s*(?:,\s*)?(?:from|vs\.?)\s+"
                                 + _AMT), _price_target),
+    # bare "target" in analyst shorthand: "SunTrust trims Nielsen target", "NLight target raised on deal"
+    ("price_target", re.compile(r"\b(?P<v>" + _UPV + "|" + _DNV + r")\b" + _NAME_GAP + _BARE_TARGET
+                                + r"\b(?P<tail>[^.;!?]{0,50})"), _price_target),
+    ("price_target", re.compile(r"\b" + _BARE_TARGET + r"\s+(?P<v>raised|lifted|boosted|bumped|hiked|increased|"
+                                r"upped|cut|lowered|trimmed|reduced|slashed|decreased|pared)\b(?=\s+(?:to|at|by|on|"
+                                r"from|after|following|amid|as)\b|\s*[.;,:!?)]|\s*$)(?P<tail>[^.;!?]{0,50})"),
+     _price_target),
     # --- earnings vs. expectations
     ("beat", re.compile(
         r"\b(?:beat(?:s|ing)?|top(?:s|ped|ping)?|exceed(?:s|ed|ing)?|surpass(?:es|ed|ing)?|crush(?:es|ed)?|"
@@ -665,17 +734,28 @@ _RULES: list[tuple[str, re.Pattern[str], Callable[[re.Match[str]], Optional[Rule
     ("inline", re.compile(r"\b(?:match(?:es|ed|ing)?|meet(?:s|ing)?|met)\s+(?:[^\s.;!?]+\s+){0,3}?" + _EXP + r"\b"),
      _fixed(0.25, "meets estimates", "inline")),
     # --- guidance
-    ("guidance", re.compile(r"\b(?P<v>" + _UPV + r")\b" + _GAP + _GUID + r"\b" + _RANGE_TAIL), _guidance(1)),
+    ("guidance", re.compile(r"\b(?P<v>" + _UPV + r")\b" + _gap(5) + _GUID + r"\b" + _RANGE_TAIL), _guidance(1)),
     ("guidance", re.compile(
         r"\b(?P<v>" + _DNV + r"|withdraw(?:s|n|ing)?|withdrew|pull(?:s|ed|ing)?|suspend(?:s|ed|ing)?|"
         r"scrap(?:s|ped|ping)?|scal(?:e|es|ed|ing)\s+back|temper(?:s|ed|ing)?|dial(?:s|ed|ing)?\s+back|"
-        r"rein(?:s|ed|ing)?\s+in|reel(?:s|ed|ing)?\s+in|walk(?:s|ed|ing)?\s+back)\b" + _GAP
+        r"rein(?:s|ed|ing)?\s+in|reel(?:s|ed|ing)?\s+in|walk(?:s|ed|ing)?\s+back)\b" + _gap(5)
         + _GUID + r"\b" + _RANGE_TAIL),
      _guidance(-1)),
     ("guidance", re.compile(r"\b(?:guidance|outlook|forecast|view)\s+(?:\S+\s+){0,2}?(?:raised|lifted|boosted|"
                             r"increased|hiked|upped|improved)\b"), _guidance(1)),
     ("guidance", re.compile(r"\b(?:guidance|outlook|forecast|view)\s+(?:\S+\s+){0,2}?(?:cut|lowered|slashed|"
                             r"trimmed|reduced|withdrawn|suspended|pulled)\b"), _guidance(-1)),
+    ("guidance", re.compile(r"\b(?:guidance|outlook|forecasts?|view)\s+(?:also\s+|again\s+)?(?:disappoints?|"
+                            r"disappointed|underwhelms?|underwhelmed|misses|missed|falls?\s+short|fell\s+short|"
+                            r"lags?|lagged|sours?|soured)\b"), _fixed(-1.0, "guidance disappoints", "guidance")),
+    ("guidance", re.compile(r"\b(?:weak|weaker|soft|softer|light|disappointing|downbeat|gloomy|cautious|tepid|"
+                            r"lackluster|lacklustre|bleak|dismal|poor|grim|sluggish)\s+(?:full\s+year\s+|annual\s+|"
+                            r"quarterly\s+|q[1-4]\s+|\d{4}\s+|sales\s+|revenue\s+|profit\s+|earnings\s+)?"
+                            r"(?:guidance|outlook|forecast)\b"), _fixed(-1.0, "weak guidance", "guidance")),
+    ("guidance", re.compile(r"\b(?:strong|stronger|upbeat|bullish|robust|rosy|solid|optimistic|bright|brighter|"
+                            r"blowout)\s+(?:full\s+year\s+|annual\s+|quarterly\s+|q[1-4]\s+|\d{4}\s+|sales\s+|"
+                            r"revenue\s+|profit\s+|earnings\s+)?(?:guidance|outlook|forecast)\b"),
+     _fixed(0.9, "strong guidance", "guidance")),
     ("guidance", re.compile(r"\bguides?\s+(?:\S+\s+){0,3}?(?:above|higher|ahead|up|strong)\b"),
      _fixed(1.0, "guides higher", "guidance")),
     ("guidance", re.compile(r"\bguides?\s+(?:\S+\s+){0,3}?(?:below|lower|down|light|weak|soft)\b"),
@@ -697,6 +777,9 @@ _RULES: list[tuple[str, re.Pattern[str], Callable[[re.Match[str]], Optional[Rule
     # --- results & outlook idioms
     ("inline", re.compile(r"\b(?:eps|earnings|revenues?|sales|results?|ffo|affo|nii|ebitda|q[1-4])\s+(?:and\s+\S+\s+)?"
                           r"(?:in\s+line|inline)\b(?!\s+with)"), _fixed(0.5, "in-line", "inline")),
+    ("trend_end", re.compile(
+        r"\b(?:so\s+long|goodbye|good\s+bye|bye\s+bye|farewell)\s+(?:to\s+)?(?:the\s+)?(?P<what>bull\s+market|bull\s+run|"
+        r"rally|boom|bear\s+market|bears|selloff|sell\s+off|slump|downturn|recession|downtrend|uptrend)\b"), _trend_end),
     ("trend_end", re.compile(
         r"\b(?P<what>boom|rally|run|bull\s+market|bull\s+run|growth|expansion|recovery|upswing|selloff|sell\s+off|"
         r"slump|decline|bear\s+market|downturn|recession|crisis|slide|rout|downtrend|uptrend)\s+(?:is\s+|was\s+|may\s+be\s+|"
@@ -734,8 +817,9 @@ _RULES: list[tuple[str, re.Pattern[str], Callable[[re.Match[str]], Optional[Rule
     ("charge", re.compile(
         r"\b(?:incur\w*|take[sn]?|taking|took|book\w*|record\w*|post(?:s|ed|ing)?|flag\w*|expects?)\s+(?:a\s+|an\s+)?"
         r"(?:[$€£¥]?\s?\d[\d.,]*\s*(?:million|billion|mln|bln|mn|bn|m|b)?\s+)?(?:(?:pre\s?tax|after\s?tax|one\s?time|"
-        r"non\s?cash|impairment|restructuring|write\s?down|goodwill|special|quarterly)\s+)*charges?\b"),
-     _fixed(-0.6, "charge", "charge")),
+        r"non\s?cash|impairment|restructuring|write\s?down|goodwill|special|quarterly)\s+)*charges?\b"
+        r"(?<!\btake\scharge)(?<!\btakes\scharge)(?<!\btook\scharge)(?<!\btaking\scharge)(?<!\btaken\scharge)"),
+     _fixed(-0.6, "charge", "charge")),  # "takes charge" (of a company) is an idiom, not an accounting charge
     ("insider", re.compile(
         r"\b(?P<who>ceo|cfo|coo|chairman|chairwoman|chair|founder|co\s?founder|directors?|insiders?|executives?|"
         r"execs?|president|chief\s+executive|board\s+members?)\b(?:[^.;!?]|\.\d){0,40}?\b(?P<act>buys|bought|buying|"
@@ -773,6 +857,28 @@ _RULES: list[tuple[str, re.Pattern[str], Callable[[re.Match[str]], Optional[Rule
     ("offering", re.compile(r"\b(?:offering|sale)\s+of\s+(?:[^\s.;!?]+\s+){0,3}?(?:shares|common\s+stock|"
                             r"ordinary\s+shares|ads|adss)\b"), _offering),
     # --- legal relief / resolution
+    ("reported_loss", re.compile(
+        r"\b(?:reports?|reported|posts?|posted|books?|booked|logs?|logged|records?|recorded|swings?\s+to|swung\s+to|"
+        r"sinks?\s+to|sank\s+to|slips?\s+to|slipped\s+to)\s+(?:a\s+|an\s+|its\s+)?(?:(?!(?:narrower|smaller|"
+        r"lower|reduced|wider|bigger|larger|higher|increased|deeper)\b)[a-z0-9-]+\s+){0,3}?(?:net\s+)?loss(?:es)?\b"
+        r"(?![^.;!?]{0,60}\b(?:vs\.?|versus|compared|from|narrow\w*|widen\w*)\b)"),
+     _fixed(-0.8, "reports loss", "reported_loss")),
+    ("contract_win", re.compile(
+        r"\b(?:wins|won|winning|secures?|secured|securing|lands|landed|landing|awarded|clinch(?:es|ed)?|bags|bagged|"
+        r"snags|snagged)\s+(?:a\s+|an\s+)?(?:(?!(?:not|no|but|despite|in|at|for|of|on|from|with|after|as)\b)"
+        r"[^\s.;!?,]+\s+){0,4}?(?:contracts?|orders?|tenders?|deals?)\b"), _contract_win),
+    ("legal_relief", re.compile(r"\b(?:cleared|acquitted|exonerated|absolved)\s+(?:of|in)\b(?:\s+(?:all\s+|any\s+)?"
+                                r"(?:[a-z-]+\s+){0,2}?(?:wrongdoing|charges?|fraud|allegations?|misconduct|claims?|"
+                                r"liability|negligence|violations?|probe|investigation|case|lawsuit|suit)\b)?"),
+     _fixed(0.8, "cleared", "legal_relief")),
+    ("policy_path", re.compile(
+        r"\b(?P<q>fewer|more|less|additional|further|extra|deeper|bigger|smaller|faster|slower|aggressive)\s+"
+        r"(?:interest\s+)?rate\s+(?P<w>cuts?|hikes?|increases?|reductions?)\b"), _policy_path),
+    ("index_change", re.compile(
+        r"\b(?P<act>added\s+to|join(?:s|ed|ing)?|to\s+join|inclusion\s+in|included\s+in|set\s+to\s+join|removed\s+from|"
+        r"dropped\s+from|deleted\s+from|kicked\s+out\s+of|booted\s+from|exits?|exiting)\s+(?:the\s+)?(?:s&p\s*(?:500|400|"
+        r"600)?|nasdaq\s*100|dow(?:\s+jones)?(?:\s+industrial\s+average)?|russell\s+\d+|ftse\s+100|msci\s+[a-z]+)\b"),
+     _index_change),
     ("legal_relief", re.compile(
         r"\b(?:dismiss(?:es|ed)?|drop(?:s|ped)?|toss(?:es|ed)?|throw(?:s|n)?\s+out|threw\s+out|end(?:s|ed)?|"
         r"close[sd]?|suspend(?:s|ed)?|clear(?:s|ed)?|wins?|won|prevail(?:s|ed)?\s+in)\b" + _GAP + r""
@@ -839,13 +945,19 @@ _TRIGGERS: dict[str, tuple[str, ...]] = {
     "flows": ("fund", "investor", "insider", "institution", "whale", "trader", "money", "billionaire", "manager",
               "activist"),
     "offering": ("offering", "placement", "sale of"),
-    "legal_relief": ("suit", "case", "probe", "investigation", "charges", "claim", "complaint", "inquiry", "trial"),
+    "legal_relief": ("suit", "case", "probe", "investigation", "charges", "claim", "complaint", "inquiry", "trial",
+                     "cleared", "acquitted", "exonerated", "absolved"),
     "settlement": ("settl", "resolv"),
     "going_concern": ("going concern",),
     "swing": (" from ",),
     "eps_loss": ("eps", "per share"),
     "job_cuts": ("job", "position", "worker", "employee", "staff", "role", "headcount", "workforce"),
     "fine": ("fine", "penalty", "penalties", "damages"),
+    "reported_loss": ("loss",),
+    "contract_win": ("contract", "order", "tender", "deal"),
+    "index_change": ("s&p", "nasdaq", "dow", "russell", "ftse", "msci"),
+    "policy_path": ("rate cut", "rate hike", "rate increase", "rate reduction"),
+    "pt_extreme": ("street",),
     "ordered_to_pay": ("to pay",),
     "bankruptcy": ("bankruptcy", "insolvency", "creditor protection", "chapter 11"),
     "superlative": ("never been",),
@@ -859,7 +971,8 @@ _TRIGGERS: dict[str, tuple[str, ...]] = {
     "streak": ("streak",),
     "metric_hit": (" hit",),
     "pct_loss": ("% loss", "% gain", "% return", "%loss", "%gain"),
-    "trend_end": ("end", "over", "fizzle", "fade", "steam", "stall"),
+    "trend_end": ("end", "over", "fizzle", "fade", "steam", "stall", "so long", "goodbye", "good bye", "bye bye",
+                  "farewell"),
     "options_flow": ("calls", "puts"),
     "insider": ("ceo", "cfo", "coo", "chair", "founder", "director", "insider", "exec", "president", "chief",
                 "board"),
@@ -1204,7 +1317,7 @@ _STOCKPILERS = frozenset({"to", "will", "we", "they", "i", "you", "investors", "
                           "traders", "buyers", "retailers", "companies", "households", "funds", "should", "could",
                           "must", "may", "might", "would", "and", "time", "firms", "banks", "families", "americans",
                           "customers", "stores", "farmers", "manufacturers", "countries", "nations", "hoarders",
-                          "importers", "refiners", "governments", "consumer", "parents", "shoppers"})
+                          "importers", "refiners", "governments", "consumer", "parents"})
 
 
 def _stock_as_verb(tokens: list[Token], i: int) -> bool:
@@ -1256,8 +1369,12 @@ def _attach(sp: _Span, tokens: list[Token], at: list[Optional[_Span]]) -> Option
     if sp.key in ("record", "records"):
         if right is not None and right.direction is not None and right.direction.pos == "l":
             return None  # "record high": qualifier only
-        if nxt is not None and (nxt.kind in ("cur", "num") or nxt.text in _RECORD_BAD_NEXT):
-            return None  # "pay a record $5.7 billion", "record fine": the size of something, not a high
+        if nxt is not None and nxt.text in _RECORD_BAD_NEXT:
+            return None  # "record fine": the size of a penalty, not a high
+        if nxt is not None and nxt.kind in ("cur", "num"):
+            # "exports to hit record 5 million tonnes" is a high; "pay a record $5.7 billion" is not
+            metric = _find_metric(tokens, at, sp.start - 1, -1, 5)
+            return (metric, 1.1) if metric is not None and metric.metric.polarity > 0 else None  # type: ignore[union-attr]
         metric = _find_metric(tokens, at, sp.end, 1, 2) if sp.key == "record" else None
         if metric is not None:
             return metric, 1.0
@@ -1266,7 +1383,7 @@ def _attach(sp: _Span, tokens: list[Token], at: list[Optional[_Span]]) -> Option
             # "stock hits record" / "rises to record": a market reaching a high. Without a subject
             # metric or a move verb ("hits new record of 300,000 robots", "debt, a new record") it
             # says nothing about sentiment.
-            metric = _find_metric(tokens, at, sp.start - 1, -1, 4)
+            metric = _find_metric(tokens, at, sp.start - 1, -1, 5)
             if metric is not None or _direction_before(at, sp.start, 4):
                 return metric, 1.1
             return None
@@ -1448,6 +1565,9 @@ def _compose(tokens: list[Token], at: list[Optional[_Span]], spans: list[_Span])
             # "sales slump, squeezing automakers" / "decline to an 18-year low": the earlier word is
             # itself the move, not the thing being moved
             metric = None
+        if metric is not None and sp.key in lx.PERSIST_VERBS and metric.metric.polarity > 0 \
+                and metric.key not in lx.TREND_METRICS:  # type: ignore[union-attr]
+            continue  # "Silver lingering at $17": a level holding, not news
         if metric is not None and metric.key in lx.OBJECT_AMBIGUOUS and metric.start >= sp.end:
             sp.used = metric.used = True  # "Walmart raises wages": a cost and a perk, no market sign
             continue
@@ -1494,6 +1614,61 @@ def _compose(tokens: list[Token], at: list[Optional[_Span]], spans: list[_Span])
         if metric is not None:
             metric.used = True
     return hits
+
+
+# --------------------------------------------------------------------------- #
+# Social register: trader words only count when a post is about trading
+# --------------------------------------------------------------------------- #
+_TRADING_WORDS = frozenset({"shares", "stock", "stocks", "options", "position", "positions", "chart", "ticker",
+                            "portfolio", "dca", "premarket", "afterhours", "eod", "eow", "ath", "pt", "bagholder",
+                            "bagholders", "shorts", "longs", "squeeze", "calls", "puts", "contracts", "strike",
+                            "expiry", "expiration", "earnings", "er", "dip", "breakout", "support", "resistance"})
+_POSITION_PREV = frozenset({"im", "i'm", "am", "went", "go", "going", "get", "getting", "got", "stay", "staying",
+                            "stayed", "still", "remain", "remains", "be", "been", "being", "we're", "were", "are",
+                            "was", "is", "added", "very", "net", "flipped", "flip", "always", "and", "or"})
+# "too long", "story short", "falls short": English, even at the end of a sentence
+_PROSE_BEFORE_POSITION = frozenset({"too", "so", "how", "as", "story", "fall", "falls", "fell", "falling", "come",
+                                    "comes", "came", "coming", "cut", "cuts", "run", "list", "the", "a", "in", "for",
+                                    "that", "this", "not", "very", "life", "time", "way", "stop", "stops", "sell",
+                                    "selling", "sold", "covered"})
+_POSITION_NEXT = frozenset({"here", "now", "again", "position", "positions", "calls", "puts", "shares", "from", "since",
+                            "at", "and", "&", "until", "till", "into", "more", "everything", "it", "this", "them"})
+_OPTION_PREV = frozenset({"buy", "buying", "bought", "buys", "grab", "grabbed", "grabbing", "load", "loaded", "loading",
+                          "my", "more", "some", "cheap", "weekly", "weeklies", "otm", "itm", "holding", "those", "these",
+                          "sold", "selling", "sell", "added", "adding", "add", "exercised", "rolled", "roll", "few",
+                          "long", "short", "bullish", "bearish", "dated", "leap", "leaps", "monthly", "monthlies",
+                          "nov", "dec", "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct",
+                          "term", "day", "dte", "week", "month", "year", "expiry"})
+_OPTION_NEXT = frozenset({"printing", "print", "printed", "prints", "expire", "expiring", "expired", "are", "will",
+                          "up", "down", "paid", "itm", "otm", "bought", "sold", "loaded", "here", "now"})
+
+
+def _trading_context(tokens: list[Token]) -> bool:
+    """Is this post about trading (a cashtag, an amount, or trading vocabulary)? Prose from forums
+    ("for a long time", "it calls the API") must not read as positions."""
+    return any(t.kind in ("tag", "cur") or (t.kind == "w" and t.text in _TRADING_WORDS) for t in tokens)
+
+
+def _position_reading(tokens: list[Token], sp: _Span) -> bool:
+    """Do "long"/"short"/"calls"/"puts" name a position here ("long $INTC", "bought more calls")
+    rather than ordinary English ("as long as", "long story short", "calls for a vote")?"""
+    if sp.key not in ("long", "short", "calls", "puts"):
+        return True
+    prev = tokens[sp.start - 1] if sp.start > 0 else None
+    nxt = tokens[sp.end] if sp.end < len(tokens) else None
+    if (prev is not None and prev.kind == "tag") or (nxt is not None and nxt.kind == "tag"):
+        return True
+    if sp.key in ("long", "short"):
+        if prev is not None and (prev.text in _POSITION_PREV or (sp.key == "short" and prev.text == "to")):
+            return True
+        if nxt is None or nxt.kind == "sep":  # "doubling down short", "WARREN IS SHORT!!!"
+            return prev is not None and prev.text not in _PROSE_BEFORE_POSITION
+        return nxt.text in _POSITION_NEXT
+    if prev is not None and (prev.kind in ("num", "cur", "pct") or prev.text in _OPTION_PREV):
+        return True
+    if nxt is not None and nxt.text == "on":
+        return sp.end + 1 < len(tokens) and tokens[sp.end + 1].kind == "tag"  # "calls on $NVDA"
+    return nxt is not None and nxt.text in _OPTION_NEXT
 
 
 # --------------------------------------------------------------------------- #
@@ -1583,11 +1758,12 @@ def extract(text: str, *, social: bool = False) -> Evidence:
 
     hits.extend(_compose(tokens, at, spans))
     hits.extend(_signed_pct_hits(tokens, at, hits, claimed))
+    trading = social and _trading_context(tokens)
     for sp in spans:
         if sp.used or sp.neutral:
             continue
         if social and sp.social_only is not None:  # social register overrides ("bulls" = the other camp)
-            if sp.social_only:
+            if sp.social_only and trading and _position_reading(tokens, sp):
                 hits.append(Hit(sp.start, sp.end, sp.social_only, "", "social"))
         elif sp.lex is not None and sp.lex != 0.0:
             hits.append(Hit(sp.start, sp.end, sp.lex, "", "lex"))
@@ -1607,8 +1783,14 @@ def extract(text: str, *, social: bool = False) -> Evidence:
     return ev
 
 
-_REFERENCE_WORDS = frozenset({"vs", "versus", "expected", "consensus", "est", "estimate", "estimates", "forecast",
-                              "exp", "prior", "previous", "prev", "eyed", "seen"})
+# a percent after these is a reference figure ("vs +3.0%"), before these it is one ("+3.0% expected")
+_REFERENCE_BEFORE = frozenset({"vs", "versus", "expected", "consensus", "est", "estimate", "estimates", "forecast",
+                               "exp", "prior", "previous", "prev", "eyed", "seen", "from"})
+_REFERENCE_AFTER = frozenset({"expected", "consensus", "est", "estimate", "estimates", "forecast", "exp", "prior",
+                              "previous", "prev", "eyed", "seen"})
+# qualifiers between a metric and its print ("CPI +0.4% m/m, core +0.3%")
+_PRINT_QUALIFIERS = frozenset({"core", "headline", "m", "y", "q", "mom", "yoy", "qoq", "ytd", "annual", "annualized",
+                               "monthly", "weekly", "quarterly", "adj", "adjusted"})
 
 
 def _signed_pct_hits(tokens: list[Token], at: list[Optional[_Span]], hits: list[Hit],
@@ -1627,11 +1809,16 @@ def _signed_pct_hits(tokens: list[Token], at: list[Optional[_Span]], hits: list[
             continue
         prev = tokens[i - 1].text if i > 0 else ""
         nxt = tokens[i + 1].text if i + 1 < len(tokens) else ""
-        if prev in _REFERENCE_WORDS or nxt in _REFERENCE_WORDS:
+        if prev in _REFERENCE_BEFORE or nxt in _REFERENCE_AFTER:
             continue
         val = math.copysign(0.75 * _pct_magnitude(t.value), t.value)
-        pol, msp = _metric_before(tokens, at, i, 6)
-        if msp is None:  # a ticker or name moved ("$AQST (+13.1% pre)")
+        j = i - 1
+        while j >= 0 and tokens[j].kind == "soft" and tokens[j].text in "()[]":
+            j -= 1
+        named = j >= 0 and tokens[j].kind in ("w", "tag") and (at[j] is None or at[j].metric is None) \
+            and tokens[j].text not in _PRINT_QUALIFIERS  # "Shanghai +0.5%", "$AQST (+13.1% pre)"
+        pol, msp = (0.0, None) if named else _metric_before(tokens, at, i, 6)
+        if msp is None:  # a ticker, index or company moved
             out.append(Hit(i, i + 1, val, "", "move"))
             continue
         msp.used = True  # its intrinsic valence is part of this move now

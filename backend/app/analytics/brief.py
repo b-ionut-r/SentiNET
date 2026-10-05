@@ -79,11 +79,10 @@ def _smart_vs_crowd(f: Facts) -> str | None:
             smart.append(f"insiders bought {ins.buys}× vs sold {ins.sells}× in {ins.window_days}d")
         else:
             smart.append(f"insiders only sold ({ins.sells}×) in {ins.window_days}d")
-    c = f.crowd
+    c, tally = f.crowd, f.stocktwits
     if c is not None:
-        tagged = (c.stocktwits_bullish or 0) + (c.stocktwits_bearish or 0)
-        if c.stocktwits_bull_ratio is not None and tagged >= 5:
-            crowd.append(f"StockTwits is {c.stocktwits_bull_ratio:.0%} bullish ({tagged} tagged)")
+        if tally is not None and tally.ratio is not None and tally.n >= 5:
+            crowd.append(f"StockTwits is {tally.ratio:.0%} bullish ({tally.sample})")
         move = reddit_move(c)
         if move is not None:
             crowd.append(f"Reddit mentions {move}")

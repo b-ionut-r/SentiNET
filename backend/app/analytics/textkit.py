@@ -11,6 +11,7 @@ Every NLP call goes through here so that
 from __future__ import annotations
 
 import logging
+import math
 import re
 from collections.abc import Sequence
 
@@ -88,7 +89,8 @@ def relevance(text: str, company: CompanyRef) -> float:
     try:
         from app.nlp.relevance import relevance as _relevance
 
-        return float(_relevance(text, company))
+        value = float(_relevance(text, company))
+        return value if math.isfinite(value) else 0.0
     except Exception as exc:  # noqa: BLE001
         _fallback("relevance", exc)
         if re.search(rf"\${re.escape(company.base_symbol)}\b", text, re.IGNORECASE):
@@ -117,7 +119,8 @@ def publisher_trust(name_or_domain: str | None) -> float:
     try:
         from app.nlp.publishers import publisher_trust as _trust
 
-        return float(_trust(name_or_domain))
+        value = float(_trust(name_or_domain))
+        return value if math.isfinite(value) and value > 0 else 0.8
     except Exception as exc:  # noqa: BLE001
         _fallback("publisher_trust", exc)
         return 0.8
@@ -174,6 +177,43 @@ def keywords(texts: list[str], scores: list[float], company: CompanyRef | None,
     except Exception as exc:  # noqa: BLE001
         _fallback("extract_keywords", exc)
         return []
+
+
+def company_terms(company: CompanyRef | None) -> frozenset[str]:
+    """Lower-case tokens naming the company (ticker, cashtag, name words, aliases)."""
+    if company is None:
+        return frozenset()
+    try:
+        from app.nlp.relevance import company_terms as _terms
+
+        return frozenset(_terms(company))
+    except Exception as exc:  # noqa: BLE001
+        _fallback("company_terms", exc)
+        base = company.base_symbol.lower()
+        words = {company.ticker.lower(), base, f"${base}"}
+        for name in (company.name, company.short_name, *company.aliases):
+            words.update(w for w in re.findall(r"[a-z0-9&]+", (name or "").lower()) if len(w) > 1)
+        return frozenset(words)
+
+
+def stemmed_tokens(text: str, drop: frozenset[str] = frozenset()) -> list[str]:
+    """Lower-cased, lightly stemmed tokens ('raises'/'raised' -> 'rais'); raw tokens in `drop` are skipped."""
+    try:
+        from app.nlp.text import stem, tokenize
+
+        return [stem(t) for t in tokenize(text) if t not in drop]
+    except Exception as exc:  # noqa: BLE001
+        _fallback("tokenize/stem", exc)
+        raw = (t.strip(".'-") for t in re.findall(r"\$?[a-z0-9][a-z0-9.'%-]*", text.lower()))
+        return [_crude_stem(t) for t in raw if t and t not in drop]
+
+
+def _crude_stem(word: str) -> str:
+    w = word
+    for suffix in ("ing", "ed", "es", "s"):
+        if len(w) > len(suffix) + 3 and w.endswith(suffix):
+            return w[: -len(suffix)]
+    return w
 
 
 def theme_label(key: str) -> str:

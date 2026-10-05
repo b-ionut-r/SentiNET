@@ -28,6 +28,13 @@ from typing import NamedTuple
 # --------------------------------------------------------------------------- #
 # Inflection helpers (keep the tables readable: list a verb once)
 # --------------------------------------------------------------------------- #
+_GENERATED: set[str] = set()  # inflections/variants produced by the helpers below (not hand-written entries)
+
+
+def _generated(forms: tuple[str, ...] | list[str]) -> None:
+    """Record machine-made variants, so ``lexicon_stats`` can tell them from hand-written entries."""
+    _GENERATED.update(forms)
+
 def verb_forms(base: str, *, double: bool = False, extra: tuple[str, ...] = ()) -> tuple[str, ...]:
     """Regular English verb forms: base, 3rd person, past, gerund (+ irregulars)."""
     if base.endswith(("s", "sh", "ch", "x", "z", "o")):
@@ -54,7 +61,9 @@ def _verbs(table: dict[str, float], **flags: tuple[str, ...]) -> dict[str, float
     doubled = set(flags.get("double", ()))
     out: dict[str, float] = {}
     for base, value in table.items():
-        for form in verb_forms(base, double=base in doubled):
+        forms = verb_forms(base, double=base in doubled)
+        _generated(forms[1:])
+        for form in forms:
             out.setdefault(form, value)
     return out
 
@@ -66,6 +75,8 @@ def _plural(table: dict[str, float]) -> dict[str, float]:
         if " " in word or word.endswith("s"):
             continue
         plural = word[:-1] + "ies" if word.endswith("y") and word[-2] not in "aeiou" else word + "s"
+        if plural not in out:
+            _generated((plural,))
         out.setdefault(plural, value)
     return out
 
@@ -262,6 +273,8 @@ NEGATIVE: dict[str, float] = {
     "came in light": -0.6, "on the light side": -0.6, "apocalypse": -1.0, "ousts": -0.6, "oust": -0.5,
     "clash": -0.5, "clashes": -0.5, "idled": -0.6, "down day": -0.6, "misstep": -0.6, "missteps": -0.6,
     "black swan": -0.8, "headache": -0.5, "headaches": -0.5,
+    "departs abruptly": -0.7, "abruptly departs": -0.7, "abrupt departure": -0.7, "abrupt exit": -0.7,
+    "abruptly resigns": -0.8, "abruptly quits": -0.8, "abrupt resignation": -0.8,
     # macro
     "recession": -0.9, "recessions": -0.8, "depression": -1.0, "stagflation": -0.9, "downturn": -0.9,
     "deflation": -0.5, "hyperinflation": -0.8, "hawkish": -0.6, "rate hike": -0.7, "rate hikes": -0.7,
@@ -427,7 +440,9 @@ def _dir_verbs(sign: int, strength: float, *bases: str, fixed: bool = False, def
                double: tuple[str, ...] = (), extra: tuple[str, ...] = ()) -> dict[str, Direction]:
     out: dict[str, Direction] = {}
     for base in bases:
-        for form in verb_forms(base, double=base in double):
+        forms = verb_forms(base, double=base in double)
+        _generated(forms[1:])
+        for form in forms:
             out[form] = Direction(sign, strength, "v", fixed, default)
     for form in extra:
         out[form] = Direction(sign, strength, "v", fixed, default)
@@ -439,11 +454,16 @@ def _phrasal(sign: int, verbs: tuple[str, ...], particles: tuple[str, ...], stre
     """"edges higher", "ticked up", "pulling back" ... (every verb form x particle)."""
     out: dict[str, Direction] = {}
     for base in verbs:
-        for form in verb_forms(base, double=base in ("slip", "drop", "step", "trim", "dip")):
-            for part in particles:
+        forms = verb_forms(base, double=base in ("slip", "drop", "step", "trim", "dip"))
+        for part in particles:
+            _generated([f"{form} {part}" for form in forms[1:]])
+            for form in forms:
                 out[f"{form} {part}"] = Direction(sign, strength, "v", False, default)
     return out
 
+
+# "inflation persists" (-), "rally persists" (+); a price "lingering" at a level is not news
+PERSIST_VERBS: frozenset[str] = frozenset(verb_forms("persist") + verb_forms("linger"))
 
 # Physical footprint verbs: only "opens 500 stores" / "shuts 34 stores", never "closes deal".
 FOOTPRINT_VERBS: dict[str, int] = {
@@ -880,6 +900,8 @@ NEUTRALIZERS: frozenset[str] = frozenset({
     # size classes, not the verb "cap" ("Small-cap stocks rally")
     "small cap", "mid cap", "large cap", "mega cap", "micro cap", "nano cap", "smallcap", "midcap", "largecap",
     "megacap", "microcap", "big cap",
+    "silver bullet", "silver lining", "silver linings", "silver medal", "silver screen", "gold standard",
+    "gold medal", "golden goose", "platinum card",
     # dividend mechanics, not a record high
     "of record", "holders of record", "shareholders of record", "stockholders of record", "unitholders of record",
     "owners of record", "record holders",
@@ -917,9 +939,47 @@ def phrase_keys(table: dict[str, object] | frozenset[str]) -> list[str]:
     return [" ".join(k.lower().replace("-", " ").split()) for k in table]
 
 
+def _expectation_variants() -> set[str]:
+    """"<x> than anticipated/forecast/estimated" restate the hand-written "<x> than expected"."""
+    return {k for k in DIRECTIONS if k.endswith((" than anticipated", " than forecast", " than estimated"))}
+
+
+def _lemma(key: str) -> str:
+    """Crude lemma of a phrase's last word ("plunges"/"plunged"/"plunging" -> "plung"), for counting only."""
+    words = key.split()
+    last = words[-1]
+    for suffix in ("ing", "ies", "ed", "es", "s", "d"):
+        if last.endswith(suffix) and len(last) > len(suffix) + 2:
+            last = last[: -len(suffix)]
+            break
+    return " ".join([*words[:-1], last])
+
+
+def lexicon_stats() -> dict[str, int]:
+    """Entry counts. ``entries`` counts hand-written keys (a verb listed as "plunge" is one entry,
+    not five inflections; inflections typed out by hand still count); ``lemma_groups`` folds those
+    too; ``with_inflections`` is what the matcher actually indexes."""
+    scored = (POSITIVE, NEGATIVE, LITIGIOUS, SOCIAL, SOCIAL_ONLY, DIRECTIONS, METRICS, RATINGS)
+    keys: set[str] = set()
+    for table in scored:
+        keys |= set(phrase_keys(table))
+    generated = set(phrase_keys(frozenset(_GENERATED))) | _expectation_variants()
+    authored = keys - generated
+    valenced = set()
+    for table in (POSITIVE, NEGATIVE, LITIGIOUS, SOCIAL, SOCIAL_ONLY):
+        valenced |= set(phrase_keys(table))
+    return {
+        "entries": len(authored),
+        "lemma_groups": len({_lemma(k) for k in authored}),
+        "valence_entries": len(valenced - generated),
+        "direction_entries": len(set(phrase_keys(DIRECTIONS)) - generated),
+        "metric_entries": len(set(phrase_keys(METRICS))),
+        "multiword_entries": sum(1 for k in authored if " " in k),
+        "with_inflections": len(keys),
+        "neutralizers": len(NEUTRALIZERS),
+    }
+
+
 def lexicon_size() -> int:
-    """Number of distinct scored entries (for docs / tests)."""
-    keys = set(phrase_keys(POSITIVE)) | set(phrase_keys(NEGATIVE)) | set(phrase_keys(LITIGIOUS))
-    keys |= set(phrase_keys(SOCIAL)) | set(phrase_keys(SOCIAL_ONLY)) | set(phrase_keys(DIRECTIONS))
-    keys |= set(phrase_keys(METRICS)) | set(phrase_keys(RATINGS))
-    return len(keys)
+    """Number of distinct hand-written scored entries (inflections not counted)."""
+    return lexicon_stats()["entries"]

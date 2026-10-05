@@ -10,6 +10,7 @@ from datetime import date, datetime, time, timedelta, UTC
 
 from app.analytics import textkit
 from app.analytics.facts import Facts
+from app.analytics.narratives import PRICE_EVENTS
 from app.analytics.util import count, money, pct, signed, tone_polarity
 from app.schemas import AnalystAction, Catalyst, EarningsView, Polarity
 
@@ -20,7 +21,8 @@ FILING_WINDOW_MEDIUM = timedelta(days=30)
 LARGE_SELL = 1_000_000.0
 MAX_ANALYST = 8
 MAX_RECENT = 16
-NEWS_MIN_IMPACT = 0.3
+NEWS_MIN_IMPACT = 0.45
+RETROSPECTIVE_DAYS = 7  # results stories first seen this long after the last report are look-backs
 
 _BULL_GRADE = re.compile(r"\b(?:strong buy|buy|outperform|overweight|accumulate|positive|top pick|add|"
                          r"conviction buy)\b", re.IGNORECASE)
@@ -175,25 +177,44 @@ def _shares(shares: float | None) -> str | None:
 
 ANALYST_EVENTS = frozenset({"analyst_upgrade", "analyst_downgrade", "analyst_initiate", "analyst_top_pick",
                             "pt_raise", "pt_cut"})
+# Listed from authoritative data instead (Form 4 trades) or merely describing the tape.
+NOT_NEWS_CATALYSTS = PRICE_EVENTS | {"insider_buy", "insider_sell"}
+RESULTS_EVENTS = frozenset({"earnings_beat", "earnings_miss", "guidance_raise", "guidance_cut", "record_results"})
+
+
+def last_report_date(e: EarningsView | None, today: date) -> date | None:
+    """Date of the most recent reported quarter (None when unknown)."""
+    if e is None:
+        return None
+    reported = [h.date for h in e.history if h.eps_actual is not None and h.date <= today]
+    return max(reported) if reported else None
 
 
 def _news(f: Facts) -> list[Catalyst]:
-    """High-impact stories with a material event (analyst-only stories are already listed as actions)."""
+    """High-impact stories carrying a material development.
+
+    Skipped: analyst stories when the rating actions are already listed,
+    insider and price-only events, and results/guidance stories that first
+    appeared more than a week after the last report (retrospectives)."""
     has_actions = f.inputs.analysts is not None and bool(f.inputs.analysts.actions)
+    last_report = last_report_date(f.inputs.earnings, f.now.date())
     out: list[Catalyst] = []
     for story in f.stories:
         n = story.narrative
-        if not story.material_events or n.impact < NEWS_MIN_IMPACT:
-            continue
-        if has_actions and set(story.material_events) <= ANALYST_EVENTS:
-            continue
         when = n.first_seen or n.last_seen
-        if when is None:
+        events = [k for k in story.material_events if k not in NOT_NEWS_CATALYSTS]
+        if not events or n.impact < NEWS_MIN_IMPACT or when is None:
             continue
-        labels = ", ".join(textkit.event_label(k) for k in story.material_events[:2])
+        if has_actions and (ANALYST_EVENTS & set(story.lead.event_keys) or set(events) <= ANALYST_EVENTS):
+            continue
+        if last_report is not None and (when.date() - last_report).days > RETROSPECTIVE_DAYS:
+            events = [k for k in events if k not in RESULTS_EVENTS]
+            if not events:
+                continue
+        labels = ", ".join(textkit.event_label(k) for k in events[:2])
         out.append(Catalyst(
             date=when, kind="news", title=n.headline,
             detail=f"{labels} · {count(n.count, 'article')}, tone {signed(n.score)}",
-            polarity=tone_polarity(n.score, 0.1), url=n.url,
+            polarity=tone_polarity(n.score, 0.1) if story.directional else "neutral", url=n.url,
         ))
     return out

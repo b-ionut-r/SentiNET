@@ -293,7 +293,7 @@ function RuleRow({ r, onDelete }: { r: AlertRule; onDelete: () => void }) {
         {!r.enabled && <span className="ml-2 text-2xs text-muted">paused</span>}
       </span>
       <span className="hidden text-2xs text-muted sm:block">{r.last_triggered_at ? `fired ${timeAgo(r.last_triggered_at)}` : "never fired"}</span>
-      <button className="rounded p-1.5 text-faint hover:bg-raised hover:text-critical" onClick={onDelete} aria-label={`Delete alert for ${r.ticker}`}>
+      <button className="rounded p-1.5 text-muted hover:bg-raised hover:text-critical" onClick={onDelete} aria-label={`Delete alert for ${r.ticker}`}>
         <Trash className="size-3.5" />
       </button>
     </li>

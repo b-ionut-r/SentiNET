@@ -1,7 +1,7 @@
 """Story clusters -> ranked narratives (impact, velocity, NEW flag, quality bars)."""
 from __future__ import annotations
 
-from app.analytics.narratives import build_narratives, jaccard
+from app.analytics.narratives import build_narratives, headline_tokens, same_headline
 from app.analytics.prepare import prepare
 from tests.analytics.factories import GOOGLE, NOW, STOCKTWITS, company, post, raw, run, snapshot
 
@@ -71,6 +71,70 @@ def test_new_flag_compares_with_previous_snapshot_headlines() -> None:
     assert out["Acme names new chief financial officer from rival chipmaker"].is_new
 
 
-def test_jaccard() -> None:
-    assert jaccard(frozenset("ab"), frozenset("ab")) == 1.0
-    assert jaccard(frozenset(), frozenset("a")) == 0.0
+def test_story_that_predates_the_last_look_is_never_new() -> None:
+    # Live false positive: every article was older than the previous snapshot, yet the
+    # paraphrased headline failed a strict token-Jaccard test.
+    old_story = coverage("Acme names new chief financial officer from rival chipmaker", ["CNBC", "Barron's"], hours=30)
+    prev = snapshot(26, 60, 0.2, narratives=["Acme beats estimates as cloud revenue surges"])
+    (story,) = stories(old_story, previous=prev)
+    assert not story.narrative.is_new
+
+
+def test_paraphrased_headline_is_the_same_story() -> None:
+    ignore = frozenset({"sofi", "technologies", "$sofi"})
+    previous = headline_tokens("SoFi, Mastercard activate stablecoin settlement for SoFi Bank card programme", ignore)
+    current = headline_tokens("SOFI Stock Rises After $25B Card Program Moves To Stablecoin Settlement On "
+                              "Mastercard Network", ignore)
+    assert same_headline(current, previous)
+    # Generic market words and the company name never make two stories one.
+    a = headline_tokens("Morgan Stanley cuts Apple stock price target", frozenset({"apple"}))
+    b = headline_tokens("Jefferies raises Apple stock price target", frozenset({"apple"}))
+    assert not same_headline(a, b)
+    assert not same_headline(frozenset(), a)
+
+
+def test_shared_member_articles_mean_not_new() -> None:
+    from app.analytics.prepare import prepare as prep
+
+    items = prep(ACME, [run(GOOGLE, coverage("Acme opens giant factory in Ohio to build robots", ["CNBC", "Reuters"]))],
+                 NOW).items
+    prev = snapshot(26, 60, 0.2, narratives=["Something else entirely happened at the company"])
+    fresh = build_narratives(items, ACME, NOW, prev)
+    assert fresh[0].narrative.is_new
+    for it in items:
+        it.narrative_id = None
+    known = build_narratives(items, ACME, NOW, prev, previous_ids=[[items[0].id, "other"]])
+    assert not known[0].narrative.is_new
+
+
+def test_story_tone_is_anchored_on_its_headline() -> None:
+    # A catch-all cluster (live BTC case): a neutral headline plus unrelated bullish members.
+    # Its tone must follow the headline's core, and it must not serve as directional evidence.
+    from app.analytics.narratives import _story
+
+    items = prepare(ACME, [run(GOOGLE, [
+        raw("Acme faces sequential sell signals as Monday reversal looms", 2, "Reuters"),
+        raw("Acme sequential signals point to reversal, analysts note", 3, "Bloomberg"),
+        raw("Acme reversal signals: record surge and strong rally for sequential buyers", 4, "CNBC"),
+        raw("Acme buyers love the strong rally as signals surge", 5, "Barron's"),
+    ])], NOW).items
+    rep = next(it for it in items if it.title.startswith("Acme faces"))
+    story = _story(rep, items, NOW)
+    assert story is not None and story.lead is rep
+    assert rep.score == 0.0 and abs(story.narrative.score) < 0.1  # the cluster mean is clearly bullish
+    assert story.spread > 0.35 and story.core_share < 0.5
+    assert not story.directional
+
+    bullish_rep = next(it for it in items if it.title.startswith("Acme reversal signals"))
+    aligned = _story(bullish_rep, [it for it in items if it.score > 0.3], NOW)
+    assert aligned is not None and aligned.directional and aligned.narrative.score > 0.3
+
+
+def test_events_from_one_peripheral_member_do_not_tag_the_story() -> None:
+    lawsuit = [raw("Acme hit with lawsuit over options grant", 2, "Reuters"),
+               raw("Acme lawsuit over options grant widens", 3, "Bloomberg"),
+               raw("Acme lawsuit over options grant: what investors should know", 4, "CNBC"),
+               raw("Acme options grant lawsuit as buyback announced", 30, "Zacks")]
+    (story,) = stories(lawsuit)
+    assert "lawsuit" in story.material_events
+    assert "buyback" not in story.material_events and "buyback" not in story.narrative.events

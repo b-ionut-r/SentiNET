@@ -108,12 +108,12 @@ export function ScanPanel({ ticker, progress }: { ticker: string; progress: Trac
           ) : (
             log.map((p, i) => (
               <div key={`${p.stage}:${p.key}:${i}`} className="flex gap-3 truncate">
-                <span className="w-16 shrink-0 text-faint">{p.stage}</span>
+                <span className="w-16 shrink-0 text-muted">{p.stage}</span>
                 <span className="w-28 shrink-0 truncate text-ink-2">{p.key}</span>
                 <span className={cx("w-14 shrink-0", statusText[p.status])}>{p.status}</span>
                 <span className="w-16 shrink-0 text-right">{p.count != null ? `${p.count} items` : ""}</span>
                 <span className="w-14 shrink-0 text-right">{p.ms != null ? ms(p.ms) : ""}</span>
-                <span className="truncate text-faint">{p.detail ?? ""}</span>
+                <span className="truncate text-muted">{p.detail ?? ""}</span>
               </div>
             ))
           )}
@@ -136,7 +136,7 @@ const statusText: Record<ChipStatus, string> = {
   ok: "text-good",
   empty: "text-muted",
   error: "text-critical",
-  skipped: "text-faint",
+  skipped: "text-muted",
 };
 
 function toChip(p: ProgressEvent): Chip {
@@ -163,7 +163,7 @@ function ScanChip({ c }: { c: Chip }) {
     <li
       className={cx(
         "rounded-md px-2 py-1.5 text-xs transition-colors duration-300",
-        c.status === "queued" || c.status === "skipped" ? "text-faint" : "bg-raised text-ink-2",
+        c.status === "queued" ? "text-faint" : c.status === "skipped" ? "text-muted" : "bg-raised text-ink-2",
         c.status === "running" && "text-ink",
       )}
       title={c.detail ?? undefined}
@@ -173,7 +173,7 @@ function ScanChip({ c }: { c: Chip }) {
         <span className="min-w-0 flex-1 truncate">{c.label}</span>
         <span className="shrink-0 font-mono text-2xs text-muted">
           {c.status === "ok" && c.count != null ? c.count : c.status === "error" ? "err" : c.status === "skipped" ? "key" : ""}
-          {c.ms != null && c.status !== "running" ? <span className="ml-1.5 text-faint">{ms(c.ms)}</span> : null}
+          {c.ms != null && c.status !== "running" ? <span className="ml-1.5 text-muted">{ms(c.ms)}</span> : null}
         </span>
       </div>
       {showDetail && <div className={cx("mt-0.5 truncate pl-[22px] font-mono text-[10.5px] leading-4", c.status === "error" ? "text-critical" : "text-muted")}>{c.detail}</div>}

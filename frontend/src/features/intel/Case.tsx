@@ -7,6 +7,7 @@ import { Empty } from "../../components/ui/Misc";
 import { Panel } from "../../components/ui/Panel";
 import { cx } from "../../lib/cx";
 import { countdown, daysUntil, shortDate } from "../../lib/format";
+import { earningsRecord } from "./SmartMoney";
 
 const KIND_ICON: Record<Catalyst["kind"], typeof Coins> = {
   earnings: CalendarClock,
@@ -62,6 +63,7 @@ export function WatchNext({ a, className }: { a: Analysis; className?: string })
   const earningsDays = e?.days_until ?? daysUntil(e?.next_date);
   const hasEarningsCatalyst = upcoming.some((c) => c.kind === "earnings");
   const showEarnings = !!e?.next_date && earningsDays != null && earningsDays >= 0;
+  const record = e ? earningsRecord(e) : null;
 
   return (
     <Panel title="Watch next" subtitle="Upcoming catalysts, then what just happened" className={className}>
@@ -77,9 +79,9 @@ export function WatchNext({ a, className }: { a: Analysis; className?: string })
               {e.eps_estimate != null && <>EPS est. ${e.eps_estimate.toFixed(2)}</>}
               {e.eps_low != null && e.eps_high != null && <span className="text-muted"> (${e.eps_low.toFixed(2)}–${e.eps_high.toFixed(2)})</span>}
             </div>
-            {e.beat_rate != null && e.history.length > 0 && (
+            {record && record.scored >= 2 && (
               <div className="mt-0.5 text-muted">
-                Beat {Math.round(e.beat_rate * e.history.length)} of last {e.history.length}
+                Beat {record.beats} of last {record.scored}
               </div>
             )}
           </div>

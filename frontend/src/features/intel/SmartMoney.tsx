@@ -1,15 +1,15 @@
 /** Smart money: analyst consensus & revisions, insider flow, earnings track record. */
 import { Briefcase, CalendarClock, UserRound } from "lucide-react";
 
-import type { AnalystAction, Analysis, InsiderTxn, RatingCounts } from "../../api/types";
+import type { AnalystAction, Analysis, EarningsView, InsiderTxn, RatingCounts } from "../../api/types";
 import { RangeBar, SegmentLegend, StackedBar, type Segment } from "../../components/charts/Bars";
 import { Columns } from "../../components/charts/Columns";
 import { Chip, Mark } from "../../components/ui/Badges";
 import { Empty } from "../../components/ui/Misc";
 import { Panel, SubHead } from "../../components/ui/Panel";
 import { cx } from "../../lib/cx";
-import { compact, countdown, int, money, pct, price, shortDate, signed } from "../../lib/format";
-import { divergingFill, textTone } from "../../lib/sentiment";
+import { compact, countdown, int, money, pct, price, shortDate } from "../../lib/format";
+import { divergingFill, polarityOf100, textTone } from "../../lib/sentiment";
 
 /* ------------------------------------------------------------------------- */
 /* Analysts                                                                    */
@@ -128,10 +128,10 @@ function Revision({ label, up, down, upLabel, downLabel }: { label: string; up: 
     <div className="rounded-md bg-sunken px-2.5 py-2">
       <div className="text-2xs text-muted">{label}</div>
       <div className="mt-1 flex items-center gap-3 font-medium">
-        <span className={up > 0 ? "text-bull" : "text-muted"}>
+        <span className={up > 0 ? "text-bull-ink" : "text-muted"}>
           <span className="text-[8px]">▲</span> {up} {upLabel}
         </span>
-        <span className={down > 0 ? "text-bear" : "text-muted"}>
+        <span className={down > 0 ? "text-bear-ink" : "text-muted"}>
           <span className="text-[8px]">▼</span> {down} {downLabel}
         </span>
       </div>
@@ -199,22 +199,29 @@ export function InsidersPanel({ a }: { a: Analysis }) {
   }
   const maxV = Math.max(v.buy_value, v.sell_value, 1);
   const net = v.net_value;
-  const p = net > 0 ? "bull" : net < 0 ? "bear" : "neutral";
+  // Colour follows the model's read of this flow, not the sign alone: routine large-cap
+  // selling scores neutral, and the panel must not shout what the verdict discounts.
+  const comp = a.verdict.components.find((c) => c.key === "insiders" && c.available && c.score != null);
+  const p = comp ? polarityOf100(comp.score) : "neutral";
   const ccy = a.quote?.currency;
   const mcap = a.quote?.market_cap;
+  const mix = v.buys === 0 && v.sells === 0 ? "no open-market trades" : v.buys === 0 ? "sells only" : v.sells === 0 ? "buys only" : `${v.buys} buys · ${v.sells} sells`;
   return (
     <Panel title="Insiders" icon={<UserRound />} subtitle={`Open-market trades · last ${v.window_days} days`}>
       <div className="flex items-end justify-between gap-3">
         <div>
-          <div className={cx("text-[22px] font-semibold leading-none tracking-[-0.01em]", textTone[p])}>
+          <div className={cx("text-[22px] font-semibold leading-none tracking-[-0.01em]", p === "neutral" ? "text-ink" : textTone[p])}>
             {net === 0 ? money(0, ccy) : `${net > 0 ? "+" : "−"}${money(Math.abs(net), ccy)}`}
           </div>
-          <div className="mt-1.5 text-2xs text-muted">net insider flow</div>
+          <div className="mt-1.5 text-2xs text-muted">net insider flow · {mix}</div>
         </div>
-        {v.ratio != null && (
+        {comp?.score != null && (
           <div className="text-right">
-            <div className="text-lg font-semibold leading-none text-ink">{signed(v.ratio)}</div>
-            <div className="mt-1.5 text-2xs text-muted">buy/sell balance</div>
+            <div className={cx("text-lg font-semibold leading-none", textTone[p])}>
+              {p !== "neutral" && <Mark p={p} className="mr-1 align-middle" />}
+              {Math.round(comp.score)}
+            </div>
+            <div className="mt-1.5 text-2xs text-muted">model score · {p === "neutral" ? "neutral" : p === "bull" ? "bullish" : "bearish"}</div>
           </div>
         )}
       </div>
@@ -286,8 +293,7 @@ export function EarningsPanel({ a }: { a: Analysis }) {
     );
   }
   const hist = [...e.history].slice(0, 8).reverse();
-  const beats = e.history.filter((h) => (h.surprise_pct ?? 0) > 0).length;
-  const avgSurprise = e.history.length ? e.history.reduce((s, h) => s + (h.surprise_pct ?? 0), 0) / e.history.length : null;
+  const rec = earningsRecord(e);
   const ccy = a.quote?.currency;
   return (
     <Panel title="Earnings" icon={<CalendarClock />} subtitle="Next report and track record">
@@ -296,12 +302,12 @@ export function EarningsPanel({ a }: { a: Analysis }) {
           <div className="text-[22px] font-semibold leading-none tracking-[-0.01em] text-ink">{e.next_date ? shortDate(e.next_date) : "Not scheduled"}</div>
           <div className="mt-1.5 text-2xs text-muted">{e.next_date ? `next report · ${countdown(e.days_until)}` : "no confirmed date"}</div>
         </div>
-        {e.beat_rate != null && (
+        {rec.scored >= 2 && (
           <div className="text-right">
             <div className="text-lg font-semibold leading-none text-ink">
-              {beats}/{e.history.length}
+              {rec.beats}/{rec.scored}
             </div>
-            <div className="mt-1.5 text-2xs text-muted">beats</div>
+            <div className="mt-1.5 text-2xs text-muted">beat EPS estimate</div>
           </div>
         )}
       </div>
@@ -318,7 +324,11 @@ export function EarningsPanel({ a }: { a: Analysis }) {
         <div className="rounded-md bg-sunken px-2.5 py-2">
           <div className="text-2xs text-muted">Revenue estimate</div>
           <div className="mt-1 font-semibold text-ink num">{money(e.revenue_estimate, ccy)}</div>
-          {avgSurprise != null && <div className="text-2xs text-muted">avg EPS surprise {pct(avgSurprise)}</div>}
+          {rec.avgSurprise != null && (
+            <div className="text-2xs text-muted">
+              avg EPS surprise {pct(rec.avgSurprise)} · {rec.nSurprise}q
+            </div>
+          )}
         </div>
       </div>
       {hist.length > 0 && (
@@ -368,9 +378,24 @@ export function EarningsPanel({ a }: { a: Analysis }) {
           </tbody>
         </table>
       )}
-      <p className="mt-2 text-2xs text-faint">{int(e.history.length)} reported quarters on record.</p>
+      <p className="mt-2 text-2xs text-muted">
+        {int(e.history.length)} reported quarters on record{rec.scored < e.history.length ? ` · ${rec.scored} with an EPS estimate to judge a beat` : ""}.
+      </p>
     </Panel>
   );
+}
+
+/**
+ * Beat record on the backend's basis: only quarters with both an EPS estimate
+ * and an actual count, and a beat is actual > estimate. The average surprise
+ * uses quarters that report one (missing is not zero).
+ */
+export function earningsRecord(e: EarningsView): { beats: number; scored: number; avgSurprise: number | null; nSurprise: number } {
+  const scored = e.history.filter((h) => h.eps_actual != null && h.eps_estimate != null);
+  const beats = scored.filter((h) => (h.eps_actual as number) > (h.eps_estimate as number)).length;
+  const surprises = e.history.map((h) => h.surprise_pct).filter((v): v is number => v != null && Number.isFinite(v));
+  const avgSurprise = surprises.length ? surprises.reduce((s, v) => s + v, 0) / surprises.length : null;
+  return { beats, scored: scored.length, avgSurprise, nSurprise: surprises.length };
 }
 
 /** Report month, e.g. "Jul" or "Jan ’26" when the year changes (fiscal quarters differ by company, so label by date). */

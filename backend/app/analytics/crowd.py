@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Any, Literal
 
@@ -51,14 +52,14 @@ def merged_metrics(runs: list[SourceRun]) -> dict[str, Any]:
     return out
 
 
-def _int(value: Any) -> int | None:
+def as_int(value: Any) -> int | None:
     try:
         return None if value is None or isinstance(value, bool) else int(value)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return None
 
 
-def _float(value: Any) -> float | None:
+def as_float(value: Any) -> float | None:
     try:
         f = None if value is None or isinstance(value, bool) else float(value)
     except (TypeError, ValueError):
@@ -66,25 +67,70 @@ def _float(value: Any) -> float | None:
     return f if f is not None and math.isfinite(f) else None
 
 
+@dataclass(frozen=True)
+class Tally:
+    """StockTwits bull/bear tags: one vote per account when the source reports it
+    (a single prolific account cannot swing the ratio), else one per message."""
+
+    bullish: int
+    bearish: int
+    per_author: bool
+
+    @property
+    def n(self) -> int:
+        return self.bullish + self.bearish
+
+    @property
+    def ratio(self) -> float | None:
+        return self.bullish / self.n if self.n else None
+
+    @property
+    def sample(self) -> str:
+        """'35 accounts' / '64 tagged posts' — the base of the ratio."""
+        return f"{self.n} {'account' if self.n == 1 else 'accounts'}" if self.per_author else f"{self.n} tagged"
+
+    @property
+    def described(self) -> str:
+        """'35 StockTwits accounts tagging a stance' / '64 tagged StockTwits posts'."""
+        if self.per_author:
+            return f"{self.n} StockTwits {'account' if self.n == 1 else 'accounts'} tagging a stance"
+        return f"{self.n} tagged StockTwits {'post' if self.n == 1 else 'posts'}"
+
+
+def stocktwits_tally(metrics: dict[str, Any]) -> Tally | None:
+    """Author-deduplicated tallies when present, else per-message tallies; None without tags data."""
+    bull_a, bear_a = as_int(metrics.get("stocktwits_bull_authors")), as_int(metrics.get("stocktwits_bear_authors"))
+    if bull_a is not None and bear_a is not None and bull_a + bear_a > 0:
+        return Tally(max(bull_a, 0), max(bear_a, 0), per_author=True)
+    bull, bear = as_int(metrics.get("stocktwits_bullish")), as_int(metrics.get("stocktwits_bearish"))
+    if bull is None and bear is None:
+        return None
+    return Tally(max(bull or 0, 0), max(bear or 0, 0), per_author=False)
+
+
 def crowd_view(metrics: dict[str, Any]) -> CrowdView | None:
-    """Structured retail metrics; None when no crowd source reported anything."""
-    bull, bear = _int(metrics.get("stocktwits_bullish")), _int(metrics.get("stocktwits_bearish"))
-    tagged = (bull or 0) + (bear or 0)
+    """Structured retail metrics; None when no crowd source reported anything.
+
+    StockTwits bull/bear counts (and the ratio) come from `stocktwits_tally`:
+    per account when the source reports it, so counts and ratio share one base."""
+    tally = stocktwits_tally(metrics)
+    ratio = tally.ratio if tally is not None else None
     wsb_label = metrics.get("wsb_label")
     view = CrowdView(
-        stocktwits_bullish=bull, stocktwits_bearish=bear,
-        stocktwits_bull_ratio=round((bull or 0) / tagged, 3) if tagged else None,
-        stocktwits_messages=_int(metrics.get("stocktwits_messages")),
-        stocktwits_watchers=_int(metrics.get("stocktwits_watchers")),
-        reddit_mentions=_int(metrics.get("reddit_mentions")),
-        reddit_mentions_prev=_int(metrics.get("reddit_mentions_prev")),
-        reddit_rank=_int(metrics.get("reddit_rank")),
-        reddit_rank_prev=_int(metrics.get("reddit_rank_prev")),
-        reddit_upvotes=_int(metrics.get("reddit_upvotes")),
-        wsb_sentiment=_float(metrics.get("wsb_sentiment")),
+        stocktwits_bullish=tally.bullish if tally is not None else None,
+        stocktwits_bearish=tally.bearish if tally is not None else None,
+        stocktwits_bull_ratio=round(ratio, 3) if ratio is not None else None,
+        stocktwits_messages=as_int(metrics.get("stocktwits_messages")),
+        stocktwits_watchers=as_int(metrics.get("stocktwits_watchers")),
+        reddit_mentions=as_int(metrics.get("reddit_mentions")),
+        reddit_mentions_prev=as_int(metrics.get("reddit_mentions_prev")),
+        reddit_rank=as_int(metrics.get("reddit_rank")),
+        reddit_rank_prev=as_int(metrics.get("reddit_rank_prev")),
+        reddit_upvotes=as_int(metrics.get("reddit_upvotes")),
+        wsb_sentiment=as_float(metrics.get("wsb_sentiment")),
         wsb_label=wsb_label if wsb_label in ("bullish", "bearish", "neutral") else None,
-        wsb_comments=_int(metrics.get("wsb_comments")),
-        bluesky_posts=_int(metrics.get("bluesky_posts")),
+        wsb_comments=as_int(metrics.get("wsb_comments")),
+        bluesky_posts=as_int(metrics.get("bluesky_posts")),
     )
     return view if any(v is not None for v in view.model_dump().values()) else None
 

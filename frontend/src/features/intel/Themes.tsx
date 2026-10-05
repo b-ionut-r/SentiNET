@@ -50,10 +50,10 @@ export function ThemesPanel({ a, className }: { a: Analysis; className?: string 
           })}
         </ul>
       )}
-      <div className="mt-2 flex justify-between text-2xs text-faint">
+      <div className="mt-2 flex justify-between text-2xs text-muted">
         <span>bar = share of coverage · color = tone</span>
         <span>
-          <span className="text-bear">▼</span> bear · <span className="text-bull">▲</span> bull
+          <span className="text-bear-ink">▼</span> bear · <span className="text-bull-ink">▲</span> bull
         </span>
       </div>
 

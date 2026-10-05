@@ -35,6 +35,15 @@ def clamp(value: float, lo: float = 0.0, hi: float = 1.0) -> float:
     return lo if value < lo else hi if value > hi else value
 
 
+def finite(value: object, default: float = 0.0) -> float:
+    """`value` as a float, or `default` when missing, non-numeric, NaN or infinite."""
+    try:
+        f = float(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return default
+    return f if math.isfinite(f) else default
+
+
 def to_100(x: float) -> float:
     """Map a signed strength in [-1, 1] onto the 0..100 scale (50 = neutral)."""
     return clamp(50.0 + 50.0 * x, 0.0, 100.0)

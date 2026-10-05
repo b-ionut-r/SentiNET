@@ -166,7 +166,7 @@ export default function LabPage() {
               {score.isPending ? "Scoring…" : "Score"}
             </button>
           </div>
-          <p className="mt-2 text-2xs text-faint">⌘/Ctrl + Enter to score. Add a ticker to see how clearly each item is about it.</p>
+          <p className="mt-2 text-2xs text-muted">⌘/Ctrl + Enter to score. Add a ticker to see how clearly each item is about it.</p>
         </Panel>
         <div className="space-y-4 lg:col-span-7">
           {score.error ? (

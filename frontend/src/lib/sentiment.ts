@@ -47,9 +47,9 @@ export function glyph(p: Polarity): string {
 }
 
 export const textTone: Record<Polarity, string> = {
-  bull: "text-bull",
-  bear: "text-bear",
-  neutral: "text-neu",
+  bull: "text-bull-ink",
+  bear: "text-bear-ink",
+  neutral: "text-neu-ink",
 };
 
 export const bgTone: Record<Polarity, string> = {

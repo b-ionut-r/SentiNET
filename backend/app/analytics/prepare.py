@@ -26,7 +26,7 @@ from typing import Any, Literal
 
 from app.analytics import textkit
 from app.analytics.inputs import SourceRun
-from app.analytics.util import clamp, stable_id
+from app.analytics.util import clamp, finite, stable_id
 from app.nlp.types import DetectedEvent
 from app.schemas import Driver, SentimentLabel, Signal, SignalKind
 from app.sources.base import CompanyRef, RawSignal
@@ -49,21 +49,36 @@ MAX_BODY = 600
 MAX_DRIVERS = 5
 DIVERSITY_FREE = 4  # items an outlet/author contributes before its items are down-weighted
 
-# Auto-generated 13F-holdings stories ("Apple Inc. $AAPL Stock Acquired by Natural
-# Investments LLC", "Acme Wealth LLC Trims Stake in …"): templated filings noise
-# with no sentiment content. The actor must look like a fund ("… LLC",
-# "… Advisors", "… Capital Management"), so "Berkshire Hathaway buys stake" survives.
-_FUND = (r"(?:[A-Z][\w&.'-]*\s+){0,5}(?:LLC|L\.L\.C\.|LP|L\.P\.|Ltd\.?|Advisors?|Advisers?|Capital(?: Management)?|"
-         r"Management|Wealth(?: Management)?|Partners|Investments?|Financial(?: Group| Services)?|Asset Management|"
-         r"Trust(?: Co\.?| Company)?|Bank|Group|Holdings)")
-HOLDINGS_RE = re.compile(
-    rf"\b(?:Stock|Shares?|Stake|Position|Holdings)\s+(?:Sold|Acquired|Bought|Purchased|Raised|Lowered|Trimmed|"
-    rf"Boosted|Increased|Decreased|Reduced|Cut)\s+by\s+{_FUND}\b|"
-    rf"\b(?:Stake|Position|Holdings)\s+in\s+.{{2,80}}?\s+(?:Raised|Lowered|Trimmed|Boosted|Increased|Decreased|"
-    rf"Reduced|Cut)\s+by\s+{_FUND}\b|"
-    rf"\b{_FUND}\s+(?:Acquires|Buys|Sells|Trims|Lowers|Raises|Boosts|Cuts|Increases|Decreases|Reduces|Takes|Grows|"
-    rf"Purchases|Invests\s+\$?[\d.,]+\s*\w*\s+in)\s+(?:(?:a\s+)?New\s+)?(?:[\d,]+\s+)?(?:Stake|Position|Holdings|"
-    rf"Shares)\b")
+# Auto-generated 13F-holdings stories ("Apple Inc. $AAPL Shares Sold by Denver PWM LLC",
+# "Evoke Wealth LLC Sells 229,221 Shares of NVIDIA Corporation $NVDA"): templated filings
+# noise from MarketBeat and its syndication network, with no sentiment content. Only the
+# template counts — a holdings verb phrase plus the template's ticker tag (a cashtag or
+# "(NASDAQ:AAPL)"), a MarketBeat publisher, or an actor ending in a legal suffix — so real
+# ownership news ("Elliott Management Takes Stake in Southwest", "SoftBank Group Sells
+# Stake in Nvidia") survives.
+_HOLDINGS_VERB_RE = re.compile(
+    r"\b(?:Stock|Shares?|Stake|Position|Holdings)\s+(?:Sold|Acquired|Bought|Purchased|Raised|Lowered|Trimmed|"
+    r"Boosted|Lifted|Increased|Decreased|Reduced|Cut)\s+by\s+(?P<actor>[A-Z][^,;:]{1,80})$|"
+    r"\b(?:Stake|Position|Holdings)\s+in\s+.{2,80}?\s+(?:Raised|Lowered|Trimmed|Boosted|Lifted|Increased|"
+    r"Decreased|Reduced|Cut)\s+by\s+(?P<actor3>[A-Z][^,;:]{1,80})$|"
+    r"^(?P<actor2>[A-Z][^,;:]{1,80}?)\s+(?:Acquires|Buys|Sells|Trims|Lowers|Raises|Boosts|Lifts|Cuts|Increases|"
+    r"Decreases|Reduces|Takes|Grows|Purchases)\s+(?:(?:a\s+)?New\s+)?(?:[\d,]+\s+Shares\s+of|"
+    r"(?:Stock\s+)?(?:Stake|Position|Holdings)\s+in)\b")
+_TEMPLATE_TAG_RE = re.compile(r"(?<![\w$])\$[A-Z]{1,5}(?:\.[A-Z])?\b|"
+                              r"\((?:NASDAQ|NYSE|NYSEARCA|NYSEAMERICAN|AMEX|OTCMKTS|OTC|BATS|CBOE)\s?:\s?[A-Z.]{1,7}\)")
+_LEGAL_SUFFIX_RE = re.compile(r"\b(?:LLC|L\.L\.C\.|LP|L\.P\.|Ltd\.?|Inc\.?|Co\.?|S\.A\.|N\.A\.|PLC)\s*$")
+_MARKETBEAT_RE = re.compile(r"marketbeat", re.IGNORECASE)
+
+
+def is_holdings_boilerplate(title: str, publisher: str | None) -> bool:
+    """True for MarketBeat-style auto-generated 13F/insider holdings headlines."""
+    m = _HOLDINGS_VERB_RE.search(title)
+    if m is None:
+        return False
+    if _TEMPLATE_TAG_RE.search(title) or (publisher and _MARKETBEAT_RE.search(publisher)):
+        return True
+    actor = (m.group("actor") or m.group("actor2") or m.group("actor3") or "").strip()
+    return bool(_LEGAL_SUFFIX_RE.search(actor))
 
 
 @dataclass
@@ -216,7 +231,7 @@ def _candidate(raw: RawSignal, run: SourceRun, company: CompanyRef | None, now: 
         title = textkit.strip_suffix(title, raw.publisher)
     if not title or not textkit.meaningful(title):
         return "empty"
-    if HOLDINGS_RE.search(title):
+    if is_holdings_boilerplate(title, publisher or raw.publisher or extra.get("domain")):
         return "boilerplate"
 
     ts = raw.timestamp
@@ -310,10 +325,10 @@ def _score(items: list[Item]) -> str | None:
         return f"{type(exc).__name__}: {exc}"[:200]
     for it, res in zip(items, results, strict=True):
         it.scored = True
-        it.score = clamp(float(res.score), -1.0, 1.0)
+        it.score = clamp(finite(res.score), -1.0, 1.0)
         it.label = res.label if res.label in ("bullish", "bearish", "neutral") else "neutral"
-        it.confidence = clamp(float(res.confidence))
-        it.drivers = [(str(t), float(v)) for t, v in (res.drivers or [])][:MAX_DRIVERS]
+        it.confidence = clamp(finite(res.confidence))
+        it.drivers = [(str(t), finite(v)) for t, v in (res.drivers or [])][:MAX_DRIVERS]
         it.themes = list(dict.fromkeys(res.themes or []))
         it.events = list(res.events or [])
     return None

@@ -229,6 +229,33 @@ soar soars soared soaring plunge plunges plunged plunging tumble tumbles tumbled
 rallying pop pops popped edge edges edged higher lower up down percent pct rebound rebounds rebounded retreat retreats
 retreated sell-off selloff
 """)
+# Everyday headline nouns/verbs/adjectives that Title Case headlines capitalize
+# ("Stock Pays $0 In Dividends", "Jumps After Strong Delivery Beat"). Where
+# capitalization is useless, these still read as common words, while unknown
+# capitalized words ("Synopsys", "Samsung") read as names.
+COMMON_HEADLINE_WORDS: frozenset[str] = wordset("""
+pay pays paid shift shifts mean means bear bears bull bulls consensus demand result results dividend dividends
+platform platforms agent agents agentic bank banks deal growth chip chips data cloud revenue profit profits margin
+margins debt cash sales sale market product products business model models power energy home hub tech technology
+plan plans move war fear fears risk risks bet bets run rally crash bubble boom rebound recovery turnaround
+strategy narrative catalyst catalysts outlook guidance forecast forecasts estimates expectations report reports filing
+filings trial trials drug drugs vaccine approval deal deals merger acquisition partnership contract order orders
+launch launches event events device devices phone phones app apps software hardware service services
+subscription subscribers users customers consumers shoppers stores store retail retailer prices pricing
+supply chain factory production capacity shortage inventory tariff tariffs tax taxes rate rates yield yields
+inflation economy jobs workers union strike layoffs hiring leadership board chief executive founder director
+officer insider insiders investors analyst analysts rating ratings target targets upgrade downgrade upside
+downside valuation premium discount bargain value cheap expensive dip dips record highs lows peak bottom
+quarter quarterly annual earnings beat beats miss misses loss losses income sell buy hold short squeeze options
+calls puts volume flows fund funds etf etfs portfolio wealth fortune richer billionaire billionaires opinion analysis
+question questions answer warning warnings alert threat threats challenge competition rival rivals win wins
+loss deal-making return returns gain gains drop drops jump jumps surge surges slide slides crash purchase purchases
+purchased stake stakes holdings position positions delivery deliveries surprise upbeat downbeat weak weaker
+stronger solid robust disappointing blowout better-than-expected worse-than-expected surprising sharp steep
+massive modest slight sudden unexpected solid surprise sluggish soft softer tepid rosy gloomy bleak dismal
+fiscal full-year second third fourth sales comparable same-store traffic demand margin outlook interest
+spending capex cost costs ahead early late mixed upgrade downgrade guidance shares stock filing notice
+""")
 # Months and weekdays.
 CALENDAR_WORDS: frozenset[str] = wordset("january february march april may june july august september october november december jan feb mar "
                   "apr jun jul aug sep sept oct nov dec monday tuesday wednesday thursday friday saturday sunday")

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import importlib.util
 import logging
+import threading
 
 import httpx
 import pytest
@@ -25,9 +26,15 @@ class StubApi(FinBertApiEngine):
         super().__init__(SentinelEngine(), token="hf_test", **kw)  # type: ignore[arg-type]
         self.replies = list(replies)
         self.calls: list[list[str]] = []
+        self.timeouts: list[float] = []
+        self.delay = 0.0
+        self.clock = [0.0]
 
-    def _request(self, batch):  # type: ignore[override]
+    def _request(self, batch, timeout):  # type: ignore[override]
         self.calls.append(list(batch))
+        self.timeouts.append(timeout)
+        if self.delay:
+            self.clock[0] += self.delay  # each request "takes" this long on the fake clock
         reply = self.replies.pop(0)
         if isinstance(reply, Exception):
             raise reply
@@ -95,6 +102,30 @@ def test_api_failure_falls_back_to_sentinel_and_opens_breaker() -> None:
     assert len(eng.calls) == 1
 
 
+def test_api_name_reports_what_actually_scored() -> None:
+    eng = StubApi([[POS], _http_error(503)])
+    assert eng.name == "finbert-api"
+    eng.score(["Stocks rally"])
+    assert eng.name == "finbert-api" and eng.last_coverage == 1.0
+    eng.score(["Fed holds rates"])  # the API failed: Sentinel scored it, and the name must say so
+    assert eng.name.startswith("sentinel (finbert-api unavailable") and eng.last_coverage == 0.0
+    eng.score(["Stocks rally", "Fed holds rates"])  # breaker open; one text still cached
+    assert eng.name == "finbert-api (1/2; rest sentinel)"
+
+
+def test_api_total_time_budget(monkeypatch: pytest.MonkeyPatch) -> None:
+    texts = [f"Acme headline {i}" for i in range(5)]
+    eng = StubApi([[POS], [POS], [POS], [POS], [POS]], batch_size=1, budget=8.0, timeout=20.0)
+    eng.delay = 3.0  # every request takes 3 s
+    monkeypatch.setattr(transformer.time, "monotonic", lambda: eng.clock[0])
+    out = eng.score(texts)
+    assert len(eng.calls) == 3  # 0 s, 3 s, 6 s; at 9 s the 8 s budget is spent
+    assert eng.timeouts[0] == 8.0 and eng.timeouts[1] == pytest.approx(5.0)  # never past the deadline
+    assert eng.name == "finbert-api (3/5; rest sentinel)"
+    base = SentinelEngine().score(texts)
+    assert [a.score for a in out[3:]] == [b.score for b in base[3:]]
+
+
 def test_api_malformed_reply_falls_back_per_item() -> None:
     eng = StubApi([[{"error": "Model is loading"}, POS]])
     base = SentinelEngine().score(["Fed holds rates", "Acme beats estimates"])
@@ -122,6 +153,27 @@ def test_local_finbert_degrades_when_model_cannot_load(monkeypatch: pytest.Monke
     monkeypatch.setattr(eng, "_load", lambda: None)
     out = eng.score(["Acme beats estimates"])
     assert out[0].score == SentinelEngine().score(["Acme beats estimates"])[0].score
+    assert eng.name == "sentinel (finbert loading)"
+
+
+def test_local_finbert_loads_in_background_without_blocking(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(transformer.importlib.util, "find_spec", lambda name, *a: object())
+    eng = FinBertEngine(SentinelEngine())
+    release = threading.Event()
+
+    def slow_load() -> None:
+        release.wait(5)
+        eng._pipe = lambda chunk: [POS for _ in chunk]
+
+    monkeypatch.setattr(eng, "_load_model", slow_load)
+    first = eng.score(["Acme beats estimates"])  # model still loading: Sentinel answers at once
+    assert first[0].score == SentinelEngine().score(["Acme beats estimates"])[0].score
+    assert eng.name == "sentinel (finbert loading)"
+    release.set()
+    assert eng._loader is not None
+    eng._loader.join(5)
+    eng.score(["Acme beats estimates"])
+    assert eng.name == "finbert"
 
 
 # --------------------------------------------------------------------------- #

@@ -12,6 +12,7 @@ from typing import Any
 
 from app.analytics.aggregate import Summary
 from app.analytics.composite import Composite
+from app.analytics.crowd import Tally
 from app.analytics.inputs import AnalysisInputs
 from app.analytics.narratives import Story
 from app.analytics.prepare import Prepared
@@ -33,6 +34,7 @@ class Facts:
     themes: list[ThemeStat]
     metrics: dict[str, Any]
     crowd: CrowdView | None
+    stocktwits: Tally | None  # tag tallies behind crowd.stocktwits_* (per account when available)
     attention: AttentionView | None
     composite: Composite
     catalysts: list[Catalyst] = field(default_factory=list)

@@ -198,10 +198,10 @@ function ComponentsBlock({ components, className }: { components: Component[]; c
                 <div className="grid grid-cols-[84px_minmax(0,1fr)_30px_30px] items-center gap-2.5" tabIndex={0}>
                   <span className={cx("truncate text-xs font-medium", c.available ? "text-ink-2" : "text-muted")}>{c.label}</span>
                   {c.available ? <DivergingBar value={c.score} height={6} /> : <div className="h-1.5 rounded-full bg-[rgb(var(--grid))] opacity-60" />}
-                  <span className={cx("text-right text-xs font-semibold num", c.available ? textTone[p] : "text-faint")}>{c.available && c.score != null ? Math.round(c.score) : "n/a"}</span>
-                  <span className="text-right text-2xs text-faint num">{Math.round(c.weight * 100)}%</span>
+                  <span className={cx("text-right text-xs font-semibold num", c.available ? textTone[p] : "text-muted")}>{c.available && c.score != null ? Math.round(c.score) : "n/a"}</span>
+                  <span className="text-right text-2xs text-muted num">{Math.round(c.weight * 100)}%</span>
                 </div>
-                <p className={cx("mt-0.5 line-clamp-2 pl-[94px] text-2xs", c.available ? "text-muted" : "text-faint")}>{c.detail}</p>
+                <p className={cx("mt-0.5 line-clamp-2 pl-[94px] text-2xs", "text-muted")}>{c.detail}</p>
               </Tip>
             </li>
           );

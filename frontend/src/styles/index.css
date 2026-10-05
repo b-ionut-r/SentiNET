@@ -15,7 +15,7 @@
   --ink: 244 244 242;
   --ink-2: 185 184 176;
   --muted: 133 132 126;
-  --faint: 92 91 87;
+  --faint: 110 109 104; /* decoration & incidental text only (≥ 3:1) */
   --accent: 57 135 229;
   --hairline: rgba(255, 255, 255, 0.08);
   --hairline-strong: rgba(255, 255, 255, 0.14);
@@ -26,6 +26,10 @@
   --bear: 229 83 63;
   --neu: 138 137 132;
   --mid: 56 56 53; /* diverging midpoint gray (track) */
+  /* Sentiment as TEXT: same hues, stepped to ≥ 4.5:1 on panels and on their own 12% chip tint. */
+  --bull-ink: 13 162 147;
+  --bear-ink: 236 100 80;
+  --neu-ink: 144 143 138;
 
   /* Status — reserved meaning, always paired with icon + label. */
   --good: 12 163 12;
@@ -40,11 +44,13 @@
   --grid: 38 38 36;
   --axis: 56 56 53;
 
-  /* Categorical identity (compare). Fixed order. */
+  /* Categorical identity (compare): blue, yellow, magenta, violet — hues that
+     can't be read as bull/bear. Slots 1–3 validate all-pairs; violet only joins
+     at four tickers and is adjacent to magenta only (validate_palette.js). */
   --cat-1: 57 135 229;
-  --cat-2: 217 89 38;
-  --cat-3: 25 158 112;
-  --cat-4: 201 133 0;
+  --cat-2: 201 133 0;
+  --cat-3: 213 81 129;
+  --cat-4: 144 133 233;
 }
 
 :root[data-theme="light"] {
@@ -55,8 +61,8 @@
   --sunken: 246 246 243;
   --ink: 17 17 16;
   --ink-2: 82 81 78;
-  --muted: 117 116 110;
-  --faint: 160 158 151;
+  --muted: 109 108 102;
+  --faint: 143 141 134;
   --accent: 42 120 214;
   --hairline: rgba(11, 11, 11, 0.09);
   --hairline-strong: rgba(11, 11, 11, 0.16);
@@ -66,6 +72,14 @@
   --bear: 214 64 47;
   --neu: 137 135 129;
   --mid: 225 224 217;
+  --bull-ink: 10 117 104;
+  --bear-ink: 187 53 38;
+  --neu-ink: 107 106 101;
+
+  /* Status, stepped darker for a light surface (icons ≥ 3:1, text ≥ 4.5:1). */
+  --good: 10 125 10;
+  --warn: 158 102 0;
+  --serious: 180 71 26;
 
   --heat: 235 104 52;
 
@@ -73,9 +87,9 @@
   --axis: 195 194 183;
 
   --cat-1: 42 120 214;
-  --cat-2: 235 104 52;
-  --cat-3: 27 175 122;
-  --cat-4: 237 161 0;
+  --cat-2: 237 161 0;
+  --cat-3: 232 123 164;
+  --cat-4: 74 58 167;
 }
 
 @layer base {
@@ -175,6 +189,45 @@
   .link {
     @apply text-ink underline decoration-[color:var(--hairline-strong)] underline-offset-[3px] hover:decoration-current;
   }
+}
+
+/* Intel header: compact stacked layout on phones/tablets, one row on desktop. */
+.intel-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "id actions"
+    "quote quote"
+    "stats stats"
+    "fresh fresh";
+  align-items: center;
+  column-gap: 12px;
+  row-gap: 10px;
+}
+@media (min-width: 640px) {
+  .intel-head {
+    row-gap: 14px;
+  }
+}
+@media (min-width: 1024px) {
+  .intel-head {
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
+    grid-template-areas:
+      "id quote stats actions"
+      "id quote stats fresh";
+    column-gap: 24px;
+    row-gap: 6px;
+  }
+}
+
+/* Charts with one tab stop: the ring moves to the active mark instead of the frame. */
+.roving:focus-visible {
+  outline: none;
+}
+.roving:focus-visible [data-kb-active="true"] {
+  outline: 2px solid rgb(var(--accent));
+  outline-offset: 2px;
+  border-radius: 3px;
 }
 
 /* Thin, quiet scrollbars for inner scroll areas. */

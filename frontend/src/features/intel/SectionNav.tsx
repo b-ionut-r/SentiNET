@@ -12,8 +12,8 @@ import { glyph, polarityOf, polarityOf100, textTone } from "../../lib/sentiment"
 
 const SECTIONS = [
   { id: "verdict", label: "Verdict" },
-  { id: "narratives", label: "Narratives" },
   { id: "insights", label: "Insights" },
+  { id: "narratives", label: "Narratives" },
   { id: "case", label: "Bull vs bear" },
   { id: "price", label: "Price × tone" },
   { id: "smart-money", label: "Smart money" },
@@ -44,7 +44,7 @@ export function SectionNav({ a }: { a: Analysis }) {
       io.disconnect();
       io2.disconnect();
     };
-  }, [a.ticker]);
+  }, [a.ticker, a.generated_at]); // a re-run can add or drop sections
 
   // Keep the active tab visible in the horizontally scrolling strip (phones).
   const strip = useRef<HTMLDivElement>(null);

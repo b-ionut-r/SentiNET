@@ -100,6 +100,7 @@ def meme_stock() -> AnalysisInputs:
     return inputs(
         blast,
         [run(GOOGLE, news), run(STOCKTWITS, crowd, {"stocktwits_bullish": 57, "stocktwits_bearish": 3,
+                                                    "stocktwits_bull_authors": 34, "stocktwits_bear_authors": 3,
                                                     "stocktwits_messages": 60, "stocktwits_watchers": 98_000}),
          run(APEWISDOM, [], {"reddit_mentions": 160, "reddit_mentions_prev": 40, "reddit_rank": 3,
                              "reddit_rank_prev": 25, "reddit_upvotes": 2400, "reddit_tracked": 690}),

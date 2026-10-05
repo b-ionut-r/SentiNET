@@ -3,7 +3,8 @@ evidence clears a threshold, and always with the numbers behind it.
 
 Checks (thresholds):
 * divergence   news vs crowd leaning opposite ways vs their norms (news tone ±0.08 off
-               typical on >= 6 articles; crowd: StockTwits tags >= 1.64 SE off 62%, social
+               typical on >= 6 articles; crowd: StockTwits tags (per account when
+               available) >= 1.64 SE off 62% on >= 10 tags, social
                text ±0.10, WSB ±0.15); price vs news (the 1M / 5D move >= 1σ / 1.5σ against
                the news lean)
 * attention    GDELT volume z >= 2, Reddit mentions >= +100% (>= 10 mentions),
@@ -29,9 +30,9 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import Literal
 
-from app.analytics.composite import NEWS_BASELINE, SOCIAL_BASELINE
-from app.analytics.composite import STOCKTWITS_BASELINE as STOCKTWITS_NORM
 from app.analytics import textkit
+from app.analytics.composite import NEWS_BASELINE, SOCIAL_BASELINE, crowded
+from app.analytics.composite import STOCKTWITS_BASELINE as STOCKTWITS_NORM
 from app.analytics.crowd import reddit_change_pct
 from app.analytics.facts import Facts
 from app.analytics.prepare import Item
@@ -112,15 +113,13 @@ def crowd_lean(f: Facts) -> tuple[int, str] | None:
     (one-sided 95%), social text by >= 0.10 from its typical tone on >= 15
     posts, WSB by >= 0.15 on >= 50 comments; conflicting votes cancel."""
     votes: list[tuple[int, str]] = []
-    c = f.crowd
-    if c is not None and c.stocktwits_bull_ratio is not None:
-        ratio = c.stocktwits_bull_ratio
-        tagged = (c.stocktwits_bullish or 0) + (c.stocktwits_bearish or 0)
-        if tagged >= 10:
-            z = (ratio - STOCKTWITS_NORM) / math.sqrt(STOCKTWITS_NORM * (1 - STOCKTWITS_NORM) / tagged)
-            if abs(z) >= 1.64:
-                votes.append((1 if z > 0 else -1, f"{ratio:.0%} of {tagged} tagged StockTwits posts are bullish "
-                                                  f"(typical {STOCKTWITS_NORM:.0%})"))
+    c, tally = f.crowd, f.stocktwits
+    if tally is not None and tally.ratio is not None and tally.n >= 10:
+        ratio, tagged = tally.ratio, tally.n
+        z = (ratio - STOCKTWITS_NORM) / math.sqrt(STOCKTWITS_NORM * (1 - STOCKTWITS_NORM) / tagged)
+        if abs(z) >= 1.64:
+            votes.append((1 if z > 0 else -1, f"{ratio:.0%} of {tally.described} are bullish "
+                                              f"(typical {STOCKTWITS_NORM:.0%})"))
     if f.social.n >= 15 and f.social.mean is not None and abs(f.social.mean - SOCIAL_BASELINE) >= 0.10:
         votes.append((1 if f.social.mean > SOCIAL_BASELINE else -1,
                       f"social posts average {signed(f.social.shrunk)} across {f.social.n}"))
@@ -216,19 +215,19 @@ def _attention(f: Facts) -> Iterator[_Cand]:
 
 
 def _crowding(f: Facts) -> Iterator[_Cand]:
-    crowd = f.crowd
+    crowd, tally = f.crowd, f.stocktwits
     if crowd is None:
         return
-    ratio = crowd.stocktwits_bull_ratio
-    tagged = (crowd.stocktwits_bullish or 0) + (crowd.stocktwits_bearish or 0)
-    if ratio is not None and tagged >= 15:
-        if ratio >= 0.85:
+    side = crowded(tally)
+    if tally is not None and tally.ratio is not None and side:
+        ratio = tally.ratio
+        if side > 0:
             yield _make("crowding", "watch", "bear", "Crowded long on StockTwits",
-                        f"{ratio:.0%} of {tagged} tagged posts are bullish vs a {STOCKTWITS_NORM:.0%} norm — "
+                        f"{ratio:.0%} of {tally.described} are bullish vs a {STOCKTWITS_NORM:.0%} norm — "
                         f"one-sided retail positioning is vulnerable to bad news.", (ratio - STOCKTWITS_NORM) * 4)
-        elif ratio <= 0.35:
+        else:
             yield _make("crowding", "watch", "bull", "Retail capitulation on StockTwits",
-                        f"Only {ratio:.0%} of {tagged} tagged posts are bullish vs a {STOCKTWITS_NORM:.0%} norm — "
+                        f"Only {ratio:.0%} of {tally.described} are bullish vs a {STOCKTWITS_NORM:.0%} norm — "
                         f"washed-out retail sentiment is a classic contrarian setup.", (STOCKTWITS_NORM - ratio) * 4)
     wsb_rank = f.metrics.get("wsb_rank")
     if isinstance(wsb_rank, int) and wsb_rank <= 5:

@@ -73,8 +73,8 @@ function CoverageMix({ narratives }: { narratives: Narrative[] }) {
       <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-x-3 text-2xs text-muted">
         <span>Coverage by story</span>
         <span className="whitespace-nowrap">
-          <span className="font-semibold text-bull">▲ {Math.round((bull / total) * 100)}%</span> bullish-toned ·{" "}
-          <span className="font-semibold text-bear">▼ {Math.round((bear / total) * 100)}%</span> bearish-toned
+          <span className="font-semibold text-bull-ink">▲ {Math.round((bull / total) * 100)}%</span> bullish-toned ·{" "}
+          <span className="font-semibold text-bear-ink">▼ {Math.round((bear / total) * 100)}%</span> bearish-toned
         </span>
       </div>
       <div className="flex h-2.5 gap-[2px]" role="img" aria-label={`Coverage: ${Math.round((bull / total) * 100)}% bullish-toned, ${Math.round((bear / total) * 100)}% bearish-toned`}>
@@ -158,7 +158,7 @@ function NarrativeRow({ n, rank, members, defaultOpen }: { n: Narrative; rank: n
             <div className="h-1 w-24 overflow-hidden rounded-full bg-[rgb(var(--grid))]" title={`Impact ${Math.round(n.impact * 100)}/100`}>
               <div className="h-full rounded-full bg-[rgb(var(--ink-2))]" style={{ width: `${Math.max(4, n.impact * 100)}%` }} />
             </div>
-            <span className="text-2xs text-faint">impact {Math.round(n.impact * 100)}</span>
+            <span className="text-2xs text-muted">impact {Math.round(n.impact * 100)}</span>
             <span className="ml-auto inline-flex items-center gap-0.5 text-2xs text-muted group-hover:text-ink-2">
               {open ? "Hide" : "Sources"}
               <ChevronRight className={cx("size-3 transition-transform", open && "rotate-90")} />

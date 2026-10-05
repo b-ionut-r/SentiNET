@@ -8,8 +8,12 @@ Each component maps its evidence to a signed strength x in [-1, 1]
   a live sample of 11 tickers on 2026-10-04 were +0.05 for news and +0.06 for
   social text; b = +0.04 / +0.05 sits just below) and shrunk toward neutral for
   small samples (6 pseudo-items).
-* StockTwits author tags are judged against their structural baseline (62%
-  bullish), WSB sentiment against 0; both shrink with sample size.
+* StockTwits tags (one vote per account when available) are judged against
+  their structural baseline (62% bullish) on a wide scale (0.35) and shrink
+  with sample size; beyond the crowding thresholds (>= 85% / <= 35%) the
+  signal folds back (contrarian) and the whole social component is capped at
+  the threshold's strength, so a one-sided crowd never adds points in its own
+  direction. WSB sentiment is judged against 0.
 * analysts: ratings are judged against the typical consensus (mean 2.4 on the
   1..5 scale), target upside against the typical +10%, revisions relative to
   coverage size.
@@ -17,13 +21,17 @@ Each component maps its evidence to a signed strength x in [-1, 1]
   selling is scaled by market cap and mild (it is routine).
 * momentum: GDELT 7d-vs-30d tone change + 90d percentile, and the last 48 h of
   headlines vs. the prior days (damped unless the shift is ~2 standard errors).
-* technicals: risk-adjusted returns / DMA distances (scaled by 30d
-  volatility), dampened at RSI extremes (contrarian).
+* technicals: x = tanh(0.35 · mean z) where each z is a return or DMA
+  distance in units of its 30d-volatility-implied spread (clipped at ±3σ): a
+  1σ broad trend reads ~67, a 2σ trend ~80 — price confirms sentiment, it does
+  not outshout it. Dampened at RSI extremes (contrarian).
 
 Composite = Σ w_eff·score / Σ w_eff with w_eff = nominal weight ×
 (0.35 + 0.65·confidence), renormalized over available components, then pulled
 toward 50 when little of the nominal weight is available:
-50 + (raw − 50)·(0.35 + 0.65·min(1, available weight / 0.6)).
+50 + (raw − 50)·(0.35 + 0.65·min(1, available weight / 0.6)). When the
+sentiment engine failed (texts unscored), the distance from 50 is capped at 11
+points: structured data alone reads at most "Leaning".
 """
 from __future__ import annotations
 
@@ -33,6 +41,7 @@ from datetime import datetime, timedelta
 from typing import Any, Literal
 
 from app.analytics.aggregate import Summary
+from app.analytics.crowd import Tally
 from app.analytics.util import clamp, count, join_and, money, ordinal, pct, signed, squash, to_100
 from app.schemas import AnalystView, Component, CrowdView, InsiderView, Technicals, ToneTrend
 
@@ -53,6 +62,14 @@ SHIFT_SCALE = 0.5  # 48h-vs-prior headline tone shift giving x = tanh(1)
 SOCIAL_BASELINE = 0.05  # typical social-post tone
 STOCKTWITS_BASELINE = 0.62
 STOCKTWITS_MIN_TAGGED = 5
+STOCKTWITS_SCALE = 0.35
+CROWDED_LONG = 0.85  # bull share beyond which retail positioning is one-sided (contrarian)
+CROWDED_SHORT = 0.35
+CROWDING_MIN_TAGGED = 15
+TECH_Z_SCALE = 0.35
+TECH_Z_CLIP = 3.0
+STRONG_TREND = 0.45  # |x| of a strong (not merely positive) price trend
+DEGRADED_MAX_DISTANCE = 11.0  # engine failure: at most "Leaning" (39..61)
 RATING_BASELINE = 2.4  # typical consensus mean (1 strong buy … 5 strong sell)
 UPSIDE_BASELINE = 10.0  # typical upside to the mean target, percent
 FULL_COVERAGE = 0.6  # nominal weight available for an unshrunk composite
@@ -181,8 +198,29 @@ def news_part(s: Summary, av_sentiment: float | None = None, av_articles: int | 
 # --------------------------------------------------------------------------- #
 # Social
 # --------------------------------------------------------------------------- #
-def social_part(s: Summary, crowd: CrowdView | None) -> Part:
-    """Retail tone: social text + StockTwits author tags (vs baseline) + WSB sentiment."""
+def stocktwits_strength(ratio: float, n: int) -> float:
+    """Signed strength of a StockTwits bull share vs its 62% norm, shrunk for small n.
+
+    Beyond the crowding thresholds the effective share folds back (contrarian):
+    above 85% it mirrors (100% bullish reads like 70%); below 35% it folds at
+    half slope (0% reads like 52.5%, still mildly bearish against the norm)."""
+    r = ratio
+    if r > CROWDED_LONG:
+        r = CROWDED_LONG - (r - CROWDED_LONG)
+    elif r < CROWDED_SHORT:
+        r = CROWDED_SHORT + 0.5 * (CROWDED_SHORT - r)
+    return squash((r - STOCKTWITS_BASELINE) * n / (n + 10), STOCKTWITS_SCALE)
+
+
+def crowded(tally: Tally | None) -> int:
+    """+1 crowded long / -1 crowded short (>= 15 tags beyond 85% / 35%), else 0."""
+    if tally is None or tally.ratio is None or tally.n < CROWDING_MIN_TAGGED:
+        return 0
+    return 1 if tally.ratio >= CROWDED_LONG else -1 if tally.ratio <= CROWDED_SHORT else 0
+
+
+def social_part(s: Summary, crowd: CrowdView | None, tally: Tally | None = None) -> Part:
+    """Retail tone: social text + StockTwits tags (vs baseline, crowding-tapered) + WSB sentiment."""
     part = Part("social", detail="no social data")
     subs: list[Sub] = []
     bits: list[str] = []
@@ -191,16 +229,17 @@ def social_part(s: Summary, crowd: CrowdView | None) -> Part:
         subs.append(Sub(text_strength(s.mean, s.n, SOCIAL_BASELINE), s.confidence, 0.45))
         bits.append(f"posts {signed(s.shrunk)} ({s.n})")
         reason_bits.append(f"social posts average {signed(s.shrunk)} across {s.n}")
-    ratio, tagged = None, 0
-    if crowd is not None and crowd.stocktwits_bull_ratio is not None:
-        tagged = (crowd.stocktwits_bullish or 0) + (crowd.stocktwits_bearish or 0)
-        if tagged >= STOCKTWITS_MIN_TAGGED:
-            ratio = crowd.stocktwits_bull_ratio
-            adj = (ratio - STOCKTWITS_BASELINE) * tagged / (tagged + 10)
-            subs.append(Sub(squash(adj, 0.2), tagged / (tagged + 15), 0.40))
-            bits.insert(0, f"StockTwits {ratio:.0%} bullish ({tagged} tagged)")
-            reason_bits.insert(0, f"{ratio:.0%} of {tagged} tagged StockTwits posts are bullish "
-                                  f"({STOCKTWITS_BASELINE:.0%} is typical)")
+    ratio = tally.ratio if tally is not None else None
+    tagged = tally.n if tally is not None else 0
+    if tally is not None and ratio is not None and tagged >= STOCKTWITS_MIN_TAGGED:
+        subs.append(Sub(stocktwits_strength(ratio, tagged), tagged / (tagged + 15), 0.40))
+        bits.insert(0, f"StockTwits {ratio:.0%} bullish ({tally.sample})")
+        side = crowded(tally)
+        crowd_note = " — crowded, read as contrarian" if side else ""
+        reason_bits.insert(0, f"{ratio:.0%} of {tally.described} are bullish "
+                              f"({STOCKTWITS_BASELINE:.0%} is typical{crowd_note})")
+    else:
+        ratio = None
     if crowd is not None and crowd.wsb_sentiment is not None:
         comments = crowd.wsb_comments or 0
         subs.append(Sub(squash(crowd.wsb_sentiment, TEXT_SCALE) * comments / (comments + 20),
@@ -212,15 +251,22 @@ def social_part(s: Summary, crowd: CrowdView | None) -> Part:
     if blended is None:
         return part
     x, conf = blended
+    side = crowded(tally) if ratio is not None else 0
+    if side:  # one-sided positioning: more euphoria (or despair) in the posts is not more evidence
+        limit = abs(stocktwits_strength(CROWDED_LONG if side > 0 else CROWDED_SHORT, tagged))
+        x = min(x, limit) if side > 0 else max(x, -limit)
     part.score, part.confidence = to_100(x), conf
     part.detail = " · ".join(bits)
     part.facts.update(ratio=ratio, tagged=tagged, tone=s.shrunk if s.n else None, n=s.n)
     lead = _pick(x, "Retail leaning bullish", "Retail leaning bearish", "Retail sentiment mixed")
     part.reason = f"{lead}: " + "; ".join(reason_bits)
-    if ratio is not None:
-        bull, bear = f"retail ({ratio:.0%} of {tagged} tagged)", f"retail ({ratio:.0%} bullish of {tagged} tagged)"
-        part.phrase, part.strong = _phrase(x, f"bullish {bull}", f"bearish {bear}",
-                                           f"mildly bullish {bull}", f"mildly bearish {bear}")
+    if ratio is not None and tally is not None:
+        side = crowded(tally)
+        base = f"{ratio:.0%} bullish of {tally.sample}"
+        bull = f"{'crowded-long' if side > 0 else 'bullish'} retail ({base})"
+        bear = f"{'capitulating' if side < 0 else 'bearish'} retail ({base})"
+        part.phrase, part.strong = _phrase(x, bull, bear, f"mildly bullish retail ({base})",
+                                           f"mildly bearish retail ({base})")
     elif s.n:
         part.phrase, part.strong = _phrase(x, f"upbeat social chatter ({signed(s.shrunk)})",
                                            f"bearish social chatter ({signed(s.shrunk)})")
@@ -491,14 +537,14 @@ def technicals_part(t: Technicals | None) -> Part:
     pieces: list[tuple[float | None, float, float]] = [
         (t.return_1m, sigma, 0.25),
         (t.return_3m, sigma * math.sqrt(3), 0.30),
-        (t.vs_50dma_pct, sigma, 0.20),
+        (t.vs_50dma_pct, sigma, 0.20),  # distance from an N-day mean spreads like ~sqrt(N/3) days of moves
         (t.vs_200dma_pct, sigma * math.sqrt(3), 0.25),
     ]
-    avail = [(v, s, w) for v, s, w in pieces if v is not None]
+    avail = [(v, sd, w) for v, sd, w in pieces if v is not None]
     if not avail:
         return part
-    m = sum(w * math.tanh(v / s) for v, s, w in avail) / sum(w for _, _, w in avail)
-    x = math.tanh(1.1 * m)
+    z = sum(w * clamp(v / sd, -TECH_Z_CLIP, TECH_Z_CLIP) for v, sd, w in avail) / sum(w for _, _, w in avail)
+    x = math.tanh(TECH_Z_SCALE * z)
     rsi = t.rsi_14
     if rsi is not None and rsi > 75 and x > 0:
         x *= 1 - min(0.5, (rsi - 75) / 30)
@@ -536,9 +582,11 @@ def technicals_part(t: Technicals | None) -> Part:
         (t.return_1m, sigma, "1M"), (t.return_3m, sigma * math.sqrt(3), "3M")) if v is not None]
     horizon = max(moves)[1] if moves else None  # the more striking move, volatility-adjusted
     if horizon:
-        part.phrase, part.strong = _phrase(x, f"a strong price trend ({horizon})", f"a weak tape ({horizon})",
-                                           f"a firm price trend ({horizon})", f"a soft tape ({horizon})")
-    part.facts.update(sigma_month=sigma)
+        up = "a strong price trend" if x >= STRONG_TREND else "positive price action"
+        down = "a steep downtrend" if x <= -STRONG_TREND else "weak price action"
+        part.phrase, part.strong = _phrase(x, f"{up} ({horizon})", f"{down} ({horizon})",
+                                           f"a firm tape ({horizon})", f"a soft tape ({horizon})")
+    part.facts.update(sigma_month=sigma, z=z)
     return part
 
 
@@ -558,8 +606,10 @@ class Composite:
         return [p for p in self.parts.values() if p.available]
 
 
-def compose(parts: list[Part]) -> Composite:
-    """Renormalized, confidence-weighted composite with a small-coverage pull to 50."""
+def compose(parts: list[Part], max_distance: float | None = None) -> Composite:
+    """Renormalized, confidence-weighted composite with a small-coverage pull to 50.
+
+    `max_distance` caps |score − 50| (degraded runs; see module docstring)."""
     by_key = {p.key: p for p in parts}
     avail = [p for p in parts if p.available]
     if not avail:
@@ -569,6 +619,8 @@ def compose(parts: list[Part]) -> Composite:
     raw = sum(eff[p.key] * (p.score or 50.0) for p in avail) / total
     coverage = sum(WEIGHTS[p.key] for p in avail)
     pull = MIN_PULL + (1 - MIN_PULL) * min(1.0, coverage / FULL_COVERAGE)
+    if max_distance is not None and abs(raw - 50.0) * pull > max_distance:
+        pull = max_distance / abs(raw - 50.0)
     final = 50.0 + (raw - 50.0) * pull
     contributions = {p.key: eff[p.key] / total * ((p.score or 50.0) - 50.0) * pull for p in avail}
     return Composite(

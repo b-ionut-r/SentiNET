@@ -4,7 +4,7 @@
  * /compare?t=AAPL,NVDA,MSFT
  */
 import { Plus, X } from "lucide-react";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 import { useAnalysisPlain } from "../../api/hooks";
@@ -19,7 +19,7 @@ import { money, pct, price, ratioPct, signed } from "../../lib/format";
 import { divergingFill, polarityOf100, textTone } from "../../lib/sentiment";
 
 const MAX = 4;
-/** Categorical identity, fixed order (never by rank). */
+/** Categorical identity colours, by slot (never by rank or position). */
 const SLOT = ["rgb(var(--cat-1))", "rgb(var(--cat-2))", "rgb(var(--cat-3))", "rgb(var(--cat-4))"];
 const COMPONENTS: Array<{ key: ComponentKey; label: string }> = [
   { key: "news", label: "News" },
@@ -30,6 +30,30 @@ const COMPONENTS: Array<{ key: ComponentKey; label: string }> = [
   { key: "technicals", label: "Technicals" },
 ];
 
+/**
+ * Stable ticker → colour slot. A ticker keeps its hue for as long as it stays
+ * on the page (removing another never repaints it); a newcomer takes the
+ * lowest free slot.
+ */
+function useStableSlots(tickers: string[]): string[] {
+  const assigned = useRef(new Map<string, number>());
+  const key = tickers.join(",");
+  return useMemo(() => {
+    const prev = assigned.current;
+    const next = new Map<string, number>();
+    for (const t of tickers) if (prev.has(t)) next.set(t, prev.get(t)!);
+    for (const t of tickers) {
+      if (next.has(t)) continue;
+      const used = new Set(next.values());
+      let s = 0;
+      while (used.has(s)) s++;
+      next.set(t, s);
+    }
+    assigned.current = next;
+    return tickers.map((t) => SLOT[next.get(t)!]);
+  }, [key]); // `key` is the value identity of `tickers` (a fresh array every render)
+}
+
 function parseTickers(raw: string | null): string[] {
   return [...new Set((raw ?? "").split(/[,\s]+/).map((t) => t.trim().toUpperCase().replace(/^\$/, "")).filter(Boolean))].slice(0, MAX);
 }
@@ -38,6 +62,7 @@ export default function ComparePage() {
   const [params, setParams] = useSearchParams();
   const tickers = parseTickers(params.get("t"));
   const [draft, setDraft] = useState("");
+  const colors = useStableSlots(tickers);
 
   useEffect(() => {
     document.title = tickers.length ? `Compare ${tickers.join(" · ")} — SentiNET` : "Compare — SentiNET";
@@ -69,7 +94,7 @@ export default function ComparePage() {
         <div className="flex flex-wrap items-center gap-2">
           {tickers.map((t, i) => (
             <span key={t} className="inline-flex h-8 items-center gap-2 rounded-lg bg-raised pl-2.5 pr-1 text-sm font-medium text-ink" style={{ boxShadow: "0 0 0 1px var(--hairline)" }}>
-              <span className="h-2.5 w-2.5 rounded-sm" style={{ background: SLOT[i] }} aria-hidden />
+              <span className="h-2.5 w-2.5 rounded-sm" style={{ background: colors[i] }} aria-hidden />
               <span className="font-mono">{t}</span>
               <button className="rounded p-1 text-muted hover:bg-panel hover:text-ink" onClick={() => setTickers(tickers.filter((x) => x !== t))} aria-label={`Remove ${t}`}>
                 <X className="size-3.5" />
@@ -105,14 +130,14 @@ export default function ComparePage() {
         <>
           <div className={cx("grid gap-4", colsClass(tickers.length))}>
             {tickers.map((t, i) => (
-              <VerdictCard key={t} ticker={t} slot={i} q={queries[i]} />
+              <VerdictCard key={t} ticker={t} color={colors[i]} q={queries[i]} />
             ))}
           </div>
           {loaded.some(Boolean) && (
             <>
-              <ComponentMatrix tickers={tickers} data={loaded} />
-              <ToneCompare tickers={tickers} data={loaded} />
-              <StatsTable tickers={tickers} data={loaded} />
+              <ComponentMatrix tickers={tickers} colors={colors} data={loaded} />
+              <ToneCompare tickers={tickers} colors={colors} data={loaded} />
+              <StatsTable tickers={tickers} colors={colors} data={loaded} />
             </>
           )}
         </>
@@ -123,7 +148,7 @@ export default function ComparePage() {
 
 const colsClass = (n: number) => (n <= 1 ? "" : n === 2 ? "md:grid-cols-2" : n === 3 ? "md:grid-cols-3" : "md:grid-cols-2 xl:grid-cols-4");
 
-function VerdictCard({ ticker, slot, q }: { ticker: string; slot: number; q: ReturnType<typeof useAnalysisPlain> }) {
+function VerdictCard({ ticker, color, q }: { ticker: string; color: string; q: ReturnType<typeof useAnalysisPlain> }) {
   if (q.isPending) {
     return (
       <div className="panel space-y-3 p-4" aria-busy="true">
@@ -148,7 +173,7 @@ function VerdictCard({ ticker, slot, q }: { ticker: string; slot: number; q: Ret
   return (
     <section className="panel flex flex-col p-4">
       <header className="flex items-center gap-2.5">
-        <span className="h-8 w-1 shrink-0 rounded-full" style={{ background: SLOT[slot] }} aria-hidden />
+        <span className="h-8 w-1 shrink-0 rounded-full" style={{ background: color }} aria-hidden />
         <TickerLogo symbol={a.ticker} url={a.profile?.logo_url} size={28} />
         <div className="min-w-0 flex-1">
           <Link to={`/t/${encodeURIComponent(a.ticker)}`} className="block truncate text-sm font-semibold text-ink hover:underline">
@@ -190,7 +215,7 @@ function VerdictCard({ ticker, slot, q }: { ticker: string; slot: number; q: Ret
   );
 }
 
-function ComponentMatrix({ tickers, data }: { tickers: string[]; data: Array<Analysis | null> }) {
+function ComponentMatrix({ tickers, colors, data }: { tickers: string[]; colors: string[]; data: Array<Analysis | null> }) {
   const rows: Array<{ key: string; label: string; get: (a: Analysis) => number | null }> = [
     { key: "sentinet", label: "SentiNET", get: (a) => a.verdict.score },
     ...COMPONENTS.map((c) => ({ key: c.key, label: c.label, get: (a: Analysis) => a.verdict.components.find((x) => x.key === c.key && x.available)?.score ?? null })),
@@ -205,7 +230,7 @@ function ComponentMatrix({ tickers, data }: { tickers: string[]; data: Array<Ana
               {tickers.map((t, i) => (
                 <th key={t} className="py-2 text-center text-xs font-semibold text-ink">
                   <span className="inline-flex items-center gap-1.5">
-                    <span className="size-2 rounded-sm" style={{ background: SLOT[i] }} />
+                    <span className="size-2 rounded-sm" style={{ background: colors[i] }} />
                     <span className="font-mono">{t}</span>
                   </span>
                 </th>
@@ -227,7 +252,7 @@ function ComponentMatrix({ tickers, data }: { tickers: string[]; data: Array<Ana
                         title={comp?.detail ?? undefined}
                       >
                         {v == null ? (
-                          <span className="text-xs text-faint">{a ? "n/a" : "…"}</span>
+                          <span className="text-xs text-muted">{a ? "n/a" : "…"}</span>
                         ) : (
                           <span className="inline-flex items-center gap-1 text-ink">
                             {polarityOf100(v) !== "neutral" && <Mark p={polarityOf100(v)} className="text-[8px]" />}
@@ -257,15 +282,15 @@ function dailyPoints(series: Array<{ date: string; tone: number | null }>): Arra
   return out;
 }
 
-function ToneCompare({ tickers, data }: { tickers: string[]; data: Array<Analysis | null> }) {
+function ToneCompare({ tickers, colors, data }: { tickers: string[]; colors: string[]; data: Array<Analysis | null> }) {
   const series = useMemo<LineSeries[]>(
     () =>
       data.flatMap((a, i) =>
         a?.tone?.series.length
-          ? [{ key: tickers[i], label: tickers[i], color: SLOT[i], points: dailyPoints(a.tone.series) }]
+          ? [{ key: tickers[i], label: tickers[i], color: colors[i], points: dailyPoints(a.tone.series) }]
           : [],
       ),
-    [data, tickers],
+    [data, tickers, colors],
   );
   const missing = tickers.filter((_, i) => data[i] && !data[i]?.tone?.series.length);
   return (
@@ -280,9 +305,9 @@ function ToneCompare({ tickers, data }: { tickers: string[]; data: Array<Analysi
   );
 }
 
-function StatsTable({ tickers, data }: { tickers: string[]; data: Array<Analysis | null> }) {
+function StatsTable({ tickers, colors, data }: { tickers: string[]; colors: string[]; data: Array<Analysis | null> }) {
   const tone = (v: number | null | undefined, digits = 1, suffix = "%") =>
-    v == null ? <span className="text-faint">—</span> : <span className={textTone[v > 0 ? "bull" : v < 0 ? "bear" : "neutral"]}>{suffix === "%" ? pct(v, digits) : signed(v, digits)}</span>;
+    v == null ? <span className="text-muted">—</span> : <span className={textTone[v > 0 ? "bull" : v < 0 ? "bear" : "neutral"]}>{suffix === "%" ? pct(v, digits) : signed(v, digits)}</span>;
   const rows: Array<[string, (a: Analysis) => ReactNode]> = [
     ["Price", (a) => price(a.quote?.price, a.quote?.currency)],
     ["Today", (a) => tone(a.quote?.change_pct, 2)],
@@ -311,7 +336,7 @@ function StatsTable({ tickers, data }: { tickers: string[]; data: Array<Analysis
               {tickers.map((t, i) => (
                 <th key={t} className="py-2 pr-4 text-right font-semibold text-ink">
                   <span className="inline-flex items-center gap-1.5">
-                    <span className="size-2 rounded-sm" style={{ background: SLOT[i] }} />
+                    <span className="size-2 rounded-sm" style={{ background: colors[i] }} />
                     <span className="font-mono">{t}</span>
                   </span>
                 </th>
@@ -324,7 +349,7 @@ function StatsTable({ tickers, data }: { tickers: string[]; data: Array<Analysis
                 <td className="py-1.5 pl-4 text-ink-2">{label}</td>
                 {data.map((a, i) => (
                   <td key={tickers[i]} className="py-1.5 pr-4 text-right capitalize text-ink">
-                    {a ? get(a) : <span className="text-faint">…</span>}
+                    {a ? get(a) : <span className="text-muted">…</span>}
                   </td>
                 ))}
               </tr>

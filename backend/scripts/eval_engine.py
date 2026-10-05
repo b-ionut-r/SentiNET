@@ -43,6 +43,7 @@ from datetime import date
 from pathlib import Path
 from typing import NamedTuple
 
+from app.nlp import lexicon as lx
 from app.nlp.engine import SentinelEngine, VaderEngine
 from app.nlp.types import SentimentEngine
 
@@ -397,13 +398,19 @@ def main(argv: list[str] | None = None) -> int:
                 "(a few appeared verbatim in unit tests; replaced), so those two numbers may be mildly optimistic. "
                 "FiQA texts and errors were never inspected (only label counts and aggregate scores at a few "
                 "checkpoints; no setting was chosen on them), so it is the cleanest held-out estimate. FiQA is "
-                "~88% polar, which penalizes an engine calibrated to abstain (neutral) on weak evidence: see "
-                "'polar' (share of polar items the engine commits on, and its accuracy when it does)."),
+                "~88% polar, which penalizes an engine calibrated to abstain (neutral) on weak evidence: the news "
+                "dead zone (0.28) was fitted to Twitter's neutral-heavy labels, so on FiQA headlines Sentinel commits "
+                "on only ~half the polar items (see 'polar': share of polar items it commits on, and its accuracy "
+                "when it does). Review fixes (sign flips on guidance metrics, negated approvals, size-cap compounds, "
+                "the retailer Target, bare 'record', signed percents, 'stock up/down', forum prose) were selected "
+                "on the Twitter train split and hand-written regression cases only; held-out sets were re-run for "
+                "reporting, not selection."),
             "datasets": {k: {**DATASET_INFO[k], "n": sizes[k]} for k in results},
             "summary": _summary(results),
             "held_out": {k: v for k, v in results.items() if k not in TUNING_SETS},
             "tuning": {k: v for k, v in results.items() if k in TUNING_SETS} or None,
             "throughput_texts_per_s": speeds,
+            "lexicon": lx.lexicon_stats(),
         }
         RESULTS_PATH.parent.mkdir(parents=True, exist_ok=True)
         RESULTS_PATH.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")

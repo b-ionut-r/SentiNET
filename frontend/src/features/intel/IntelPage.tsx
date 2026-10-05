@@ -3,18 +3,20 @@
  * verdict → insights → narratives → the case → price × tone → smart money →
  * crowd → themes → raw signals → filings & source health.
  */
-import { Landmark, RefreshCw, Star } from "lucide-react";
-import { lazy, Suspense, useEffect, useMemo } from "react";
+import { Landmark, RefreshCw, RotateCw, Star } from "lucide-react";
+import { lazy, Suspense, useEffect, useMemo, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { ApiError } from "../../api/client";
 import { useAnalysis, useSearch, useWatchlist, useWatchToggle } from "../../api/hooks";
 import type { Analysis } from "../../api/types";
 import { useCommands, usePageCommands } from "../../components/layout/commands";
-import { ErrorState, Skeleton, TickerLogo, TopProgress } from "../../components/ui/Misc";
+import { ErrorState, InlineAlert, Skeleton, TickerLogo, TopProgress } from "../../components/ui/Misc";
 import { Panel } from "../../components/ui/Panel";
 import { cx } from "../../lib/cx";
+import { timeAgo } from "../../lib/format";
 import { useHotkeys } from "../../lib/hotkeys";
+import { useStickyTop } from "../../lib/useStickyTop";
 import { getRecent, pushRecent } from "../../lib/storage";
 import { AnalystsPanel, EarningsPanel, hasAnalysts, hasEarnings, hasInsiders, InsidersPanel } from "./SmartMoney";
 import { CasePanel, WatchNext } from "./Case";
@@ -54,6 +56,9 @@ export default function IntelPage() {
   }, [ticker, data]);
 
   const onWatch = () => toggleWatch.mutate({ ticker, watched });
+  // A failed watch toggle must not follow the reader to another ticker.
+  const resetWatch = toggleWatch.reset;
+  useEffect(() => resetWatch(), [ticker, resetWatch]);
 
   useHotkeys({ r: () => !q.isFetching && q.refresh(), w: onWatch });
   usePageCommands([
@@ -74,7 +79,37 @@ export default function IntelPage() {
   return (
     <>
       <TopProgress active={q.isFetching} />
-      <IntelView a={data} refetching={q.isFetching} watched={watched} onWatch={onWatch} onRefresh={q.refresh} progressCount={q.progress.length} />
+      <IntelView
+        a={data}
+        refetching={q.isFetching}
+        watched={watched}
+        onWatch={onWatch}
+        onRefresh={q.refresh}
+        progressCount={q.progress.length}
+        alerts={
+          <>
+            {q.error && !q.isFetching && (
+              <InlineAlert
+                action={
+                  <button className="btn h-7" onClick={q.refresh}>
+                    <RotateCw className="size-3.5" /> Retry
+                  </button>
+                }
+              >
+                <span className="font-medium">Refresh failed</span>
+                <span className="text-ink-2"> — {q.error.message}. Showing the analysis from {timeAgo(data.generated_at)}.</span>
+              </InlineAlert>
+            )}
+            {toggleWatch.error && (
+              <InlineAlert action={<button className="btn h-7" onClick={() => toggleWatch.reset()}>Dismiss</button>}>
+                <span className="font-medium">Couldn't update the watchlist</span>
+                <span className="text-ink-2"> — {toggleWatch.error.message}</span>
+              </InlineAlert>
+            )}
+          </>
+        }
+        stale={!!q.error}
+      />
     </>
   );
 }
@@ -86,6 +121,8 @@ function IntelView({
   onWatch,
   onRefresh,
   progressCount,
+  alerts,
+  stale,
 }: {
   a: Analysis;
   refetching: boolean;
@@ -93,6 +130,10 @@ function IntelView({
   onWatch: () => void;
   onRefresh: () => void;
   progressCount: number;
+  /** Failed refresh / watch actions, shown under the header while old data stays visible. */
+  alerts?: ReactNode;
+  /** The last refresh failed: what's on screen is older than the user asked for. */
+  stale: boolean;
 }) {
   const narrativeSignals = useMemo(() => {
     const map = new Map<string, Analysis["signals"]>();
@@ -104,30 +145,35 @@ function IntelView({
     }
     return map;
   }, [a.signals]);
+  const rail = useStickyTop<HTMLDivElement>(108);
 
   return (
     <div className={cx("space-y-4 transition-opacity", refetching && "is-refreshing")}>
-      <HeaderStrip a={a} watched={watched} onWatch={onWatch} onRefresh={onRefresh} refreshing={refetching} progressCount={progressCount} />
+      <HeaderStrip a={a} watched={watched} onWatch={onWatch} onRefresh={onRefresh} refreshing={refetching} progressCount={progressCount} stale={stale} />
+      {alerts}
       <SectionNav a={a} />
       <VerdictHero a={a} />
 
-      {/* Two independent columns on desktop (story + case | insights + catalysts) so a short
-          column never forces gaps into the other; on phones the wrappers dissolve
-          (display: contents) and `order` restores reading order: insights, stories, case, catalysts. */}
-      <div className="flex flex-col gap-4 lg:grid lg:grid-cols-12 lg:items-start">
-        <div className="contents lg:col-span-8 lg:flex lg:flex-col lg:gap-4">
-          <Narratives a={a} membersOf={narrativeSignals} className="order-2 lg:order-none" />
-          <CasePanel a={a} className="order-3 lg:order-none" />
+      {/* DOM order is the reading order (insights, stories, case, catalysts) and is what phones show.
+          Desktop: stories + case on the left spanning both rows; insights pinned top-right and the
+          catalysts rail below them, sticky so it rides along with the longer story column. */}
+      <div className="grid gap-4 lg:grid-cols-12 lg:grid-rows-[auto_1fr] lg:items-start">
+        <InsightsRail insights={a.insights} evidence={a.sentiment.n} className="lg:col-span-4 lg:col-start-9 lg:row-start-1" />
+        <div className="flex min-w-0 flex-col gap-4 lg:col-span-8 lg:col-start-1 lg:row-span-2 lg:row-start-1">
+          <Narratives a={a} membersOf={narrativeSignals} />
+          <CasePanel a={a} />
         </div>
-        <div className="contents lg:col-span-4 lg:flex lg:flex-col lg:gap-4">
-          <InsightsRail insights={a.insights} evidence={a.sentiment.n} className="order-1 lg:order-none" />
-          <WatchNext a={a} className="order-4 lg:order-none" />
+        <div ref={rail.ref} className="min-w-0 lg:sticky lg:col-span-4 lg:col-start-9 lg:row-start-2" style={{ top: rail.top }}>
+          <WatchNext a={a} />
         </div>
       </div>
 
-      <Suspense fallback={<Skeleton className="h-[460px] w-full rounded-xl" />}>
-        <PriceTone a={a} />
-      </Suspense>
+      {/* The id lives outside the lazy chunk so the section nav can track it from the first paint. */}
+      <div id="price" className="scroll-mt-36 md:scroll-mt-28">
+        <Suspense fallback={<Skeleton className="h-[460px] w-full rounded-xl" />}>
+          <PriceTone a={a} />
+        </Suspense>
+      </div>
 
       {hasAnalysts(a) || hasInsiders(a) || hasEarnings(a) ? (
         <section id="smart-money" className="grid scroll-mt-36 gap-4 md:scroll-mt-28 lg:grid-cols-3">

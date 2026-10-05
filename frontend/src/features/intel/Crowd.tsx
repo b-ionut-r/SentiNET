@@ -61,7 +61,7 @@ function Retail({ c, socialScore, socialN }: { c: CrowdView; socialScore: number
             </div>
             <div className="mt-1.5 flex justify-between text-2xs text-muted">
               <span>
-                <span className="text-bull">▲</span> {c.stocktwits_bullish} bull · <span className="text-bear">▼</span> {c.stocktwits_bearish} bear
+                <span className="text-bull-ink">▲</span> {c.stocktwits_bullish} bull · <span className="text-bear-ink">▼</span> {c.stocktwits_bearish} bear
               </span>
               <span>│ typical {Math.round(ST_BASELINE * 100)}%</span>
             </div>
@@ -130,7 +130,7 @@ function Attention({ att }: { att: AttentionView }) {
         <span className="pb-0.5 text-sm font-semibold text-ink-2">{att.label}</span>
       </div>
       <Meter value={att.heat / 100} color="rgb(var(--heat))" track="rgb(var(--heat) / 0.16)" height={8} className="mt-3" />
-      <div className="mt-1 flex justify-between text-2xs text-faint">
+      <div className="mt-1 flex justify-between text-2xs text-muted">
         <span>Quiet</span>
         <span>Normal</span>
         <span>Elevated</span>

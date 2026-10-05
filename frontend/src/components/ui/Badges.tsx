@@ -13,8 +13,8 @@ const chipTone: Record<ChipTone, string> = {
   neutral: "bg-raised text-ink-2",
   muted: "bg-transparent text-muted",
   accent: "bg-accent/12 text-accent",
-  bull: "bg-bull/12 text-bull",
-  bear: "bg-bear/12 text-bear",
+  bull: "bg-bull/12 text-bull-ink",
+  bear: "bg-bear/12 text-bear-ink",
 };
 
 export function Chip({ children, tone = "neutral", className, title }: { children: ReactNode; tone?: ChipTone; className?: string; title?: string }) {

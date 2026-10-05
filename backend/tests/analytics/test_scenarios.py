@@ -112,14 +112,18 @@ def test_bullish_large_cap_syndication_and_sources() -> None:
 def test_meme_stock_flags_crowding_divergence_and_risks() -> None:
     a = build("meme_stock")
     v = a.verdict
-    assert comp(a, "social").score >= 85
+    # One vote per account (34 of 37 accounts bullish); a crowded long reads as a contrarian
+    # caution, so the social component stays well short of "strongly bullish".
+    assert a.crowd.stocktwits_bullish == 34 and a.crowd.stocktwits_bull_ratio == pytest.approx(0.919, abs=1e-3)
+    assert 55 <= comp(a, "social").score < 75  # euphoric posts (+0.88) are capped at the crowding level
     assert comp(a, "news").score <= 35 and comp(a, "analysts").score <= 25
     # The crowd cannot carry the verdict on its own.
     assert v.score < 55
-    assert "bullish retail (95% of 60 tagged)" in v.headline
+    assert "crowded-long retail (92% bullish of 37 accounts)" in v.headline
 
     crowded = insight(a, "Crowded long")
-    assert crowded is not None and crowded.polarity == "bear" and "95%" in crowded.detail
+    assert crowded is not None and crowded.polarity == "bear"
+    assert "92% of 37 StockTwits accounts tagging a stance" in crowded.detail
     divergence = insight(a, "Crowd bullish, news bearish")
     assert divergence is not None and divergence.kind == "divergence"
     assert insight(a, "Short-seller report").severity == "alert"

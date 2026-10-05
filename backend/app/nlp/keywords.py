@@ -24,6 +24,7 @@ from app.nlp.narratives import find_duplicates
 from app.nlp.relevance import company_terms
 from app.nlp.text import (
     CALENDAR_WORDS,
+    COMMON_HEADLINE_WORDS,
     GENERIC_WORDS,
     HEADLINE_VERBS,
     MOVE_WORDS,
@@ -101,30 +102,6 @@ def _swap_if_misordered(scores: object, company: object) -> tuple[Sequence[float
     return scores, company  # type: ignore[return-value]
 
 
-# Everyday headline words that Title Case headlines capitalize ("Stock Pays $0
-# In Dividends"); when a batch shows no lower-case use, these still read as
-# common words, while unknown capitalized words ("Synopsys") read as names.
-_COMMON_WORDS = wordset("""
-pay pays paid shift shifts mean means bear bears bull bulls consensus demand result results dividend dividends
-platform platforms agent agents agentic bank banks deal growth chip chips data cloud revenue profit profits margin
-margins debt cash sales sale market product products business model models power energy home hub tech technology
-plan plans move war fear fears risk risks bet bets run rally crash bubble boom rebound recovery turnaround
-strategy narrative catalyst catalysts outlook guidance forecast estimates expectations report reports filing
-filings trial trials drug drugs vaccine approval deal deals merger acquisition partnership contract order orders
-launch launches event events device devices phone phones app apps software hardware service services
-subscription subscribers users customers consumers shoppers stores store retail retailer prices pricing
-supply chain factory production capacity shortage inventory tariff tariffs tax taxes rate rates yield yields
-inflation economy jobs workers union strike layoffs hiring leadership board chief executive founder director
-officer insider insiders investors analyst analysts rating ratings target targets upgrade downgrade upside
-downside valuation premium discount bargain value cheap expensive dip dips record highs lows peak bottom
-quarter quarterly annual earnings beat miss loss losses income sell buy hold short squeeze options calls puts
-volume flows fund funds etf etfs portfolio wealth fortune richer billionaire billionaires opinion analysis
-question questions answer warning warnings alert threat threats challenge competition rival rivals win wins
-loss deal-making return returns gain gains drop drops jump jumps surge surges slide slides crash purchase purchases
-purchased stake stakes holdings position positions
-""")
-
-
 @dataclass
 class _Case:
     """Capitalization evidence gathered from one batch of headlines."""
@@ -169,7 +146,7 @@ def _display(term: str, case: _Case) -> str:
     phrase = len(parts) == 2 and (parts[0], parts[1]) in case.phrases
 
     def ambiguous(part: str) -> bool:
-        return part not in case.proper and part not in case.common and part not in _COMMON_WORDS
+        return part not in case.proper and part not in case.common and part not in COMMON_HEADLINE_WORDS
 
     def is_name(part: str) -> bool:
         if phrase or part in case.proper:

@@ -20,7 +20,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useHistory, usePrice } from "../../api/hooks";
-import type { Analysis, Candle, HistoryResponse, PriceRange, TonePoint } from "../../api/types";
+import type { Analysis, Candle, HistoryResponse, LagStat, PriceRange, TonePoint } from "../../api/types";
 import { Columns } from "../../components/charts/Columns";
 import { Meter } from "../../components/charts/Bars";
 import { Empty, Segmented, Skeleton } from "../../components/ui/Misc";
@@ -54,36 +54,43 @@ function sessionDay(t: string): string {
   return Number.isFinite(ms) ? new Date(ms + 12 * 3600_000).toISOString().slice(0, 10) : t.slice(0, 10);
 }
 
-/** Build one shared time index for both panes (trading days + trailing news-only days). */
+/**
+ * Build one shared time index for both panes (trading days + trailing news-only days).
+ * Tone from a weekend/holiday rolls into the next session, volume-weighted like the
+ * backend's alignment; tone dated before the first candle is dropped so the first
+ * bar never silently averages weeks of history.
+ */
 function buildRows(candles: Candle[], tone: TonePoint[], daily: boolean): Row[] {
   if (!daily) {
     return candles.map((c) => ({ time: (Math.floor(new Date(c.t).getTime() / 1000) + TZ_SHIFT) as UTCTimestamp, candle: c, tone: null, volume: null }));
   }
   const rows: Row[] = candles.map((c) => ({ time: sessionDay(c.t), candle: c, tone: null, volume: null }));
   const days = rows.map((r) => r.time as string);
-  const bucket = new Map<string, number[]>();
-  const vol = new Map<string, number>();
+  const acc = new Map<string, { sum: number; w: number; vol: number }>();
   const trailing: TonePoint[] = [];
   for (const p of tone) {
-    if (p.tone == null) continue;
-    // Weekend/holiday tone rolls forward to the next trading day it could move.
+    if (p.tone == null || !days.length || p.date < days[0]) continue;
     const target = days.find((d) => d >= p.date);
     if (!target) {
       trailing.push(p);
       continue;
     }
-    bucket.set(target, [...(bucket.get(target) ?? []), p.tone]);
-    vol.set(target, (vol.get(target) ?? 0) + (p.volume ?? 0));
+    const w = p.volume != null && p.volume > 0 ? p.volume : 1;
+    const a = acc.get(target) ?? { sum: 0, w: 0, vol: 0 };
+    acc.set(target, { sum: a.sum + p.tone * w, w: a.w + w, vol: a.vol + (p.volume ?? 0) });
   }
   for (const r of rows) {
-    const vals = bucket.get(r.time as string);
-    if (vals?.length) {
-      r.tone = vals.reduce((s, v) => s + v, 0) / vals.length;
-      r.volume = vol.get(r.time as string) ?? null;
+    const a = acc.get(r.time as string);
+    if (a && a.w > 0) {
+      r.tone = a.sum / a.w;
+      r.volume = a.vol || null;
     }
   }
-  if (candles.length && tone.length && rows.length) {
-    for (const p of trailing) rows.push({ time: p.date, candle: null, tone: p.tone, volume: p.volume });
+  // News-only days after the last session; the chart needs strictly ascending, unique times.
+  const tail = new Map(trailing.map((p) => [p.date, p]));
+  for (const d of [...tail.keys()].sort()) {
+    const p = tail.get(d)!;
+    rows.push({ time: d, candle: null, tone: p.tone, volume: p.volume });
   }
   return rows;
 }
@@ -100,7 +107,7 @@ export default function PriceTone({ a }: { a: Analysis }) {
   const currency = priceQ.data?.currency ?? a.quote?.currency;
 
   return (
-    <div id="price" className="grid scroll-mt-36 md:scroll-mt-28 gap-4 lg:grid-cols-12">
+    <div className="grid gap-4 lg:grid-cols-12">
       <Panel
         title="Price × news tone"
         subtitle={
@@ -115,7 +122,7 @@ export default function PriceTone({ a }: { a: Analysis }) {
         footer={
           <div className="flex flex-wrap items-center justify-between gap-2">
             <MarkerLegend />
-            <a className="text-faint hover:text-muted" href="https://www.tradingview.com/" target="_blank" rel="noreferrer">
+            <a className="text-muted hover:text-ink-2" href="https://www.tradingview.com/" target="_blank" rel="noreferrer">
               Charts by TradingView
             </a>
           </div>
@@ -142,10 +149,10 @@ function MarkerLegend() {
   return (
     <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
       <span className="inline-flex items-center gap-1">
-        <span className="text-[9px] text-bull">▲</span> bullish event
+        <span className="text-[9px] text-bull-ink">▲</span> bullish event
       </span>
       <span className="inline-flex items-center gap-1">
-        <span className="text-[9px] text-bear">▼</span> bearish event
+        <span className="text-[9px] text-bear-ink">▼</span> bearish event
       </span>
       <span>A analyst · E earnings · F filing · I insider · N news</span>
     </span>
@@ -346,7 +353,7 @@ function Charts({ a, rows, showTone, daily, currency }: { a: Analysis; rows: Row
             {!shown.candle && <span className="text-muted">market closed</span>}
             {showTone && (
               <span className="text-muted">
-                Tone <span className={cx("font-semibold", shown.tone == null ? "text-faint" : textTone[shown.tone > 0.25 ? "bull" : shown.tone < -0.25 ? "bear" : "neutral"])}>{shown.tone == null ? "—" : signed(shown.tone)}</span>
+                Tone <span className={cx("font-semibold", shown.tone == null ? "text-muted" : textTone[shown.tone > 0.25 ? "bull" : shown.tone < -0.25 ? "bear" : "neutral"])}>{shown.tone == null ? "—" : signed(shown.tone)}</span>
               </span>
             )}
           </>
@@ -392,7 +399,7 @@ function ToneLeadPanel({ a, history, loading, error, className }: { a: Analysis;
               ] as const
             ).map(([l, v]) => (
               <div key={l} className="rounded-md bg-sunken px-2 py-2">
-                <div className={cx("text-base font-semibold", v == null ? "text-faint" : textTone[v > 0.25 ? "bull" : v < -0.25 ? "bear" : "neutral"])}>{signed(v)}</div>
+                <div className={cx("text-base font-semibold", v == null ? "text-muted" : textTone[v > 0.25 ? "bull" : v < -0.25 ? "bear" : "neutral"])}>{signed(v)}</div>
                 <div className="text-2xs text-muted">{l}</div>
               </div>
             ))}
@@ -404,7 +411,7 @@ function ToneLeadPanel({ a, history, loading, error, className }: { a: Analysis;
                 <span className="font-medium text-ink-2">{ordinal(t.percentile_7d * 100)} pct</span>
               </div>
               <Meter value={t.percentile_7d} color="rgb(var(--ink-2))" height={6} />
-              <div className="mt-1 flex justify-between text-2xs text-faint">
+              <div className="mt-1 flex justify-between text-2xs text-muted">
                 <span>90d low</span>
                 <span>90d high</span>
               </div>
@@ -423,19 +430,47 @@ function ToneLeadPanel({ a, history, loading, error, className }: { a: Analysis;
 }
 
 /**
- * Smallest |r| that is significant (two-sided p < 0.05) for n paired points:
- * r = t / sqrt(df + t²) with the Student-t 97.5% quantile approximated by a
- * Cornish–Fisher series (within ~1% of exact for df ≥ 4).
+ * The backend's reliability rule (analytics/stats.py): seven lags are tested,
+ * so a link only counts when it survives Bonferroni (p × 7 < 0.05) with
+ * |r| ≥ 0.2 on at least 20 paired days. The chart mirrors it exactly so the
+ * bars can never contradict the sentence above them.
+ */
+const LAGS_TESTED = 7;
+const ALPHA = 0.05;
+const MIN_R = 0.2;
+const MIN_RELIABLE_N = 20;
+/** Two-sided normal quantile for α / 7: Φ⁻¹(1 − 0.05 / 14). */
+const Z_BONF = 2.6901;
+
+function reliableLag(l: LagStat): boolean {
+  return l.n >= MIN_RELIABLE_N && Math.abs(l.r) >= MIN_R && l.p_value * LAGS_TESTED < ALPHA;
+}
+
+/**
+ * Smallest |r| that survives the 7-lag correction for n paired points:
+ * r = t / sqrt(df + t²), Student-t quantile from the Cornish–Fisher expansion
+ * of Z_BONF (matches the exact p within 0.1% for n ≥ 10). Never below MIN_R.
  */
 function criticalR(n: number): number {
   const df = n - 2;
-  const t = 1.96 + 2.37 / df + 2.8 / (df * df);
-  return t / Math.sqrt(df + t * t);
+  const z = Z_BONF;
+  const t = z + (z ** 3 + z) / (4 * df) + (5 * z ** 5 + 16 * z ** 3 + 3 * z) / (96 * df ** 2) + (3 * z ** 7 + 19 * z ** 5 + 17 * z ** 3 - 15 * z) / (384 * df ** 3);
+  return Math.max(MIN_R, t / Math.sqrt(df + t * t));
+}
+
+/** p-value at the precision the backend's sentence uses. */
+function fmtP(p: number): string {
+  return p < 0.001 ? "<0.001" : p < 0.01 ? p.toFixed(3) : p.toFixed(2);
+}
+
+function lagVerdict(l: LagStat): string {
+  if (reliableLag(l)) return `survives correction for ${LAGS_TESTED} tested lags`;
+  if (l.p_value < ALPHA) return `p < 0.05 alone, but not after correcting for ${LAGS_TESTED} tested lags — noise`;
+  return "not significant — noise";
 }
 
 function LagView({ h }: { h: HistoryResponse }) {
   const best = h.best_lag;
-  const sig = (p: number) => p < 0.05;
   const items = [...h.lags]
     .sort((x, y) => x.lag_days - y.lag_days)
     .map((l) => ({
@@ -443,21 +478,21 @@ function LagView({ h }: { h: HistoryResponse }) {
       label: l.lag_days === 0 ? "0" : `${l.lag_days > 0 ? "+" : MINUS}${Math.abs(l.lag_days)}d`,
       value: l.r,
       emphasis: best?.lag_days === l.lag_days,
-      color: sig(l.p_value) ? "rgb(var(--ink))" : "rgb(var(--ink-2) / 0.55)",
+      color: reliableLag(l) ? "rgb(var(--ink))" : "rgb(var(--ink-2) / 0.55)",
       tip: (
         <div className="space-y-0.5">
           <div className="font-semibold text-ink">r = {signed(l.r)}</div>
           <div>
-            lag {l.lag_days > 0 ? `tone leads by ${l.lag_days}d` : l.lag_days < 0 ? `returns lead by ${-l.lag_days}d` : "same day"} · p = {l.p_value.toFixed(2)} · n = {l.n}
+            lag {l.lag_days > 0 ? `tone leads by ${l.lag_days}d` : l.lag_days < 0 ? `returns lead by ${-l.lag_days}d` : "same day"} · p = {fmtP(l.p_value)} · n = {l.n}
           </div>
-          <div className="text-muted">{sig(l.p_value) ? "statistically significant (p < 0.05)" : "not significant"}</div>
+          <div className="text-muted">{lagVerdict(l)}</div>
         </div>
       ),
     }));
   const ns = h.lags.map((l) => l.n).filter((n) => n > 3).sort((x, y) => x - y);
   const nMid = ns.length ? ns[Math.floor(ns.length / 2)] : 0;
   const rCrit = nMid > 3 ? criticalR(nMid) : null;
-  const maxAbs = Math.max(0.5, (rCrit ?? 0) * 1.6, ...h.lags.map((l) => Math.abs(l.r)));
+  const maxAbs = Math.min(1, Math.max(0.5, (rCrit ?? 0) * 1.6, ...h.lags.map((l) => Math.abs(l.r))));
   return (
     <div>
       <p className="mb-3 text-sm leading-5 text-ink">{h.interpretation || "No interpretation available."}</p>
@@ -465,19 +500,21 @@ function LagView({ h }: { h: HistoryResponse }) {
         items={items}
         height={84}
         max={maxAbs}
-        band={rCrit != null ? { value: rCrit, label: `|r| < ${rCrit.toFixed(2)} is indistinguishable from noise at n = ${nMid}` } : null}
+        band={rCrit != null ? { value: rCrit, label: `|r| < ${rCrit.toFixed(2)} doesn't survive testing ${LAGS_TESTED} lags at n = ${nMid}` } : null}
         format={(v) => signed(v)}
         labels="emphasis"
         ariaLabel="Correlation of news tone with returns by lag"
       />
-      <div className="mt-1.5 flex justify-between text-2xs text-faint">
+      <div className="mt-1.5 flex justify-between text-2xs text-muted">
         <span>← returns lead tone</span>
         <span>tone leads returns →</span>
       </div>
       {rCrit != null && (
         <p className="mt-1.5 flex items-center gap-1.5 text-2xs text-muted">
           <span className="inline-block h-2.5 w-3 rounded-sm bg-[rgb(var(--ink-2)/0.09)]" aria-hidden />
-          Shaded band = noise: |r| below {rCrit.toFixed(2)} isn't significant at n = {nMid} (p ≥ 0.05)
+          {nMid < MIN_RELIABLE_N
+            ? `Shaded band = noise. Only ${nMid} paired days — under ${MIN_RELIABLE_N}, no lag counts as reliable yet`
+            : `Shaded band = noise: at n = ${nMid}, |r| below ${rCrit.toFixed(2)} doesn't survive testing ${LAGS_TESTED} lags`}
         </p>
       )}
       {best && (
@@ -486,7 +523,7 @@ function LagView({ h }: { h: HistoryResponse }) {
             [
               ["best lag", best.lag_days === 0 ? "0d" : `${best.lag_days > 0 ? "+" : MINUS}${Math.abs(best.lag_days)}d`],
               ["r", signed(best.r)],
-              ["p", best.p_value.toFixed(2)],
+              ["p", fmtP(best.p_value)],
               ["n", String(best.n)],
             ] as const
           ).map(([l, v]) => (

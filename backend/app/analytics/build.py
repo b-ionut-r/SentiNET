@@ -3,7 +3,7 @@
 Pure, synchronous and deterministic given its inputs (no network, no clock:
 `inputs.now` is the only notion of time). Steps:
 
-    prepare items → tone summaries → narratives → themes/keywords/timeline →
+    sanitize structured intel → prepare items → tone summaries → narratives → themes/keywords/timeline →
     crowd & attention → six components → composite verdict → catalysts →
     delta vs previous snapshot → insights → brief → ranked signals
 """
@@ -15,6 +15,7 @@ from app.analytics.aggregate import keyword_list, source_reports, summarize, the
 from app.analytics.brief import build_brief
 from app.analytics.catalysts import build_catalysts
 from app.analytics.composite import (
+    DEGRADED_MAX_DISTANCE,
     analysts_part,
     compose,
     insiders_part,
@@ -23,13 +24,14 @@ from app.analytics.composite import (
     social_part,
     technicals_part,
 )
-from app.analytics.crowd import attention_view, crowd_view, merged_metrics
+from app.analytics.crowd import as_float, as_int, attention_view, crowd_view, merged_metrics, stocktwits_tally
 from app.analytics.delta import build_delta
 from app.analytics.facts import Facts
 from app.analytics.inputs import AnalysisInputs
 from app.analytics.insights import build_insights
 from app.analytics.narratives import Story, build_narratives
 from app.analytics.prepare import Item, prepare
+from app.analytics.sanitize import sanitize_inputs
 from app.analytics.verdict import build_verdict
 from app.schemas import Analysis, Signal
 
@@ -39,6 +41,7 @@ OLDER_WINDOW = timedelta(days=7)
 
 
 def build_analysis(inputs: AnalysisInputs) -> Analysis:
+    inputs = sanitize_inputs(inputs)  # NaN/inf numbers and naive datetimes from providers
     now = inputs.now
     company = inputs.company
     prepared = prepare(company, inputs.source_runs, now)
@@ -53,24 +56,22 @@ def build_analysis(inputs: AnalysisInputs) -> Analysis:
     stories = build_narratives(items, company, now, inputs.previous)
     metrics = merged_metrics(inputs.source_runs)
     crowd = crowd_view(metrics)
+    tally = stocktwits_tally(metrics)
     attention = attention_view(inputs.tone, inputs.wiki_views, crowd, items, now)
     market_cap = inputs.quote.market_cap if inputs.quote is not None else None
-    av = metrics.get("av_sentiment")
-    av_articles = metrics.get("av_articles")
     composite = compose([
-        news_part(news, float(av) if isinstance(av, (int, float)) else None,
-                  int(av_articles) if isinstance(av_articles, (int, float)) else None),
-        social_part(social, crowd),
+        news_part(news, as_float(metrics.get("av_sentiment")), as_int(metrics.get("av_articles"))),
+        social_part(social, crowd, tally),
         analysts_part(inputs.analysts, now),
         insiders_part(inputs.insiders, market_cap, now),
         momentum_part(inputs.tone, recent, older),
         technicals_part(inputs.technicals),
-    ])
+    ], max_distance=DEGRADED_MAX_DISTANCE if prepared.engine_error else None)
     themes = theme_stats(items)
     facts = Facts(
         inputs=inputs, prepared=prepared, overall=overall, news=news, social=social, news_recent=recent,
-        news_older=older, stories=stories, themes=themes, metrics=metrics, crowd=crowd, attention=attention,
-        composite=composite,
+        news_older=older, stories=stories, themes=themes, metrics=metrics, crowd=crowd, stocktwits=tally,
+        attention=attention, composite=composite,
     )
     verdict = build_verdict(facts)
     facts.catalysts = build_catalysts(facts)

@@ -83,7 +83,7 @@ export function Dial({ value, bands, size = 200, thickness = 9, children, ariaLa
                 x={p.x}
                 y={t === 50 ? p.y + 2 : p.y + 8}
                 textAnchor={t === 0 ? "end" : t === 100 ? "start" : "middle"}
-                className="fill-[rgb(var(--faint))] text-[10px] num"
+                className="fill-[rgb(var(--muted))] text-[10px] num"
               >
                 {t}
               </text>

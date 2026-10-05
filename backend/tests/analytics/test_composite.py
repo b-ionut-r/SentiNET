@@ -5,6 +5,7 @@ import pytest
 
 from app.analytics.aggregate import Summary
 from app.analytics.composite import (
+    DEGRADED_MAX_DISTANCE,
     NEWS_BASELINE,
     WEIGHTS,
     Part,
@@ -14,9 +15,11 @@ from app.analytics.composite import (
     momentum_part,
     news_part,
     social_part,
+    stocktwits_strength,
     technicals_part,
     text_strength,
 )
+from app.analytics.crowd import Tally
 from app.schemas import CrowdView
 from tests.analytics.factories import NOW, action, analysts, insider, insiders, technicals, tone_trend
 
@@ -55,18 +58,35 @@ def test_soft_news_is_called_soft_not_negative() -> None:
     assert soft.phrase.startswith("soft news") and "typical is +0.04" in soft.reason
 
 
-def test_stocktwits_judged_against_its_bullish_baseline() -> None:
-    def crowd(bull: int, bear: int) -> CrowdView:
-        return CrowdView(stocktwits_bullish=bull, stocktwits_bearish=bear, stocktwits_bull_ratio=bull / (bull + bear))
+def tags(bull: int, bear: int, per_author: bool = False) -> tuple[CrowdView, Tally]:
+    return (CrowdView(stocktwits_bullish=bull, stocktwits_bearish=bear, stocktwits_bull_ratio=bull / (bull + bear)),
+            Tally(bull, bear, per_author))
 
-    typical = social_part(summary(None, 0), crowd(62, 38))
-    euphoric = social_part(summary(None, 0), crowd(95, 5))
-    bearish = social_part(summary(None, 0), crowd(30, 70))
-    tiny = social_part(summary(None, 0), crowd(3, 0))  # < 5 tagged: ignored
+
+def test_stocktwits_judged_against_its_bullish_baseline() -> None:
+    def social(bull: int, bear: int, per_author: bool = False) -> Part:
+        return social_part(summary(None, 0), *tags(bull, bear, per_author))
+
+    typical, bullish, euphoric = social(62, 38), social(80, 20), social(95, 5)
+    assert euphoric.score < bullish.score  # crowded beyond 85%: folds back
+    bearish, tiny = social(30, 70), social(3, 0)  # < 5 tagged: ignored
     assert 47 <= typical.score <= 53
-    assert euphoric.score > 80 and bearish.score < 20
+    assert 62 <= bullish.score <= 75 and bearish.score < 30
     assert not tiny.available
-    assert "95% of 100 tagged" in euphoric.reason and "62% is typical" in euphoric.reason
+    assert "80% of 100 tagged StockTwits posts are bullish (62% is typical)" in bullish.reason
+
+
+def test_crowded_stocktwits_never_adds_bullish_points() -> None:
+    """Live finding: 98% of 64 tags read 95.9 on its own, contradicting the crowding insight."""
+    ratios = [social_part(summary(None, 0), *tags(b, 100 - b)).score for b in (85, 90, 95, 100)]
+    assert ratios == sorted(ratios, reverse=True)  # beyond 85% the signal tapers back
+    euphoric = social_part(summary(None, 0), *tags(98, 2))
+    assert 55 < euphoric.score < 66  # reads like a ~72% bullish crowd
+    assert "crowded" in euphoric.reason and euphoric.phrase.startswith("crowded-long retail")
+    # One vote per account: 34 bullish accounts out of 35 (not 63 messages from a handful of accounts).
+    by_author = social_part(summary(None, 0), *tags(34, 1, per_author=True))
+    assert "35 StockTwits accounts tagging a stance" in by_author.reason and "(35 accounts)" in by_author.detail
+    assert stocktwits_strength(0.62, 50) == 0
 
 
 def test_wsb_sentiment_counts_with_volume() -> None:
@@ -160,8 +180,18 @@ def test_technicals_are_volatility_scaled_and_rsi_dampened() -> None:
     cool = technicals_part(technicals(r1m=40, r3m=80, vs50=30, vs200=60, rsi=65, vol=60))
     assert hot.score < cool.score and "overbought" in hot.reason
     down = technicals_part(technicals(r1m=-15, r3m=-25, vs50=-12, vs200=-20, rsi=30, vol=40))
-    assert down.score < 25 and down.phrase.startswith("a weak tape")
+    assert down.score < 35 and down.phrase.startswith("weak price action")
     assert not technicals_part(None).available
+
+
+def test_technicals_calibration_keeps_price_from_outshouting_sentiment() -> None:
+    """Live finding: SPY at +3.3% in 3M (~0.55σ) read 75 and 'a strong price trend'."""
+    spy = technicals_part(technicals(r1m=0.6, r3m=3.3, vs50=2.0, vs200=6.8, rsi=54, vol=12))
+    assert 55 <= spy.score <= 64 and spy.phrase.startswith("positive price action")
+    one_sigma = technicals_part(technicals(r1m=8.7, r3m=15.0, vs50=8.7, vs200=15.0, rsi=60, vol=30))
+    assert 64 <= one_sigma.score <= 70
+    surge = technicals_part(technicals(r1m=30, r3m=60, vs50=25, vs200=55, rsi=70, vol=45))
+    assert 78 <= surge.score <= 90 and surge.phrase.startswith("a strong price trend")
 
 
 # --------------------------------------------------------------------------- #
@@ -197,3 +227,10 @@ def test_low_confidence_components_weigh_less() -> None:
 def test_no_components_is_exactly_neutral() -> None:
     c = compose([part(k, None) for k in WEIGHTS])
     assert c.score == 50 and c.contributions == {} and c.coverage == 0
+
+
+def test_degraded_cap_limits_the_read_to_leaning() -> None:
+    parts = [part("social", 95), part("technicals", 90), part("momentum", 80), part("news", None)]
+    free, capped = compose(parts), compose(parts, max_distance=DEGRADED_MAX_DISTANCE)
+    assert free.score >= 70 and capped.score == 61
+    assert sum(capped.contributions.values()) == pytest.approx(capped.score - 50, abs=0.5)

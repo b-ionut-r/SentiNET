@@ -96,7 +96,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
       </header>
       <main className="mx-auto w-full max-w-[1440px] flex-1 px-4 pb-16 pt-4 sm:px-6 sm:pt-5">{children}</main>
-      <footer className="mx-auto w-full max-w-[1440px] px-4 pb-6 text-2xs text-faint sm:px-6">
+      <footer className="mx-auto w-full max-w-[1440px] px-4 pb-6 text-2xs text-muted sm:px-6">
         SentiNET fuses public news, social, analyst, insider, filing and GDELT data. Not investment advice. Missing data is shown as missing — never filled in.
       </footer>
       <CommandPalette />

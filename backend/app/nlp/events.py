@@ -21,9 +21,22 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from itertools import pairwise
 
-from app.nlp.text import clean_text, fold
+from app.nlp.text import (
+    CALENDAR_WORDS,
+    COMMON_HEADLINE_WORDS,
+    GENERIC_WORDS,
+    HEADLINE_VERBS,
+    MOVE_WORDS,
+    STOPWORDS,
+    clean_text,
+    fold,
+    is_title_case,
+    wordset,
+)
 from app.nlp.types import DetectedEvent
+from app.sources.base import CompanyRef
 
 EVENT_LABELS: dict[str, str] = {
     "analyst_upgrade": "Analyst upgrade",
@@ -333,6 +346,11 @@ class _Hit:
     firm: str | None = None
     value: float | None = None
     span: str | None = None
+    end: int = -1  # end of the matched phrase (for attribution); -1 = start + len(span)
+
+    @property
+    def stop(self) -> int:
+        return self.end if self.end >= 0 else self.start + len(self.span or "")
 
 
 def _num(raw: str) -> float | None:
@@ -482,7 +500,7 @@ def _analyst_events(text: str) -> list[_Hit]:
             span_end = min(len(text), m.end() + 40)
             hits.append(_Hit(m.start(), key, "bull" if direction > 0 else "bear",
                              firm=_firm_near(text, m.start(), m.end(), allow_actor=True), value=new,
-                             span=text[m.start():span_end].strip()))
+                             span=text[m.start():span_end].strip(), end=m.end()))
     # --- rating changes ----------------------------------------------------- #
     rating_patterns = (
         ("analyst_upgrade", re.compile(r"\b(?:double[- ])?upgrad(?:e[sd]?|ing)\b|\bturns? bullish\b|"
@@ -527,7 +545,7 @@ def _analyst_events(text: str) -> list[_Hit]:
                     polarity = "bull" if _BULL_RATING.search(rating) else "bear" if _BEAR_RATING.search(rating) \
                         else "neutral"
             hits.append(_Hit(m.start(), key, polarity, firm=firm,
-                             span=text[m.start():min(len(text), m.end() + 50)].strip()))
+                             span=text[m.start():min(len(text), m.end() + 50)].strip(), end=m.end()))
     # One note usually comes from one broker: share a firm found by any analyst event.
     known = next((h.firm for h in hits if h.firm), None)
     for h in hits:
@@ -551,7 +569,7 @@ def _analyst_events(text: str) -> list[_Hit]:
 # --------------------------------------------------------------------------- #
 _EARN = (r"(?:earnings|eps|profits?|net income|revenues?|sales|results|top[- ]line|bottom[- ]line|quarter|"
          r"quarterly (?:results|report|numbers)|q[1-4]|(?:first|second|third|fourth)[- ]quarter|fiscal q[1-4]|"
-         r"deliveries|comps|same-store sales|comparable sales|bookings|subscribers|margins?|numbers|report)")
+         r"deliveries|delivery|comps|same-store sales|comparable sales|bookings|subscribers|margins?|numbers|report)")
 _EST = (r"(?:estimates?|expectations|forecasts?|consensus|views?|projections?|wall street|the street|"
         r"(?:earnings|revenue|profit) targets?|analysts'? (?:estimates|expectations|forecasts?))")
 _GUIDE = r"(?:guidance|outlook|forecasts?|projections?|guide|view)"
@@ -962,8 +980,15 @@ def _lead(text: str) -> str:
     return text[:cut]
 
 
-def detect_events(text: str) -> list[DetectedEvent]:
-    """Events in `text`, in order of appearance; at most one per (key, firm)."""
+def detect_events(text: str, company: CompanyRef | None = None) -> list[DetectedEvent]:
+    """Events in `text`, in order of appearance; at most one per (key, firm).
+
+    With `company`, events that belong to *another* entity named in the text
+    are dropped: "Tesla rival Nikola files for bankruptcy" carries no
+    bankruptcy for Tesla, "EchoStar unit Dish files for bankruptcy after
+    delays in AT&T deal" none for AT&T, "Nvidia slips while AMD jumps 5%" no
+    price jump for Nvidia (see `_owned`). Texts that never name the company
+    keep their events (its owner is unknown; relevance gates them)."""
     if not text:
         return []
     t = _lead(fold(clean_text(text)))
@@ -983,9 +1008,12 @@ def detect_events(text: str) -> list[DetectedEvent]:
                 continue
             polarity = _polarity(key, t, m)
             value = _price_value(m.group(0), key) if key in {"price_up", "price_down"} else None
-            hits.append(_Hit(m.start(), key, polarity, value=value, span=m.group(0).strip()))
+            hits.append(_Hit(m.start(), key, polarity, value=value, span=m.group(0).strip(), end=m.end()))
+    if company is not None and hits:
+        hits = _attribute(t, hits, company)
 
     out: list[DetectedEvent] = []
+    starts: list[int] = []
     seen: set[tuple[str, str | None]] = set()
     for h in sorted(hits, key=lambda h: (h.start, h.key)):
         ident = (h.key, h.firm)
@@ -994,7 +1022,8 @@ def detect_events(text: str) -> list[DetectedEvent]:
         seen.add(ident)
         out.append(DetectedEvent(key=h.key, polarity=h.polarity, firm=h.firm, value=h.value,  # type: ignore[arg-type]
                                  span=(h.span or "")[:120] or None))
-    return _resolve_conflicts(out)
+        starts.append(h.start)
+    return _resolve_conflicts(t, out, starts)
 
 
 # Exclusions that only void the hit when they overlap it (others void any hit nearby).
@@ -1050,18 +1079,271 @@ def _polarity(key: str, text: str, m: re.Match[str]) -> str:
     return EVENT_POLARITY[key]
 
 
-def _resolve_conflicts(events: list[DetectedEvent]) -> list[DetectedEvent]:
-    """A headline rarely reports a stock both jumping and dropping; when both
-    fire (e.g. "Stocks slip …, but Nvidia stock is rising"), keep the move
-    with a stated magnitude, else the later one (the subject's own move tends
-    to come after the market context)."""
-    ups = [e for e in events if e.key == "price_up"]
-    downs = [e for e in events if e.key == "price_down"]
+def _named_mover(text: str, start: int) -> bool:
+    """True when a price move at `start` has a named subject right before it
+    ("Nvidia stock falls", "while AMD jumps") rather than the market at large
+    ("Stocks slip 1%")."""
+    words = re.findall(r"\$?[A-Za-z][\w&.'-]*", text[max(0, start - 40):start])[-3:]
+    title_case = is_title_case(text)
+    for word in words:
+        bare = word.removesuffix("'s").rstrip(".")
+        if bare.startswith("$") or _is_entity_word(bare, title_case):
+            return True
+        if title_case and bare[:1].isupper() and bare.lower() not in _COMMON_VOCAB:
+            return True
+    return False
+
+
+def _resolve_conflicts(text: str, events: list[DetectedEvent], starts: list[int]) -> list[DetectedEvent]:
+    """A headline rarely reports one stock both jumping and dropping. When
+    both fire, keep the move with a named subject ("Stocks slip 1%, but
+    Nvidia stock is rising"); if both have one ("Nvidia stock falls 3% while
+    AMD jumps 5%"), the first — the headline's lead subject; if neither, the
+    one with a stated magnitude, else the later one."""
+    ups = [i for i, e in enumerate(events) if e.key == "price_up"]
+    downs = [i for i, e in enumerate(events) if e.key == "price_down"]
     if not (ups and downs):
         return events
     up, down = ups[0], downs[0]
-    if (up.value is None) != (down.value is None):
-        loser = up if up.value is None else down
+    named_up, named_down = _named_mover(text, starts[up]), _named_mover(text, starts[down])
+    if named_up != named_down:
+        loser = down if named_up else up
+    elif named_up:
+        loser = down if starts[up] < starts[down] else up
+    elif (events[up].value is None) != (events[down].value is None):
+        loser = up if events[up].value is None else down
     else:
-        loser = up if events.index(up) < events.index(down) else down
-    return [e for e in events if e is not loser]
+        loser = up if starts[up] < starts[down] else down
+    return [e for i, e in enumerate(events) if i != loser]
+
+
+# --------------------------------------------------------------------------- #
+# Whose event is it? (company-aware attribution)
+# --------------------------------------------------------------------------- #
+# Events owned by the subject of their clause ("X files for bankruptcy",
+# "X beats estimates", "X stock jumps 5%").
+_SUBJECT_EVENTS = frozenset({
+    "earnings_beat", "earnings_miss", "guidance_raise", "guidance_cut", "record_results", "buyback",
+    "dividend_raise", "dividend_cut", "layoffs", "recall", "exec_departure", "exec_hire", "offering", "bankruptcy",
+    "delisting", "insider_buy", "insider_sell", "all_time_high", "low_52w", "high_52w", "stock_split", "price_up",
+    "price_down", "regulatory_approval", "regulatory_setback", "index_inclusion", "data_breach",
+})
+# Events with an actor and a target ("Hindenburg short report on X", "Masimo
+# sues X", "SEC probes X"): the target may follow the phrase.
+_TARGET_EVENTS = frozenset({"lawsuit", "investigation", "settlement", "short_report"})
+# Multi-party events: any party named in the clause owns them.
+_PARTY_EVENTS = frozenset({"m_and_a", "partnership", "contract_win", "product_launch"})
+
+_COMMON_VOCAB = STOPWORDS | GENERIC_WORDS | HEADLINE_VERBS | MOVE_WORDS | CALENDAR_WORDS | COMMON_HEADLINE_WORDS | wordset("""
+ai ceo cfo coo cto ev evs eps ipo etf gdp cpi us u.s uk fy q1 q2 q3 q4 h1 h2 pc
+revenue revenues sales profit profits earnings results quarter quarterly annual fiscal guidance outlook forecast
+estimates expectations consensus record high low bankruptcy chapter lawsuit suit probe report short seller sellers
+filing files filed recall layoffs jobs dividend buyback offering notice delisting shares stock
+even as while whereas but yet after amid following despite since because before ahead though although when once
+until why how what where who leader leaders giant maker makers chipmaker automaker retailer firm firms company
+companies group business unit""")
+_ACRONYM_WORDS = wordset("ai ceo cfo coo cto ev evs eps ipo etf gdp cpi us uk fy q1 q2 q3 q4 h1 h2 pc ii iii yoy qoq")
+_WORD_TOKEN_RE = re.compile(r"(?<![\w$&.'-])\$?[A-Za-z][\w&.'-]*")
+_SUBORDINATOR_RE = re.compile(
+    r"(?:,\s*|\s)(?:even as|even though|as|while|whereas|but|yet|after|amid|following|despite|since|because|before|"
+    r"ahead of|though|although|when|once|until)\s",
+    re.IGNORECASE,
+)
+# "as" that is not a conjunction: "such as", "steps down as CEO", "as much as".
+_AS_NOT_CLAUSE_BEFORE_RE = re.compile(r"\b(?:such|well|much|many|high|low|long|soon|far|known|named|same|serves?|"
+                                      r"served|serving|joins?|joined|rated|seen|down|appointed|ousted|out|resigns?|"
+                                      r"resigned|retires?|retired|remains?|stays?|returns?|takes? over|hired|tapped|"
+                                      r"exits?|leaves|left|step)\s*$", re.IGNORECASE)
+_AS_NOT_CLAUSE_AFTER_RE = re.compile(r"^(?:well|of|part|a result|much|many|expected|usual|planned|needed|soon|"
+                                     r"long|if|though|its (?:new )?(?:ceo|cfo|chief|chair|president|head)|"
+                                     r"(?:new |interim )?(?:ceo|cfo|coo|cto|chief|chair\w*|president|head|director))\b",
+                                     re.IGNORECASE)
+# What may sit between an event phrase and the company it happened to:
+# "layoffs hit Tesla", "recall of 2 million Tesla vehicles", "lawsuit filed
+# against Meta", "short position in Nikola".
+_ATTACH_GAP_RE = re.compile(r"^\s*(?:[\w$.,%-]+\s+){0,3}$")
+_TARGET_PREPOSITIONS = wordset("on against into in at of over targeting toward towards vs versus with from by")
+_GAP_FILLERS = wordset("the a an its their his her new fresh another major big more")
+# Gap pieces that keep the company as the subject: its own unit ("EchoStar unit
+# Dish DBS"), an executive ("Apple CEO John Ternus is planning layoffs"), a
+# ticker in parentheses, coordinated peers ("Ford, GM and Stellantis stock").
+_OWN_UNIT_RE = re.compile(r"^(?:'s)?\s+(?:unit|subsidiary|division|arm|affiliate|bank|brand)\b", re.IGNORECASE)
+_EXEC_NAME_RE = re.compile(r"(?:'s)?\s*\b(?:ceo|cfo|coo|cto|chief(?:\s+\w+)?(?:\s+officer)?|chair(?:man|woman)?|"
+                           r"president|founder|co-founder|director|executive|exec|boss|head)\s+"
+                           r"(?:(?-i:[A-Z])[\w.'-]*\s+){1,3}", re.IGNORECASE)
+_PAREN_RE = re.compile(r"\([^()]{0,40}\)")
+_COORDINATION_RE = re.compile(r"^(?:\s*(?:,|and|&|or)\s+(?:\$?(?-i:[A-Z])[\w&.'-]*\s*){1,3})+")
+_LEAD_SUBORDINATOR_RE = re.compile(r"^\s*,?\s*(?:even as|even though|ahead of|\w+)\s+")
+
+
+def _words(text: str) -> list[str]:
+    return [m.group(0).removesuffix("'s").rstrip(".") for m in _WORD_TOKEN_RE.finditer(text)]
+
+
+def _is_entity_word(word: str, title_case: bool) -> bool:
+    """A word that names an organization or person. Title Case headlines
+    capitalize everything, so there only entity *shapes* count ("AT&T",
+    "AMD", "EchoStar"); sentence case also trusts capitalization."""
+    low = word.lower()
+    if not word or low in _ACRONYM_WORDS:
+        return False
+    if word.startswith("$") and len(word) > 1:
+        return True
+    if "&" in word and len(word) > 2:
+        return True
+    letters = word.replace(".", "").replace("-", "")
+    if letters.isupper() and 2 <= len(letters) <= 6 and letters.isalpha():
+        return True
+    if any(c.isupper() for c in word[1:]) and any(c.islower() for c in word):
+        return True
+    if is_known_firm(word):
+        return True
+    return not title_case and word[:1].isupper() and low not in _COMMON_VOCAB
+
+
+def _has_entity(text: str, title_case: bool, sentence_start: bool, loose: bool = False) -> bool:
+    """True when `text` names someone (see _is_entity_word). A capitalized
+    first word of a sentence proves nothing in sentence case. With `loose`,
+    a Title Case word outside the common headline vocabulary counts too,
+    unless it reads as a verb ("... After Samsung Unveils ...")."""
+    for k, word in enumerate(_words(text)):
+        if k == 0 and sentence_start and not title_case:
+            if _is_entity_word(word, title_case=True):  # only shape counts sentence-initially
+                return True
+            continue
+        if _is_entity_word(word, title_case):
+            return True
+        if (loose and title_case and word[:1].isupper() and word.lower() not in _COMMON_VOCAB
+                and not word.lower().endswith(("ed", "ing"))):
+            return True
+    return False
+
+
+def _immediate_subject(segment: str) -> str:
+    """The noun phrase right before an event phrase: the last few words after
+    the last comma, parenthesized tickers removed."""
+    tail = _PAREN_RE.sub(" ", segment).rsplit(",", 1)[-1]
+    words = tail.split()
+    return " ".join(words[-4:])
+
+
+def _clauses(text: str) -> list[tuple[int, int]]:
+    """Clause spans: hard boundaries (". ", "; ", ": ", " - ", " | ") and
+    subordinating conjunctions ("as", "while", "after", "amid" …). Nothing
+    inside parentheses splits ("Apple (NASDAQ: AAPL) director …")."""
+    masked = _PAREN_RE.sub(lambda m: "x" * len(m.group(0)), text)
+    cuts: set[int] = {0, len(text)}
+    for m in _CLAUSE_SPLIT_RE.finditer(masked):
+        cuts.add(m.end())
+    for m in _SUBORDINATOR_RE.finditer(masked):
+        word = m.group(0).strip(" ,").lower()
+        if word == "as" and (_AS_NOT_CLAUSE_BEFORE_RE.search(masked[max(0, m.start() - 20):m.start()])
+                             or _AS_NOT_CLAUSE_AFTER_RE.match(masked[m.end():m.end() + 30])):
+            continue
+        cuts.add(m.start() + 1)
+    points = sorted(cuts)
+    return [(a, b) for a, b in pairwise(points) if b > a]
+
+
+def _sentence_start(text: str, pos: int) -> bool:
+    return not text[:pos].strip() or bool(re.search(r"[.!?:\"(]\s*$|\s-\s*$", text[:pos]))
+
+
+def _new_subject_between(text: str, a: int, b: int, title_case: bool) -> bool:
+    """Between our mention [.., a) and an event at b, does another subject
+    take over? "AT&T says Dish bankruptcy …" (an entity right before the
+    event) or a comma splice "Nvidia stock rises, Intel files for bankruptcy"."""
+    gap = _PAREN_RE.sub(" ", text[a:b])
+    if _OWN_UNIT_RE.match(gap):  # "EchoStar unit Dish DBS files …": the company's own unit
+        return False
+    gap = _COORDINATION_RE.sub(" ", _EXEC_NAME_RE.sub(" ", gap, count=1) if _EXEC_NAME_RE.match(gap) else gap)
+    if "," in gap:
+        head, _sep, tail = gap.rpartition(",")
+        if (re.search(r"[A-Za-z]", head) and 0 < len(tail.split()) <= 3
+                and _has_entity(tail, title_case, sentence_start=False, loose=True)):
+            return True
+    if gap.startswith("'s"):  # "Microsoft's X account was hacked": the company's own thing
+        return False
+    return _has_entity(_immediate_subject(gap), title_case, sentence_start=False)
+
+
+def _attached_after(text: str, stop: int, mentions: list, kind: str, title_case: bool) -> bool:
+    """The company follows the event phrase as its object: "layoffs hit
+    Tesla", "lawsuit filed against Meta", "short position in Nikola"."""
+    for mention in mentions:
+        if mention.start < stop:
+            continue
+        gap = text[stop:mention.start]
+        if not _ATTACH_GAP_RE.match(gap) or re.search(r"[;:!?|]", gap) or _SUBORDINATOR_RE.search(f" {gap} "):
+            return False
+        if "," in gap and not re.fullmatch(r"\s*,\s*\w+ing\s*", gap):  # ", sending Nvidia to a record"
+            return False
+        words = [w for w in _words(gap) if w.lower() not in _GAP_FILLERS]
+        if _has_entity(gap, title_case, sentence_start=False):
+            return False
+        if kind == "target":
+            return not words or words[-1].lower() in _TARGET_PREPOSITIONS
+        return len(words) <= 2
+    return False
+
+
+def _owned(text: str, hit: _Hit, mentions: list, cues: list, clauses: list[tuple[int, int]],
+           title_case: bool) -> bool:
+    """Does the event at `hit` belong to the company with these mentions?
+
+    Subject events need the company as the subject of their clause, or as
+    the subject of the clause they hang off when they have none of their
+    own ("Nvidia shares fall after record buyback"); target events also
+    accept the company as the object ("Masimo sues Apple"); multi-party
+    events accept any non-modifier mention (or brand cue) in the clause."""
+    kind = "target" if hit.key in _TARGET_EVENTS else "party" if hit.key in _PARTY_EVENTS else "subject"
+    subjects = [m for m in mentions if m.subject_like or (kind == "party" and m.adjunct)]
+    if kind == "party":
+        subjects = sorted(subjects + cues, key=lambda m: m.start)
+    if not subjects:  # only "Tesla rival …" / "… after delays in AT&T deal"
+        return False
+    start, stop = hit.start, hit.stop
+    if any(start <= m.start < stop for m in subjects):
+        return True
+    ci = next((i for i, (a, b) in enumerate(clauses) if a <= start < b), len(clauses) - 1)
+    c_start, c_end = clauses[ci]
+    before = [m for m in subjects if c_start <= m.start and m.end <= start]
+    if before and (kind != "subject" or not _new_subject_between(text, before[-1].end, start, title_case)):
+        return True
+    if _attached_after(text, stop, subjects, kind, title_case):
+        return True
+    if kind == "party" and any(c_start <= m.start < c_end for m in subjects):
+        return True
+    opener = _immediate_subject(text[c_start:start])
+    anaphora = re.match(r"\s*(?:\w+\s+)?(?:its|their)\b", opener, re.IGNORECASE)  # "as its Mastercard launch"
+    own_subject = not anaphora and _has_entity(opener, title_case, _sentence_start(text, c_start) and
+                                               opener == text[c_start:start].strip(), loose=kind == "party")
+    if kind != "target" and own_subject:
+        return False  # "… while AMD jumps 5%": that clause has its own subject
+    for a, b in reversed(clauses[:ci]):  # inherit the subject of the clause it hangs off
+        if any(a <= m.start < b for m in subjects):
+            return True
+        if _has_entity(text[a:b], title_case, _sentence_start(text, a)):
+            return False
+    # A subject-less lead clause takes the subject of the next one:
+    # "Stock jumps 5% after Apple beats estimates".
+    if ci == 0 and len(clauses) > 1 and all(w.lower() in _COMMON_VOCAB for w in _words(text[c_start:start])):
+        a, _b = clauses[1]
+        lead = _LEAD_SUBORDINATOR_RE.match(text[a:])
+        offset = a + (lead.end() if lead else 0)
+        return any(offset <= m.start <= offset + 1 for m in subjects)
+    return False
+
+
+def _attribute(text: str, hits: list[_Hit], company: CompanyRef) -> list[_Hit]:
+    """Drop company-specific events that belong to another entity."""
+    from app.nlp.relevance import brand_cue_mentions, explain_relevance  # local: relevance imports this module
+
+    mentions = explain_relevance(text, company).mentions
+    if not mentions:
+        return hits  # the company is not named: owner unknown
+    cues = brand_cue_mentions(text, company)
+    clauses = _clauses(text)
+    title_case = is_title_case(text)
+    return [h for h in hits if h.key not in _SUBJECT_EVENTS | _TARGET_EVENTS | _PARTY_EVENTS
+            or _owned(text, h, mentions, cues, clauses, title_case)]
