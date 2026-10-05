@@ -1,11 +1,16 @@
 """Each insight fires only when its evidence clears the threshold — and says so with numbers."""
 from __future__ import annotations
 
+from datetime import timedelta
+
+import pytest
+
 from app.analytics.build import build_analysis
-from app.schemas import Insight
+from app.schemas import Insight, Quote
 from tests.analytics.factories import (
     APEWISDOM,
     GOOGLE,
+    NOW,
     STOCKTWITS,
     action,
     analysts,
@@ -169,6 +174,79 @@ def test_insider_buying_signals() -> None:
     assert c is not None and c.title == "Chief Executive Officer bought $750K"
     small = insiders([insider(5, "Dana Smith", "buy", 50_000, "Director")])
     assert titled(insights(run(GOOGLE, NEUTRAL_NEWS), insiders=small), "bought") is None
+
+
+def vodafone_insiders():
+    """Live VOD.L (2026-10-05): five directors bought $1.4K–$84K while colleagues sold $20.2M.
+    Values are USD (Yahoo converts the London filings), ~$1.6 a share."""
+    from app.schemas import InsiderTxn
+
+    def txn(days: float, who: str, kind: str, value: float) -> InsiderTxn:
+        return InsiderTxn(date=(NOW - timedelta(days=days)).date(), insider=who, kind=kind,  # type: ignore[arg-type]
+                          shares=round(value / 1.62), value=value)
+
+    buys = [txn(59, "Scott Petty", "buy", 36_969), txn(59, "Joakim Reiter", "buy", 83_727),
+            txn(59, "Jean-Francois van Boxmeer", "buy", 36_005), txn(63, "Stephen Carter", "buy", 4_672),
+            txn(64, "Simon Dingemans", "buy", 1_402)]
+    sells = [txn(14, "Joakim Reiter", "sell", 850_500), txn(56, "Shameel Joosub", "sell", 1_195_725),
+             txn(60, "Marika Auramo", "sell", 1_223_601)] + [
+        txn(66, f"Executive {i}", "sell", 16_925_444 / 8) for i in range(8)]
+    return insiders(buys + sells)
+
+
+def test_token_insider_buying_next_to_heavy_selling_is_not_a_cluster() -> None:
+    # Live VOD.L: ALERT 'Insider cluster buying: 5 insiders bought 163K in 90 days' while insiders
+    # sold $20.2M — and the insiders component read 67 ("Insider buying").
+    pence = Quote(price=126.8, market_cap=29.4e9, currency="GBp")
+    a = build_analysis(inputs(ACME, [run(GOOGLE, NEUTRAL_NEWS)], insiders=vodafone_insiders(), quote=pence))
+    assert titled(a.insights, "cluster") is None
+    part = next(c for c in a.verdict.components if c.key == "insiders")
+    assert part.score is not None and part.score < 50
+    assert part.detail.startswith("5 buys ($163K) / 11 sells ($20.2M)")  # insider values are USD everywhere
+    selling = next(b for b in a.brief.bear_points if "insider" in b.lower())
+    assert "$20.2M" in selling and "token-sized" in selling
+    assert not any("cluster" in b.lower() for b in a.brief.bull_points)
+
+
+def test_cluster_buying_needs_material_purchases() -> None:
+    # Dividend-reinvestment-sized buys by several insiders are routine, not a cluster.
+    dribs = insiders([insider(10 + i, f"Director {i}", "buy", 3_000) for i in range(5)])
+    assert titled(insights(run(GOOGLE, NEUTRAL_NEWS), insiders=dribs, quote=quote()), "cluster") is None
+    # Two material buyers who together put $100K+ in still are — with the selling stated next to them.
+    real = insiders([insider(10, "Ann Lee", "buy", 80_000), insider(20, "Bo Chan", "buy", 60_000),
+                     insider(30, "Cy Diaz", "buy", 2_000), insider(40, "Di Eng", "sell", 900_000)])
+    c = titled(insights(run(GOOGLE, NEUTRAL_NEWS), insiders=real, quote=quote()), "cluster")
+    assert c is not None and c.severity == "watch"
+    assert c.detail.startswith("2 insiders bought $140K on the open market in the last 90 days "
+                               "(+1 smaller buyer under $25K)")
+    assert "$900K sold over the same period" in c.detail
+    # The same buyers next to > 10x their purchases in discretionary sales: token.
+    dwarfed = insiders([insider(10, "Ann Lee", "buy", 80_000), insider(20, "Bo Chan", "buy", 60_000),
+                        insider(40, "Di Eng", "sell", 1.6e6)])
+    assert titled(insights(run(GOOGLE, NEUTRAL_NEWS), insiders=dwarfed, quote=quote()), "cluster") is None
+
+
+def test_insider_share_of_market_cap_never_mixes_currencies() -> None:
+    # Live VOD.L: '0.07% of market cap' divided USD insider sales by a GBP market cap.
+    from app.analytics.build import market_cap_usd
+
+    pence = Quote(price=126.8, market_cap=29.4e9, currency="GBp")
+    view = vodafone_insiders()
+    cap = market_cap_usd(inputs(ACME, [], insiders=view, quote=pence))
+    assert cap == pytest.approx(29.4e9 / 1.268 * 1.62, rel=0.01)  # shares outstanding × the USD price insiders paid
+    a = build_analysis(inputs(ACME, [run(GOOGLE, NEUTRAL_NEWS)], insiders=view, quote=pence))
+    detail = next(c for c in a.verdict.components if c.key == "insiders")
+    assert "share of market cap" not in detail.detail
+    assert "0.05% of market cap" in next(b for b in a.brief.bear_points if "insider" in b.lower())
+    # Without USD trade prices there is no honest conversion: the share is skipped and the detail says why.
+    unpriced = view.model_copy(update={"transactions": [t.model_copy(update={"shares": None})
+                                                        for t in view.transactions]})
+    b = build_analysis(inputs(ACME, [run(GOOGLE, NEUTRAL_NEWS)], insiders=unpriced, quote=pence))
+    part = next(c for c in b.verdict.components if c.key == "insiders")
+    assert part.detail.endswith("share of market cap n/a (GBP market cap, USD trades)")
+    assert not any("of market cap" in x for x in b.brief.bear_points + [r.text for r in b.verdict.reasons])
+    # A USD listing compares directly.
+    assert market_cap_usd(inputs(ACME, [], insiders=view, quote=quote(market_cap=5e9))) == 5e9
 
 
 def test_heavy_insider_selling_is_relative_to_market_cap() -> None:

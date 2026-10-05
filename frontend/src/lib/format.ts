@@ -100,30 +100,30 @@ export function price(n: number | null | undefined, currency?: string | null): s
 }
 
 /**
- * A per-share estimate or target (EPS, price target): cents precision from 0.10 up
- * ("−$0.14", "$0.50", "121.80p"), more digits only below that.
+ * A per-share estimate or target (EPS, price target): cents precision ("−$0.14",
+ * "$0.50", "$0.04", "121.80p"); sub-dime values keep up to 4 decimals only when they
+ * carry them ("$0.0123", never "$0.0400").
  */
 export function perShare(n: number | null | undefined, currency?: string | null): string {
   if (!isNum(n)) return DASH;
   const abs = Math.abs(n);
-  if (abs < 0.1 && abs > 0) return price(n, currency);
-  const digits = abs >= 10000 ? 0 : 2;
-  return withUnit(n, abs.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits }), currency);
+  if (abs > 0 && abs < 0.0001) return price(n, currency);
+  const [min, max] = abs >= 10000 ? [0, 0] : abs >= 0.1 ? [2, 2] : [2, 4];
+  return withUnit(n, abs.toLocaleString("en-US", { minimumFractionDigits: min, maximumFractionDigits: max }), currency);
 }
 
 /**
  * Currency that EPS and revenue estimates are reported in — often not the quote's:
  * SHOP.TO quotes CAD but reports USD, ASML quotes USD but reports EUR, VOD.L quotes
- * pence but reports EUR. Uses the API's own field when present; otherwise labels only
- * the case that is safe to infer (a US company quoted in USD) and returns null, so the
- * number shows without a symbol rather than with a wrong one.
+ * pence but reports EUR. Uses the API's profile.financial_currency when present;
+ * otherwise labels only the case that is safe to infer (a US company quoted in USD)
+ * and returns null, so the number shows without a symbol rather than a wrong one.
  */
 export function reportingCurrency(a: {
   quote: { currency: string | null } | null;
-  profile: { country: string | null } | null;
-  earnings: object | null;
+  profile: { country: string | null; financial_currency?: string | null } | null;
 }): string | null {
-  const stated = (a.earnings as { currency?: string | null } | null)?.currency;
+  const stated = a.profile?.financial_currency;
   if (stated) return stated;
   const quoted = a.quote?.currency;
   return quoted === "USD" && a.profile?.country === "United States" ? "USD" : null;

@@ -233,6 +233,7 @@ def _row_to_record(row: sqlite3.Row) -> SnapshotRecord:
         label=row["label"],
         n_signals=row["n_signals"],
         price=row["price"],
+        currency=extra.get("currency") if isinstance(extra.get("currency"), str) else None,
         news_score=row["news_score"],
         social_score=row["social_score"],
         narratives=json.loads(row["narratives"] or "[]"),
@@ -348,7 +349,8 @@ def _snapshot_extra(analysis: Analysis) -> dict[str, Any]:
         for n in analysis.narratives[:SNAPSHOT_NARRATIVES]
     ]
     news_ok = any(s.kind in ("news", "analysis") and s.status in ("ok", "empty") for s in analysis.sources)
-    return {"analyst_keys": keys, "stories": stories, "news_ok": news_ok}
+    currency = analysis.quote.currency if analysis.quote else None
+    return {"analyst_keys": keys, "stories": stories, "news_ok": news_ok, "currency": currency}
 
 
 def evidence_free(analysis: Analysis) -> bool:

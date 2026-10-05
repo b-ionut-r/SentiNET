@@ -517,6 +517,7 @@ class Snapshot(BaseModel):
     label: SentimentLabel
     n_signals: int
     price: Optional[float] = None
+    currency: Optional[str] = None  # quote currency of `price` (e.g. "USD", "GBp")
     news_score: Optional[float] = None
     social_score: Optional[float] = None
     narratives: list[str] = []  # narrative headlines at the time

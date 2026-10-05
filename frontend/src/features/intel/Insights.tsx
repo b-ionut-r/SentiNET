@@ -1,5 +1,5 @@
 /** Severity-ranked insights: the things worth acting on or watching. */
-import { CalendarClock, Database, Flame, Landmark, RotateCcw, ShieldAlert, Split, TrendingUp, Users } from "lucide-react";
+import { CalendarClock, Database, Flame, Handshake, Landmark, RotateCcw, ShieldAlert, Split, TrendingUp, Users } from "lucide-react";
 
 import type { Insight, InsightKind } from "../../api/types";
 import { Mark, SeverityBadge, severityMeta } from "../../components/ui/Badges";
@@ -17,6 +17,7 @@ const KIND: Record<InsightKind, { label: string; Icon: typeof Flame }> = {
   risk: { label: "Risk", Icon: ShieldAlert },
   momentum: { label: "Momentum", Icon: TrendingUp },
   quality: { label: "Data quality", Icon: Database },
+  deal: { label: "Deal", Icon: Handshake },
 };
 
 const RANK: Record<string, number> = { alert: 0, watch: 1, info: 2 };

@@ -320,6 +320,15 @@ try {
     return n && c && i ? { gap: Math.round(c.top - n.bottom), topsAligned: Math.abs(n.top - i.top) < 2, caseLeftCol: c.right <= i.left } : null;
   });
   check("bull/bear case sits right under the stories", gap != null && gap.gap <= 20 && gap.topsAligned && gap.caseLeftCol, JSON.stringify(gap));
+  // Phones read one column: insights, stories, bull/bear case, then catalysts.
+  await aapl.setViewportSize({ width: 390, height: 844 });
+  await aapl.waitForTimeout(300);
+  const order = await aapl.evaluate(() => {
+    const top = (el) => (el ? Math.round(el.getBoundingClientRect().top + scrollY) : null);
+    const watch = [...document.querySelectorAll("section.panel h2")].find((h) => h.textContent?.trim() === "Watch next")?.closest("section");
+    return [top(document.getElementById("insights")), top(document.getElementById("narratives")), top(document.getElementById("case")), top(watch)];
+  });
+  check("phones stack insights → stories → case → catalysts", order.every((v, i) => v != null && (i === 0 || v > order[i - 1])), order.join(" < "));
   await desk.close();
 
   // Score components: shares are effective (n/a inputs carry none), and add to 100.

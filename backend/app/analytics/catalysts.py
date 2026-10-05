@@ -53,7 +53,7 @@ def build_catalysts(f: Facts) -> list[Catalyst]:
 
     recent: list[Catalyst] = []
     if f.inputs.analysts is not None:
-        recent.extend(_analyst_actions(f.inputs.analysts.actions, f.now, f.reporting_currency))
+        recent.extend(_analyst_actions(f.inputs.analysts.actions, f.now, f.action_currency))
     recent.extend(_filings(f))
     recent.extend(_insiders(f))
     recent.extend(_news(f))
@@ -170,14 +170,14 @@ def _insiders(f: Facts) -> list[Catalyst]:
             continue
         who = t.insider + (f" ({t.position})" if t.position else "")
         if t.kind == "buy":
-            value = f" {money(t.value, currency=f.reporting_currency)}" if t.value else ""
+            value = f" {money(t.value, currency=f.insider_currency)}" if t.value else ""
             out.append(Catalyst(date=noon_utc(t.date), kind="insider", title=f"{who} bought{value}",
                                 detail=_shares(t.shares), polarity="bull"))
         elif t.kind == "sell" and (t.value or 0) >= LARGE_SELL:
             sells.append(t)
     for t in sorted(sells, key=lambda t: -(t.value or 0))[:3]:
         who = t.insider + (f" ({t.position})" if t.position else "")
-        out.append(Catalyst(date=noon_utc(t.date), kind="insider", title=f"{who} sold {money(t.value or 0, currency=f.reporting_currency)}",
+        out.append(Catalyst(date=noon_utc(t.date), kind="insider", title=f"{who} sold {money(t.value or 0, currency=f.insider_currency)}",
                             detail=_shares(t.shares), polarity="bear"))
     return out
 

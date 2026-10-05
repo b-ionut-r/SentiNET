@@ -376,6 +376,32 @@ def test_review_cases(text, want):
     assert sorted(_keys(text)) == sorted(want)
 
 
+@pytest.mark.parametrize("text", [
+    # live TWLO/GME (2026-10-05): sell-to-cover / plan-mandated insider sales are no
+    # offering (no dilution) and no insider's call on the stock
+    "The 13,898-share sale by Twilio (TWLO)'s CEO was required by company plans, not discretionary.",
+    "Mandated tax sales total 9,084 shares for Twilio (TWLO) CFO Aidan Viggiano.",
+    "Twilio CEO Khozema Shipchandler Executes RSU Tax Withholding Share Sales",
+    "To cover stock-award taxes, Twilio (TWLO)'s Shipchandler proposes selling shares.",
+    "To cover taxes on vested stock grants, an officer proposes selling Twilio (NYSE: TWLO) shares.",
+    "To cover vesting taxes, GameStop (GME) officer Daniel Moore proposes selling 7,297 shares.",
+    "Acme CFO sells 5,000 shares in sell-to-cover transaction",
+])
+def test_non_discretionary_insider_sales_carry_no_event(text):
+    assert not {"offering", "insider_sell"} & set(_keys(text)), _keys(text)
+
+
+@pytest.mark.parametrize(("text", "key"), [
+    ("Twilio (NYSE:TWLO) Stock: Insider Khozema Shipchandler Sells 13,898 Shares", "insider_sell"),  # live
+    ("The $5 million share sale by Nvidia's CEO raises eyebrows", "insider_sell"),  # discretionary, named after
+    ("Acme CFO sells shares under 10b5-1 plan", "insider_sell"),  # a plan the insider chose
+    ("Acme announces $200 million share sale to fund expansion", "offering"),  # the company's own sale
+])
+def test_discretionary_and_company_sales_keep_their_event(text, key):
+    keys = _keys(text)
+    assert key in keys and not ({"offering", "insider_sell"} - {key}) & set(keys), keys
+
+
 @pytest.mark.parametrize(("text", "polarity"), [
     ("Apple wins appeal in Masimo patent case", "bull"),
     ("Judge dismisses lawsuit against Nvidia", "bull"),

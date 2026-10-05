@@ -47,14 +47,28 @@ points: structured data alone reads at most "Leaning".
 from __future__ import annotations
 
 import math
+import re
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any, Literal
 
 from app.analytics.aggregate import Summary
 from app.analytics.crowd import Tally
-from app.analytics.util import cap_share, clamp, count, join_and, money, ordinal, pct, signed, squash, to_100
-from app.schemas import AnalystView, Component, CrowdView, InsiderView, Technicals, ToneTrend
+from app.analytics.util import (
+    INSIDER_CURRENCY,
+    cap_share,
+    clamp,
+    count,
+    join_and,
+    money,
+    ordinal,
+    pct,
+    shares_outstanding,
+    signed,
+    squash,
+    to_100,
+)
+from app.schemas import AnalystView, Component, CrowdView, InsiderTxn, InsiderView, Quote, Technicals, ToneTrend
 
 ComponentKey = Literal["news", "social", "analysts", "insiders", "momentum", "technicals"]
 
@@ -508,11 +522,95 @@ def analysts_part(view: AnalystView | None, now: datetime, asset: str = "EQUITY"
 # --------------------------------------------------------------------------- #
 # Insiders
 # --------------------------------------------------------------------------- #
-def insiders_part(view: InsiderView | None, market_cap: float | None, now: datetime,
-                  asset: str = "EQUITY", currency: str | None = "USD") -> Part:
-    """Open-market insider flow: clustered buying is strong, selling is routine-scaled.
+INSIDER_HALF_LIFE = 60.0  # days: a buyer's signal halves with the age of their latest purchase
+MATERIAL_BUY = 25_000.0  # USD a buyer must put in for the purchase to read as discretionary
+TOKEN_RATIO = 10.0  # discretionary sales above this multiple of purchases (by value) make the buying token
+# Pre-scheduled trades named by the filing (Form 4's 10b5-1 box, plan purchases): not a fresh decision.
+PLAN_RE = re.compile(r"\b10b5-1\b|\btrading plan\b|\bpurchase/ownership plan\b", re.IGNORECASE)
 
-    `currency` is that of the trade values (None: unknown, shown without a symbol)."""
+
+def buy_materiality(value: float | None) -> float:
+    """0..1: how discretionary a buyer's purchases look by size (MATERIAL_BUY and up count fully).
+
+    Dividend-reinvestment-sized buys ($1.4K, $4.7K) are routine, not conviction; an
+    unknown value counts half."""
+    return 0.5 if value is None else clamp(value / MATERIAL_BUY)
+
+
+@dataclass(frozen=True)
+class Buyer:
+    """One insider's open-market purchases in a window."""
+
+    name: str
+    position: str | None
+    value: float | None  # USD (None when no row carries a value)
+    age_days: int  # since the latest purchase
+
+    @property
+    def material(self) -> bool:
+        return buy_materiality(self.value) >= 1.0
+
+
+def buyers(view: InsiderView, today: date, since: date | None = None) -> list[Buyer]:
+    """Buyers in the view's transactions (purchases on/after `since` when given), largest first."""
+    rows: dict[str, list[InsiderTxn]] = {}
+    for t in view.transactions:
+        if t.kind == "buy" and (since is None or t.date >= since):
+            rows.setdefault(t.insider, []).append(t)
+    out = []
+    for name, txns in rows.items():
+        values = [t.value for t in txns if t.value is not None]
+        out.append(Buyer(name=name, position=next((t.position for t in txns if t.position), None),
+                         value=sum(values) if values else None,
+                         age_days=max(0, min((today - t.date).days for t in txns))))
+    return sorted(out, key=lambda b: (-(b.value or 0.0), b.name))
+
+
+def discretionary_sales(view: InsiderView, since: date | None = None) -> float:
+    """USD sold, less the sales the filings mark as pre-arranged (10b5-1): over the view's whole
+    window (its total), or since `since` (from the listed rows)."""
+    rows = [t for t in view.transactions if t.kind == "sell" and (since is None or t.date >= since)]
+    planned = sum(t.value or 0.0 for t in rows if t.text and PLAN_RE.search(t.text))
+    total = view.sell_value if since is None else sum(t.value or 0.0 for t in rows)
+    return max(0.0, total - planned)
+
+
+def token_factor(bought: float, sold: float) -> float:
+    """1, or bought·TOKEN_RATIO/sold (< 1) when discretionary selling exceeds TOKEN_RATIO× the buying:
+    $163K of purchases next to $20.2M of sales is not insiders buying."""
+    if sold <= 0 or sold <= TOKEN_RATIO * bought:
+        return 1.0
+    return TOKEN_RATIO * bought / sold
+
+
+def implied_usd_market_cap(quote: Quote | None, view: InsiderView | None, today: date) -> float | None:
+    """A non-USD listing's market cap in USD, at the price its insiders traded at.
+
+    Insider values are USD while the quote is not, so no FX rate is assumed: the
+    trades carry it. Shares outstanding (market cap / price, both in the listing's
+    currency) × the USD paid per share in the window's open-market trades — the
+    share of market cap is then the share of the company's stock traded
+    (VOD.L: 23.2B shares × $1.62 = $37.6B). None without such trades."""
+    if quote is None or view is None:
+        return None
+    shares = shares_outstanding(quote.market_cap, quote.price, quote.currency)
+    rows = [t for t in view.transactions if t.kind in ("buy", "sell") and t.shares and t.value
+            and t.shares > 0 and t.value > 0 and 0 <= (today - t.date).days <= view.window_days]
+    if shares is None or not rows:
+        return None
+    return shares * sum(t.value or 0.0 for t in rows) / sum(t.shares or 0.0 for t in rows)
+
+
+def insiders_part(view: InsiderView | None, market_cap: float | None, now: datetime,
+                  asset: str = "EQUITY", cap_currency: str | None = None) -> Part:
+    """Open-market insider flow: clustered, material buying is strong, selling is routine-scaled.
+
+    Trade values are USD (INSIDER_CURRENCY) for every listing, so `market_cap` must
+    be in USD too; when it is not available in USD, `cap_currency` names the
+    currency it is quoted in and the share of market cap is skipped (said in the
+    detail) rather than computed across currencies. Each buyer counts by size
+    (`buy_materiality`) and recency; purchases dwarfed by discretionary sales
+    (> TOKEN_RATIO× by value) are discounted (`token_factor`)."""
     part = Part("insiders", detail="no open-market insider trades")
     if view is None or (view.buys == 0 and view.sells == 0):
         if view is None:
@@ -520,17 +618,15 @@ def insiders_part(view: InsiderView | None, market_cap: float | None, now: datet
         else:
             part.detail = f"no open-market insider trades in {view.window_days}d"
         return part
-    today = now.date()
-    buys = [t for t in view.transactions if t.kind == "buy"]
-    latest_by_buyer: dict[str, int] = {}
-    for t in buys:
-        age = max((today - t.date).days, 0)
-        latest_by_buyer[t.insider] = min(age, latest_by_buyer.get(t.insider, age))
-    if latest_by_buyer:
-        buyer_signal = sum(0.5 ** (age / 60.0) for age in latest_by_buyer.values())
-    else:
-        buyer_signal = 0.5 * view.buys
-    buy_signal = buyer_signal * (1 + 0.5 * math.log10(1 + view.buy_value / 250_000)) if view.buys else 0.0
+    found = buyers(view, now.date())
+    if found:
+        buyer_signal = sum(buy_materiality(b.value) * 0.5 ** (b.age_days / INSIDER_HALF_LIFE) for b in found)
+    else:  # counts without rows: judge the average purchase
+        buyer_signal = 0.5 * view.buys * buy_materiality(view.buy_value / view.buys if view.buys else None)
+    sold_freely = discretionary_sales(view)
+    token = token_factor(view.buy_value, sold_freely)
+    buy_signal = (buyer_signal * (1 + 0.5 * math.log10(1 + view.buy_value / 250_000)) * token
+                  if view.buys else 0.0)
     sell_bps = view.sell_value / market_cap * 1e4 if market_cap and market_cap > 0 else None
     sell_signal = sell_bps / 5.0 if sell_bps is not None else min(3.0, view.sells / 8.0)
     x = 0.7 * math.tanh(buy_signal / 2.5) - 0.4 * math.tanh(sell_signal / 2.0)
@@ -538,19 +634,25 @@ def insiders_part(view: InsiderView | None, market_cap: float | None, now: datet
     part.score = to_100(x)
     part.confidence = clamp(trades / (trades + 4) * (1.0 if view.buys else 0.7))
     window = f"{view.window_days}d"
-    bought, sold = money(view.buy_value, currency=currency), money(view.sell_value, currency=currency)
-    part.detail = (f"{view.buys} buys ({bought}) / {view.sells} sells ({sold}) · "
-                   f"{window}")
-    buyers = len(latest_by_buyer) or None
-    part.facts.update(buyers=buyers, sell_bps=sell_bps, buy_signal=buy_signal)
-    who = f" by {count(buyers, 'insider')}" if buyers else ""
+    bought = money(view.buy_value, currency=INSIDER_CURRENCY)
+    sold = money(view.sell_value, currency=INSIDER_CURRENCY)
+    no_share = (f"share of market cap n/a ({cap_currency} market cap, USD trades)"
+                if sell_bps is None and view.sells and cap_currency and cap_currency != "USD" else None)
+    part.detail = f"{count(view.buys, 'buy')} ({bought}) / {count(view.sells, 'sell')} ({sold}) · {window}" + (
+        f" · {no_share}" if no_share else "")
+    n_buyers = len(found) or None
+    part.facts.update(buyers=n_buyers, sell_bps=sell_bps, buy_signal=buy_signal, token=token,
+                      material_buyers=sum(1 for b in found if b.material))
+    who = f" by {count(n_buyers, 'insider')}" if n_buyers else ""
     share = f", {cap_share(sell_bps)} of market cap" if sell_bps is not None else ""
     days = f"{view.window_days} days"
     if view.buys:
         lead = "Insider buying" if x >= 0 else "Net insider selling"
         sells = f" vs {count(view.sells, 'sale')} ({sold}{share})" if view.sells else ", no sales"
+        dwarfed = (f" — the purchases are token-sized next to {money(sold_freely, currency=INSIDER_CURRENCY)} "
+                   f"of discretionary sales" if token < 1.0 else "")
         part.reason = (f"{lead}: {count(view.buys, 'open-market purchase')} ({bought}){who} "
-                       f"in {days}{sells}")
+                       f"in {days}{sells}{dwarfed}")
         bear = f"net insider selling ({sold} sold vs {bought} bought)"
     else:
         routine = " — routine-sized for its market cap" if sell_bps is not None and sell_bps < 5 else ""

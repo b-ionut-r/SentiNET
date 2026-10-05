@@ -24,6 +24,9 @@ UA_BROWSER = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.3
 YAHOO_SYMBOLS = ["NVDA", "AAPL", "SOFI", "SPY", "BTC-USD", "JPM"]
 # Analyst edge cases: META's upgrades feed froze at 2024-09-30; TGT's counts contradict its mean.
 ANALYST_SYMBOLS = ["META", "TGT"]
+# Non-USD listings (info + calendar only): quote vs reporting currency (SHOP.TO quotes CAD, reports USD;
+# VOD.L quotes GBp pence, reports EUR; 7203.T quotes and reports JPY) and dividend units.
+FOREIGN_INFO_SYMBOLS = ["SHOP.TO", "VOD.L", "7203.T"]
 SEC_SYMBOLS = {"NVDA": "0001045810", "SOFI": "0001818874", "JPM": "0000019617"}
 
 
@@ -77,6 +80,13 @@ def capture_yahoo() -> None:
         _write(f"yahoo/{sym}_info.json", {k: t.info.get(k) for k in keep})
         t.recommendations.to_csv(OUT / f"yahoo/{sym}_recommendations.csv", index=False)
         t.upgrades_downgrades.head(80).to_csv(OUT / f"yahoo/{sym}_upgrades.csv")
+        time.sleep(0.5)
+    for sym in FOREIGN_INFO_SYMBOLS:
+        t = yf.Ticker(sym)
+        _write(f"yahoo/{sym}_info.json", {k: v for k, v in t.info.items() if k not in {"companyOfficers"}})
+        cal = t.calendar
+        if cal:
+            _write(f"yahoo/{sym}_calendar.json", cal)
         time.sleep(0.5)
     df = yf.download(["SPY", "QQQ", "DIA", "IWM", "^VIX", "^TNX", "GC=F", "BTC-USD"], period="3mo",
                      interval="1d", auto_adjust=False, progress=False, group_by="column", threads=True)

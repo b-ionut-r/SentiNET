@@ -113,15 +113,19 @@ check("negative minor-unit price keeps the sign first", F.price(-3.5, "GBp") ===
 check("negative EPS: sign before the symbol", F.perShare(-0.14, "USD") === "−$0.14", F.perShare(-0.14, "USD"));
 check("a $0.50 target is cents precision", F.perShare(0.5, "USD") === "$0.50", F.perShare(0.5, "USD"));
 check("sub-dime per-share keeps more digits", F.perShare(0.0123, "USD") === "$0.0123", F.perShare(0.0123, "USD"));
+check("sub-dime EPS without extra digits reads in cents", F.perShare(0.04, "USD") === "$0.04" && F.perShare(-0.02, "USD") === "−$0.02", `${F.perShare(0.04, "USD")} ${F.perShare(-0.02, "USD")}`);
 check("pence targets", F.perShare(121.82, "GBp") === "121.82p", F.perShare(121.82, "GBp"));
 check("majorCurrency maps GBp → GBP", F.majorCurrency("GBp") === "GBP" && F.majorCurrency("usd") === "USD");
 check(
-  "reporting currency: SHOP.TO (CAD quote, USD reports) is not labelled CAD",
-  F.reportingCurrency({ quote: { currency: "CAD" }, profile: { country: "Canada" }, earnings: {} }) === null,
+  "reporting currency: SHOP.TO (CAD quote) without a stated currency is not labelled CAD",
+  F.reportingCurrency({ quote: { currency: "CAD" }, profile: { country: "Canada" } }) === null,
 );
-check("reporting currency: a US company quoted in USD is USD", F.reportingCurrency({ quote: { currency: "USD" }, profile: { country: "United States" }, earnings: {} }) === "USD");
-check("reporting currency: an ADR quoted in USD is not assumed USD", F.reportingCurrency({ quote: { currency: "USD" }, profile: { country: "Netherlands" }, earnings: {} }) === null);
-check("reporting currency: an explicit API field wins", F.reportingCurrency({ quote: { currency: "CAD" }, profile: { country: "Canada" }, earnings: { currency: "USD" } }) === "USD");
+check("reporting currency: a US company quoted in USD is USD", F.reportingCurrency({ quote: { currency: "USD" }, profile: { country: "United States" } }) === "USD");
+check("reporting currency: an ADR quoted in USD is not assumed USD", F.reportingCurrency({ quote: { currency: "USD" }, profile: { country: "Netherlands" } }) === null);
+check(
+  "reporting currency: profile.financial_currency wins (SHOP.TO reports USD)",
+  F.reportingCurrency({ quote: { currency: "CAD" }, profile: { country: "Canada", financial_currency: "USD" } }) === "USD",
+);
 
 // Links: only absolute http(s) URLs from providers become hrefs.
 for (const bad of ["javascript:fetch('/api/alerts')", "JAVASCRIPT:alert(1)", " javascript:alert(1)", "java\tscript:alert(1)", "data:text/html,<script>alert(1)</script>", "vbscript:msgbox(1)", "/api/alerts", "//evil.example/x", ""]) {

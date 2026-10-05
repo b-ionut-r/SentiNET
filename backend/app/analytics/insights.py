@@ -43,7 +43,16 @@ from datetime import date, timedelta
 from typing import Literal
 
 from app.analytics import textkit
-from app.analytics.composite import NEWS_BASELINE, SOCIAL_BASELINE, crowded, headline_shift
+from app.analytics.composite import (
+    MATERIAL_BUY,
+    NEWS_BASELINE,
+    SOCIAL_BASELINE,
+    buyers,
+    crowded,
+    discretionary_sales,
+    headline_shift,
+    token_factor,
+)
 from app.analytics.composite import STOCKTWITS_BASELINE as STOCKTWITS_NORM
 from app.analytics.crowd import BREAKOUT_RANK, reddit_breakout, reddit_change_pct
 from app.analytics.facts import Facts
@@ -65,6 +74,9 @@ from app.analytics.util import (
 from app.schemas import DeltaView, Insight, Polarity, Verdict
 
 MAX_INSIGHTS = 8
+CLUSTER_DAYS = 90  # window of the insider cluster-buying check
+CLUSTER_MIN_VALUE = 100_000.0  # USD the material buyers must put in together (or CLUSTER_MIN_BPS of the cap)
+CLUSTER_MIN_BPS = 0.5
 _SEVERITY_RANK = {"alert": 0, "watch": 1, "info": 2}
 _OFFICER = ("chief", "ceo", "cfo", "president", "chair", "founder", "coo")
 MIN_NEWS_FOR_DIVERGENCE = 6
@@ -397,29 +409,38 @@ def _smart_money(f: Facts) -> Iterator[_Cand]:
     view = f.inputs.insiders
     if view is None:
         return
-    since = f.now.date() - timedelta(days=90)
+    usd = f.insider_currency
+    since = f.now.date() - timedelta(days=CLUSTER_DAYS)
     buys = [t for t in view.transactions if t.kind == "buy" and t.date >= since]
-    buyers = list(dict.fromkeys(t.insider for t in buys))
-    total = sum(t.value or 0 for t in buys)
-    if len(buyers) >= 2:
-        top = max(buys, key=lambda t: t.value or 0)
-        lead = f"; largest: {top.insider}" + (f" ({top.position})" if top.position else "") + (
-            f" {money(top.value, currency=f.reporting_currency)} on {short_date(top.date)}" if top.value else "")
-        yield _make("smart_money", "alert" if len(buyers) >= 3 else "watch", "bull", "Insider cluster buying",
-                    f"{count(len(buyers), 'insider')} bought {money(total, currency=f.reporting_currency)} on the open market in the last 90 days"
-                    f"{lead}.", 2 + len(buyers))
-    elif buys:
+    material = [b for b in buyers(view, f.now.date(), since) if b.material]
+    total = sum(b.value or 0.0 for b in material)
+    sold = sum(t.value or 0.0 for t in view.transactions if t.kind == "sell" and t.date >= since)
+    freely_sold = discretionary_sales(view, since)
+    floor = min(CLUSTER_MIN_VALUE, CLUSTER_MIN_BPS * 1e-4 * f.market_cap_usd) if f.market_cap_usd else CLUSTER_MIN_VALUE
+    # Several insiders each putting real money in, and not dwarfed by their colleagues' selling.
+    if len(material) >= 2 and total >= floor and token_factor(total, freely_sold) >= 1:
+        top = material[0]
+        lead = f"; largest: {top.name}" + (f" ({top.position})" if top.position else "") + (
+            f" {money(top.value, currency=usd)}" if top.value else "")
+        smaller = len({t.insider for t in buys}) - len(material)
+        token = f" (+{count(smaller, 'smaller buyer')} under {money(MATERIAL_BUY, currency=usd)})" if smaller else ""
+        against = f"; {money(sold, currency=usd)} sold over the same period" if sold else "; no sales over the same period"
+        yield _make("smart_money", "alert" if len(material) >= 3 else "watch", "bull", "Insider cluster buying",
+                    f"{count(len(material), 'insider')} bought {money(total, currency=usd)} on the open market in the last "
+                    f"{CLUSTER_DAYS} days{token}{lead}{against}.", 2 + len(material))
+    elif buys and not material[1:]:
         top = max(buys, key=lambda t: t.value or 0)
         role = (top.position or "").lower()
-        if (top.value or 0) >= 500_000 and any(k in role for k in _OFFICER):
-            yield _make("smart_money", "watch", "bull", f"{top.position} bought {money(top.value or 0, currency=f.reporting_currency)}",
-                        f"{top.insider} bought {money(top.value or 0, currency=f.reporting_currency)} of stock on the open market on "
+        if (top.value or 0) >= 500_000 and any(k in role for k in _OFFICER) and token_factor(top.value or 0, freely_sold) >= 1:
+            yield _make("smart_money", "watch", "bull", f"{top.position} bought {money(top.value or 0, currency=usd)}",
+                        f"{top.insider} bought {money(top.value or 0, currency=usd)} of stock on the open market on "
                         f"{short_date(top.date)} — officers rarely buy without conviction.", 2)
     bps = f.composite.parts["insiders"].facts.get("sell_bps")
-    if bps is not None and bps >= 50 and not buys:
+    if bps is not None and bps >= 50 and not material:
         yield _make("smart_money", "watch", "bear", "Heavy insider selling",
-                    f"Insiders sold {money(view.sell_value, currency=f.reporting_currency)} in {view.window_days} days — {bps / 100:.2f}% of market "
-                    f"cap, well above routine levels.", bps / 50)
+                    f"Insiders sold {money(view.sell_value, currency=usd)} in {view.window_days} days — {bps / 100:.2f}% of "
+                    f"market cap, well above routine levels.", bps / 50)
+
 
 
 # --------------------------------------------------------------------------- #

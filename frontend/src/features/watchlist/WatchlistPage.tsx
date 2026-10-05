@@ -252,6 +252,7 @@ function Rules({ className }: { className?: string }) {
   const problem = thresholdProblem(kind, threshold);
   const missingTicker = ticker.trim().length === 0;
   const valid = !missingTicker && problem == null;
+  const showHint = withThreshold && problem != null && threshold.trim() !== "";
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -281,7 +282,7 @@ function Rules({ className }: { className?: string }) {
             className={cx("field w-20 num", problem && "ring-1 ring-[rgb(var(--critical))]")}
             aria-label={`Threshold${meta.range ? ` (${meta.range[0]}–${meta.range[1]}${meta.unit ? ` ${meta.unit}` : ""})` : ""}`}
             aria-invalid={problem != null}
-            aria-describedby={problem ? "alert-threshold-hint" : undefined}
+            aria-describedby={showHint ? "alert-threshold-hint" : undefined}
           />
         )}
         <button
@@ -293,9 +294,9 @@ function Rules({ className }: { className?: string }) {
           Add rule
         </button>
       </form>
-      {withThreshold && problem && threshold.trim() !== "" && (
+      {showHint && (
         <p id="alert-threshold-hint" className="px-4 pb-2 text-xs text-critical">
-          Threshold {problem.toLowerCase()}.
+          Threshold {problem?.toLowerCase()}.
         </p>
       )}
       {create.error && <p className="px-4 pb-2 text-xs text-critical">{create.error.message}</p>}

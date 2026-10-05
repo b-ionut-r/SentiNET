@@ -30,6 +30,7 @@ from app.analytics.composite import (
     analysts_part,
     compose,
     deal_anchored,
+    implied_usd_market_cap,
     insiders_part,
     momentum_part,
     news_part,
@@ -39,12 +40,13 @@ from app.analytics.composite import (
 from app.analytics.crowd import as_float, as_int, attention_view, crowd_view, merged_metrics, stocktwits_tally
 from app.analytics.deals import pending_deal
 from app.analytics.delta import build_delta
-from app.analytics.facts import Facts
+from app.analytics.facts import Facts, usd_rate
 from app.analytics.inputs import AnalysisInputs
 from app.analytics.insights import build_insights
 from app.analytics.narratives import Story, build_narratives
 from app.analytics.prepare import Item, prepare
 from app.analytics.sanitize import sanitize_inputs
+from app.analytics.util import major_currency, usd_market_cap
 from app.analytics.verdict import build_verdict
 from app.schemas import Analysis, Signal
 
@@ -77,8 +79,8 @@ def build_analysis(inputs: AnalysisInputs) -> Analysis:
     tally = stocktwits_tally(metrics)
     attention = attention_view(inputs.tone, inputs.wiki_views, crowd, items, now)
     market_cap = inputs.quote.market_cap if inputs.quote is not None else None
-    currency = (inputs.quote.currency if inputs.quote is not None else None) or "USD"
-    reporting = "USD" if currency == "USD" else None  # see Facts.reporting_currency
+    currency = (inputs.quote.currency if inputs.quote is not None else None) or "USD"  # see Facts.currency
+    cap_usd = market_cap_usd(inputs)  # insider values are USD for every listing
     asset = company.quote_type
     failed: list[str] = []
 
@@ -94,7 +96,8 @@ def build_analysis(inputs: AnalysisInputs) -> Analysis:
                                        as_int(metrics.get("av_articles")))),
         part("social", lambda: social_part(social, crowd, tally)),
         part("analysts", lambda: analysts_part(inputs.analysts, now, asset, currency)),
-        part("insiders", lambda: insiders_part(inputs.insiders, market_cap, now, asset, reporting)),
+        part("insiders", lambda: insiders_part(inputs.insiders, cap_usd, now, asset,
+                                               major_currency(currency) if market_cap else None)),
         part("momentum", lambda: momentum_part(inputs.tone, recent, older)),
         part("technicals", lambda: technicals_part(inputs.technicals)),
     ], max_distance=DEGRADED_MAX_DISTANCE if prepared.engine_error else None)
@@ -102,7 +105,7 @@ def build_analysis(inputs: AnalysisInputs) -> Analysis:
     facts = Facts(
         inputs=inputs, prepared=prepared, overall=overall, news=news, social=social, news_recent=recent,
         news_older=older, stories=stories, themes=themes, metrics=metrics, crowd=crowd, stocktwits=tally,
-        attention=attention, composite=composite, failed=failed, deal=deal,
+        attention=attention, composite=composite, failed=failed, deal=deal, market_cap_usd=cap_usd,
     )
     verdict = build_verdict(facts)
     facts.catalysts = _guard("Catalysts", lambda: build_catalysts(facts), list, failed)
@@ -122,6 +125,19 @@ def build_analysis(inputs: AnalysisInputs) -> Analysis:
         crowd=crowd, attention=attention, catalysts=facts.catalysts,
         sources=source_reports(inputs.source_runs, prepared), signals=select_signals(items, stories),
     )
+
+
+def market_cap_usd(inputs: AnalysisInputs) -> float | None:
+    """The market cap in USD: as quoted for a USD listing; at the caller's FX rate when given;
+    else implied by the USD prices of the insiders' own trades (see `implied_usd_market_cap`)."""
+    q = inputs.quote
+    if q is None:
+        return None
+    currency = q.currency or "USD"
+    direct = usd_market_cap(q.market_cap, currency, usd_rate(inputs))
+    if direct is not None or major_currency(currency) == "USD":
+        return direct
+    return implied_usd_market_cap(q, inputs.insiders, inputs.now.date())
 
 
 def _guard(what: str, make: Callable[[], T], fallback: Callable[[], T], failed: list[str]) -> T:

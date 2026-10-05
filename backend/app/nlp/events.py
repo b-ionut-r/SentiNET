@@ -874,7 +874,9 @@ _RULES: tuple[tuple[str, re.Pattern[str], bool], ...] = tuple((k, re.compile(p, 
     ("insider_sell", (
      rf"\b{_EXEC}s?\s+(?:[\w.'-]+\s+){{0,4}}?(?:sells?|sold|unloads?|dumps?|offloads?|disposes? of|trims?|"
      rf"cashes? out|proposes? (?:selling|to sell|a share sale))\b|\binsider (?:selling|sales?|sold)\b|"
-     rf"\bproposes? (?:selling|to sell) (?:[\d,]+ )?shares\b|\bform 144\b|\b10b5-1\b"
+     rf"\bproposes? (?:selling|to sell) (?:[\d,]+ )?shares\b|\bform 144\b|\b10b5-1\b|"
+     # the insider named after the sale: "The $5M share sale by Nvidia's CEO"
+     rf"\b(?:share|stock)\s+sales?\s+(?:by|from)\s+[^.;:]{{0,40}}?\b{_EXEC}s?\b"
      ), False),
     ("all_time_high", (
      r"\b(?:hits?|hit|reach(?:es|ed)?|sets?|notch(?:es|ed)?|touch(?:es|ed)?|marks?|soars? to|surges? to|jumps? to|"
@@ -936,6 +938,24 @@ _RULES: tuple[tuple[str, re.Pattern[str], bool], ...] = tuple((k, re.compile(p, 
      ), True),
 ))
 
+# Non-discretionary insider sales: shares sold to cover taxes on vesting awards, or because a
+# plan requires it ("Twilio CEO Executes RSU Tax Withholding Share Sales", "Mandated tax sales
+# total 9,084 shares for Twilio (TWLO) CFO", "The 13,898-share sale by Twilio (TWLO)'s CEO was
+# required by company plans, not discretionary"). They are neither a share offering by the company
+# nor an insider's call on the stock, so they carry no event (10b5-1 plan sales stay insider_sell:
+# the insider chose the plan).
+_NON_DISCRETIONARY = (
+    r"withh[eo]ld|withholding|\bsell[- ]to[- ]cover\b|"
+    r"\bto (?:cover|satisfy|pay|meet) (?:the |their |his |her |its )?(?:[\w-]+\s+){0,2}?tax(?:es)?\b|"
+    r"\btax(?:[- ]related)?\s+(?:sales?|selling|dispositions?)\b|"
+    r"\b(?:mandated|mandatory|required|forced)\s+(?:[\w-]+\s+){0,2}?(?:sales?|selling|dispositions?)\b|"
+    r"\b(?:not|non-?)\s?discretionary\b|"
+    r"\brequired by (?:the |its |their )?(?:company'?s?\s+)?(?:[\w-]+\s+){0,2}?(?:plans?|polic(?:y|ies)|rules?)\b"
+)
+_NON_DISCRETIONARY_RE = re.compile(_NON_DISCRETIONARY, re.IGNORECASE)
+# Generic sale wording in the offering rule: the company's or an insider's?
+_SALE_FORM_RE = re.compile(r"share sale|sells? \$|dilut", re.IGNORECASE)
+
 # Matches that must be ignored for a given key (checked on the text around the hit).
 _EXCLUDE: dict[str, re.Pattern[str]] = {
     # "Here Are Wednesday's Top Wall Street Analyst Research Calls", "10 Top Analyst
@@ -975,7 +995,9 @@ _EXCLUDE: dict[str, re.Pattern[str]] = {
                                r"night|gala|winners?|for (?:best|excellence))\b", re.IGNORECASE),
     "offering": re.compile(r"\binitial public offering\b|\bipo\b|\b(?:director|officer|ceo|cfo|coo|insider|svp|evp|"
                            r"president|founder|chair(?:man|woman)?|general counsel|executive)\b[^.;:]{0,60}?"
-                           r"(?:sells?|sold|proposes?|plans?|sale|selling)\b", re.IGNORECASE),
+                           r"(?:sells?|sold|proposes?|plans?|sale|selling)\b|"
+                           # the insider named after the sale: "The 13,898-share sale by Twilio's CEO"
+                           rf"\bsales?\s+(?:by|from)\s+[^.;:]{{0,40}}?\b{_EXEC}s?\b", re.IGNORECASE),
     "product_launch": re.compile(r"\b(?:launch(?:es|ed)?|unveil(?:s|ed)?|introduc(?:es|ed)|rolls? out|announces? new)\s+"
                                  r"(?:an?\s+|its\s+|the\s+)?(?:\$[\d.,]+|(?:[\w$.-]+\s+){0,6}?(?:probe|investigation|inquiry|"
                                  r"lawsuit|coverage|offering|ipo|buyback|repurchase|tender|bid|review|campaign "
@@ -1010,8 +1032,7 @@ _EXCLUDE: dict[str, re.Pattern[str]] = {
                               r"\bdrip\b|\bgift(?:ed|s)?\b|401\(k\)|deferred (?:pay|compensation)|\baccrual\b|"
                               r"dividend (?:rights|equivalents?)|"
                               r"under (?:the |a |its )?(?:company'?s? )?(?:\w+ )?plan\b", re.IGNORECASE),
-    "insider_sell": re.compile(r"withh[eo]ld|withholding|to cover (?:taxes|tax)|sell-to-cover|\bgift(?:ed|s)?\b",
-                               re.IGNORECASE),
+    "insider_sell": re.compile(rf"{_NON_DISCRETIONARY}|\bgift(?:ed|s)?\b", re.IGNORECASE),
     "exec_hire": re.compile(r"\b(?:ceo|executive|cfo|leader|entrepreneur|founder) of the year\b", re.IGNORECASE),
     "recall": re.compile(r"\b(?:he|she|i|we|they|ceo|who|fans|founder|still|vividly|fondly|executives?|officials|"
                          r"investors|traders|analysts|people|veterans|employees|workers|residents|experts|"
@@ -1220,6 +1241,8 @@ def _context_ok(key: str, text: str, m: re.Match[str]) -> bool:
         return not _stale_result(text, m)
     if key == "record_results":
         return not _stale_result(text, m)
+    if key == "offering" and _SALE_FORM_RE.search(m.group(0)) and _NON_DISCRETIONARY_RE.search(text):
+        return False  # "The 13,898-share sale ... was required by company plans": an insider's tax sale
     if key == "m_and_a" and re.search(r"\bdeal\s+for\s+(?!rival\b)", m.group(0), re.IGNORECASE):
         return _deal_for_company(text, m)
     if key == "contract_win" and re.search(r"\bdeal\s+for\b", m.group(0), re.IGNORECASE):
@@ -1632,6 +1655,57 @@ def _owned(text: str, hit: _Hit, mentions: list, cues: list, clauses: list[tuple
     return False
 
 
+# Headline passives: "Twilio downgraded, Synopsys upgraded: Wall Street's top analyst calls" —
+# the rating change belongs to the name right before the verb, not to whoever the text is about.
+_PASSIVE_RATING_EVENTS = frozenset({"analyst_upgrade", "analyst_downgrade"})
+_PASSIVE_RATING_RE = re.compile(r"(?:double[- ])?(?:up|down)graded", re.IGNORECASE)
+# What follows a passive (an active "downgraded Twilio" has its object there instead).
+_PASSIVE_AFTER_RE = re.compile(r"\s*(?:$|[,;:.!?|)\u2013\u2014-]|(?:at|by|to|from|on|after|as|amid|in|over|with|"
+                               r"again|twice|despite|following|ahead|for|and|but|while|citing|because)\b)",
+                               re.IGNORECASE)
+# Words between the name and the verb: "Target stock upgraded", "Bassett stock rating upgraded",
+# "Twilio gets downgraded".
+_RATING_FILLERS = wordset("stock stocks shares share rating ratings is was are were be been being gets get got just")
+_RATING_CONNECTORS = wordset("and or &")
+
+
+def _passive_rating_owner(text: str, hit: _Hit, mentions: list, title_case: bool) -> bool | None:
+    """For a headline passive ("X upgraded", "X, Y downgraded at Citi"): True when the company is
+    among the names right before the verb in its comma clause, False when only other names are,
+    None when it is no passive or no name precedes it (owner unknown: keep)."""
+    if not _PASSIVE_RATING_RE.fullmatch(text[hit.start:hit.stop]) or not _PASSIVE_AFTER_RE.match(text[hit.stop:]):
+        return None
+    head = text[:hit.start]
+    cut = max((m.end() for m in _CLAUSE_SPLIT_RE.finditer(head)), default=0)
+    tokens = list(_WORD_TOKEN_RE.finditer(head, cut))
+    pos, k = hit.start, len(tokens)
+    while k and tokens[k - 1].group(0).lower().removesuffix("'s") in _RATING_FILLERS \
+            and not text[tokens[k - 1].end():pos].strip():
+        k -= 1
+        pos = tokens[k].start()
+    run_start, named = pos, False
+    while k:
+        tok = tokens[k - 1]
+        gap = text[tok.end():run_start]
+        if gap.strip(" ,&"):
+            break  # quotes, emoji, brackets: no longer a list of names
+        word = tok.group(0).removesuffix("'s").rstrip(".")
+        low = word.lower()
+        if low in _RATING_CONNECTORS:
+            if not named:
+                break
+        elif not (any(m.start <= tok.start() < m.end for m in mentions) or _is_entity_word(word, title_case) or (
+                title_case and word[:1].isupper() and low not in _COMMON_VOCAB and not low.endswith(("ed", "ing")))):
+            break
+        else:
+            named = True
+        run_start = tok.start()
+        k -= 1
+    if any(run_start <= m.start < hit.start for m in mentions):
+        return True
+    return False if named else None
+
+
 def _attribute(text: str, hits: list[_Hit], company: CompanyRef, original: str | None = None) -> list[_Hit]:
     """Drop company-specific events that belong to another entity. `text` is
     what the patterns read (ticker tags blanked); `original`, of the same
@@ -1645,5 +1719,11 @@ def _attribute(text: str, hits: list[_Hit], company: CompanyRef, original: str |
     cues = brand_cue_mentions(source, company)
     clauses = _clauses(text)
     title_case = is_title_case(text)
-    return [h for h in hits if h.key not in _SUBJECT_EVENTS | _TARGET_EVENTS | _PARTY_EVENTS
-            or _owned(text, h, mentions, cues, clauses, title_case)]
+
+    def keep(h: _Hit) -> bool:
+        if h.key in _PASSIVE_RATING_EVENTS:
+            return _passive_rating_owner(text, h, mentions, title_case) is not False
+        return h.key not in _SUBJECT_EVENTS | _TARGET_EVENTS | _PARTY_EVENTS or _owned(text, h, mentions, cues,
+                                                                                        clauses, title_case)
+
+    return [h for h in hits if keep(h)]

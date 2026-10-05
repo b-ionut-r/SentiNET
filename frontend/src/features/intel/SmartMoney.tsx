@@ -50,7 +50,7 @@ export function AnalystsPanel({ a }: { a: Analysis }) {
   // listing shows those targets without a symbol rather than in the wrong currency.
   const actionCcy = ccy === "USD" ? ccy : null;
   return (
-    <Panel title="Analysts" icon={<Briefcase />} subtitle={`${v.total} analysts${v.counts ? ` · ${v.counts.period === "0m" ? "this month" : v.counts.period}` : ""}`}>
+    <Panel title="Analysts" icon={<Briefcase />} subtitle={`${plural(v.total, "analyst")}${v.counts ? ` · ${v.counts.period === "0m" ? "this month" : v.counts.period}` : ""}`}>
       <div className="flex items-end justify-between gap-3">
         <div>
           <div className="text-[22px] font-semibold leading-none tracking-[-0.01em] text-ink">{consensus ?? "—"}</div>

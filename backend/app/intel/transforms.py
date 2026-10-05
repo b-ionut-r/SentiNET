@@ -118,6 +118,15 @@ def _r(value: float | None, nd: int = 2) -> float | None:
     return None if value is None else round(value, nd)
 
 
+_ISO_CURRENCY = re.compile(r"[A-Za-z]{3}")
+
+
+def iso_currency(value: Any) -> str | None:
+    """Upper-case ISO 4217 code ("usd" -> "USD", "GBp" -> "GBP"); None when absent or not a code."""
+    code = str(value).strip() if isinstance(value, str) else ""
+    return code.upper() if _ISO_CURRENCY.fullmatch(code) else None
+
+
 # --------------------------------------------------------------------------- #
 # Quote & profile
 # --------------------------------------------------------------------------- #
@@ -241,6 +250,9 @@ def profile_from_info(
         employees=int(employees) if employees else None,
         logo_url=logo_url,
         cik=cik,
+        # Currency of the company's own figures (EPS, revenue), which can differ from the quote's:
+        # SHOP.TO quotes CAD but reports USD, VOD.L quotes GBp but reports EUR. Funds/coins have none.
+        financial_currency=iso_currency(info.get("financialCurrency")),
     )
 
 
@@ -688,29 +700,71 @@ def earnings_from_frames(
     return view if (view.next_date or view.history) else None
 
 
+# Display symbols by ISO code; other codes are written after the amount ("3.10 CHF").
+_CURRENCY_SYMBOLS = {
+    "USD": "$", "CAD": "C$", "AUD": "A$", "NZD": "NZ$", "HKD": "HK$", "SGD": "S$", "TWD": "NT$", "MXN": "MX$",
+    "BRL": "R$", "EUR": "€", "GBP": "£", "JPY": "¥", "CNY": "CN¥", "INR": "₹", "KRW": "₩", "ILS": "₪", "ZAR": "R",
+}
+# Quotes in a minor unit (London pence, Johannesburg cents, Tel Aviv agorot). Yahoo states their dividend
+# amounts in the *major* unit — VOD.L, quoted at 126.8 GBp, has dividendRate 0.04: only 4p (not 0.04p)
+# reconciles with its 3.14% yield, and likewise for BARC.L, SBK.JO, LUMI.TA — so they are scaled to the
+# quote's own unit, the way holders there read them.
+_MINOR_UNITS = {"GBp": "p", "GBX": "p", "ZAc": "c", "ZAC": "c", "ILA": " ag"}
+_WHOLE_UNITS = frozenset({"JPY", "KRW"})  # no cents: ¥50, ¥22.5
+
+
+def cash_per_share(value: float, currency: str | None) -> str:
+    """A per-share cash amount in the quote's currency: $1.50, $0.272, C$1.76, ¥50, 2.36p, 3.10 CHF.
+
+    Precision follows the amount (dividends are declared to 4 decimals: $0.0832); an unknown
+    currency gets no symbol rather than a guessed one."""
+    if currency in _MINOR_UNITS:
+        return f"{value * 100:,.2f}".rstrip("0").rstrip(".") + _MINOR_UNITS[currency]
+    code = currency.upper() if isinstance(currency, str) and currency.strip() else None
+    if code in _WHOLE_UNITS:
+        body = f"{value:,.2f}".rstrip("0").rstrip(".")
+    else:
+        whole, frac = f"{value:,.4f}".split(".")
+        body = f"{whole}.{frac.rstrip('0').ljust(2, '0')}"
+    if code is None:
+        return body
+    symbol = _CURRENCY_SYMBOLS.get(code)
+    return f"{symbol}{body}" if symbol else f"{body} {code}"
+
+
 def dividend_catalysts(
     calendar: dict[str, Any] | None, info: dict[str, Any] | None, *, today: date
 ) -> list[Catalyst]:
-    """Upcoming ex-dividend / payment dates (only future-dated, never stale)."""
+    """Upcoming ex-dividend / payment dates (only future-dated, never stale).
+
+    Amounts are in the quote currency (`info["currency"]`; pence for London lines). Yahoo's
+    per-share figure is the *last* declared dividend: it is this dividend's amount only when its
+    date is this dividend's ex-date, and is labelled "last" otherwise (JPM's $1.50 was July's
+    payment, while its forward $6.60/yr already implies $1.65 for October)."""
     calendar = calendar or {}
     info = info or {}
+    currency = info.get("currency") if isinstance(info.get("currency"), str) else None
     per_payment = pos(info.get("lastDividendValue"))
-    annual = pos(info.get("dividendRate"))
+    paid_on = to_date(info.get("lastDividendDate"))  # ex-date of that last dividend
+    annual = pos(info.get("dividendRate"))  # forward annual rate
     yld = pos(info.get("dividendYield"))  # already in percent (0.43 == 0.43%)
-    parts = []
-    if per_payment:
-        parts.append(f"${per_payment:.4g}/share")
-    if annual:
-        parts.append(f"${annual:.4g}/yr")
-    if yld:
-        parts.append(f"yield {yld:.2f}%")
-    detail = " · ".join(parts) or None
+
+    def detail(ex_date: date | None) -> str | None:
+        parts = []
+        if per_payment:
+            same = ex_date is not None and paid_on is not None and abs((paid_on - ex_date).days) <= 3
+            parts.append(f"{'' if same else 'last '}{cash_per_share(per_payment, currency)}/share")
+        if annual:
+            parts.append(f"{cash_per_share(annual, currency)}/yr")
+        if yld:
+            parts.append(f"yield {yld:.2f}%")
+        return " · ".join(parts) or None
 
     out: list[Catalyst] = []
-    ex = to_date(calendar.get("Ex-Dividend Date")) or to_date(info.get("exDividendDate"))
+    cal_ex, info_ex = to_date(calendar.get("Ex-Dividend Date")), to_date(info.get("exDividendDate"))
+    ex = cal_ex or info_ex
     if ex is None or ex < today:
-        alt = to_date(info.get("exDividendDate"))
-        ex = alt if alt and alt >= today else None
+        ex = info_ex if info_ex and info_ex >= today else None
     pay = to_date(calendar.get("Dividend Date")) or to_date(info.get("dividendDate"))
     if pay is None or pay < today:
         alt = to_date(info.get("dividendDate"))
@@ -720,12 +774,13 @@ def dividend_catalysts(
         out.append(Catalyst(
             date=date_noon_utc(ex), kind="dividend", upcoming=True,
             title="Ex-dividend date" + (" (today)" if days == 0 else f" in {days} day{'s' if days != 1 else ''}"),
-            detail=(detail + " · buy before the ex-date to receive it") if detail else
-            "Buy before the ex-date to receive the dividend",
+            detail=detail(ex),
         ))
     if pay is not None and (ex is None or pay >= ex):
+        # The payment settles the latest ex-date on or before it (already past when `ex` is None).
+        paid_ex = ex or max((d for d in (cal_ex, info_ex) if d is not None and d <= pay), default=None)
         out.append(Catalyst(date=date_noon_utc(pay), kind="dividend", upcoming=True,
-                            title="Dividend payment", detail=detail))
+                            title="Dividend payment", detail=detail(paid_ex)))
     return out
 
 

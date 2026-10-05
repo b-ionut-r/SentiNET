@@ -5,10 +5,9 @@ verdict, narratives, insights and catalysts — nothing generic is ever added.
 """
 from __future__ import annotations
 
-import re
 from datetime import timedelta
 
-from app.analytics.composite import Part, Upside, consensus_name, upside
+from app.analytics.composite import PLAN_RE, Part, Upside, consensus_name, upside
 from app.analytics.crowd import reddit_breakout, reddit_change_pct, reddit_move
 from app.analytics.facts import Facts
 from app.analytics.util import cap_share, count, join_and, money, pct, polarity_of, quote, short_date, signed
@@ -82,10 +81,12 @@ def _smart_vs_crowd(f: Facts) -> str | None:
             smart.append(said)
     ins = f.inputs.insiders
     if ins is not None and f.composite.parts["insiders"].available:
+        usd = f.insider_currency
         if ins.buys:
-            smart.append(f"insiders bought {ins.buys}× vs sold {ins.sells}× in {ins.window_days}d")
+            smart.append(f"insiders bought {ins.buys}× ({money(ins.buy_value, currency=usd)}) vs sold {ins.sells}×"
+                         + (f" ({money(ins.sell_value, currency=usd)})" if ins.sells else "") + f" in {ins.window_days}d")
         else:
-            smart.append(f"insiders only sold ({ins.sells}×) in {ins.window_days}d")
+            smart.append(f"insiders only sold ({ins.sells}×, {money(ins.sell_value, currency=usd)}) in {ins.window_days}d")
     c, tally = f.crowd, f.stocktwits
     if c is not None:
         if tally is not None and tally.ratio is not None and tally.n >= 5:
@@ -172,7 +173,6 @@ INSIDER_SELL_MIN = 5_000_000.0  # $ sold (with no meaningful buying) worth stati
 ROUTINE_SELL_BPS = 5.0  # below this share of market cap, large-cap selling is usually scheduled
 STRETCHED_200DMA = 25.0  # % above the 200-day average that reads as extended
 DOWNGRADES_MIN = 2  # downgrades in 90 days (or 3 PT cuts in 30 days) worth stating in the bear case
-PLAN_RE = re.compile(r"\b10b5-1\b|\btrading plan\b|\bpurchase/ownership plan\b", re.IGNORECASE)
 NOTABLE_STORY_TONE = 0.25  # a story the news average washes out still argues its side above these bars
 NOTABLE_STORY_IMPACT = 0.35
 
@@ -251,10 +251,9 @@ def _counterpoints(f: Facts, insights: list[Insight]) -> list[tuple[str, float, 
     ins = f.inputs.insiders
     if ins is not None and f.composite.parts["insiders"].available:
         if ins.sells and ins.sell_value >= INSIDER_SELL_MIN and ins.sell_value >= 5 * ins.buy_value:
-            cap = f.market_cap
-            bps = ins.sell_value / cap * 1e4 if cap else None
+            bps = f.composite.parts["insiders"].facts.get("sell_bps")  # None unless the cap is in USD too
             share = f" ({cap_share(bps)} of market cap)" if bps is not None else ""
-            cash = f.reporting_currency
+            cash = f.insider_currency
             bought = f"bought {money(ins.buy_value, currency=cash)}" if ins.buys else "bought nothing"
             since = f.now.date() - timedelta(days=ins.window_days)
             sells = [t for t in ins.transactions if t.kind == "sell" and t.value and t.date >= since]
@@ -270,7 +269,7 @@ def _counterpoints(f: Facts, insights: list[Insight]) -> list[tuple[str, float, 
                                       f"{money(ins.sell_value, currency=cash)}{share} vs {bought} in "
                                       f"{ins.window_days} days{who}{routine}{plans}", "insiders"))
         elif ins.buys and ins.buy_value >= 100_000 and ins.buy_value >= ins.sell_value:
-            cash = f.reporting_currency
+            cash = f.insider_currency
             out.append(("bull", 0.45, f"Insider buying: {count(ins.buys, 'open-market purchase')} worth "
                                       f"{money(ins.buy_value, currency=cash)} in {ins.window_days} days"
                                       + (f" vs {money(ins.sell_value, currency=cash)} sold" if ins.sells

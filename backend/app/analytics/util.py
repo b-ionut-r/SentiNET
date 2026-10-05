@@ -165,6 +165,10 @@ def pct(value: float, digits: int = 1, sign: bool = True) -> str:
     return ("+" if value > 0 else MINUS) + body
 
 
+# Insider trade values are US dollars from every source: Form 4 is filed in USD and Yahoo
+# converts non-US filings (VOD.L sales at $1.70 = 126.15p × 1.3358 $/£; see intel insider_view).
+INSIDER_CURRENCY = "USD"
+
 # Display symbols by ISO currency code; unknown codes are written out ("NOK 12.40").
 _SYMBOLS = {
     "USD": "$", "CAD": "C$", "AUD": "A$", "NZD": "NZ$", "HKD": "HK$", "SGD": "S$", "TWD": "NT$", "MXN": "MX$",
@@ -174,6 +178,43 @@ _SYMBOLS = {
 _MINOR_UNITS = {"GBp": ("GBP", "p"), "GBX": ("GBP", "p"), "ZAc": ("ZAR", "c"), "ZAC": ("ZAR", "c"),
                 "ILA": ("ILS", " ag")}
 _NO_CENTS = frozenset({"JPY", "KRW"})
+
+
+# Minor units whose market cap is quoted in the major unit (VOD.L: 126.8p × 23.2B shares = the £29.4B cap).
+_CAP_IN_MAJOR = frozenset({"GBp", "GBX"})
+
+
+def major_currency(code: str | None) -> str | None:
+    """ISO code of the major unit: 'GBp' (London pence) -> 'GBP'; market caps are quoted in it."""
+    if not code:
+        return None
+    return _MINOR_UNITS[code][0] if code in _MINOR_UNITS else code.upper()
+
+
+def shares_outstanding(market_cap: float | None, price: float | None, currency: str | None) -> float | None:
+    """Market cap / price with both in the same unit (a pence price is converted to pounds); None
+    when either is missing or the minor-unit convention of the listing is not verified."""
+    if not market_cap or not price or market_cap <= 0 or price <= 0:
+        return None
+    if currency in _MINOR_UNITS:
+        if currency not in _CAP_IN_MAJOR:
+            return None
+        price /= 100.0
+    return market_cap / price
+
+
+def usd_market_cap(market_cap: float | None, currency: str | None, usd_rate: float | None = None) -> float | None:
+    """Market cap in USD, for comparing with USD amounts (insider trades, quoted deal values).
+
+    As quoted for a USD listing (an unknown currency is taken as USD, like everywhere
+    else in analytics); converted with `usd_rate` (USD per unit of the listing's major
+    currency) otherwise; None when it cannot be compared — never at a guessed rate."""
+    if not market_cap or market_cap <= 0:
+        return None
+    major = major_currency(currency) or "USD"
+    if major == "USD":
+        return market_cap
+    return market_cap * usd_rate if usd_rate and usd_rate > 0 and math.isfinite(usd_rate) else None
 
 
 def money(value: float, price: bool = False, currency: str | None = "USD") -> str:

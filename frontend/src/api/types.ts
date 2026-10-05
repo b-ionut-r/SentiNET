@@ -146,7 +146,8 @@ export type InsightKind =
   | "smart_money"
   | "risk"
   | "momentum"
-  | "quality";
+  | "quality"
+  | "deal";
 
 export interface Insight {
   kind: InsightKind;
@@ -186,6 +187,8 @@ export interface Profile {
   employees: number | null;
   logo_url: string | null;
   cik: string | null;
+  /** Reporting currency of EPS/revenue (Yahoo financialCurrency) — often not the quote's: "USD" for SHOP.TO. */
+  financial_currency?: string | null;
 }
 
 export interface Quote {
@@ -461,6 +464,7 @@ export interface Snapshot {
   label: SentimentLabel;
   n_signals: number;
   price: number | null;
+  currency?: string | null;
   news_score: number | null;
   social_score: number | null;
   narratives: string[];

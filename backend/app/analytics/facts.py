@@ -6,6 +6,7 @@ numbers the API returns.
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
@@ -17,9 +18,28 @@ from app.analytics.deals import Deal
 from app.analytics.inputs import AnalysisInputs
 from app.analytics.narratives import Story
 from app.analytics.prepare import Prepared
-from app.schemas import AttentionView, Catalyst, CrowdView, ThemeStat
+from app.analytics.util import INSIDER_CURRENCY, finite
+from app.schemas import AttentionView, Catalyst, CrowdView, Profile, ThemeStat
 
 SOFT_PENDING = "still loading"  # GDELT is slow: a temporary gap, not an outage
+_ISO_CODE = re.compile(r"^[A-Z]{3}$")
+
+
+def reporting_currency(profile: Profile | None, quote_currency: str) -> str | None:
+    """See `Facts.reporting_currency`."""
+    code = (profile.financial_currency or "").strip().upper() if profile is not None else ""
+    if _ISO_CODE.match(code):
+        return code
+    return "USD" if quote_currency == "USD" else None
+
+
+def usd_rate(inputs: AnalysisInputs) -> float | None:
+    """USD per unit of the quote's major currency (GBP for a GBp listing), when the caller provides one.
+
+    Read defensively: `fx_usd` is a requested (optional) addition to `AnalysisInputs`;
+    until it exists, USD amounts are compared only with USD market caps."""
+    rate = finite(getattr(inputs, "fx_usd", None), 0.0)
+    return rate if rate > 0 else None
 
 
 @dataclass
@@ -41,6 +61,9 @@ class Facts:
     catalysts: list[Catalyst] = field(default_factory=list)
     failed: list[str] = field(default_factory=list)  # parts that raised and were left out (data quality)
     deal: Deal | None = None  # a pending acquisition of the company (see deals.py)
+    # Market cap in USD, to size USD amounts (insider trades, quoted deal values); None when it cannot
+    # be had without guessing an FX rate (see build.market_cap_usd).
+    market_cap_usd: float | None = None
 
     @property
     def now(self) -> datetime:
@@ -63,16 +86,28 @@ class Facts:
 
     @property
     def reporting_currency(self) -> str | None:
-        """Currency of EPS/revenue estimates, broker action targets and insider values: USD for a
-        USD listing; None (not known — shown without a symbol) for other listings, whose company
-        may report in another currency (Shopify on the TSX reports in USD, Vodafone in EUR) and
-        whose broker feed may be the US line."""
+        """Currency of EPS/revenue estimates: the profile's reporting currency when the provider
+        gives one (Shopify on the TSX reports in USD, Vodafone in EUR); else USD for a USD
+        listing; else None (not known — shown without a symbol, never guessed)."""
+        return reporting_currency(self.inputs.profile, self.currency)
+
+    @property
+    def action_currency(self) -> str | None:
+        """Currency of broker *action* targets: USD for a USD listing, else None — the action feed
+        of a cross-listed company quotes its US line (SHOP.TO's Wedbush $176 vs a C$216 price), so
+        only the % change is shown (consensus targets are in the quote currency, `currency`)."""
         return "USD" if self.currency == "USD" else None
+
+    @property
+    def insider_currency(self) -> str:
+        """Insider trade values are USD for every listing (see util.INSIDER_CURRENCY)."""
+        return INSIDER_CURRENCY
 
     @property
     def market_cap(self) -> float | None:
         q = self.inputs.quote
         return q.market_cap if q is not None else None
+
 
     @property
     def sources_down(self) -> list[str]:

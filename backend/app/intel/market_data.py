@@ -119,13 +119,26 @@ async def get_info(ticker: str) -> dict[str, Any] | None:
 def _fetch_history(
     symbol: str, period: str, interval: str, start: datetime | None
 ) -> tuple[pd.DataFrame | None, str | None]:
+    """(bars, currency); (None, None) when Yahoo answers with no bars. Transport failures raise.
+
+    By default `history()` swallows every request failure (connection refused, timeout, an HTML
+    error page) and returns the same empty frame as a delisted symbol, so an outage would read
+    as "no price data". `raise_errors=True` is yfinance 1.7's per-call switch (its replacement,
+    `yf.config.debug.hide_exceptions`, is process-wide and would change other modules' yfinance
+    calls): failures propagate to `_yahoo` (-> UpstreamError) while Yahoo's own "no data"
+    answers arrive as `YFTickerMissingError`, mapped back to None here."""
+    from yfinance.exceptions import YFTickerMissingError
+
     t = _ticker(symbol)
-    kwargs: dict[str, Any] = {"interval": interval, "auto_adjust": False, "actions": False}
+    kwargs: dict[str, Any] = {"interval": interval, "auto_adjust": False, "actions": False, "raise_errors": True}
     if start is not None:
         kwargs["start"] = start
     else:
         kwargs["period"] = period
-    df = t.history(**kwargs)
+    try:
+        df = t.history(**kwargs)
+    except YFTickerMissingError:  # YFPricesMissingError / YFTzMissingError: Yahoo answered "nothing"
+        return None, None
     currency = None
     try:
         currency = (t.history_metadata or {}).get("currency")

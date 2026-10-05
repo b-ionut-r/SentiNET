@@ -1,6 +1,7 @@
 """Fetch/caching plumbing of app.intel.market_data (yfinance replaced by fixtures)."""
 from __future__ import annotations
 
+import json
 from datetime import datetime, UTC
 
 import pytest
@@ -14,6 +15,7 @@ from app.sources.base import CompanyRef
 from tests.intel import helpers as fx
 
 NOW = datetime(2026, 10, 4, 22, 0, tzinfo=UTC)
+_REAL_FETCH_HISTORY = md._fetch_history  # captured before the autouse fixture swaps in recorded bars
 
 
 class YFRateLimitError(Exception):
@@ -204,3 +206,74 @@ async def test_crypto_one_day_return_survives_a_missing_bar(
     tech = await md.get_technicals("BTC-USD")
     expected = tx.quote_from_info(fx.info("BTC-USD"))
     assert tech is not None and expected is not None and tech.return_1d == round(expected.change_pct, 2)
+
+
+# --------------------------------------------------------------------------- #
+# Outage vs "no data": the real yfinance 1.7 `history()` with only its HTTP layer faked
+# --------------------------------------------------------------------------- #
+class _ChartResponse:
+    """What `YfData.get` returns: a response whose body is a Yahoo chart payload."""
+
+    def __init__(self, payload: dict) -> None:
+        self._payload = payload
+        self.text = json.dumps(payload)
+        self.status_code = 404
+
+    def json(self) -> dict:
+        return self._payload
+
+
+@pytest.fixture
+def _real_history(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """Route market_data through the genuine yfinance `Ticker.history` (offline)."""
+    from yfinance.base import TickerBase
+
+    monkeypatch.setattr(md, "_fetch_history", _REAL_FETCH_HISTORY)
+    monkeypatch.setattr(TickerBase, "_get_ticker_tz", lambda self, timeout: "America/New_York")
+    return []
+
+
+def _yahoo_http(monkeypatch: pytest.MonkeyPatch, calls: list[str], outcome: object) -> None:
+    from yfinance.data import YfData
+
+    def get(self, url, params=None, timeout=30):
+        calls.append(url)
+        if isinstance(outcome, BaseException):
+            raise outcome
+        return outcome
+
+    monkeypatch.setattr(YfData, "get", get)
+
+
+async def test_history_transport_failure_is_an_error_not_no_data(
+    _real_history: list[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from curl_cffi.requests.exceptions import ConnectionError as CurlConnectionError
+
+    _yahoo_http(monkeypatch, _real_history, CurlConnectionError(
+        "Failed to perform, curl: (7) Failed to connect to query2.finance.yahoo.com port 443"))
+    chart = await md.get_price_history("NVDA", "1Y")
+    assert not chart.available and chart.error and "ConnectionError" in chart.error  # not "no price data"
+    with pytest.raises(UpstreamError, match="daily history"):
+        await md.get_technicals("NVDA")
+    with pytest.raises(UpstreamError):
+        await md.get_daily_closes("NVDA")
+
+    def info_down(sym: str):
+        raise CurlConnectionError("Failed to perform, curl: (7)")
+
+    monkeypatch.setattr(md, "_fetch_info", info_down)
+    with pytest.raises(UpstreamError):  # info and the bars fallback both failed: an outage, not "no quote"
+        await md.get_quote("NVDA")
+    assert _real_history and all("/v8/finance/chart/NVDA" in u for u in _real_history)
+
+
+async def test_history_no_data_answer_stays_none(_real_history: list[str], monkeypatch: pytest.MonkeyPatch) -> None:
+    _yahoo_http(monkeypatch, _real_history, _ChartResponse(
+        {"chart": {"result": None, "error": {"code": "Not Found", "description": "No data found, symbol may be delisted"}}}))
+    assert await md.get_technicals("ZZQXQ") is None
+    assert await md.get_daily_closes("ZZQXQ") == []
+    chart = await md.get_price_history("ZZQXQ", "5D")
+    assert not chart.available and chart.error == "no price data"
+    assert await md.get_quote("ZZQXQ") is None  # unknown to `info` too (404 fixture) -> no quote, no error
+    assert _real_history

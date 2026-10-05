@@ -62,6 +62,26 @@ def test_profile_from_info_trims_summary() -> None:
                              quote_type="EQUITY", exchange="NASDAQ", cik="0000320193", logo_url=None)
     assert p.sector == "Technology" and p.employees and p.employees > 100_000
     assert p.summary and len(p.summary) <= 901 and p.summary.endswith(".")
+    assert p.financial_currency == "USD"
+
+
+@pytest.mark.parametrize(("sym", "quote_ccy", "reporting"), [
+    ("SHOP.TO", "CAD", "USD"),  # TSX line of a company that reports in dollars
+    ("VOD.L", "GBp", "EUR"),  # London pence quote, euro reporting
+    ("7203.T", "JPY", "JPY"),
+    ("BTC-USD", "USD", None),  # coins (and funds) have no reporting currency
+])
+def test_profile_reporting_currency(sym: str, quote_ccy: str, reporting: str | None) -> None:
+    info = fx.info(sym)
+    p = tx.profile_from_info(info, symbol=sym, name=sym, short_name=None, quote_type=None, exchange=None,
+                             cik=None, logo_url=None)
+    assert info["currency"] == quote_ccy and p.financial_currency == reporting
+
+
+def test_iso_currency() -> None:
+    assert tx.iso_currency("usd") == "USD" and tx.iso_currency(" EUR ") == "EUR" and tx.iso_currency("GBp") == "GBP"
+    assert tx.iso_currency(None) is None and tx.iso_currency("") is None and tx.iso_currency("US$") is None
+    assert tx.iso_currency(840) is None and tx.iso_currency("EURO") is None
 
 
 def test_candles_intraday_and_crypto() -> None:
@@ -292,6 +312,38 @@ def test_dividend_catalysts() -> None:
     nvda = tx.dividend_catalysts(fx.calendar("NVDA"), fx.info("NVDA"), today=TODAY)
     assert all(c.date.date() >= TODAY for c in nvda)  # past ex-date (Sep 10) never reported as upcoming
     assert tx.dividend_catalysts({}, {}, today=TODAY) == []
+
+
+def test_dividend_detail_states_facts_in_the_quote_currency() -> None:
+    # JPM: Yahoo's per-share value ($1.50) is July's dividend, not October's (forward $6.60/yr implies $1.65).
+    jpm = tx.dividend_catalysts(fx.calendar("JPM"), fx.info("JPM"), today=TODAY)
+    assert [c.title for c in jpm] == ["Ex-dividend date in 2 days", "Dividend payment"]
+    assert all(c.detail == "last $1.50/share · $6.60/yr · yield 1.99%" for c in jpm)
+    # Toyota: yen, never "$"; no trading advice appended.
+    toyota = tx.dividend_catalysts(fx.calendar("7203.T"), fx.info("7203.T"), today=TODAY)
+    assert len(toyota) == 1 and toyota[0].detail == "¥50/share · ¥100/yr · yield 3.50%"
+    # Vodafone quotes in pence; Yahoo's amounts are pounds (4p/yr is what squares with the 3.14% yield).
+    vod = tx.dividend_catalysts(fx.calendar("VOD.L"), fx.info("VOD.L"), today=date(2026, 5, 20))
+    assert len(vod) == 1 and vod[0].detail == "2.36p/share · 4p/yr · yield 3.14%"
+    # NVDA after its Sep 10 ex-date: the Oct 1 payment settles that same dividend, so no "last".
+    nvda = tx.dividend_catalysts(fx.calendar("NVDA"), fx.info("NVDA"), today=date(2026, 9, 20))
+    assert [(c.title, c.detail) for c in nvda] == [("Dividend payment", "$0.25/share · $1.00/yr · yield 0.43%")]
+    for c in [*jpm, *toyota, *vod, *nvda]:
+        assert "buy before" not in (c.detail or "").lower()
+    # Unknown currency: amounts without a symbol; no amounts at all: no detail rather than filler.
+    bare = tx.dividend_catalysts({"Ex-Dividend Date": date(2026, 10, 9)},
+                                 {"lastDividendValue": 0.5, "lastDividendDate": "2026-10-09"}, today=TODAY)
+    assert bare[0].detail == "0.50/share"
+    assert tx.dividend_catalysts({"Ex-Dividend Date": date(2026, 10, 9)}, {}, today=TODAY)[0].detail is None
+
+
+@pytest.mark.parametrize(("value", "currency", "text"), [
+    (1.5, "USD", "$1.50"), (0.272, "USD", "$0.272"), (0.0832, "USD", "$0.0832"), (1234.5, "usd", "$1,234.50"),
+    (1.76, "CAD", "C$1.76"), (1.88, "EUR", "€1.88"), (3.1, "CHF", "3.10 CHF"), (22.5, "JPY", "¥22.5"),
+    (0.023625, "GBp", "2.36p"), (0.04, "GBX", "4p"), (9.02, "ZAc", "902c"), (0.25, None, "0.25"),
+])
+def test_cash_per_share(value: float, currency: str | None, text: str) -> None:
+    assert tx.cash_per_share(value, currency) == text
 
 
 # --------------------------------------------------------------------------- #
