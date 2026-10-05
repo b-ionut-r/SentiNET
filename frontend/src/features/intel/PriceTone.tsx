@@ -133,6 +133,9 @@ function axisDigits(ref: number): number {
   return v >= 1000 ? 0 : v >= 1 ? 2 : v >= 0.01 ? 4 : 6;
 }
 
+/** Narrower or shorter than this, a pane is hidden or mid-relayout: it keeps its last size. */
+const MIN_PANE_PX = 8;
+
 interface Pane {
   chart: IChartApi;
   series: ISeriesApi<"Candlestick"> | ISeriesApi<"Histogram">;
@@ -159,7 +162,11 @@ function Charts({ a, rows, showTone, daily, currency }: { a: Analysis; rows: Row
   useEffect(() => {
     if (!priceEl.current || !volEl.current || !toneEl.current) return;
     const common = {
-      autoSize: true,
+      // Sized by the observer below, not `autoSize`: autoSize follows every size the host
+      // reports, including a transient 0 px (Playwright's full-page capture, print layout),
+      // and lockVisibleTimeRangeOnResize then carries a degenerate range back — a 3M chart
+      // came back showing its last 3 bars.
+      autoSize: false,
       layout: { background: { type: ColorType.Solid, color: "transparent" }, fontFamily: "Inter Variable, Inter, system-ui, sans-serif", fontSize: 11, attributionLogo: false },
       rightPriceScale: { borderVisible: false, minimumWidth: 64 },
       // No edge clamps: each pane would clamp to its OWN last non-empty bar (tone can run past the
@@ -188,6 +195,20 @@ function Charts({ a, rows, showTone, daily, currency }: { a: Analysis; rows: Row
       [vol, volEl.current],
       [tone, toneEl.current],
     ]);
+    // Follow the host's size, but never down to nothing: a hidden pane (display: none) or a
+    // momentarily collapsed viewport keeps its last real size, and with it its date range.
+    const byHost = new Map<Element, IChartApi>([...hosts].map(([c, el]) => [el, c]));
+    const fit = (el: Element, width: number, height: number) => {
+      const w = Math.floor(width);
+      const h = Math.floor(height);
+      if (w < MIN_PANE_PX || h < MIN_PANE_PX) return;
+      const c = byHost.get(el);
+      const o = c?.options();
+      if (c && o && (o.width !== w || o.height !== h)) c.resize(w, h);
+    };
+    for (const [el] of byHost) fit(el, el.clientWidth, el.clientHeight);
+    const sizer = new ResizeObserver((entries) => entries.forEach((e) => fit(e.target, e.contentRect.width, e.contentRect.height)));
+    for (const [el] of byHost) sizer.observe(el);
     // A hidden pane (0px wide) computes a degenerate range on fitContent; it must never drive the others.
     const shown = (c: IChartApi) => (hosts.get(c)?.clientWidth ?? 0) > 0;
     let syncing = false;
@@ -228,6 +249,7 @@ function Charts({ a, rows, showTone, daily, currency }: { a: Analysis; rows: Row
     }
 
     return () => {
+      sizer.disconnect();
       for (const c of all) c.remove(); // also drops every subscription
       charts.current = {};
     };

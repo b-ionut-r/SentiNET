@@ -2520,6 +2520,22 @@ def _title_case(norm: str, tokens: list[Token]) -> bool:
     return len(words) >= 3 and sum(norm[t.start: t.start + 1].isupper() for t in words) >= 0.6 * len(words)
 
 
+def _after_paren(tokens: list[Token], i: int) -> int:
+    """Skip a ticker tag in parentheses at ``i`` ("Moderna (MRNA) Stock Rallies", "(NASDAQ:MRNA)"),
+    or its closing parenthesis when the name run is the ticker inside it."""
+    if i < len(tokens) and tokens[i].text == ")":
+        return i + 1
+    if i >= len(tokens) or tokens[i].text != "(":
+        return i
+    for j in range(i + 1, min(i + 7, len(tokens))):
+        t = tokens[j]
+        if t.text == ")":
+            return j + 1
+        if t.kind not in ("w", "tag", "num") and t.text not in (":", ",", "."):
+            break
+    return i
+
+
 _ASSET_GAP = 2  # "Ethereum liquidity drops", "Solana network activity slumps": the asset's own noun phrase
 _ASSET_GAP_STOP = frozenset({"and", "or", "but", "nor", "to", "of", "for", "with", "by", "from", "on", "in", "at",
                              "into", "the", "a", "an", "than", "that", "this", "if", "not", "no", "as", "whereas",
@@ -2537,10 +2553,13 @@ def _company_like(norm: str, tokens: list[Token], lo: int, hi: int, h: Hit, titl
     if any(t.kind == "tag" for t in tokens[lo:hi]):
         return True
     last = tokens[hi - 1]
+    nxt = _after_paren(tokens, hi)
+    if nxt > h.anchor:
+        nxt = hi
     if norm[last.start: last.end].lower().endswith("'s") or (
-            hi < len(tokens) and tokens[hi].text in ("stock", "stocks", "shares")):
+            nxt < len(tokens) and tokens[nxt].text in ("stock", "stocks", "shares")):
         return True
-    gap = [t for t in tokens[hi:h.anchor] if t.text not in _AUX]
+    gap = [t for t in tokens[nxt:h.anchor] if t.text not in _AUX]
     asset = any(t.text in assets for t in tokens[lo:hi])
     if gap and not (asset and len(gap) <= _ASSET_GAP and all(
             t.kind == "w" and t.text not in _ASSET_GAP_STOP for t in gap)):
@@ -2641,7 +2660,7 @@ def _opening_subject(norm: str, tokens: list[Token], at: list[Optional[_Span]], 
             break
     if j == start:
         return None
-    k = j
+    k = after = min(_after_paren(tokens, j), hi)  # "Moderna (MRNA) Stock Rallies"
     while k < hi and tokens[k].text in _AUX:
         k += 1
     last = tokens[j - 1]
@@ -2649,7 +2668,7 @@ def _opening_subject(norm: str, tokens: list[Token], at: list[Optional[_Span]], 
     signal = (pred is not None and (not title or _verb_like(tokens, at, pred))) \
         or _states_non_move(at, k, hi) \
         or norm[last.start: last.end].lower().endswith("'s") \
-        or (j < hi and tokens[j].text in ("stock", "stocks", "shares")) \
+        or (after < hi and tokens[after].text in ("stock", "stocks", "shares")) \
         or any(tokens[x].kind == "tag" or tokens[x].text in assets for x in range(start, j))
     if not signal:
         return None
