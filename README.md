@@ -47,11 +47,11 @@ fabricated: when a provider is down or rate-limited, SentiNET says so instead of
 * **Syndication collapse.** The same wire story in 15 outlets counts as one item with 15× reach,
   not as 15 votes.
 * **The Sentinel engine** is a finance-specific sentiment model. It combines a hand-built lexicon
-  of about 3,300 terms (Loughran-McDonald-style finance vocabulary plus trader slang and emoji)
-  with a rule layer: analyst actions with price targets, beats and misses against consensus,
+  of about 2,200 entries, about 3,400 counting inflections (Loughran-McDonald-style finance
+  vocabulary plus trader slang and emoji), with a rule layer: analyst actions with price targets, beats and misses against consensus,
   guidance, price moves sized by magnitude, negation, contrast, hedges and questions. VADER is
   added for social text. It is deterministic, explainable (driver words per item), CPU-only and
-  scores about 6,000 texts per second. FinBERT, local or via the Hugging Face API, can be blended
+  scores about 5,000 texts per second. FinBERT, local or via the Hugging Face API, can be blended
   in optionally.
 * **The composite** has six components: news 30%, social 15%, analysts 20%, insiders 10%,
   momentum 10% and technicals 15%. Each component is measured against its empirical baseline:
@@ -66,10 +66,11 @@ for tuning: tuning used only the Twitter train split and half of a StockTwits sa
 
 | Dataset (held-out) | VADER (the v1 engine) | **Sentinel** |
 |---|---|---|
-| Twitter Financial News — validation (2,388) | 49.4% / 0.447 | **80.7% / 0.768** |
-| Financial PhraseBank — AllAgree (2,264) | 57.1% / 0.487 | **88.9% / 0.864** |
-| FiQA posts (675) | 39.6% / 0.339 | **72.0% / 0.573** |
-| StockTwits, author-tagged (1,159; commit rate / accuracy) | 58% / 70.5% | **59% / 83.4%** |
+| Twitter Financial News — validation (2,388) | 49.4% / 0.447 | **80.9% / 0.770** |
+| Financial PhraseBank — AllAgree (2,264) | 57.1% / 0.487 | **88.6% / 0.861** |
+| FiQA posts (675) | 39.6% / 0.339 | **70.4% / 0.567** |
+| FiQA headlines (425) | 47.8% / 0.457 | **50.6% / 0.525** |
+| StockTwits, author-tagged (1,159; share labeled / accuracy on those) | 58% / 70.5% | **59% / 83.3%** |
 
 Reproduce with `python -m scripts.eval_engine` (it downloads the datasets to `~/.cache/sentinet`;
 nothing is committed). Full results: `backend/tests/nlp/data/engine_eval_results.json`.
